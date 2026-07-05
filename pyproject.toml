@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vaultkeeper"
+version = "0.0.1"
+description = "Cross-platform Neverwinter Nights mod installer and manager (successor to the NWN Installer Tool)."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"  # PySide6 wheels not yet published for 3.14; dev on 3.12/3.13
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "aqzina" }]
+keywords = ["neverwinter-nights", "nwn", "mods", "installer", "pyside6"]
+
+# Runtime Python dependencies. Pinned lower-bounds; a lockfile (see below) pins exact versions.
+dependencies = [
+    "PySide6>=6.7,<6.9",   # Qt for Python (LGPL). GUI toolkit.
+    "requests>=2.31",       # Neverwinter Vault scraping / downloads.
+    "send2trash>=1.8",      # Cross-platform recycle-bin/trash for safe deletes.
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-qt>=4.4",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.gui-scripts]
+vaultkeeper = "vaultkeeper.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vaultkeeper"]
+
+# ---------------------------------------------------------------------------
+# Tooling
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["vaultkeeper"]
+mypy_path = "src"
+strict = true
+warn_unused_ignores = true
