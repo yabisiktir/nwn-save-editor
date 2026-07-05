@@ -44,10 +44,25 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# Salvaged binary-format readers from the prior port, kept close to their working
+# original pending a typed refactor. Their "unused" locals (F841) are deliberate
+# offset-advancing reads (e.g. `x = self._read_dword()`) that must NOT be removed;
+# a few long lines/loop vars are tolerated here until the refactor.
+"src/vaultkeeper/core/formats/*" = ["F841", "E501", "B007", "SIM"]
+"tests/test_erf_reader.py" = ["E501", "F841"]
+"tests/test_gff_reader.py" = ["E501", "F841"]
+"tests/test_tga_reader.py" = ["E501", "F841"]
+"tests/test_bic_reader.py" = ["E501", "F841"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+markers = [
+    "unit: fast isolated unit test",
+    "integration: exercises real files/multiple components",
+]
 
 [tool.mypy]
 python_version = "3.11"
