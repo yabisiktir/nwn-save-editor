@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
-import pytest
+# Run all Qt-based tests headlessly (no display needed). Set before any Qt import.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+import pytest  # noqa: E402
 
 
 @pytest.fixture()
