@@ -18,7 +18,9 @@ from vaultkeeper.game.character import (
     character_summary,
     class_name,
     level_summary,
+    portrait_filename,
     race_name,
+    resolve_portrait,
     scan_character_files,
 )
 
@@ -113,6 +115,30 @@ class TestSummary:
 
     def test_level_summary_line(self):
         assert level_summary(_info()) == "Level 18 (Bard 8, Red Dragon Disciple 10)"
+
+
+class TestPortraitResolution:
+    def test_filename_format(self):
+        assert portrait_filename("po_hu_m_99_", "m") == "po_hu_m_99_m.tga"
+
+    def test_resolves_requested_size_in_priority_order(self, tmp_path):
+        # NWN resrefs carry their trailing separator; size is concatenated directly.
+        low = tmp_path / "override"
+        high = tmp_path / "portraits"
+        low.mkdir()
+        high.mkdir()
+        (high / "hero_m.tga").write_bytes(b"TGA")
+        (low / "hero_m.tga").write_bytes(b"TGA")
+        # First folder in the list wins.
+        assert resolve_portrait("hero_", [low, high], "m") == low / "hero_m.tga"
+
+    def test_falls_back_to_other_size(self, tmp_path):
+        (tmp_path / "hero_h.tga").write_bytes(b"TGA")  # only huge on disk
+        assert resolve_portrait("hero_", [tmp_path], "m") == tmp_path / "hero_h.tga"
+
+    def test_missing_returns_none(self, tmp_path):
+        assert resolve_portrait("ghost", [tmp_path], "m") is None
+        assert resolve_portrait("", [tmp_path], "m") is None
 
 
 class TestDiscovery:

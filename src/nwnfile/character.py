@@ -187,6 +187,42 @@ def character_summary(
     return "\n".join(lines)
 
 
+#: Portrait size suffix letters, smallest → largest (NWN po_*<size>.tga).
+PORTRAIT_SIZES = ("t", "s", "m", "l", "h")
+
+
+def portrait_filename(resref: str, size_char: str = "m") -> str:
+    """The portrait TGA filename for a resref + size (VB ``{Portrait}{size}.tga``)."""
+    return f"{resref}{size_char}.tga"
+
+
+def resolve_portrait(
+    resref: str, search_dirs: list[Path], size_char: str = "m"
+) -> Path | None:
+    """Find a character's portrait TGA across the NWN search folders.
+
+    VB (``CharacterSummary``) looks for ``{resref}{size}.tga`` in override / hak
+    portrait / portraits folders in priority order. We do the same, then (only as
+    a graceful fallback, never showing a wrong portrait) try the other sizes so a
+    portrait still displays when the configured size isn't on disk.
+    """
+    if not resref:
+        return None
+    name = portrait_filename(resref, size_char)
+    for folder in search_dirs:
+        candidate = Path(folder) / name
+        if candidate.is_file():
+            return candidate
+    for size in PORTRAIT_SIZES:
+        if size == size_char:
+            continue
+        for folder in search_dirs:
+            candidate = Path(folder) / portrait_filename(resref, size)
+            if candidate.is_file():
+                return candidate
+    return None
+
+
 @dataclass
 class CharacterFile:
     """A discovered character file plus its decoded info (info may be invalid)."""
