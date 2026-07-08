@@ -22,6 +22,7 @@ from vaultkeeper.game.character import (
     race_name,
     resolve_portrait,
     scan_character_files,
+    scan_portraits,
 )
 
 
@@ -170,3 +171,36 @@ class TestRealCharacters:
         assert sample.display_name
         text = sample.summary()
         assert "Portrait:" in text and "Hit Points:" in text
+
+
+class TestPortraitScan:
+    def test_groups_sizes_by_resref(self, tmp_path):
+        for size in ("t", "s", "m", "l", "h"):
+            (tmp_path / f"po_hero_{size}.tga").write_bytes(b"TGA")
+        (tmp_path / "po_villain_h.tga").write_bytes(b"TGA")
+        (tmp_path / "notes.txt").write_bytes(b"x")  # ignored
+
+        entries = scan_portraits([tmp_path])
+        assert [e.resref for e in entries] == ["po_hero_", "po_villain_"]
+        hero = entries[0]
+        assert set(hero.sizes) == {"t", "s", "m", "l", "h"}
+        assert hero.path("m") == tmp_path / "po_hero_m.tga"
+
+    def test_path_falls_back_to_largest(self, tmp_path):
+        (tmp_path / "po_hero_s.tga").write_bytes(b"TGA")
+        entry = scan_portraits([tmp_path])[0]
+        # No huge/medium on disk -> falls back to the largest available (small).
+        assert entry.path("h") == tmp_path / "po_hero_s.tga"
+
+    def test_first_folder_wins(self, tmp_path):
+        a = tmp_path / "a"
+        b = tmp_path / "b"
+        a.mkdir()
+        b.mkdir()
+        (a / "po_hero_h.tga").write_bytes(b"A")
+        (b / "po_hero_h.tga").write_bytes(b"B")
+        entry = scan_portraits([a, b])[0]
+        assert entry.path("h") == a / "po_hero_h.tga"
+
+    def test_empty(self, tmp_path):
+        assert scan_portraits([tmp_path / "nope"]) == []

@@ -224,6 +224,52 @@ def resolve_portrait(
 
 
 @dataclass
+class PortraitEntry:
+    """An installed portrait: its base resref and the size variants on disk."""
+
+    resref: str  # base resref without the trailing size letter
+    sizes: dict[str, Path]  # size_char -> file
+
+    def path(self, size_char: str) -> Path | None:
+        """The file for ``size_char``, falling back to the largest available."""
+        if size_char in self.sizes:
+            return self.sizes[size_char]
+        for size in reversed(PORTRAIT_SIZES):  # largest first
+            if size in self.sizes:
+                return self.sizes[size]
+        return None
+
+
+def scan_portraits(folders: list[Path]) -> list[PortraitEntry]:
+    """List installed portraits across ``folders``, grouped by base resref.
+
+    Portrait TGAs come in a size set (``<base>t/s/m/l/h.tga``); VB's Portrait
+    Manager keys off the huge (``h``) files. We group every ``*<size>.tga`` by its
+    base resref so each portrait appears once with all its available sizes. Later
+    folders don't override earlier ones (search-order priority). Sorted by resref.
+    """
+    by_resref: dict[str, dict[str, Path]] = {}
+    for folder in folders:
+        folder = Path(folder)
+        if not folder.is_dir():
+            continue
+        for path in folder.iterdir():
+            if not path.is_file() or path.suffix.lower() != ".tga":
+                continue
+            stem = path.stem
+            if not stem or stem[-1].lower() not in PORTRAIT_SIZES:
+                continue
+            base = stem[:-1]
+            size = stem[-1].lower()
+            sizes = by_resref.setdefault(base, {})
+            sizes.setdefault(size, path)  # first folder wins
+    return [
+        PortraitEntry(resref=base, sizes=sizes)
+        for base, sizes in sorted(by_resref.items(), key=lambda kv: kv[0].lower())
+    ]
+
+
+@dataclass
 class CharacterFile:
     """A discovered character file plus its decoded info (info may be invalid)."""
 
