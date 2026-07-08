@@ -1,15 +1,46 @@
 """
-BIC file format reader for Neverwinter Nights character files
-Ported from VB.NET BicFileInfo.vb
+BIC file format reader for Neverwinter Nights character files.
+
+Self-contained GFF (V3.2) struct decoder — it does NOT depend on the generic
+salvaged ``gff_reader``. The offset arithmetic mirrors
+:mod:`vaultkeeper.game.module_reader` (which faithfully decodes a module.ifo GFF)
+and is grounded against the C# ground-truth parser at
+``BicFileReader/BicFileReader/GffReader.cs`` + ``Info.cs``.
+
+The BIC lives at the start of the file, so every section offset in the header is
+absolute (base = 0). Extracted: FirstName/LastName (CExoLocString), Gender/Race/
+alignment (BYTE), ClassList (List of {Class INT, ClassLevel SHORT} structs),
+Experience (DWORD), MaxHitPoints (SHORT) and the Portrait resref (CResRef).
 """
 
+import struct
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, IntEnum
 from pathlib import Path
 
 from vaultkeeper.core.log import get_logger
 
 logger = get_logger(__name__)
+
+
+class _GFFType(IntEnum):
+    """GFF field type ids (see GffReader.cs)."""
+    BYTE = 0
+    CHAR = 1
+    WORD = 2
+    SHORT = 3
+    DWORD = 4
+    INT = 5
+    DWORD64 = 6
+    INT64 = 7
+    FLOAT = 8
+    DOUBLE = 9
+    CEXOSTRING = 10
+    CRESREF = 11
+    CEXOLOCSTRING = 12
+    VOID = 13
+    STRUCT = 14
+    LIST = 15
 
 
 class Gender(Enum):
@@ -140,188 +171,137 @@ class BicFileReader:
         if not file_path.exists():
             logger.error(f"BIC file does not exist: {file_path}")
             return None
-        
+
         try:
-            with open(file_path, 'rb') as f:
-                return self._parse_bic(f, file_path)
+            data = file_path.read_bytes()
+            return self._parse_bic(data, file_path)
         except Exception as e:
             logger.error(f"Error reading BIC file {file_path}: {e}")
-            return CharacterInfo(
-                name="",
-                gender=Gender.MALE,
-                race=Race.HUMAN,
-                classes=[],
-                level=0,
-                experience=0,
-                alignment_good_evil=50,
-                alignment_lawful_chaotic=50,
-                hit_points=0,
-                portrait_resref="",
-                is_valid=False,
-                error_message=str(e)
-            )
-    
-    def _parse_bic(self, file, file_path: Path) -> CharacterInfo:
-        """Parse BIC file structure using GFF parser"""
-        try:
-            # Use the full GFF parser
-            from vaultkeeper.core.formats.gff_reader import GFFReader
+            return self._placeholder(file_path, error=str(e))
 
-            reader = GFFReader()
-            gff_file = reader.read_file(file_path)
-            
-            if not gff_file or not gff_file.root_struct:
-                raise ValueError("Failed to parse GFF file")
-            
-            # Extract character data from GFF structure
-            root = gff_file.root_struct
-            
-            # Get character name (CExoString field "FirstName")
-            name = "Unknown"
-            if "FirstName" in root.fields:
-                name_field = root.fields["FirstName"]
-                if isinstance(name_field, str):
-                    name = name_field
-                elif hasattr(name_field, 'string'):
-                    name = name_field.string
-            
-            # Fallback to file stem if no name
-            if not name or name == "Unknown":
-                name = file_path.stem
-            
-            # Get gender
-            gender = Gender.MALE
-            if "Gender" in root.fields:
-                gender_val = root.fields["Gender"]
-                if isinstance(gender_val, int) and gender_val in [0, 1, 2]:
-                    gender = Gender(gender_val)
-            
-            # Get race
-            race = Race.HUMAN
-            if "Race" in root.fields:
-                race_val = root.fields["Race"]
-                if isinstance(race_val, int):
+    @staticmethod
+    def _placeholder(file_path: Path, error: str) -> CharacterInfo:
+        """An invalid CharacterInfo used when a file cannot be parsed."""
+        return CharacterInfo(
+            name=file_path.stem,
+            gender=Gender.MALE,
+            race=Race.HUMAN,
+            classes=[],
+            level=1,
+            experience=0,
+            alignment_good_evil=50,
+            alignment_lawful_chaotic=50,
+            hit_points=10,
+            portrait_resref="",
+            is_valid=False,
+            error_message=error,
+        )
+
+    def _parse_bic(self, data: bytes, file_path: Path) -> CharacterInfo:
+        """Decode the character's top-level GFF struct straight from bytes."""
+        try:
+            gff = _GFF(data)
+        except Exception as e:
+            logger.error(f"Error parsing BIC file {file_path}: {e}")
+            return self._placeholder(file_path, error=str(e))
+
+        first_name = ""
+        last_name = ""
+        gender = Gender.MALE
+        race = Race.HUMAN
+        alignment_good_evil = 50
+        alignment_lawful_chaotic = 50
+        experience = 0
+        hit_points = 10
+        portrait_resref = ""
+        classes: list[tuple[CharacterClass, int]] = []
+        level = 0
+
+        # Walk the fields of the top-level (root) struct — struct 0.
+        for label, ftype, raw in gff.iter_struct_fields(0):
+            if label == "FirstName" and ftype == _GFFType.CEXOLOCSTRING:
+                first_name = gff.read_value(ftype, raw) or ""
+            elif label == "LastName" and ftype == _GFFType.CEXOLOCSTRING:
+                last_name = gff.read_value(ftype, raw) or ""
+            elif label == "Gender":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int) and val in (0, 1, 2):
+                    gender = Gender(val)
+            elif label == "Race":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
                     try:
-                        race = Race(race_val)
+                        race = Race(val)
                     except ValueError:
                         race = Race.HUMAN
-            
-            # Get classes and levels
-            classes = []
-            level = 0
-            
-            # Try to get class info from ClassList
-            if "ClassList" in root.fields:
-                class_list = root.fields["ClassList"]
-                if isinstance(class_list, list):
-                    for class_info in class_list:
-                        if isinstance(class_info, dict):
-                            class_id = class_info.get("Class", 0)
-                            class_level = class_info.get("Level", 1)
-                            try:
-                                char_class = CharacterClass(class_id)
-                                classes.append((char_class, class_level))
-                                level += class_level
-                            except ValueError:
-                                pass
-            
-            # If no classes found, try individual class fields
-            if not classes:
-                for i in range(1, 4):  # Check up to 3 classes
-                    class_key = f"Class{i}"
-                    level_key = f"Class{i}Level"
-                    
-                    if class_key in root.fields and level_key in root.fields:
-                        class_id = root.fields[class_key]
-                        class_level = root.fields[level_key]
-                        
-                        if isinstance(class_id, int) and isinstance(class_level, int):
-                            try:
-                                char_class = CharacterClass(class_id)
-                                classes.append((char_class, class_level))
-                                level += class_level
-                            except ValueError:
-                                pass
-            
-            # Get experience
-            experience = 0
-            if "Experience" in root.fields:
-                exp_val = root.fields["Experience"]
-                if isinstance(exp_val, int):
-                    experience = exp_val
-            
-            # Calculate level from XP if not determined from classes
-            if level == 0 and experience > 0:
-                level = self.get_level_from_xp(experience)
-            
-            if level == 0:
-                level = 1  # Minimum level
-            
-            # Get alignment
-            alignment_good_evil = 50
-            alignment_lawful_chaotic = 50
-            
-            if "GoodEvil" in root.fields:
-                ge_val = root.fields["GoodEvil"]
-                if isinstance(ge_val, int):
-                    alignment_good_evil = ge_val
-            
-            if "LawfulChaotic" in root.fields:
-                lc_val = root.fields["LawfulChaotic"]
-                if isinstance(lc_val, int):
-                    alignment_lawful_chaotic = lc_val
-            
-            # Get hit points
-            hit_points = 10
-            if "HitPoints" in root.fields:
-                hp_val = root.fields["HitPoints"]
-                if isinstance(hp_val, int):
-                    hit_points = hp_val
-            elif "MaxHitPoints" in root.fields:
-                hp_val = root.fields["MaxHitPoints"]
-                if isinstance(hp_val, int):
-                    hit_points = hp_val
-            
-            # Get portrait resref
-            portrait_resref = ""
-            if "Portrait" in root.fields:
-                port_val = root.fields["Portrait"]
-                if isinstance(port_val, str):
-                    portrait_resref = port_val
-                elif hasattr(port_val, 'resref'):
-                    portrait_resref = port_val.resref
-            
-            return CharacterInfo(
-                name=name,
-                gender=gender,
-                race=race,
-                classes=classes,
-                level=level,
-                experience=experience,
-                alignment_good_evil=alignment_good_evil,
-                alignment_lawful_chaotic=alignment_lawful_chaotic,
-                hit_points=hit_points,
-                portrait_resref=portrait_resref,
-                is_valid=True
-            )
-            
-        except Exception as e:
-            logger.error(f"Error parsing BIC file: {e}")
-            # Return placeholder but mark as invalid
-            return CharacterInfo(
-                name=file_path.stem,
-                gender=Gender.MALE,
-                race=Race.HUMAN,
-                classes=[],
-                level=1,
-                experience=0,
-                alignment_good_evil=50,
-                alignment_lawful_chaotic=50,
-                hit_points=10,
-                portrait_resref="",
-                is_valid=False,
-                error_message=str(e)
-            )
+            elif label == "GoodEvil":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    alignment_good_evil = val
+            elif label == "LawfulChaotic":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    alignment_lawful_chaotic = val
+            elif label == "Experience" and ftype == _GFFType.DWORD:
+                experience = gff.read_value(ftype, raw)
+            elif label == "MaxHitPoints":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    hit_points = val
+            elif label == "Portrait" and ftype == _GFFType.CRESREF:
+                portrait_resref = gff.read_value(ftype, raw) or ""
+            elif label == "ClassList" and ftype == _GFFType.LIST:
+                classes, level = self._read_class_list(gff, gff.read_value(ftype, raw))
+
+        # Assemble the display name from first + last (fall back to file stem).
+        name = " ".join(part for part in (first_name.strip(), last_name.strip()) if part)
+        if not name:
+            name = file_path.stem
+
+        # Derive level from XP when the ClassList produced nothing usable.
+        if level == 0 and experience > 0:
+            level = self.get_level_from_xp(experience)
+        if level == 0:
+            level = 1  # Minimum level
+
+        return CharacterInfo(
+            name=name,
+            gender=gender,
+            race=race,
+            classes=classes,
+            level=level,
+            experience=experience,
+            alignment_good_evil=alignment_good_evil,
+            alignment_lawful_chaotic=alignment_lawful_chaotic,
+            hit_points=hit_points,
+            portrait_resref=portrait_resref,
+            is_valid=True,
+        )
+
+    @staticmethod
+    def _read_class_list(
+        gff: "_GFF", struct_ids: list[int]
+    ) -> tuple[list[tuple[CharacterClass, int]], int]:
+        """Decode ClassList — each struct has a ``Class`` (INT) + ``ClassLevel`` (SHORT)."""
+        classes: list[tuple[CharacterClass, int]] = []
+        level = 0
+        for struct_id in struct_ids:
+            class_id: int | None = None
+            class_level = 0
+            for label, ftype, raw in gff.iter_struct_fields(struct_id):
+                if label == "Class":
+                    class_id = gff.read_value(ftype, raw)
+                elif label == "ClassLevel":
+                    class_level = gff.read_value(ftype, raw)
+            if class_id is None:
+                continue
+            level += class_level
+            try:
+                classes.append((CharacterClass(class_id), class_level))
+            except ValueError:
+                # Unknown class id — still count its levels toward the total.
+                pass
+        return classes, level
     
     def get_race_name(self, race_id: int) -> str:
         """Get race name from ID"""
@@ -367,3 +347,137 @@ class BicFileReader:
         if level < len(self.LEVEL_XP):
             return self.LEVEL_XP[level]
         return self.LEVEL_XP[-1]
+
+
+class _GFF:
+    """Minimal GFF (V3.2) reader over an in-memory buffer.
+
+    Offsets are absolute (the BIC's GFF starts at byte 0). Mirrors the section
+    handling of ``GffReader.cs`` / ``module_reader.py``: the header stores six
+    ``(offset, count)`` pairs; a struct's ``DataOrDataOffset`` is a *field id*
+    when it has one field, otherwise a *byte offset* into the field-indices
+    array (hence ``offset // 4`` to reach the first id — the ``* 4`` scaling the
+    salvaged ``gff_reader`` applied on top of an already-byte offset is what read
+    past EOF).
+    """
+
+    _HEADER = struct.Struct("<12I")
+
+    def __init__(self, data: bytes):
+        self._data = data
+        if len(data) < 56:
+            raise ValueError("File too small to be a valid GFF file")
+
+        version = data[4:8].decode("ascii", "replace")
+        if version != "V3.2":
+            raise ValueError(f"Unsupported GFF version {version!r} (expected 'V3.2')")
+
+        (
+            self._struct_offset, self._struct_count,
+            self._field_offset, self._field_count,
+            self._label_offset, self._label_count,
+            self._field_data_offset, _field_data_len,
+            self._field_indices_offset, self._field_indices_len,
+            self._list_indices_offset, _list_indices_len,
+        ) = self._HEADER.unpack_from(data, 8)
+
+    def iter_struct_fields(self, struct_id: int):
+        """Yield ``(label, field_type, raw4)`` for every field of a struct."""
+        if not 0 <= struct_id < self._struct_count:
+            return
+        base = self._struct_offset + struct_id * 12
+        _type_id, id_or_offset, field_count = struct.unpack_from("<3I", self._data, base)
+
+        if field_count == 1:
+            field_ids = [id_or_offset]
+        elif field_count > 1:
+            # id_or_offset is a byte offset into the field-indices array.
+            start = self._field_indices_offset + id_or_offset
+            field_ids = struct.unpack_from(f"<{field_count}I", self._data, start)
+        else:
+            field_ids = []
+
+        for field_id in field_ids:
+            yield self._read_field_header(field_id)
+
+    def _read_field_header(self, field_id: int) -> tuple[str, int, bytes]:
+        """Return ``(label, field_type, raw4)`` for a field entry (12 bytes)."""
+        base = self._field_offset + field_id * 12
+        field_type, label_id = struct.unpack_from("<2I", self._data, base)
+        raw = self._data[base + 8:base + 12]
+        label = self._read_label(label_id)
+        return label, field_type, raw
+
+    def _read_label(self, label_id: int) -> str:
+        if not 0 <= label_id < self._label_count:
+            return ""
+        start = self._label_offset + label_id * 16
+        return self._data[start:start + 16].split(b"\x00", 1)[0].decode("ascii", "replace")
+
+    def read_value(self, field_type: int, raw: bytes):
+        """Decode a field value. ``raw`` is the 4-byte DataOrDataOffset word."""
+        if field_type == _GFFType.BYTE:
+            return raw[0]
+        if field_type == _GFFType.CHAR:
+            return struct.unpack("<b", raw[:1])[0]
+        if field_type == _GFFType.WORD:
+            return struct.unpack("<H", raw[:2])[0]
+        if field_type == _GFFType.SHORT:
+            return struct.unpack("<h", raw[:2])[0]
+        if field_type == _GFFType.DWORD:
+            return struct.unpack("<I", raw)[0]
+        if field_type == _GFFType.INT:
+            return struct.unpack("<i", raw)[0]
+        if field_type == _GFFType.FLOAT:
+            return struct.unpack("<f", raw)[0]
+
+        # Complex types: raw is a byte offset into the field-data block.
+        offset = struct.unpack("<I", raw)[0]
+        if field_type == _GFFType.DWORD64:
+            return struct.unpack_from("<Q", self._data, self._field_data_offset + offset)[0]
+        if field_type == _GFFType.INT64:
+            return struct.unpack_from("<q", self._data, self._field_data_offset + offset)[0]
+        if field_type == _GFFType.DOUBLE:
+            return struct.unpack_from("<d", self._data, self._field_data_offset + offset)[0]
+        if field_type == _GFFType.CEXOSTRING:
+            return self._read_cexostring(offset)
+        if field_type == _GFFType.CRESREF:
+            return self._read_cresref(offset)
+        if field_type == _GFFType.CEXOLOCSTRING:
+            return self._read_cexolocstring(offset)
+        if field_type == _GFFType.STRUCT:
+            return offset  # struct id
+        if field_type == _GFFType.LIST:
+            return self._read_list(offset)
+        return None
+
+    def _read_cexostring(self, offset: int) -> str:
+        pos = self._field_data_offset + offset
+        length = struct.unpack_from("<I", self._data, pos)[0]
+        return self._data[pos + 4:pos + 4 + length].decode("utf-8", "replace")
+
+    def _read_cresref(self, offset: int) -> str:
+        pos = self._field_data_offset + offset
+        length = self._data[pos]
+        return self._data[pos + 1:pos + 1 + length].decode("ascii", "replace")
+
+    def _read_cexolocstring(self, offset: int) -> str:
+        """Return the first substring's text (names carry one gendered locale)."""
+        pos = self._field_data_offset + offset
+        # total length (4, ignored), strref (4, ignored), substring count (4).
+        count = struct.unpack_from("<I", self._data, pos + 8)[0]
+        pos += 12
+        for _ in range(count):
+            _string_id, length = struct.unpack_from("<2I", self._data, pos)
+            pos += 8
+            text = self._data[pos:pos + length].decode("utf-8", "replace")
+            pos += length
+            return text
+        return ""
+
+    def _read_list(self, offset: int) -> list[int]:
+        pos = self._list_indices_offset + offset
+        count = struct.unpack_from("<I", self._data, pos)[0]
+        if count == 0:
+            return []
+        return list(struct.unpack_from(f"<{count}I", self._data, pos + 4))

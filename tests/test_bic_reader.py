@@ -190,3 +190,49 @@ class TestBicIntegration:
         reader = GFFReader()
         gff_file = reader.read_file(test_file)
         assert gff_file is not None
+
+
+REAL_BIC = (
+    Path.home()
+    / "Documents"
+    / "Neverwinter Nights"
+    / "saves"
+    / "000000 - quicksave"
+    / "player.bic"
+)
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(not REAL_BIC.is_file(), reason="No real NWN player.bic on this machine")
+class TestRealBic:
+    """Parse a real NWN character file end-to-end (the format the salvaged
+    generic GFF reader could not decode)."""
+
+    def test_parses_real_player_bic(self):
+        info = BicFileReader().read_file(REAL_BIC)
+
+        assert info is not None
+        # A real parse — not the level=1/hp=10 placeholder returned on failure.
+        assert info.is_valid
+        assert info.error_message == ""
+
+        # FirstName/LastName (CExoLocString) resolved to a non-placeholder name.
+        assert info.name
+        assert info.name != REAL_BIC.stem  # not the "player" file-stem fallback
+
+        # ClassList decoded into concrete classes whose levels sum to the total.
+        assert info.classes
+        for char_class, class_level in info.classes:
+            assert isinstance(char_class, CharacterClass)
+            assert class_level > 0
+        assert info.level == sum(level for _cls, level in info.classes)
+
+        # Scalar fields fall in sane ranges.
+        assert info.experience > 0
+        assert info.hit_points > 0
+        assert 0 <= info.alignment_good_evil <= 100
+        assert 0 <= info.alignment_lawful_chaotic <= 100
+
+        # Portrait resref (CResRef) is present for the Portrait Manager UI.
+        assert isinstance(info.portrait_resref, str)
+        assert info.portrait_resref  # this character has a portrait set
