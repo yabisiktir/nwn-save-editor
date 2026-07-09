@@ -10,17 +10,23 @@ and is grounded against the C# ground-truth parser at
 The BIC lives at the start of the file, so every section offset in the header is
 absolute (base = 0). Extracted: FirstName/LastName (CExoLocString), Gender/Race/
 alignment (BYTE), ClassList (List of {Class INT, ClassLevel SHORT} structs),
-Experience (DWORD), MaxHitPoints (SHORT) and the Portrait resref (CResRef).
+Experience (DWORD), MaxHitPoints (SHORT), the Portrait resref (CResRef), Gold
+(DWORD), Deity (CExoString) and the six ability scores Str/Dex/Con/Int/Wis/Cha
+(BYTE) — field names verified against the C# ``BicFileReader/Info.cs``.
 """
 
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from pathlib import Path
 
 from vaultkeeper.core.log import get_logger
 
 logger = get_logger(__name__)
+
+
+#: Ability-score BYTE fields (VB/C# ``Info.cs`` ``Str``/``Dex``/…), display order.
+ABILITY_LABELS = ("Str", "Dex", "Con", "Int", "Wis", "Cha")
 
 
 class _GFFType(IntEnum):
@@ -136,6 +142,9 @@ class CharacterInfo:
     alignment_lawful_chaotic: int  # 0-100
     hit_points: int
     portrait_resref: str = ""  # Portrait resource reference
+    gold: int = 0  # Gold pieces (DWORD)
+    deity: str = ""  # Deity (CExoString)
+    abilities: dict[str, int] = field(default_factory=dict)  # Str/Dex/Con/Int/Wis/Cha
     is_valid: bool = True
     error_message: str = ""
 
@@ -214,6 +223,9 @@ class BicFileReader:
         experience = 0
         hit_points = 10
         portrait_resref = ""
+        gold = 0
+        deity = ""
+        abilities: dict[str, int] = {}
         classes: list[tuple[CharacterClass, int]] = []
         level = 0
 
@@ -250,6 +262,12 @@ class BicFileReader:
                     hit_points = val
             elif label == "Portrait" and ftype == _GFFType.CRESREF:
                 portrait_resref = gff.read_value(ftype, raw) or ""
+            elif label == "Gold" and ftype == _GFFType.DWORD:
+                gold = gff.read_value(ftype, raw)
+            elif label == "Deity" and ftype == _GFFType.CEXOSTRING:
+                deity = gff.read_value(ftype, raw) or ""
+            elif label in ABILITY_LABELS and ftype == _GFFType.BYTE:
+                abilities[label] = gff.read_value(ftype, raw)
             elif label == "ClassList" and ftype == _GFFType.LIST:
                 classes, level = self._read_class_list(gff, gff.read_value(ftype, raw))
 
@@ -275,6 +293,9 @@ class BicFileReader:
             alignment_lawful_chaotic=alignment_lawful_chaotic,
             hit_points=hit_points,
             portrait_resref=portrait_resref,
+            gold=gold,
+            deity=deity,
+            abilities=abilities,
             is_valid=True,
         )
 

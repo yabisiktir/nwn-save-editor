@@ -72,6 +72,27 @@ class TestSummary:
         assert "Portrait: po_hu_m_99_" in text
         assert "Updated: 01 Mar 2024 14:30" in text
 
+    def test_gold_deity_and_stats(self):
+        info = _info(
+            gold=139_380_743,
+            deity="Corellon Larethian",
+            abilities={"Str": 29, "Dex": 22, "Con": 14, "Int": 14, "Wis": 8, "Cha": 10},
+        )
+        # Gold + Deity always show; abilities only with show_stats.
+        text = character_summary(info, show_stats=True)
+        assert "Gold: 139,380,743" in text
+        assert "Deity: Corellon Larethian" in text
+        assert "Str: 29" in text and "Cha: 10" in text
+        # Stats block omitted, and ordering matches VB (stats before Portrait).
+        plain = character_summary(info)
+        assert "Str:" not in plain
+        assert plain.index("Gold:") < plain.index("Portrait:")
+
+    def test_gold_none_and_no_deity(self):
+        text = character_summary(_info(gold=0, deity=""))
+        assert "Gold: None" in text
+        assert "Deity:" not in text
+
     def test_next_level_countdown(self):
         # level 8 threshold is LEVEL_XP[8] = 36000; xp 30000 -> 6000 to go.
         text = character_summary(_info(level=8, experience=30_000))

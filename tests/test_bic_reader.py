@@ -236,3 +236,25 @@ class TestRealBic:
         # Portrait resref (CResRef) is present for the Portrait Manager UI.
         assert isinstance(info.portrait_resref, str)
         assert info.portrait_resref  # this character has a portrait set
+
+    def test_real_player_bic_extended_fields(self):
+        """Gold (DWORD), Deity (CExoString) and the six ability scores decode."""
+        from vaultkeeper.core.formats.bic_reader import ABILITY_LABELS
+        from vaultkeeper.game.character import character_summary
+
+        info = BicFileReader().read_file(REAL_BIC)
+        assert info.is_valid
+        assert isinstance(info.gold, int) and info.gold >= 0
+        assert isinstance(info.deity, str)
+        # A real character carries all six ability scores in a sane 1..60 range.
+        assert set(info.abilities) == set(ABILITY_LABELS)
+        for score in info.abilities.values():
+            assert 1 <= score <= 60
+
+        # The stats block only appears when requested; gold/deity always show.
+        with_stats = character_summary(info, show_stats=True)
+        without = character_summary(info, show_stats=False)
+        assert "Gold:" in without
+        assert "Str:" in with_stats and "Str:" not in without
+        if info.deity:
+            assert f"Deity: {info.deity}" in without

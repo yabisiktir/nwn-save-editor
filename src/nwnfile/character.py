@@ -22,6 +22,7 @@ from datetime import datetime
 from pathlib import Path
 
 from vaultkeeper.core.formats.bic_reader import (
+    ABILITY_LABELS,
     BicFileReader,
     CharacterClass,
     CharacterInfo,
@@ -120,6 +121,7 @@ def character_summary(
     *,
     updated: datetime | None = None,
     default_value: str = "",
+    show_stats: bool = False,
 ) -> str:
     """Multi-line character summary text (VB ``BicFileInfo.CharacterSummary``).
 
@@ -177,9 +179,18 @@ def character_summary(
         text = f"{countdown:,}" if countdown else "None"
         lines.append(f"Next Level Countdown: {text}")
 
-    # Hit points + portrait.
+    # Hit points, gold, deity (VB order), optional ability-score block, portrait.
     lines.append("")
     lines.append(f"Hit Points: {info.hit_points:,}")
+    lines.append(f"Gold: {info.gold:,}" if info.gold else "Gold: None")
+    if info.deity:
+        lines.append(f"Deity: {info.deity}")
+    if show_stats and info.abilities:
+        lines.append("")
+        for stat in ABILITY_LABELS:
+            lines.append(f"{stat}: {info.abilities.get(stat, 0)}")
+
+    lines.append("")
     lines.append(f"Portrait: {info.portrait_resref}")
     if updated is not None:
         lines.append(f"Updated: {updated:%d %b %Y %H:%M}")
@@ -336,9 +347,12 @@ class CharacterFile:
         except OSError:
             return None
 
-    def summary(self) -> str:
+    def summary(self, *, show_stats: bool = False) -> str:
         return character_summary(
-            self.info, updated=self.updated, default_value=self.path.name
+            self.info,
+            updated=self.updated,
+            default_value=self.path.name,
+            show_stats=show_stats,
         )
 
 
