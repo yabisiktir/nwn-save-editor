@@ -269,6 +269,52 @@ def scan_portraits(folders: list[Path]) -> list[PortraitEntry]:
     ]
 
 
+#: NWN TGA resource-type code (see ``core/formats/erf_reader.RES_TYPE_EXTENSIONS``).
+_TGA_RES_TYPE = 3
+
+
+def extract_hak_portraits(hak_path: Path, dest_dir: Path, *, erf_reader) -> int:
+    """Extract complete portrait sets from a hak (VB ``ExtractHakPortraits``).
+
+    Extracts the hak's TGA resources into ``dest_dir``, then keeps only those that
+    form a *complete* five-size portrait set (``<base>t/s/m/l/h.tga``). When a set
+    is missing only the huge ``h`` file it is created by copying the large ``l``
+    file (VB's ``missingH`` fixup); every other extracted TGA — non-portrait images
+    and incomplete sets — is deleted. Returns the number of complete portraits.
+    """
+    import shutil
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    extracted = erf_reader.extract_all(hak_path, dest_dir, res_type=_TGA_RES_TYPE)
+
+    by_base: dict[str, dict[str, Path]] = {}
+    discard: list[Path] = []
+    for path in extracted:
+        stem = path.stem
+        if stem and stem[-1].lower() in PORTRAIT_SIZES:
+            by_base.setdefault(stem[:-1], {})[stem[-1].lower()] = path
+        else:
+            discard.append(path)
+
+    # Only the huge (h) file missing → create it from the large (l) file.
+    for base, sizes in by_base.items():
+        if "h" not in sizes and "l" in sizes and len(sizes) == 4:
+            huge = dest_dir / f"{base}h.tga"
+            shutil.copy2(sizes["l"], huge)
+            sizes["h"] = huge
+
+    complete = 0
+    for sizes in by_base.values():
+        if set(PORTRAIT_SIZES) <= set(sizes):
+            complete += 1
+        else:
+            discard.extend(sizes.values())  # incomplete set is not a portrait
+
+    for path in discard:
+        path.unlink(missing_ok=True)
+    return complete
+
+
 @dataclass
 class CharacterFile:
     """A discovered character file plus its decoded info (info may be invalid)."""
