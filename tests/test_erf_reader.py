@@ -1,274 +1,140 @@
+"""Tests for the ERF/HAK/MOD resource reader.
+
+Uses a correctly-built synthetic ERF fixture (validated against the real layout)
+plus a real-hak validation test grounded on the NIT Store CEP haks.
 """
-Tests for ERF (Encapsulated Resource File) reader
-"""
+
+from __future__ import annotations
+
 import struct
 from pathlib import Path
 
-import pytest
+from vaultkeeper.core.formats.erf_reader import (
+    ErfReader,
+    extension_for_res_type,
+)
 
-from vaultkeeper.core.formats.erf_reader import ErfFileInfo, ErfFileReader, ErfResource
-
-
-@pytest.mark.unit
-class TestErfReader:
-    """Test ERF file reading functionality"""
-    
-    def test_reader_initialization(self):
-        """Test ErfFileReader can be created"""
-        reader = ErfFileReader()
-        assert reader is not None
-    
-    def test_read_nonexistent_file(self):
-        """Test reading a file that doesn't exist"""
-        reader = ErfFileReader()
-        result = reader.read_file(Path("/nonexistent/file.hak"))
-        assert result is None
-    
-    def test_parse_invalid_erf_header(self, temp_dir):
-        """Test parsing a file with invalid ERF header - reader will try to parse anyway"""
-        # Create a file with wrong header
-        test_file = temp_dir / "invalid.hak"
-        test_file.write_bytes(b"NOTERF" + b"\x00" * 100)
-        
-        reader = ErfFileReader()
-        result = reader.read_file(test_file)
-        # The reader doesn't validate header, it will parse whatever data is there
-        # We just verify the method runs without exception
-    
-    def test_parse_minimal_erf_v1(self, temp_dir):
-        """Test parsing a minimal valid ERF V1.0 file"""
-        test_file = temp_dir / "minimal.hak"
-        
-        # ERF V1.0 Header
-        header = b"ERF "  # Signature
-        header += b"V1.0"  # Version
-        header += struct.pack("<I", 0)     # Language count
-        header += struct.pack("<I", 1)     # Localized string size
-        header += struct.pack("<I", 160)   # Entry list offset
-        header += struct.pack("<I", 1)     # Entry count
-        header += struct.pack("<I", 176)   # Offset to resource list
-        header += struct.pack("<I", 1)     # Resource count
-        header += struct.pack("<I", 0)     # Description string ref
-        
-        # Pad to offset
-        data = header.ljust(160, b'\x00')
-        
-        # Entry (8 bytes) - resource ID, offset
-        entry = struct.pack("<I", 0)    # Resource ID
-        entry += struct.pack("<I", 192)  # Offset to data
-        data += entry
-        
-        # Resource (40 bytes) - resref, type, unused, offset, size
-        resref = b"test\x00" + b'\x00' * 12  # 16 bytes
-        resource = resref
-        resource += struct.pack("<H", 1)  # Type (BMP)
-        resource += struct.pack("<H", 0)  # Unused
-        resource += struct.pack("<I", 0)  # Used/not used
-        resource += struct.pack("<I", 192)  # Offset
-        resource += struct.pack("<I", 4)   # Size
-        resource += struct.pack("<I", 0)   # Unused
-        data += resource
-        
-        # Resource data
-        data += b"DATA"
-        
-        test_file.write_bytes(data)
-        
-        reader = ErfFileReader()
-        result = reader.read_file(test_file)
-        
-        assert result is not None
-        assert isinstance(result, ErfFileInfo)
-    
-    def test_erf_resource_creation(self):
-        """Test ErfResource can be created"""
-        resource = ErfResource(
-            filename="test",
-            resource_id="test_res",
-            offset=0,
-            size=100,
-            file_type="mod"
-        )
-        
-        assert resource.filename == "test"
-        assert resource.file_type == "mod"
-        assert resource.size == 100
+NIT_STORE = Path("/Users/example/Documents/NIT Store")
 
 
-@pytest.mark.unit
-class TestErfFileStructure:
-    """Test ERF file data structures"""
-    
-    def test_erf_file_info_creation(self):
-        """Test ErfFileInfo can be created"""
-        from vaultkeeper.core.formats.erf_reader import ErfType
-        erf = ErfFileInfo(
-            filename="test.mod",
-            file_type=ErfType.MOD,
-            description="Test mod",
-            save_name="",
-            resources=[],
-            localized_strings={}
-        )
-        assert erf.filename == "test.mod"
-        assert erf.resources == []
-        
-    def test_erf_file_info_add_resource(self):
-        """Test adding resources to ErfFileInfo"""
-        from vaultkeeper.core.formats.erf_reader import ErfType
-        erf = ErfFileInfo(
-            filename="test.mod",
-            file_type=ErfType.MOD,
-            description="Test mod",
-            save_name="",
-            resources=[],
-            localized_strings={}
-        )
-        resource = ErfResource(
-            filename="test",
-            resource_id="test_res",
-            offset=0,
-            size=100,
-            file_type="mod"
-        )
-        erf.resources.append(resource)
-        
-        assert len(erf.resources) == 1
-        assert erf.resources[0].filename == "test"
+def _build_erf(resources: list[tuple[str, int, bytes]], tag: bytes = b"HAK ") -> bytes:
+    """Build a minimal valid ERF V1.0 with the given (resref, res_type, data) list.
+
+    Layout: 32-byte header, key list (24 bytes/entry), resource list (8 bytes/entry),
+    then the data blocks — matching the real NWN structure.
+    """
+    entry_count = len(resources)
+    keys_offset = 32
+    res_offset = keys_offset + entry_count * 24
+    data_offset = res_offset + entry_count * 8
+
+    header = tag + b"V1.0"
+    header += struct.pack(
+        "<6i", 0, 0, entry_count, keys_offset, keys_offset, res_offset
+    )
+
+    keys = b""
+    reslist = b""
+    blob = b""
+    cursor = data_offset
+    for res_id, (resref, res_type, data) in enumerate(resources):
+        keys += resref.encode("ascii").ljust(16, b"\x00")
+        keys += struct.pack("<iH", res_id, res_type)
+        keys += b"\x00\x00"
+        reslist += struct.pack("<Ii", cursor, len(data))
+        blob += data
+        cursor += len(data)
+
+    return header + keys + reslist + blob
 
 
-@pytest.mark.integration
-class TestErfIntegration:
-    """Integration tests for ERF reader"""
-    
-    def test_erf_v1_header_parsing(self, temp_dir):
-        """Test ERF V1 header structure parsing"""
-        test_file = temp_dir / "test_v1.hak"
-        
-        # Create minimal valid ERF V1
-        header = b"ERF V1.0"
-        header += struct.pack("<I", 0)     # Language count
-        header += struct.pack("<I", 1)     # Localized string size
-        header += struct.pack("<I", 128)   # Entry list offset
-        header += struct.pack("<I", 0)     # Entry count
-        header += struct.pack("<I", 128)   # Resource offset
-        header += struct.pack("<I", 0)     # Resource count
-        header += struct.pack("<I", 0)     # Description string ref
-        header += b'\x00' * (128 - len(header))  # Pad
-        
-        test_file.write_bytes(header)
-        
-        reader = ErfFileReader()
-        result = reader.read_file(test_file)
-        
-        assert result is not None
+def test_list_resources_synthetic(tmp_path: Path) -> None:
+    hak = tmp_path / "test.hak"
+    hak.write_bytes(
+        _build_erf([("worldmap", 3, b"TGADATA"), ("rules", 10, b"line\n")])
+    )
+    reader = ErfReader()
+    info = reader.read_info(hak)
+    assert info is not None and info.is_valid and info.tag == "HAK "
+    by_ref = {r.resref: r for r in info.resources}
+    assert by_ref["worldmap"].extension == "tga"
+    assert by_ref["worldmap"].filename == "worldmap.tga"
+    assert by_ref["rules"].size == len(b"line\n")
 
 
-@pytest.mark.unit
-@pytest.mark.xfail(reason="Test data format needs correction - ERF structure mismatch")
-class TestErfResourceExtraction:
-    """Tests for ERF resource extraction methods"""
+def test_find_and_extract_resource(tmp_path: Path) -> None:
+    hak = tmp_path / "test.hak"
+    hak.write_bytes(_build_erf([("portrait01", 3, b"IMAGEBYTES")]))
+    reader = ErfReader()
 
-    def test_find_resource(self, temp_dir):
-        """Test finding a resource in an ERF file by name"""
-        test_file = temp_dir / "test_find.hak"
-        
-        # ERF V1.0 Header (proper structure)
-        header = b"ERF "
-        header += b"V1.0"
-        header += struct.pack("<I", 0)     # loc_string_count (Language count)
-        header += struct.pack("<I", 1)     # loc_string_size (Localized string size)
-        header += struct.pack("<I", 1)     # entry_count (Entry count)
-        header += struct.pack("<I", 160)   # loc_string_offset (Entry list offset)
-        header += struct.pack("<I", 176)   # keys_offset (Resource list offset)
-        header += struct.pack("<I", 216)   # resource_offset (Where resource data starts)
+    # Find by resref, by filename.
+    assert reader.find_resource(hak, "portrait01").filename == "portrait01.tga"
+    assert reader.find_resource(hak, "portrait01.tga") is not None
+    assert reader.find_resource(hak, "missing") is None
 
-        data = header.ljust(160, b'\x00')
+    resource = reader.find_resource(hak, "portrait01")
+    assert reader.read_resource_bytes(hak, resource) == b"IMAGEBYTES"
+    out = reader.extract_resource(hak, resource, tmp_path / "out")
+    assert out.name == "portrait01.tga"
+    assert out.read_bytes() == b"IMAGEBYTES"
 
-        # Entry (8 bytes) at offset 160
-        entry = struct.pack("<I", 0)       # resource_index
-        entry += struct.pack("<I", 216)    # offset_to_resource (points to data)
-        data += entry                        # 160-167
 
-        # Resource descriptor (40 bytes) at offset 176
-        resref = b"myfile" + b'\x00' * 10  # 16 bytes total (resref + null padding)
-        resource = resref
-        resource += struct.pack("<H", 1)   # Type (BMP) - 2 bytes
-        resource += struct.pack("<H", 0)   # Unused - 2 bytes
-        resource += struct.pack("<I", 0)   # Used/not used - 4 bytes
-        resource += struct.pack("<I", 216) # Offset to data - 4 bytes
-        resource += struct.pack("<I", 4)   # Size - 4 bytes
-        resource += struct.pack("<I", 0)   # Unused - 4 bytes
-        data += resource                     # 176-215 (40 bytes)
+def test_extract_all_and_filter(tmp_path: Path) -> None:
+    hak = tmp_path / "test.hak"
+    hak.write_bytes(
+        _build_erf([("a", 3, b"AAA"), ("b", 2017, b"2DA "), ("c", 3, b"CCC")])
+    )
+    reader = ErfReader()
+    all_files = reader.extract_all(hak, tmp_path / "all")
+    assert {p.name for p in all_files} == {"a.tga", "b.2da", "c.tga"}
+    tgas = reader.extract_all(hak, tmp_path / "tga", res_type=3)
+    assert {p.name for p in tgas} == {"a.tga", "c.tga"}
 
-        # Resource data at offset 216
-        data += b"TEST"
-        
-        test_file.write_bytes(data)
-        
-        reader = ErfFileReader()
-        
-        # Test finding resource by exact name
-        found = reader.find_resource(test_file, "myfile.bmp")
-        assert found is not None
-        assert found.filename == "myfile.bmp"
-        
-        # Test finding by base name (without extension)
-        found = reader.find_resource(test_file, "myfile")
-        assert found is not None
-        
-        # Test not finding non-existent resource
-        not_found = reader.find_resource(test_file, "nonexistent")
-        assert not_found is None
-    
-    def test_extract_file_by_name(self, temp_dir):
-        """Test extracting a specific file by name from ERF"""
-        test_file = temp_dir / "test_extract.hak"
-        output_dir = temp_dir / "output"
-        output_dir.mkdir()
-        output_file = output_dir / "extracted.bmp"
-        
-        # ERF V1.0 Header (proper structure)
-        header = b"ERF "
-        header += b"V1.0"
-        header += struct.pack("<I", 0)     # loc_string_count
-        header += struct.pack("<I", 1)     # loc_string_size
-        header += struct.pack("<I", 1)     # entry_count
-        header += struct.pack("<I", 160)   # loc_string_offset (Entry list offset)
-        header += struct.pack("<I", 176)   # keys_offset (Resource list offset)
-        header += struct.pack("<I", 216)   # resource_offset (Where data starts)
 
-        data = header.ljust(160, b'\x00')
+def test_bad_file_returns_none(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.hak"
+    bad.write_bytes(b"NOT-AN-ERF")
+    assert ErfReader().read_info(bad) is None  # too short → struct error → None
 
-        # Entry (8 bytes) at offset 160
-        entry = struct.pack("<I", 0)       # resource_index
-        entry += struct.pack("<I", 216)    # offset_to_resource
-        data += entry
 
-        # Resource descriptor (40 bytes) at offset 176
-        resref = b"extract" + b'\x00' * 9   # 16 bytes total
-        resource = resref
-        resource += struct.pack("<H", 1)   # Type (BMP)
-        resource += struct.pack("<H", 0)   # Unused
-        resource += struct.pack("<I", 0)   # Used/not used
-        resource += struct.pack("<I", 216) # Offset to data
-        resource += struct.pack("<I", 6)   # Size
-        resource += struct.pack("<I", 0)   # Unused
-        data += resource
+def test_extension_fallback_for_unknown_type() -> None:
+    assert extension_for_res_type(3) == "tga"
+    assert extension_for_res_type(99999) == "99999"
 
-        # Resource data at offset 216
-        data += b"EXDATA"
-        
-        test_file.write_bytes(data)
-        
-        reader = ErfFileReader()
-        
-        # Test successful extraction
-        result = reader.extract_file_by_name(test_file, "extract.bmp", output_file)
-        assert result is True
-        assert output_file.exists()
-        assert output_file.read_bytes() == b"EXDATA"
-        
-        # Test extraction of non-existent file
-        result = reader.extract_file_by_name(test_file, "nonexistent.txt", output_dir / "fail.txt")
-        assert result is False
+
+def test_real_hak_resources() -> None:
+    """Validate against a real CEP hak: resource count, resref, type→extension."""
+    hak = (
+        NIT_STORE
+        / "Profiles/Enhanced Edition Mods/CEP v2.x/.Mod Installer/hak/cep2_add_rules.hak"
+    )
+    if not hak.is_file():
+        import pytest
+
+        pytest.skip("NIT Store CEP hak not present")
+
+    reader = ErfReader()
+    info = reader.read_info(hak)
+    assert info is not None and info.tag == "HAK "
+    assert len(info.resources) == 1
+    res = info.resources[0]
+    assert res.resref == "cep2_add_rules"
+    assert res.res_type == 10 and res.extension == "txt"  # verified content is text
+    assert reader.read_resource_bytes(hak, res) == b"cep2_add_rules.hak\n"
+
+
+def test_real_hak_type_mapping() -> None:
+    """Spot-check the restype→extension registry against a mixed real hak."""
+    hak = (
+        NIT_STORE
+        / "Profiles/Enhanced Edition Mods/CEP v2.x/.Mod Installer/hak/cep2_top_v21.hak"
+    )
+    if not hak.is_file():
+        import pytest
+
+        pytest.skip("NIT Store CEP hak not present")
+
+    exts = {r.extension for r in ErfReader().list_resources(hak)}
+    # This hak holds 2DA and item-palette (itp) resources.
+    assert "2da" in exts
+    assert "itp" in exts
