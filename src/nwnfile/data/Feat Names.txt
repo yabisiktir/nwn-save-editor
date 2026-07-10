@@ -1,0 +1,1116 @@
+Alertness*290
+Ambidexterity*222
+Armor Proficiency (heavy)*223
+Armor Proficiency (light)*225
+Armor Proficiency (medium)*224
+Called Shot*226
+Cleave*292
+Combat Casting*297
+Deflect Arrows*299
+Disarm*303
+Dodge*301
+Empower Spell*227
+Extend Spell*294
+Extra Turning*400
+Great Fortitude*402
+Improved Critical (club)*228
+Improved Disarm*229
+Improved Knockdown*230
+Improved Parry*406
+Improved Power Attack*404
+Improved Two-Weapon Fighting*231
+Improved Unarmed Strike*232
+Iron Will*408
+Knockdown*410
+Lightning Reflexes*412
+Maximize Spell*414
+Mobility*416
+Point Blank Shot*233
+Power Attack*418
+Quicken Spell*234
+Rapid Shot*420
+Sap*422
+Shield Proficiency*524
+Silent Spell*236
+Skill Focus (Animal Empathy)*424
+Spell Focus (Abjuration)*426
+Spell Penetration*237
+Still Spell*238
+Unknown*-1
+Stunning Fist*430
+Toughness*432
+Two-Weapon Fighting*239
+Weapon Finesse*434
+Weapon Focus (club)*436
+Weapon Proficiency (exotic)*438
+Weapon Proficiency (martial)*440
+Weapon Proficiency (simple)*442
+Weapon Specialization (club)*444
+Weapon Proficiency (druid)*6012
+Weapon Proficiency (monk)*6013
+Weapon Proficiency (rogue)*6014
+Weapon Proficiency (wizard)*6015
+Improved Critical (dagger)*228
+Improved Critical (dart)*228
+Improved Critical (heavy crossbow)*228
+Improved Critical (light crossbow)*228
+Improved Critical (mace)*228
+Improved Critical (morningstar)*228
+Improved Critical (quarterstaff)*228
+Improved Critical (spear)*228
+Improved Critical (sickle)*228
+Improved Critical (sling)*228
+Improved Critical (unarmed strike)*228
+Improved Critical (longbow)*228
+Improved Critical (shortbow)*228
+Improved Critical (short sword)*228
+Improved Critical (rapier)*228
+Improved Critical (scimitar)*228
+Improved Critical (longsword)*228
+Improved Critical (greatsword)*228
+Improved Critical (handaxe)*228
+Improved Critical (throwing axe)*228
+Improved Critical (battleaxe)*228
+Improved Critical (greataxe)*228
+Improved Critical (halberd)*228
+Improved Critical (light hammer)*228
+Improved Critical (light flail)*228
+Improved Critical (warhammer)*228
+Improved Critical (heavy flail)*228
+Improved Critical (kama)*228
+Improved Critical (kukri)*228
+Unknown*-1
+Improved Critical (shuriken)*228
+Improved Critical (scythe)*228
+Improved Critical (katana)*228
+Improved Critical (bastard sword)*228
+Unknown*-1
+Improved Critical (dire mace)*228
+Improved Critical (double axe)*228
+Improved Critical (two-bladed sword)*228
+Weapon Focus (dagger)*436
+Weapon Focus (dart)*436
+Weapon Focus (heavy crossbow)*436
+Weapon Focus (light crossbow)*436
+Weapon Focus (mace)*436
+Weapon Focus (morningstar)*436
+Weapon Focus (quarterstaff)*436
+Weapon Focus (spear)*436
+Weapon Focus (sickle)*436
+Weapon Focus (sling)*436
+Weapon Focus (unarmed strike)*436
+Weapon Focus (longbow)*436
+Weapon Focus (shortbow)*436
+Weapon Focus (short sword)*436
+Weapon Focus (rapier)*436
+Weapon Focus (scimitar)*436
+Weapon Focus (longsword)*436
+Weapon Focus (greatsword)*436
+Weapon Focus (handaxe)*436
+Weapon Focus (throwing axe)*436
+Weapon Focus (battleaxe)*436
+Weapon Focus (greataxe)*436
+Weapon Focus (halberd)*436
+Weapon Focus (light hammer)*436
+Weapon Focus (light flail)*436
+Weapon Focus (warhammer)*436
+Weapon Focus (heavy flail)*436
+Weapon Focus (kama)*436
+Weapon Focus (kukri)*436
+Unknown*-1
+Weapon Focus (shuriken)*436
+Weapon Focus (scythe)*436
+Weapon Focus (katana)*436
+Weapon Focus (bastard sword)*436
+Unknown*-1
+Weapon Focus (dire mace)*436
+Weapon Focus (double axe)*436
+Weapon Focus (two-bladed sword)*436
+Weapon Specialization (dagger)*444
+Weapon Specialization (dart)*444
+Weapon Specialization (heavy crossbow)*444
+Weapon Specialization (light crossbow)*444
+Weapon Specialization (mace)*444
+Weapon Specialization (morningstar)*444
+Weapon Specialization (quarterstaff)*444
+Weapon Specialization (spear)*444
+Weapon Specialization (sickle)*444
+Weapon Specialization (sling)*444
+Weapon Specialization (unarmed strike)*444
+Weapon Specialization (longbow)*444
+Weapon Specialization (shortbow)*444
+Weapon Specialization (short sword)*444
+Weapon Specialization (rapier)*444
+Weapon Specialization (scimitar)*444
+Weapon Specialization (longsword)*444
+Weapon Specialization (greatsword)*444
+Weapon Specialization (handaxe)*444
+Weapon Specialization (throwing axe)*444
+Weapon Specialization (battleaxe)*444
+Weapon Specialization (greataxe)*444
+Weapon Specialization (halberd)*444
+Weapon Specialization (light hammer)*444
+Weapon Specialization (light flail)*444
+Weapon Specialization (warhammer)*444
+Weapon Specialization (heavy flail)*444
+Weapon Specialization (kama)*444
+Weapon Specialization (kukri)*444
+Unknown*-1
+Weapon Specialization (shuriken)*444
+Weapon Specialization (scythe)*444
+Weapon Specialization (katana)*444
+Weapon Specialization (bastard sword)*444
+Unknown*-1
+Weapon Specialization (dire mace)*444
+Weapon Specialization (double axe)*444
+Weapon Specialization (two-bladed sword)*444
+Spell Focus (Conjuration)*426
+Spell Focus (Divination)*426
+Spell Focus (Enchantment)*426
+Spell Focus (Evocation)*426
+Spell Focus (Illusion)*426
+Spell Focus (Necromancy)*426
+Spell Focus (Transmutation)*426
+Skill Focus (Concentration)*424
+Skill Focus (Disable Trap)*424
+Skill Focus (Discipline)*424
+Unknown*-1
+Skill Focus (Heal)*424
+Skill Focus (Hide)*424
+Skill Focus (Listen)*424
+Skill Focus (Lore)*424
+Skill Focus (Move Silently)*424
+Skill Focus (Open Lock)*424
+Skill Focus (Parry)*424
+Skill Focus (Perform)*424
+Skill Focus (Persuade)*424
+Skill Focus (Pick Pocket)*424
+Skill Focus (Search)*424
+Skill Focus (Set Trap)*424
+Skill Focus (Spellcraft)*424
+Skill Focus (Spot)*424
+Unknown*-1
+Skill Focus (Taunt)*424
+Skill Focus (Use Magic Device)*424
+Barbarian Fast Movement*6016
+Uncanny Dodge I*6017
+Damage Reduction 1*6018
+Bardic Knowledge*6019
+Nature Sense*6020
+Animal Companion*6021
+Woodland Stride*6022
+Trackless Step*6023
+Resist Nature's Lure*6024
+Venom Immunity*6025
+Flurry of Blows*6026
+Unknown*-1
+Evasion*6027
+Monk Speed*6028
+Still Mind*6029
+Purity of Body*6030
+Unknown*-1
+Wholeness of Body*6031
+Improved Evasion*6032
+Ki Strike +1*6033
+Diamond Body*6034
+Diamond Soul*6035
+Perfect Self*6036
+Divine Grace*6037
+Unknown*-1
+Divine Health*6038
+Unknown*-1
+Sneak Attack (+1d6)*6039
+Crippling Strike*6040
+Defensive Roll*6041
+Opportunist*6042
+Skill Mastery*6043
+Monster Uncanny Reflex*6044
+Stonecunning*6045
+Darkvision*6046
+Hardiness vs. Poisons*6047
+Hardiness vs. Spells*6048
+Battle Training vs. Orcs*6049
+Battle Training vs. Goblins*6050
+Battle Training vs. Giants*6051
+Skill Affinity (Lore)*6052
+Immunity To Sleep*6053
+Hardiness vs. Enchantments*6054
+Skill Affinity (Listen)*6055
+Skill Affinity (Search)*6056
+Skill Affinity (Spot)*6057
+Keen Sense*6058
+Hardiness vs. Illusions*6059
+Battle Training vs. Reptilians*6060
+Skill Affinity (Concentration)*6061
+Partial Skill Affinity (Listen)*6062
+Partial Skill Affinity (Search)*6064
+Partial Skill Affinity (Spot)*6063
+Skill Affinity (Move Silently)*6065
+Lucky*6066
+Fearless*6067
+Good Aim*6068
+Uncanny Dodge II*6069
+Uncanny Dodge III*6070
+Uncanny Dodge IV*6071
+Uncanny Dodge V*6072
+Uncanny Dodge VI+*6073
+Weapon Proficiency (Elf)*6074
+Bard Song*6075
+Quick To Master*6076
+Slippery Mind*10389
+Monk AC Bonus*6078
+Favored Enemy: Dwarves*6079
+Favored Enemy: Elves*6079
+Favored Enemy: Gnomes*6079
+Favored Enemy: Halflings*6079
+Favored Enemy: Half-Elves*6079
+Favored Enemy: Half-Orcs*6079
+Favored Enemy: Humans*6079
+Favored Enemy: Aberrations*6079
+Favored Enemy: Animals*6079
+Favored Enemy: Beasts*6079
+Favored Enemy: Constructs*6079
+Favored Enemy: Dragons*6079
+Favored Enemy: Goblinoids*6079
+Favored Enemy: Monstrous Humanoids*6079
+Favored Enemy: Orcs*6079
+Favored Enemy: Reptilian Humanoids*6079
+Favored Enemy: Elementals*6079
+Favored Enemy: Fey*6079
+Favored Enemy: Giants*6079
+Favored Enemy: Magical Beasts*6079
+Favored Enemy: Outsiders*6079
+Unknown*-1
+Unknown*-1
+Favored Enemy: Shapechangers*6079
+Favored Enemy: Undead*6079
+Favored Enemy: Vermin*6079
+Unknown*-1
+Unknown*-1
+Weapon Proficiency (creature)*6080
+Weapon Specialization (creature)*6081
+Weapon Focus (creature)*6082
+Improved Critical (creature)*6083
+Barbarian Rage (1x per day)*6084
+Turn Undead*6085
+Unknown*-1
+Quivering Palm*6086
+Empty Body*6087
+Unknown*-1
+Lay on Hands*6089
+Aura of Courage*6090
+Smite Evil*6091
+Remove Disease*6092
+Summon Familiar*6093
+Elemental Shape*6094
+Wild Shape*6095
+War Domain Powers*5938
+Strength Domain Powers*5939
+Protection Domain Powers*5940
+Unknown*-1
+Death Domain Powers*5942
+Air Domain Powers*5966
+Animal Domain Powers*5968
+Destruction Domain Powers*5969
+Earth Domain Powers*5970
+Evil Domain Powers*5971
+Fire Domain Powers*5972
+Good Domain Powers*5973
+Healing Domain Powers*5974
+Knowledge Domain Powers*5975
+Magic Domain Powers*5976
+Plant Domain Powers*5977
+Sun Domain Powers*5978
+Travel Domain Powers*5979
+Trickery Domain Powers*5980
+Water Domain Powers*5981
+Barbarian Rage (2x per day)*6084
+Barbarian Rage (3x per day)*6084
+Barbarian Rage (4x per day)*6084
+Greater Rage (4x per day)*6084
+Greater Rage (5x per day)*6084
+Greater Rage*6084
+Damage Reduction 2*8339
+Damage Reduction 3*8340
+Damage Reduction 4*8341
+Wild Shape (2x day)*6095
+Wild Shape (3x day)*6095
+Wild Shape (4x day)*6095
+Wild Shape (5x day)*6095
+Wild Shape*6095
+Elemental Shape (2x day)*6094
+Elemental Shape (3x day)*6094
+Improved Elemental Shape*6094
+Ki Strike +2*6033
+Ki Strike +3*6033
+Sneak Attack (+2d6)*6039
+Sneak Attack (+3d6)*6039
+Sneak Attack (+4d6)*6039
+Sneak Attack (+5d6)*6039
+Sneak Attack (+6d6)*6039
+Sneak Attack (+7d6)*6039
+Sneak Attack (+8d6)*6039
+Sneak Attack (+9d6)*6039
+Sneak Attack (+10d6)*6039
+Low-light Vision*8187
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Bard Song*6075
+Dual-Wield*66847
+Small Stature*67701
+Unknown*-1
+Improved Initiative*2752
+Artist*2754
+Blooded*2756
+Bullheaded*2758
+Courteous Magocracy*2760
+Luck of Heroes*2762
+Resist Poison*2764
+Silver Palm*2766
+Unknown*-1
+Snake Blood*2770
+Stealthy*2772
+Strong Soul*2776
+Expertise*2774
+Improved Expertise*2778
+Great Cleave*2780
+Spring Attack*2782
+Greater Spell Focus (Abjuration)*2791
+Greater Spell Focus (Conjuration)*2791
+Greater Spell Focus (Divination)*2791
+Greater Spell Focus (Enchantment)*2791
+Greater Spell Focus (Evocation)*2791
+Greater Spell Focus (Illusion)*2791
+Greater Spell Focus (Necromancy)*2791
+Greater Spell Focus (Transmutation)*2791
+Greater Spell Penetration*2793
+Thug*2795
+Unknown*-1
+Skill Focus (Appraise)*424
+Unknown*-1
+Skill Focus (Tumble)*424
+Skill Focus (Craft Trap)*424
+Blind-Fight*2802
+Circle Kick*2842
+Extra Stunning Attacks*2806
+Rapid Reload*2808
+Zen Archery*2810
+Divine Might*2812
+Divine Shield*2814
+Arcane Defense (Abjuration)*2823
+Arcane Defense (Conjuration)*2823
+Arcane Defense (Divination)*2823
+Arcane Defense (Enchantment)*2823
+Arcane Defense (Evocation)*2823
+Arcane Defense (Illusion)*2823
+Arcane Defense (Necromancy)*2823
+Arcane Defense (Transmutation)*2823
+Extra Music*2825
+Lingering Song*2827
+Dirty Fighting*2804
+Resist Disease*2829
+Resist Cold Energy*2835
+Resist Acid Energy*2835
+Resist Fire Energy*2835
+Resist Electrical Energy*2835
+Resist Sonic Energy*2835
+Unknown*-1
+Hide in Plain Sight*2940
+Shadow Daze*2941
+Summon Shadow*2942
+Shadow Evade*2943
+Deneir's Eye*2952
+Tymora's Smile*2953
+Lliira's Heart*2954
+Craft Harper Item*2955
+Sleep*2969
+Cat's Grace*2970
+Eagle's Splendor*2971
+Invisibility*2972
+Enchant Arrow I*8680
+Enchant Arrow II*8680
+Enchant Arrow III*8680
+Enchant Arrow IV*8680
+Enchant Arrow V*8680
+Imbue Arrow*8686
+Seeker Arrow I*8688
+Seeker Arrow II*8688
+Hail of Arrows*8691
+Arrow of Death*8693
+Death Attack (+1d6)*8695
+Death Attack (+2d6)*8695
+Death Attack (+3d6)*8695
+Death Attack (+4d6)*8695
+Death Attack (+5d6)*8695
+Sneak Attack, Blackguard (+1d6)*40052
+Sneak Attack, Blackguard (+2d6)*40052
+Sneak Attack, Blackguard (+3d6)*40052
+Poison Save I*8701
+Poison Save II*8701
+Poison Save III*8701
+Poison Save IV*8701
+Poison Save V*8701
+Ghostly Visage*8707
+Darkness*8709
+Invisibility*8711
+Improved Invisibility*8713
+Smite Good*8714
+Dark Blessing*8716
+Create Undead*8718
+Summon Fiend*8720
+Inflict Serious Wounds*8722
+Inflict Critical Wounds*8724
+Bull's Strength*9163
+Contagion*9164
+Unknown*-1
+Unknown*-1
+Unknown*-1
+Unknown*-1
+Unknown*-1
+Unknown*-1
+Unknown*-1
+Unknown*-1
+Blindsight, 60 foot radius*110706
+Unknown*-1
+Armor Skin*3896
+Blinding Speed*3898
+Epic Damage Reduction I*3902
+Epic Damage Reduction II*3904
+Epic Damage Reduction III*3906
+Devastating Critical (club)*3909
+Devastating Critical (dagger)*3909
+Devastating Critical (dart)*3909
+Devastating Critical (heavy crossbow)*3909
+Devastating Critical (light crossbow)*3909
+Devastating Critical (mace)*3909
+Devastating Critical (morningstar)*3909
+Devastating Critical (quarterstaff)*3909
+Devastating Critical (spear)*3909
+Devastating Critical (sickle)*3909
+Devastating Critical (sling)*3909
+Devastating Critical (unarmed strike)*3909
+Devastating Critical (longbow)*3909
+Devastating Critical (shortbow)*3909
+Devastating Critical (shortsword)*3909
+Devastating Critical (rapier)*3909
+Devastating Critical (scimitar)*3909
+Devastating Critical (longsword)*3909
+Devastating Critical (greatsword)*3909
+Devastating Critical (handaxe)*3909
+Devastating Critical (throwing axe)*3909
+Devastating Critical (battleaxe)*3909
+Devastating Critical (greataxe)*3909
+Devastating Critical (halberd)*3909
+Devastating Critical (light hammer)*3909
+Devastating Critical (light flail)*3909
+Devastating Critical (warhammer)*3909
+Devastating Critical (heavy flail)*3909
+Devastating Critical (kama)*3909
+Devastating Critical (kukri)*3909
+Devastating Critical (shuriken)*3909
+Devastating Critical (scythe)*3909
+Devastating Critical (katana)*3909
+Devastating Critical (bastard sword)*3909
+Devastating Critical (dire mace)*3909
+Devastating Critical (double axe)*3909
+Devastating Critical (two-bladed sword)*3909
+Devastating Critical (creature)*3947
+Energy Resistance, Cold I*3949
+Energy Resistance, Cold II*3949
+Energy Resistance, Cold III*3949
+Energy Resistance, Cold IV*3949
+Energy Resistance, Cold V*3949
+Energy Resistance, Cold VI*3949
+Energy Resistance, Cold VII*3949
+Energy Resistance, Cold VIII*3949
+Energy Resistance, Cold IX*3949
+Energy Resistance, Cold X*3949
+Energy Resistance, Acid I*3970
+Energy Resistance, Acid II*3970
+Energy Resistance, Acid III*3970
+Energy Resistance, Acid IV*3970
+Energy Resistance, Acid V*3970
+Energy Resistance, Acid VI*3970
+Energy Resistance, Acid VII*3970
+Energy Resistance, Acid VIII*3970
+Energy Resistance, Acid IX*3970
+Energy Resistance, Acid X*3970
+Energy Resistance, Fire I*3990
+Energy Resistance, Fire II*3990
+Energy Resistance, Fire III*3990
+Energy Resistance, Fire IV*3990
+Energy Resistance, Fire V*3990
+Energy Resistance, Fire VI*3990
+Energy Resistance, Fire VII*3990
+Energy Resistance, Fire VIII*3990
+Energy Resistance, Fire IX*3990
+Energy Resistance, Fire X*3990
+Energy Resistance, Electrical I*4015
+Energy Resistance, Electrical II*4015
+Energy Resistance, Electrical III*4015
+Energy Resistance, Electrical IV*4015
+Energy Resistance, Electrical V*4015
+Energy Resistance, Electrical VI*4015
+Energy Resistance, Electrical VII*4015
+Energy Resistance, Electrical VIII*4015
+Energy Resistance, Electrical IX*4015
+Energy Resistance, Electrical X*4015
+Energy Resistance, Sonic I*4035
+Energy Resistance, Sonic II*4035
+Energy Resistance, Sonic III*4035
+Energy Resistance, Sonic IV*4035
+Energy Resistance, Sonic V*4035
+Energy Resistance, Sonic VI*4035
+Energy Resistance, Sonic VII*4035
+Energy Resistance, Sonic VIII*4035
+Energy Resistance, Sonic IX*4035
+Energy Resistance, Sonic X*4035
+Epic Fortitude*4055
+Epic Prowess*4057
+Epic Reflexes*4059
+Epic Reputation*4061
+Epic Skill Focus (Animal Empathy)*4063
+Epic Skill Focus (Appraise)*4063
+Epic Skill Focus (Concentration)*4063
+Epic Skill Focus (Craft Trap)*4063
+Epic Skill Focus (Disable Trap)*4063
+Epic Skill Focus (Discipline)*4063
+Epic Skill Focus (Heal)*4063
+Epic Skill Focus (Hide)*4063
+Epic Skill Focus (Listen)*4063
+Epic Skill Focus (Lore)*4063
+Epic Skill Focus (Move Silently)*4063
+Epic Skill Focus (Open Lock)*4063
+Epic Skill Focus (Parry)*4063
+Epic Skill Focus (Perform)*4063
+Epic Skill Focus (Persuade)*4063
+Epic Skill Focus (Pick Pocket)*4063
+Epic Skill Focus (Search)*4063
+Epic Skill Focus (Set Trap)*4063
+Epic Skill Focus (Spellcraft)*4063
+Epic Skill Focus (Spot)*4063
+Epic Skill Focus (Taunt)*4063
+Epic Skill Focus (Tumble)*4063
+Epic Skill Focus (Use Magic Device)*4063
+Epic Spell Focus (Abjuration)*4084
+Epic Spell Focus (Conjuration)*4084
+Epic Spell Focus (Divination)*4084
+Epic Spell Focus (Enchantment)*4084
+Epic Spell Focus (Evocation)*4084
+Epic Spell Focus (Illusion)*4084
+Epic Spell Focus (Necromancy)*4084
+Epic Spell Focus (Transmutation)*4084
+Epic Spell Penetration*8413
+Epic Weapon Focus (club)*8415
+Epic Weapon Focus (dagger)*8415
+Epic Weapon Focus (dart)*8415
+Epic Weapon Focus (heavy crossbow)*8415
+Epic Weapon Focus (light crossbow)*8415
+Epic Weapon Focus (mace)*8415
+Epic Weapon Focus (morningstar)*8415
+Epic Weapon Focus (quarterstaff)*8415
+Epic Weapon Focus (spear)*8415
+Epic Weapon Focus (sickle)*8415
+Epic Weapon Focus (sling)*8415
+Epic Weapon Focus (unarmed strike)*8415
+Epic Weapon Focus (longbow)*8415
+Epic Weapon Focus (shortbow)*8415
+Epic Weapon Focus (shortsword)*8415
+Epic Weapon Focus (rapier)*8415
+Epic Weapon Focus (scimitar)*8415
+Epic Weapon Focus (longsword)*8415
+Epic Weapon Focus (greatsword)*8415
+Epic Weapon Focus (handaxe)*8415
+Epic Weapon Focus (throwing axe)*8415
+Epic Weapon Focus (battleaxe)*8415
+Epic Weapon Focus (greataxe)*8415
+Epic Weapon Focus (halberd)*8415
+Epic Weapon Focus (light hammer)*8415
+Epic Weapon Focus (light flail)*8415
+Epic Weapon Focus (warhammer)*8415
+Epic Weapon Focus (heavy flail)*8415
+Epic Weapon Focus (kama)*8415
+Epic Weapon Focus (kukri)*8415
+Epic Weapon Focus (shuriken)*8415
+Epic Weapon Focus (scythe)*8415
+Epic Weapon Focus (katana)*8415
+Epic Weapon Focus (bastard sword)*8415
+Epic Weapon Focus (dire mace)*8415
+Epic Weapon Focus (double axe)*8415
+Epic Weapon Focus (two-bladed sword)*8415
+Epic Weapon Focus (creature weapon)*8454
+Epic Weapon Specialization (club)*8456
+Epic Weapon Specialization (dagger)*8456
+Epic Weapon Specialization (dart)*8456
+Epic Weapon Specialization (heavy crossbow)*8456
+Epic Weapon Specialization (light crossbow)*8456
+Epic Weapon Specialization (mace)*8456
+Epic Weapon Specialization (morningstar)*8456
+Epic Weapon Specialization (quarterstaff)*8456
+Epic Weapon Specialization (spear)*8456
+Epic Weapon Specialization (sickle)*8456
+Epic Weapon Specialization (sling)*8456
+Epic Weapon Specialization (unarmed strike)*8456
+Epic Weapon Specialization (longbow)*8456
+Epic Weapon Specialization (shortbow)*8456
+Epic Weapon Specialization (shortsword)*8456
+Epic Weapon Specialization (rapier)*8456
+Epic Weapon Specialization (scimitar)*8456
+Epic Weapon Specialization (longsword)*8456
+Epic Weapon Specialization (greatsword)*8456
+Epic Weapon Specialization (handaxe)*8456
+Epic Weapon Specialization (throwing axe)*8456
+Epic Weapon Specialization (battleaxe)*8456
+Epic Weapon Specialization (greataxe)*8456
+Epic Weapon Specialization (halberd)*8456
+Epic Weapon Specialization (light hammer)*8456
+Epic Weapon Specialization (light flail)*8456
+Epic Weapon Specialization (warhammer)*8456
+Epic Weapon Specialization (heavy flail)*8456
+Epic Weapon Specialization (kama)*8456
+Epic Weapon Specialization (kukri)*8456
+Epic Weapon Specialization (shuriken)*8456
+Epic Weapon Specialization (scythe)*8456
+Epic Weapon Specialization (katana)*8456
+Epic Weapon Specialization (bastard sword)*8456
+Epic Weapon Specialization (dire mace)*8456
+Epic Weapon Specialization (double axe)*8456
+Epic Weapon Specialization (two-bladed sword)*8456
+Epic Weapon Specialization (creature weapon)*8494
+Epic Will*8496
+Improved Combat Casting*8498
+Improved Ki Strike +4*8500
+Improved Ki Strike +5*83388
+Improved Spell Resistance I*8504
+Improved Spell Resistance II*8504
+Improved Spell Resistance III*8504
+Improved Spell Resistance IV*8504
+Improved Spell Resistance V*8504
+Improved Spell Resistance VI*8504
+Improved Spell Resistance VII*8504
+Improved Spell Resistance VIII*8504
+Improved Spell Resistance IX*8504
+Improved Spell Resistance X*8504
+Overwhelming Critical (club)*8524
+Overwhelming Critical (dagger)*8524
+Overwhelming Critical (dart)*8524
+Overwhelming Critical (heavy crossbow)*8524
+Overwhelming Critical (light crossbow)*8524
+Overwhelming Critical (mace)*8524
+Overwhelming Critical (morningstar)*8524
+Overwhelming Critical (quarterstaff)*8524
+Overwhelming Critical (spear)*8524
+Overwhelming Critical (sickle)*8524
+Overwhelming Critical (sling)*8524
+Overwhelming Critical (unarmed strike)*8524
+Overwhelming Critical (longbow)*8524
+Overwhelming Critical (shortbow)*8524
+Overwhelming Critical (shortsword)*8524
+Overwhelming Critical (rapier)*8524
+Overwhelming Critical (scimitar)*8524
+Overwhelming Critical (longsword)*8524
+Overwhelming Critical (greatsword)*8524
+Overwhelming Critical (handaxe)*8524
+Overwhelming Critical (throwing axe)*8524
+Overwhelming Critical (battleaxe)*8524
+Overwhelming Critical (greataxe)*8524
+Overwhelming Critical (halberd)*8524
+Overwhelming Critical (light hammer)*8524
+Overwhelming Critical (light flail)*8524
+Overwhelming Critical (warhammer)*8524
+Overwhelming Critical (heavy flail)*8524
+Overwhelming Critical (kama)*8524
+Overwhelming Critical (kukri)*8524
+Overwhelming Critical (shuriken)*8524
+Overwhelming Critical (scythe)*8524
+Overwhelming Critical (katana)*8524
+Overwhelming Critical (bastard sword)*8524
+Overwhelming Critical (dire mace)*8524
+Overwhelming Critical (double axe)*8524
+Overwhelming Critical (two-bladed sword)*8524
+Overwhelming Critical (creature weapon)*8562
+Perfect Health*8564
+Self-Concealment I*8566
+Self-Concealment II*8566
+Self-Concealment III*8566
+Self-Concealment IV*8566
+Self-Concealment V*8566
+Superior Initiative*8576
+Epic Toughness I*8578
+Epic Toughness II*8578
+Epic Toughness III*8578
+Epic Toughness IV*8578
+Epic Toughness V*8578
+Epic Toughness VI*8578
+Epic Toughness VII*8578
+Epic Toughness VIII*8578
+Epic Toughness IX*8578
+Epic Toughness X*8578
+Great Charisma I*3956
+Great Charisma II*3956
+Great Charisma III*3956
+Great Charisma IV*3956
+Great Charisma V*3956
+Great Charisma VI*3956
+Great Charisma VII*3956
+Great Charisma VIII*3956
+Great Charisma IX*3956
+Great Charisma X*3956
+Great Constitution I*3980
+Great Constitution II*3980
+Great Constitution III*3980
+Great Constitution IV*3980
+Great Constitution V*3980
+Great Constitution VI*3980
+Great Constitution VII*3980
+Great Constitution VIII*3980
+Great Constitution IX*3980
+Great Constitution X*3980
+Great Dexterity I*4004
+Great Dexterity II*4004
+Great Dexterity III*4004
+Great Dexterity IV*4004
+Great Dexterity V*4004
+Great Dexterity VI*4004
+Great Dexterity VII*4004
+Great Dexterity VIII*4004
+Great Dexterity IX*4004
+Great Dexterity X*4004
+Great Intelligence I*4033
+Great Intelligence II*4033
+Great Intelligence III*4033
+Great Intelligence IV*4033
+Great Intelligence V*4033
+Great Intelligence VI*4033
+Great Intelligence VII*4033
+Great Intelligence VIII*4033
+Great Intelligence IX*4033
+Great Intelligence X*4033
+Great Wisdom I*8508
+Great Wisdom II*8508
+Great Wisdom III*8508
+Great Wisdom IV*8508
+Great Wisdom V*8508
+Great Wisdom VI*8508
+Great Wisdom VII*8508
+Great Wisdom VIII*8508
+Great Wisdom IX*8508
+Great Wisdom X*8508
+Great Strength I*8574
+Great Strength II*8574
+Great Strength III*8574
+Great Strength IV*8574
+Great Strength V*8574
+Great Strength VI*8574
+Great Strength VII*8574
+Great Strength VIII*8574
+Great Strength IX*8574
+Great Strength X*8574
+Great Smiting I*8598
+Great Smiting II*8598
+Great Smiting III*8598
+Great Smiting IV*8598
+Great Smiting V*8598
+Great Smiting VI*8598
+Great Smiting VII*8598
+Great Smiting VIII*8598
+Great Smiting IX*8598
+Great Smiting X*8598
+Improved Sneak Attack I*8609
+Improved Sneak Attack II*8609
+Improved Sneak Attack III*8609
+Improved Sneak Attack IV*8609
+Improved Sneak Attack V*8609
+Improved Sneak Attack VI*8609
+Improved Sneak Attack VII*8609
+Improved Sneak Attack VIII*8609
+Improved Sneak Attack IX*8609
+Improved Sneak Attack X*8609
+Improved Stunning Fist I*8623
+Improved Stunning Fist II*8623
+Improved Stunning Fist III*8623
+Improved Stunning Fist IV*8623
+Improved Stunning Fist V*8623
+Improved Stunning Fist VI*8623
+Improved Stunning Fist VII*8623
+Improved Stunning Fist VIII*8623
+Improved Stunning Fist IX*8623
+Improved Stunning Fist X*8623
+Planar Turning*8634
+Bane of Enemies*8637
+Epic Dodge*8639
+Automatic Quicken Spell I*8643
+Automatic Quicken Spell II*8643
+Automatic Quicken Spell III*8643
+Automatic Silent Spell I*8647
+Automatic Silent Spell II*8647
+Automatic Silent Spell III*8647
+Automatic Still Spell I*8651
+Automatic Still Spell II*8651
+Automatic Still Spell III*8651
+Unknown*-1
+Whirlwind Attack*8655
+Improved Whirlwind Attack*8657
+Mighty Rage*8660
+Lasting Inspiration*8662
+Curse Song*8664
+Undead Shape*83580
+Dragon Shape*8668
+Epic Spell: Mummy Dust*8670
+Epic Spell: Dragon Knight*8672
+Epic Spell: Hellball*8674
+Epic Spell: Epic Mage Armor*8676
+Epic Spell: Greater Ruin*8678
+Weapon of Choice (sickle)*8728
+Weapon of Choice (kama)*8728
+Weapon of Choice (kukri)*8728
+Ki Damage*8732
+Increased Multiplier*8734
+Superior Weapon Focus*8736
+Ki Critical*8738
+Bone Skin*8740
+Unknown*-1
+Unknown*-1
+Animate Dead*8744
+Summon Undead*8747
+Deathless Vigor*8749
+Undead Graft I*8751
+Undead Graft II*8751
+Tough as Bone*8754
+Summon Greater Undead*8758
+Deathless Mastery*8760
+Deathless Master Touch*8762
+Greater Wildshape I (wyrmling shape)*83391
+Unknown*-1
+Greater Wildshape II*8767
+Greater Wildshape III*8769
+Humanoid Shape*8771
+Greater Wildshape IV*8773
+Sacred Defense*8775
+Unknown*-1
+Unknown*-1
+Unknown*-1
+Unknown*-1
+Divine Wrath*8781
+Extra Smiting*8783
+Skill Focus (Craft Armor)*424
+Skill Focus (Craft Weapon)*424
+Epic Skill Focus (Craft Armor)*4063
+Epic Skill Focus (Craft Weapon)*4063
+Skill Focus (Bluff)*424
+Skill Focus (Intimidate)*424
+Epic Skill Focus (Bluff)*4063
+Epic Skill Focus (Intimidate)*4063
+Weapon of Choice (club)*8728
+Weapon of Choice (dagger)*8728
+Weapon of Choice (mace)*8728
+Weapon of Choice (morningstar)*8728
+Weapon of Choice (quarterstaff)*8728
+Weapon of Choice (spear)*8728
+Weapon of Choice (short sword)*8728
+Weapon of Choice (rapier)*8728
+Weapon of Choice (scimitar)*8728
+Weapon of Choice (longsword)*8728
+Weapon of Choice (greatsword)*8728
+Weapon of Choice (handaxe)*8728
+Weapon of Choice (battleaxe)*8728
+Weapon of Choice (greataxe)*8728
+Weapon of Choice (halberd)*8728
+Weapon of Choice (light hammer)*8728
+Weapon of Choice (light flail)*8728
+Weapon of Choice (warhammer)*8728
+Weapon of Choice (heavy flail)*8728
+Weapon of Choice (scythe)*8728
+Weapon of Choice (katana)*8728
+Weapon of Choice (bastard sword)*8728
+Weapon of Choice (dire mace)*8728
+Weapon of Choice (double axe)*8728
+Weapon of Choice (two-bladed sword)*8728
+Brew Potion*68891
+Scribe Scroll*68912
+Craft Wand*76387
+Defensive Stance*76424
+Dwarven Defender Damage Reduction*76429
+Defensive Awareness (1)*76431
+Defensive Awareness (2)*76434
+Defensive Awareness (3)*76435
+Weapon Focus (dwarven waraxe)*436
+Weapon Specialization (dwarven waraxe)*444
+Improved Critical (dwarven waraxe)*228
+Devastating Critical (dwarven waraxe)*3909
+Epic Weapon Focus (dwarven waraxe)*8415
+Epic Weapon Specialization (dwarven waraxe)*8456
+Overwhelming Critical (dwarven waraxe)*8524
+Weapon of Choice (dwarven waraxe)*8728
+Use Poison*83372
+Draconic Armor*83499
+Dragon Abilities*83500
+Immunity to Paralysis*83501
+Immunity to Fire*83502
+Dragon Breath*83503
+Epic Fighter*83505
+Epic Barbarian*83529
+Epic Bard*83530
+Epic Cleric*83531
+Epic Druid*83532
+Epic Monk*83533
+Epic Paladin*83534
+Epic Ranger*83535
+Epic Rogue*83536
+Epic Sorcerer*83537
+Epic Wizard*83538
+Epic Arcane Archer*83539
+Epic Assassin*83540
+Epic Blackguard*83542
+Epic Shadowdancer*83541
+Unknown*-1
+Epic Champion of Torm*83544
+Epic Weapon Master*83545
+Epic Palemaster*83548
+Epic Dwarven Defender*83546
+Epic Shifter*83547
+Epic Red Dragon Disciple*83549
+Thundering Rage*83569
+Terrifying Rage*83582
+Epic Spell: Epic Warding*83608
+Unknown*-1
+Unknown*-1
+Weapon Focus (whip)*436
+Weapon Specialization (whip)*444
+Improved Critical (whip)*228
+Devastating Critical (whip)*3909
+Epic Weapon Focus (whip)*8415
+Epic Weapon Specialization (whip)*8456
+Overwhelming Critical (whip)*8524
+Weapon of Choice (whip)*8728
+Epic Character*83666
+Epic Shadowlord*83702
+Epic Fiendish Servant*83703
+Death Attack (+6d6)*8695
+Death Attack (+7d6)*8695
+Death Attack (+8d6)*8695
+Sneak Attack, Blackguard (+4d6)*40052
+Sneak Attack, Blackguard (+5d6)*40052
+Sneak Attack, Blackguard (+6d6)*40052
+Sneak Attack, Blackguard (+7d6)*40052
+Sneak Attack, Blackguard (+8d6)*40052
+Sneak Attack, Blackguard (+9d6)*40052
+Sneak Attack, Blackguard (+10d6)*40052
+Sneak Attack, Blackguard (+11d6)*40052
+Sneak Attack, Blackguard (+12d6)*40052
+Sneak Attack, Blackguard (+13d6)*40052
+Sneak Attack, Blackguard (+14d6)*40052
+Sneak Attack, Blackguard (+15d6)*40052
+Death Attack (+9d6)*8695
+Death Attack (+10d6)*8695
+Death Attack (+11d6)*8695
+Death Attack (+12d6)*8695
+Death Attack (+13d6)*8695
+Death Attack (+14d6)*8695
+Death Attack (+15d6)*8695
+Death Attack (+16d6)*8695
+Death Attack (+17d6)*8695
+Death Attack (+18d6)*8695
+Death Attack (+19d6)*8695
+Death Attack (+20d6)*8695
+Unknown*-1
+Sneak Attack (+11d6)*6039
+Sneak Attack (+12d6)*6039
+Sneak Attack (+13d6)*6039
+Sneak Attack (+14d6)*6039
+Sneak Attack (+15d6)*6039
+Sneak Attack (+16d6)*6039
+Sneak Attack (+17d6)*6039
+Sneak Attack (+18d6)*6039
+Sneak Attack (+19d6)*6039
+Sneak Attack (+20d6)*6039
+Hit Die Increase (d6)*83814
+Hit Die Increase (d8)*83814
+Hit Die Increase (d10)*83814
+Enchant Arrow VI*8680
+Enchant Arrow VII*8680
+Enchant Arrow VIII*8680
+Enchant Arrow IX*8680
+Enchant Arrow X*8680
+Enchant Arrow XI*8680
+Enchant Arrow XII*8680
+Enchant Arrow XIII*8680
+Enchant Arrow XIV*8680
+Enchant Arrow XV*8680
+Enchant Arrow XVI*8680
+Enchant Arrow XVII*8680
+Enchant Arrow XVIII*8680
+Enchant Arrow XIX*8680
+Enchant Arrow XX*8680
+Outsider Shape*8741
+Construct Shape*8742
+Infinite Greater Wildshape I*84480
+Infinite Greater Wildshape II*84480
+Infinite Greater Wildshape III*84480
+Infinite Greater Wildshape IV*84480
+Infinite Humanoid Shape*84480
+Epic Barbarian Damage Reduction*85495
+Infinite Wildshape*85594
+Infinite Elemental Shape*85595
+Poison Save VI+*86231
+Epic Superior Weapon Focus*86784
+Weapon Focus (trident)*436
+Weapon Specialization (trident)*444
+Improved Critical (trident)*228
+Devastating Critical (trident)*3909
+Epic Weapon Focus (trident)*8415
+Epic Weapon Specialization (trident)*8456
+Overwhelming Critical (trident)*8524
+Weapon of Choice (trident)*8728
+Rallying Cry*111715
+Heroic Shield*111717
+Fear*111719
+Oath of Wrath*111721
+Final Stand*111723
+Inspire Courage*111725
+Inspire Courage*111725
+Mounted Combat*111729
+Mounted Archery*111731
+Mount Actions*111876
+Individual Mount*111878
+Individual Dismount*111880
+Party Mount*111884
+Party Dismount*111886
+Assign Mount*111888
+Summon Mount*111882
+DM Tool 1*111935
+DM Tool 2*111936
+DM Tool 3*111937
+DM Tool 4*111938
+DM Tool 5*111939
+DM Tool 6*111940
+DM Tool 7*111941
+DM Tool 8*111942
+DM Tool 9*111943
+DM Tool 10*111944
+Player Tool 1*111945
+Player Tool 2*111946
+Player Tool 3*111947
+Player Tool 4*111948
+Player Tool 5*111949
+Player Tool 6*111950
+Player Tool 7*111951
+Player Tool 8*111952
+Player Tool 9*111953
+Player Tool 10*111954

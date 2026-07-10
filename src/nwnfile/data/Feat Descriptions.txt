@@ -1,0 +1,3308 @@
+]290
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: +2 bonus to Spot and Listen checks due to finely tuned senses.
+
+Use: Automatic.
+]222
+Type of Feat: General
+
+Prerequisite: Dex 15+.
+Required for: Improved Two-Weapon Fighting.
+
+Specifics: When fighting with two weapons, this feat reduces the penalty of the off-hand weapon by 4.
+
+Use: Used automatically when fighting with two weapons. Rangers receive this feat for free at level 1.
+]223
+Type of Feat: General
+
+Prerequisite: Armor Proficiency (Light) and Armor Proficiency (Medium).
+
+Specifics: This feat grants the knowledge to make effective use of heavy armor.
+
+Use: Automatic. Fighters, paladins, and clerics receive this feat for free.
+]225
+Type of Feat: General
+
+Prerequisite: None.
+Required for: Armor Proficiency (Medium).
+
+Specifics: This feat grants the knowledge to make effective use of light armor.
+
+Use: Automatic. All classes except monks, sorcerers, and wizards have this feat for free.
+]224
+Type of Feat: General
+
+Prerequisite: Armor Proficiency (Light).
+Required for: Armor Proficiency (Heavy).
+
+Specifics: This feat grants the knowledge to make effective use of medium armor.
+
+Use: Automatic. All classes except monks, rogues, sorcerers, and wizards have this feat for free.
+]226
+Type of Feat: General
+
+Prerequisite: Base attack bonus of +1 or higher.
+
+Specifics: Grants the ability to make a potentially disabling attack against an opponent's arms or legs. Called shots are made at a -4 penalty, and must overcome the target's Discipline skill check. A successful called shot against the legs reduces the opponent's movement rate by 20% and gives them a -2 to their dexterity. A successful called shot against the arms applies a cumulative -2 penalty to the creature's attack rolls.
+
+Use: Selected.
+]292
+Type of Feat: General
+
+Prerequisite: Str 13+, Power Attack.
+Required for: Great Cleave.
+
+Specifics: If the character kills an opponent, he gets a free attack against any opponent who is within melee weapon range.
+
+Use: Automatic.
+
+Special: Monks receive this feat at 1st level.
+]297
+Type of Feat: General
+
+Prerequisite: Ability to cast 1st-level spells.
+
+Specifics: The character is adept at casting spells in combat, and does not suffer the standard -4 penalty to Concentration checks when casting defensively within four meters of an enemy.
+
+Use: Automatic.
+]299
+Type of Feat: General
+
+Prerequisite: Dex 13+, Improved Unarmed Strike.
+
+Specifics: The character can attempt to deflect one incoming missile attack per round. This is treated as a Reflex save made against DC 20.
+
+Use: Automatic if not caught flat-footed. Monks receive this feat for free at level 2.
+]303
+Type of Feat: General
+
+Prerequisite: Int 13+.
+Required for: Improved Disarm.
+
+Specifics: The character can attempt to disarm an opponent in melee combat. Attempting a disarm applies a -6 penalty to the character's attack roll, and the combatant with the larger weapon gains a +4 bonus per size category of difference. A successful hit deals normal damage, and if the opponent fails a Discipline check then the weapon flies from the opponent's hands.
+
+Use: Selected. A disarm attempt provokes an attack of opportunity.
+]301
+Type of Feat: General
+
+Prerequisite: Dex 13+.
+Required for: Mobility and Spring Attack.
+
+Specifics: The character gains a +1 dodge bonus to AC against attacks from his current target or last attacker.
+
+Use: Automatic, though a condition that negates a Dexterity bonus to AC also negates any dodge bonuses. Multiple dodge bonuses (different feats, racial bonuses) are cumulative.
+]227
+Type of Feat: Metamagic
+
+Prerequisite: Ability to cast 2nd-level spells.
+
+Specifics: All variable, numeric effects of an empowered spell are increased by 50%. For example, an empowered magic missile deals one and one-half times normal damage (1d4 + 1 multiplied by 1.5). Empowerment does not increase spell duration.
+
+Use: An empowered spell occupies a spell slot two levels higher than normal. Saving throws and opposed rolls, such as those made when Dispel Magic is cast, are not affected.
+]294
+Type of Feat: Metamagic
+
+Prerequisite: Ability to cast 1st-level spells.
+
+Specifics: Extended spells have their duration doubled, lasting twice as long as normal.
+
+Use: An extended spell occupies a spell slot one level higher than normal.
+
+Note: Spells with a duration of instantaneous or permanent are not affected.
+]400
+Type of Feat: Special
+
+Prerequisite: Exclusive to clerics and paladins.
+
+Specifics: This divine ability allows the character to turn undead six additional times per day.
+
+Use: Automatic.
+]402
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: A character with this feat is tougher than normal, gaining a +2 bonus to all Fortitude saving throws.
+
+Use: Automatic.
+]228
+Type of Feat: General
+
+Prerequisite: Proficiency with the chosen weapon, base attack bonus +8 or higher.
+
+Specifics: Combat ability doubles the critical threat range with a given weapon. A longsword that normally threatens a critical on a roll of 19-20 would now threaten a critical on a roll of 17-20.
+
+Use: Automatic. The threat range of a Keen weapon is already doubled, increasing to triple with this feat. This feat can be selected multiple times, applying to a new weapon category each time.
+
+Special: Halflings and Gnomes are small creatures and as such they can never use the following large weapons - dire mace, double bladed sword, doubleaxe, greataxe, greatsword, halberd, heavy flail, and scythe.
+]229
+Type of Feat: General
+
+Prerequisite: Int 13+, Disarm.
+
+Specifics: A character with this feat has learned not to provoke an attack of opportunity when attempting a disarm. Success knocks the opponent's weapon from his hands. The penalty to make a disarm attempt is reduced to -4.
+
+Use: Selected.
+]230
+Type of Feat: General
+
+Prerequisite:  Int 13+, Knockdown, base attack bonus +7.
+
+Specifics: A character with this feat counts as one size category larger when he makes a knockdown attack. All other knockdown conditions still apply.
+
+Use: Selected. Monks receive this feat for free at level 6.
+]406
+Type of Feat: General
+
+Prerequisite: Intelligence 13+.
+
+Specifics: The character gains a +4 competence bonus to his opposed attack roll when using the Parry skill.
+
+Use: Automatic.
+]404
+Type of Feat: General
+
+Prerequisite: Str 13+, Power Attack.
+
+Specifics: This feat allows the character to trade a -10 penalty on his attack roll to gain a +10 bonus on his damage roll. It is very useful when fighting tough, easy-to-hit opponents.
+
+Use: Combat Mode.
+]231
+Type of Feat: General
+
+Prerequisite: Two-Weapon Fighting, Ambidexterity, base attack bonus +9 or higher.
+
+Specifics: The character with this feat is able to get a second off-hand attack (at a penalty of -5 to his attack roll).
+
+Use: Automatic. Rangers receive this feat at level 9, even if they don't meet the requirements.
+]232
+Type of Feat: General
+
+Prerequisite: None.
+Required for: Stunning Fist, Deflect Arrows.
+
+Specifics: Armed opponents no longer get attacks of opportunity against the character when he attempts an unarmed attack.
+
+Use: Automatic. Monks receive this feat for free at Level 1.
+]408
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: The character's strong presence of mind gives him a +2 bonus to all Will saving throws.
+
+Use: Automatic.
+]410
+Type of Feat: General
+
+Prerequisite: None.
+Required for: Improved Knockdown.
+
+Specifics: A character with this feat can attempt to knock his melee opponents to the ground. The character makes an attack roll at -4, and if successful the defender makes an opposed Discipline check against the character's attack roll. If the character wins, the defender is knocked to a prone position.
+
+Use: Selected. Prone characters cannot attack. Characters receive a +4 bonus to attack prone opponents in melee, but a -4 penalty to attack them with a ranged weapon. A character can only make a Knockdown attempt on opponents that are one size category larger than himself, or smaller. The opponent gets a +4 bonus on his opposed check for every size category he is larger than the attacker, or a -4 penalty for every size category he is smaller. Monks receives this feat for free at level 6.
+]412
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: The character's reflexes are faster than normal, granting him a +2 bonus to all Reflex saving throws.
+
+Use: Automatic.
+]414
+Type of Feat: Metamagic
+
+Prerequisite: Ability to cast 3rd-level spells.
+
+Specifics: Maximized spells apply all variable numeric effects - including damage, number of targets, and so on - at their maximum values.
+
+Use: A maximized spell occupies a spell slot three levels higher than normal. Saving throws and opposed rolls, such as those made when Dispel Magic is cast, are not affected.
+]416
+Type of Feat: General
+
+Prerequisite: Dex 13+, Dodge.
+Required for: Spring Attack.
+
+Specifics: A character with this feat has learned to avoid attacks of opportunity more effectively, gaining a +4 dodge bonus to AC against them.
+
+Use: Automatic, though a condition that negates a Dexterity bonus to AC also negates any dodge bonuses. Multiple dodge bonuses (from different feats or racial bonuses) are cumulative.
+]233
+Type of Feat: General
+
+Prerequisite: None.
+Required for: Rapid Shot.
+
+Specifics: A character with this feat negates the -4 penalty for using missile weapons in melee, and gains an additional +1 to attack and damage with ranged weapons when the target is within 15 feet.
+
+Use: Automatic.
+]418
+Type of Feat: General
+
+Prerequisite: Str 13+.
+Required for: Cleave, Improved Power Attack, Great Cleave, Divine Might and Divine Shield.
+
+Specifics: A character with this feat can make powerful but ungainly attacks. When Power Attack is selected, it grants a +5 bonus to the damage roll, but at the cost of -5 to the attack roll.
+
+Use: Combat Mode.
+]234
+Type of Feat: Metamagic
+
+Prerequisite: Ability to cast 4th-level spells.
+
+Specifics: Quickened spells can be cast instantaneously, making them invulnerable to counterspells or interruption. A quickened spell is cast as a free action, and another action can be attempted within the same round, including the casting of another spell. Only one quickened spell can be cast per round.
+
+Use: Quickened spells occupy spell slots four levels higher than normal.
+]420
+Type of Feat: General
+
+Prerequisite: Dex 13+, Point Blank Shot.
+
+Specifics: A character with this feat gains an extra attack per round with a ranged weapon (excluding crossbows). When a Rapid Shot is attempted, the extra attack is made at the character's highest base attack bonus, but all attacks within the round suffer a -2 penalty.
+
+Use: Selected.
+]422
+Type of Feat: General
+
+Prerequisite: Base Attack Bonus +1, Called Shot.
+Required for: Stunning Fist.
+
+Specifics: A character with this feat is able to make a special stun attack in melee. He makes an attack roll with a -4 penalty, and if the hit successfully deals damage the defender must make a Discipline check with a DC equal to the attacker's attack roll. If the defender fails, he or she is dazed for 12 seconds.
+
+Use: Selected.
+]524
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: A character with this feat has the training required to use a shield.
+
+Use: All classes except monks, rogues, sorcerers, and wizards have this feat for free.
+]236
+Type of Feat: Metamagic
+
+Prerequisite: Ability to cast 1st-level spells.
+
+Specifics: Silent spells are cast without a verbal component.
+
+Use: A silenced spell occupies a spell slot one level higher than normal.
+]424
+Type of Feat: General
+
+Prerequisite: Able to use the skill.
+
+Specifics: A character with this feat is adept at a certain skill, gaining a +3 bonus on all checks with it.
+
+Use: Automatic. This feat may be selected multiple times, but the effects do not stack. It applies to a different skill in each case.
+]426
+Type of Feat: General
+
+Prerequisite: Ability to cast 1st-level spells.
+Required for: Greater Spell Focus and Arcane Defense.
+
+Specifics: A character with this feat is adept in a certain school of magic, gaining a +2 bonus to spell save DC for all spells that they cast from that school.
+
+Use: Automatic. This feat may be selected multiple times, but the effects do not stack. It applies to a different school of magic in each case. Gnomes receive Spell Focus (illusion) for free at level 1.
+]237
+Type of Feat: General
+
+Prerequisite: Ability to cast 1st-level spells.
+Required for: Greater Spell Penetration.
+
+Specifics: A spellcaster with this feat gains a +2 bonus to caster level checks to beat a creature's spell resistance.
+
+Use: Automatic.
+]238
+Type of Feat: Metamagic
+
+Prerequisite: Ability to cast 1st-level spells.
+
+Specifics: Still spells are cast without a somatic component. Any penalties incurred from casting in armor do not apply to a spell prepared with this feat.
+
+Use: A stilled spell occupies a spell slot one level higher than normal.
+]428
+Turn Undead
+]430
+Type of Feat: General
+
+Prerequisite: Dex 13+, Wis 13+, Improved Unarmed Strike, base attack bonus +8 or higher.
+Required for: Extra Stunning Attacks.
+
+Specifics: A character with this feat can attempt a disabling strike with a -4 attack penalty and a -4 damage penalty. If successful, the target must succeed at a Fortitude save (DC 10 + 1/2 the attacker's level + the attacker's Wisdom modifier) or be held for one round. This attack may be used once per day for every four levels of the character.
+
+Use: Selected. Monks receive this feat for free at 1st level, even if they do not meet the prerequisites. As well, monks suffer no attack or damage penalties when using this feat and may use it once per day per level. Constructs and undead are immune to this attack, as are any creatures that are immune to critical hits.
+]432
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: A character with this feat is tougher than normal, gaining one bonus hit point per level. Hit points are gained retroactively when choosing this feat.
+
+Use: Automatic.
+]239
+Type of Feat: General
+
+Prerequisite: None.
+Required For: Improved Two-Weapon Fighting.
+
+Specifics: A character with this feat reduces the penalties suffered when fighting with two weapons. The normal penalty of -6 to the primary hand and -10 to the off-hand becomes -4 for the primary hand and -8 for the off-hand. The Ambidexterity feat further reduces the attack penalty for the second weapon by 4 (to -4/-4). Best results are achieved if the off-hand weapon is light, further reducing the penalty for both the primary and off-hand by 2 (to -2/-2). Rangers receive this feat for free at level 1.
+
+Use: This feat is used automatically during combat.
+]434
+Type of Feat: General
+
+Prerequisite: Base attack bonus +1 or higher.
+
+Specifics: A character with this feat is adept at using light weapons subtly and effectively, allowing him to make melee attack rolls with his dexterity modifier instead of strength (if his dexterity is higher than his strength).
+
+Use: Automatic when using any of the following weapons: dagger, handaxe, kama, kukri, light hammer, mace, rapier, short sword, sickle, whip and unarmed strike.
+]436
+Type of Feat: General
+
+Prerequisite: Proficiency with the chosen weapon type, base attack bonus +1 or higher.
+Required for: Weapon Specialization (fighter only).
+
+Specifics: A character with this feat is particularly skilled with a specific weapon, gaining a +1 attack bonus with it.
+
+Use: Automatic. This feat may be selected multiple times, but the effects do not stack. It applies to a new weapon in each case.
+
+Special: Halflings and gnomes are Small creatures and as such they can never use the following large weapons: dire mace, double-bladed sword, double axe, greataxe, greatsword, halberd, heavy flail, and scythe.
+]438
+Type of Feat: General
+
+Prerequisite: Base attack bonus +1 or higher.
+
+Specifics: This feat allows effective use of all exotic weapons. The exotic weapons list includes the bastard sword, dire mace, dwarven waraxe, double axe, kama, katana, kukri, scythe, shuriken, whip, and two-bladed sword.
+Normal: A character cannot equip weapons they are not proficient in.
+
+Use: Automatic.
+]440
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: This feat allows effective use of all martial weapons. The martial weapons list includes the battleaxe, greataxe, greatsword, halberd, handaxe, heavy flail, light flail, light hammer, longbow, longsword, rapier, scimitar, short sword, shortbow, throwing axe, trident and warhammer.
+Normal: A character cannot equip weapons they are not proficient in.
+
+Use: Barbarians, fighters, paladins, and rangers are automatically proficient with all martial weapons.
+]442
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: This feat allows effective use of all simple weapons, including the club, dagger, mace, sickle, spear, morningstar, quarterstaff, light and heavy crossbows, dart, and sling.
+Normal: A character cannot equip weapons they are not proficient in.
+
+Use: All characters except for druids, monks, rogues, and wizards are automatically proficient with all simple weapons. The spell Tenser's Transformation gives a wizard a temporary proficiency with all simple weapons.
+]444
+Type of Feat: Special
+
+Prerequisite: Must be a fighter, base attack bonus +4, Weapon Focus in the chosen weapon group.
+
+Specifics: A character with this feat has trained especially hard with a specific weapon group, and gains a +2 damage bonus when using these weapons in combat.
+
+Use: This feat may be selected multiple times, but the effects do not stack. It applies to a new weapon in each case.
+
+Special: Halflings and Gnomes are small creatures and as such they can never use the following Large weapons: dire mace, two-bladed sword, double axe, greataxe, greatsword, halberd, heavy flail, and scythe.
+]6012
+Type of Feat: Special
+
+Prerequisite: Druid Level 1.
+
+Specifics: This feat allows the character to use the club, dagger, scimitar, sickle, spear, quarterstaff, dart, and sling.
+Normal: A character cannot equip a weapon he is not proficient in.
+
+Use: All druids start with this feat and cannot gain weapon proficiency with any other weapons.
+]6013
+Type of Feat: Special
+
+Prerequisite: Monk level 1.
+
+Specifics: This feat allows effective use of club, dagger, handaxe, light crossbow, heavy crossbow, quarterstaff, shuriken, kama, and sling.
+Normal: A character cannot equip a weapon he is not proficient in.
+
+Use: All monks start with this feat but can gain other weapon proficiencies as well.
+]6014
+Type of Feat: Special
+
+Prerequisite: Rogue level 1.
+
+Specifics: This feat allows the character to use the club, dagger, dart, handaxe, light crossbow, heavy crossbow, quarterstaff, mace, short sword, rapier, shortbow, morningstar, and sling.
+Normal: A character cannot equip a weapon he is not proficient in.
+
+Use: All rogues start with this feat but can gain other weapon proficiencies as well.
+]6015
+Type of Feat: Special
+
+Prerequisite: Wizard level 1.
+
+Specifics: This feat allows the character to use the club, dagger, light crossbow, heavy crossbow, and quarterstaff.
+Normal: A character cannot equip a weapon he is not proficient in.
+
+Use: All wizards start with this feat but can gain other weapon proficiencies as well.
+]6016
+Type of Feat: Class
+
+Prerequisite: Barbarian level 1.
+
+Specifics: This feat gives the barbarian a 10% bonus to movement.
+]6017
+Type of Feat: Class
+
+Prerequisite: Barbarian level 2, rogue level 3, shadowdancer level 2 or assassin level 2.
+
+Specifics: The character retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+
+Use: Automatic.
+]6018
+Type of Feat: Class
+
+Prerequisite: Barbarian level 11.
+
+Specifics: This feat allows the barbarian to shrug off one point of damage from each attack that causes them damage.
+
+Use: Automatic.
+]6019
+Type of Feat: Class
+
+Prerequisite: Bard level 1, Harper Scout level 1.
+
+Specifics: This feat allows the character to identify items more easily than others. It grants the character a bonus equal to their level to any Lore checks.
+
+Use: Automatic.
+]6020
+Type of Feat: Class
+
+Prerequisite: Druid level 1.
+
+Specifics: The druid gains a +2 bonus on all attack rolls made while fighting in wilderness areas.
+
+Use: Automatic.
+]6021
+Type of Feat: Class
+
+Prerequisite: Druid level 1 or ranger level 6.
+
+Specifics: An animal companion may be summoned once per day, until killed or unsummoned.
+
+Use: Selected.
+]6022
+Type of Feat: Class
+
+Prerequisite: Druid level 2.
+
+Specifics: Immune to the Grease, Web, and Entangle spells.
+
+Use: Automatic.
+]6023
+Type of Feat: Class
+
+Prerequisite: Ranger level 1 or druid level 3.
+
+Specifics: This feat grants a +4 competence bonus to Hide and Move Silently checks when in wilderness areas.
+
+Use: Automatic.
+]6024
+Type of Feat: Class
+
+Prerequisite: Druid level 4.
+
+Specifics: This feat grants a +2 insight bonus on saving throws against fear spells and effects.
+
+Use: Automatic.
+]6025
+Type of Feat: Class
+
+Prerequisite: Druid level 9.
+
+Specifics: The druid is immune to all poisons.
+
+Use: Automatic.
+]6026
+Type of Feat: Class
+
+Prerequisite: Monk level 1.
+
+Specifics: Monks receive an extra attack per round when fighting with unarmed attacks or a kama. However, all attacks in that round suffer a -2 attack penalty.
+
+Use: Combat.
+]6027
+Type of Feat: Class
+
+Prerequisite: Monk level 1, rogue level 2 or shadowdancer level 2.
+
+Specifics: Whenever a Reflex save is allowed for half damage, the character instead takes no damage if he succeeds at the save.
+
+Use: Automatic.
+]6028
+Type of Feat: Class
+
+Prerequisite: Monk level 3.
+
+Specifics: Monks move more quickly than other classes, and this ability improves with experience.
+
+Use: Automatic.
+]6029
+Type of Feat: Class
+
+Prerequisite: Monk level 3.
+
+Specifics: The monk gains a +2 competence bonus on saving throws against mind-affecting spells.
+
+Use: Automatic.
+]6030
+Type of Feat: Class
+
+Prerequisite: Monk level 5.
+
+Specifics: The monk is immune to all non-magical diseases.
+
+Use: Automatic.
+]6031
+Type of Feat: Class
+
+Prerequisite: Monk level 7.
+
+Specifics: The monk can heal damage equal to twice their class level, once per day.
+
+Use: Selected.
+]6032
+Type of Feat: Class
+
+Prerequisite: Monk level 9, rogue level 10 or shadowdancer level 10.
+
+Specifics: Whenever a Reflex save is allowed for half damage, characters with this feat instead take no damage if they succeed at the save. Even if they fail the save, they take only half damage.
+
+Use: Automatic.
+]6033
+Type of Feat: Class
+
+Prerequisite: Monk.
+
+Specifics: The monk's unarmed attack counts as a magic weapon against creatures with damage reduction (+1 at 10th level, +2 at 13th, +3 at 16th).
+
+Use: Automatic.
+]6034
+Type of Feat: Class
+
+Prerequisite: Monk level 11.
+
+Specifics: The monk gains immunity to all poisons.
+
+Use: Automatic.
+]6035
+Type of Feat: Class
+
+Prerequisite: Monk level 12.
+
+Specifics: The monk gains spell resistance equal to their class level + 10.
+
+Use: Automatic.
+]6036
+Type of Feat: Class
+
+Prerequisite: Monk level 20.
+
+Specifics: The monk gains immunity to all mind-affecting spells and effects, and damage reduction 20/+1.
+
+Use: Automatic.
+]6037
+Type of Feat: Class
+
+Prerequisite: Paladin level 1.
+
+Specifics: The paladin adds their Charisma bonus (if positive) to all saving throws.
+
+Use: Automatic.
+]6038
+Type of Feat: Class
+
+Prerequisite: Paladin level 1.
+
+Specifics: The paladin is immune to disease.
+
+Use: Automatic.
+]6039
+Type of Feat: Class
+
+Prerequisite: Rogue.
+
+Specifics: Whenever the character makes a successful attack against an opponent who is flat-footed, cannot see them, or who is in combat with someone else, the character's blow delivers extra damage. This extra damage is +1d6 at 1st level and an additional +1d6 every two levels thereafter. This extra damage is not multiplied in the case of a critical hit.
+
+Use: Automatic. Monsters of the construct and undead types are immune to sneak attacks, as are any creatures that are immune to critical hits.
+]6040
+Type of Feat: Class
+
+Prerequisite: Rogue level 10.
+
+Specifics: The rogue deals an additional 2 points of ability score Strength damage when they make a successful sneak attack.
+
+Use: Automatic.
+]6041
+Type of Feat: Class
+
+Prerequisite: Rogue level 10 or shadowdancer level 5.
+
+Specifics: If the rogue is struck by a potentially lethal blow, they make a Reflex saving throw (DC = damage dealt). If succesful, they take only half damage from the blow.
+
+Use: Automatic, but limited to one use per day. Flat-footed characters cannot make a defensive roll.
+]6042
+Type of Feat: Class
+
+Prerequisite: Rogue level 10.
+
+Specifics: The rogue gains a +4 competence bonus to attack rolls when making attacks of opportunity.
+
+Use: Automatic.
+]6043
+Type of Feat: Class
+
+Prerequisite: Rogue level 10.
+
+Specifics: When using the Disable Trap, Open Lock, and Set Trap skills, the character automatically takes 20 on any skill checks, even if in combat.
+
+Use: Automatic.
+]6044
+The monster cannot be caught flat footed for any reason.
+]6045
+Type of Feat: Race
+
+Prerequisite: Dwarf.
+
+Specifics: This feat grants a +2 bonus on Search checks made in interior areas.
+
+Use: Automatic.
+]6046
+Type of Feat: Race
+
+Prerequisite: Dwarf, half-orc or shadowdancer level 2, pale master level 3 or red dragon disciple level 10.
+
+Specifics: This feat grants the ability to see in the dark.
+
+Use: Automatic.
+]6047
+Type of Feat: Race
+
+Prerequisite: Dwarf.
+
+Specifics: This feat grants a +2 racial bonus on saving throws vs. poison.
+
+Use: Automatic.
+]6048
+Type of Feat: Race
+
+Prerequisite: Dwarf.
+
+Specifics: This feat grants a +2 racial bonus on saving throws vs. spells.
+
+Use: Automatic.
+]6049
+Type of Feat: Race
+
+Prerequisite: Dwarf.
+
+Specifics: This feat grants a +1 racial bonus on attack rolls made against orcs.
+
+Use: Automatic.
+]6050
+Type of Feat: Race
+
+Prerequisite: Dwarf or gnome.
+
+Specifics: This feat grants a +1 racial bonus on attack rolls against goblinoids (goblins, hobgoblins, and bugbears).
+
+Use: Automatic.
+]6051
+Type of Feat: Race
+
+Prerequisite: Dwarf or gnome.
+
+Specifics: This feat grants a +4 dodge bonus to AC against giants.
+
+Use: Automatic.
+]6052
+Type of Feat: Race
+
+Prerequisite: Dwarf.
+
+Specifics: This feat grants a +2 racial bonus to Lore checks.
+
+Use: Automatic.
+]6053
+Type of Feat: Race/Class
+
+Prerequisite: Elf, Half-Elf or Level 10 Dragon Disciple.
+
+Specifics: This feat grants immunity to all sleep spells and effects.
+
+Use: Automatic.
+]6054
+Type of Feat: Race
+
+Prerequisite: Elf or half-elf.
+
+Specifics: This feat grants a +2 bonus on saving throws against mind-affecting spells.
+
+Use: Automatic.
+]6055
+Type of Feat: Race
+
+Prerequisite: Elf, gnome, or halfling.
+
+Specifics: This feat grants a +2 racial bonus to Listen checks.
+
+Use: Automatic.
+]6056
+Type of Feat: Race
+
+Prerequisite: Elf.
+
+Specifics: This feat grants a +2 racial bonus to Search checks.
+
+Use: Automatic.
+]6057
+Type of Feat: Race
+
+Prerequisite: Elf.
+
+Specifics: This feat grants a +2 racial bonus to Spot checks.
+
+Use: Automatic.
+]6058
+Type of Feat: Race
+
+Prerequisite: Elf.
+
+Specifics: Characters with this feat may apply their full Search skill even when making a passive search.
+
+Use: Automatic.
+]6059
+Type of Feat: Race
+
+Prerequisite: Gnome.
+
+Specifics: This feat grants a +2 racial bonus on saving throws against mind-affecting spells.
+
+Use: Automatic.
+]6060
+Type of Feat: Race
+
+Prerequisite: Gnome.
+
+Specifics: This feat grants a +1 racial bonus on attack rolls against reptilian humanoids.
+
+Use: Automatic.
+]6061
+Type of Feat: Race
+
+Prerequisite: Gnome.
+
+Specifics: This feat grants a +2 racial bonus to Concentration checks.
+
+Use: Automatic.
+]6062
+Type of Feat: Race
+
+Prerequisite: Half-elf.
+
+Specifics: This feat grants a +1 racial bonus to Listen checks.
+
+Use: Automatic.
+]6064
+Type of Feat: Race
+
+Prerequisite: Half-elf.
+
+Specifics: This feat grants a +1 racial bonus to Search checks.
+
+Use: Automatic.
+]6063
+Type of Feat: Race
+
+Prerequisite: Half-elf.
+
+Specifics: This feat grants a +1 racial bonus to Spot checks.
+
+Use: Automatic.
+]6065
+Type of Feat: Race
+
+Prerequisite: Halfling.
+
+Specifics: This feat grants a +2 racial bonus to Move Silently checks.
+
+Use: Automatic.
+]6066
+Type of Feat: Race
+
+Prerequisite: Halfling.
+
+Specifics: This feat grants a +1 racial bonus to all saving throws.
+
+Use: Automatic.
+]6067
+Type of Feat: Race
+
+Prerequisite: Halfling.
+
+Specifics: This feat grants a +2 bonus on saving throws against fear spells and effects.
+
+Use: Automatic.
+]6068
+Type of Feat: Race
+
+Prerequisite: Halfling.
+
+Specifics: This feat grants a +1 attack bonus on attacks made with throwing weapons.
+
+Use: Automatic.
+]6069
+Type of Feat: Class
+
+Prerequisite: Barbarian level 5, rogue level 6, shadowdancer level 5 or assassin level 5.
+
+Specifics: This feat grants a +1 bonus on Reflex saving throws made to avoid traps. The character also retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+
+Use: Automatic.
+]6070
+Type of Feat: Class
+
+Prerequisite: Barbarian level 10, rogue level 11, shadowdancer level 10 or assassin level 10.
+
+Specifics: This feat grants a +2 bonus on Reflex saving throws made to avoid traps. The character also retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+
+Use: Automatic.
+]6071
+Type of Feat: Class
+
+Prerequisite: Barbarian level 13 or rogue level 14.
+
+Specifics: This feat grants a +3 bonus on Reflex saving throws made to avoid traps. The character also retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+
+Use: Automatic.
+]6072
+Type of Feat: Class
+
+Prerequisite: Barbarian level 16 or rogue level 17.
+
+Specifics: This feat grants a +4 bonus on Reflex saving throws made to avoid traps. The character also retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+
+Use: Automatic.
+]6073
+Type of Feat: Class
+
+Prerequisite: Barbarian level 19 or rogue level 20.
+
+Specifics: This feat grants a +5 or more bonus on Reflex saving throws made to avoid traps. The character also retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+Epic Progression: The uncanny dodge bonus improves by +1 every three levels.
+
+Use: Automatic.
+]6074
+Type of Feat: Race
+
+Prerequisite: Elf.
+
+Specifics: This feat allows the character to use the longsword, rapier, longbow, and shortbow.
+Normal: A character cannot equip a weapon he is not proficient in.
+
+Use: All elves start with this feat but can gain other weapon proficiencies as well.
+]6075
+Type of Feat: Class
+
+Prerequisite: Bard.
+
+Specifics: Bards are able to sing a song that can bolster their allies. Deafened creatures are not affected by the bard's singing. The song affects all allies within 30 feet and lasts for 10 rounds. The higher the bard's final Perform skill and class level, the better the Bard song. All of the bonuses listed are additive.
+3 Perform and Bard Level 1: +1 to Attack and Damage rolls.
+6 Perform and Bard Level 2: +1 to Will Saves.
+9 Perform and Bard Level 3: +1 to Damage rolls and +1 to Fortitude Saves.
+12 Perform and Bard Level 6: +1 to Reflex saves, +1 to Skill rolls.
+15 Perform and Bard Level 8: +1 to Attack rolls, +8 temporary Hit Points.
+18 Perform and Bard Level 11: +2 to Dodge Armor Class, +1 to Skill rolls.
+Perform 21 and Bard Level 14: +1 to Damage rolls, +8 temporary Hit Points and +1 Dodge Armor Class.
+Perform 24 and Bard Level 15: +1 Will Saves, +1 Reflex Saves, +1 Fortitude Saves, +1 Dodge Armor Class.
+Perform 30 and Bard Level 16: +1 Will Saves, +4 temporary Hit Points. +1 Dodge Armor Class.
+For each additional 5 Perform and 1 Class level in Bard an additional +2 temporary Hit Points is granted.
+
+Use: Selected.
+]6076
+Type of Feat: Race
+
+Prerequisite: Human.
+
+Specifics: Humans start with an extra feat at character generation.
+
+Use: Automatic.
+]10389
+Type of Feat: Class
+
+Prerequisite: Rogue level 10 or shadowdancer level 7.
+
+Specifics: Characters failing their Will save versus mind-affecting spells get an automatic reroll.
+
+Use: Automatic.
+]6078
+Type of Feat: Class
+
+Prerequisite: Monk level 1.
+
+Specifics: Monks add their Wisdom modifier to their Armor Class.
+
+Use: Automatic.
+]6079
+Type of Feat: Class
+
+Prerequisite: Ranger or Harper level 1.
+
+Specifics: The character gains a +1 bonus to any damage delivered to their favored enemy. They also receive a +1 bonus on Listen, Spot, and Taunt checks against the favored enemy. These bonuses improve by +1 for every 5 levels that the ranger gains, but they do not improve for the harper.
+
+Use: Automatic. The ranger may choose additional favored enemies every 5 levels. A harper chooses one more at level 4.
+]6080
+Type of Feat: Monster
+
+Prerequisite: -
+
+Specifics: Grants proficiency in the creature weapon.
+
+Use: Automatic.
+]6081
+Type of Feat: Monster
+
+Prerequisite: -
+
+Specifics: Grants Weapon Specialization with the creature weapon.
+
+Use: Automatic.
+]6082
+Type of Feat: Monster
+
+Prerequisite: -
+
+Specifics: Grants Weapon Focus with the creature weapon.
+
+Use: Automatic.
+]6083
+Type of Feat: Monster
+
+Prerequisite: -
+
+Specifics: Grants Improved Critical with the creature weapon.
+
+Use: Automatic.
+]6084
+Type of Feat: Class
+
+Prerequisite: Barbarian.
+
+Specifics: The barbarian may rage, gaining a +4 morale bonus to Strength and Constitution and +2 to all Will saving throws, in exchange for a -2 penalty to Armor Class. The barbarian may use this ability once per day at first level, +1 use per day at level 4, and every 4 levels thereafter, extending into epic levels.
+
+Use: Selected. At 15th level, the rage ability becomes greater rage, giving the barbarian +6 to Strength and Consitution and +3 to Will saves (the -2 penalty to Armor Class still applies).
+]6085
+Type of Feat: Class
+
+Prerequisite: Cleric level 1, paladin level 3 or blackguard level 3.
+Required for: Divine Might and Divine Shield.
+
+Specifics: With this feat, the character can force undead to flee in terror. This ability may be activated three times per day, plus the cleric's Charisma modifier. The cleric's level and Charisma are used to determine how many undead are turned.
+
+Use: Selected. If the cleric has twice as many levels as the undead have Hit Die, the undead are instantly destroyed.
+]6086
+Type of Feat: Class
+
+Prerequisite: Monk level 15.
+
+Specifics: This ability may be used once per day to instantly kill an opponent. If the monk makes a successful attack after activating the ability, the target must make a Fortitude save (DC 10 + half the monk's level + the monk's Wisdom modifier) or die.
+
+Use: Selected. Quivering Palm may only be used on creatures at a lower level than the monk. Creatures of the construct and undead types are immune to this effect, as are any creatures that are immune to critical hits.
+]6087
+Type of Feat: Class
+
+Prerequisite: Monk level 18.
+
+Specifics: The monk is given 50% concealment.
+
+Use: Selected.
+]6089
+Type of Feat: Class
+
+Prerequisite: Paladin level 1, Champion of Torm level 1.
+
+Specifics: With this feat, characters can heal damage equal to their class level multiplied by their Charisma modifier.
+
+Use: Selected. When used against undead creatures, it is treated as a touch attack spell that delivers damage instead of healing.
+]6090
+Type of Feat: Class
+
+Prerequisite: Paladin level 2.
+
+Specifics: A character with this feat is immune to fear.
+
+Use: Automatic.
+]6091
+Type of Feat: Class
+
+Prerequisite: Paladin level 2, Champion of Torm level 3.
+
+Specifics: This feat allows the character to make a special attack against evil creatures. Paladins apply their Charisma modifier to their attack roll, and their class level to the damage delivered. Smite Evil may be used once per day.
+
+Use: Selected. Smite Evil only affects evil creatures.
+]6092
+Type of Feat: Class
+
+Prerequisite: Paladin level 3.
+
+Specifics: A character with this feat may remove disease once per day.
+
+Use: Selected.
+]6093
+Type of Feat: Class
+
+Prerequisite: Wizard or sorcerer level 1.
+
+Specifics: A character with this feat may summon a familiar once per day. If the familiar dies, the character suffers 1d6 damage, but may summon the familiar again on the following day.
+
+Use: Selected.
+]6094
+Type of Feat: Class
+
+Prerequisite: Druid.
+
+Specifics: The character with this ability can take the shape of an elemental (a Huge elemental at 16th level, and an elder elemental at 20th level). The ability may be used once per day at level 16, twice per day at level 17, and three times per day at level 19. At level 26 the druid is able to shift into elemental shape at will. The transformation has a duration of 1 hour per class level.
+
+Use: Selected. After choosing the ability, the character must choose one of four elemental types (earth, air, fire or water) to become.
+]6095
+Type of Feat: Class
+
+Prerequisite: Druid
+
+Specifics: The character with this ability can take the shape of an animal at will. It may be used once per day at fifth level, twice per day at sixth level, three times per day at seventh level, four times per day at 10th level, five times per day at 14th level, and six times per day at 18th level. The transformation has a duration of 1 hour per class level.
+
+Use: Selected. After choosing the ability, the character must choose an animal form to take.
+]5938
+Type of Feat: Domain
+
+Prerequisite: Access to War domain.
+
+Specifics:
+Battle Master: The clerics gains a bonus of 1 + 1 per 5 levels to Dexterity, Constitution, Attack Rolls and Damage. As well the cleric receives double this value as damage reduction. The effect will last for 5 rounds + charisma modifer.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Cat's Grace (2), Aura of Vitality (7).
+
+Use: Once/Day.
+]5939
+Type of Feat: Domain
+
+Prerequisite: Access to the Strength domain.
+
+Specifics:
+Divine Strength: The cleric gains a bonus to Strength equal to 2 +1 per 3 cleric levels. The effect lasts for 5 rounds + Charisma modifier.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Divine Power (3), Stoneskin (5)
+
+Use: Automatic.
+]5940
+Type of Feat: Domain
+
+Prerequisite: Access to the Protection domain.
+
+Specifics:
+Divine Protection: Available to Clerics of the Protection Domain. The cleric is able to cast an improved form of Sanctuary that sets the save DC at 10 + Chr Modifier + Clerical Level. The effect has a duration of 1 round per caster level + Charisma modifier.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Minor Globe of Invulnerability (4), Energy Buffer (5).
+
+Use: Automatic.
+]5942
+Type of Feat: Domain
+
+Prerequisite: Access to the Death domain.
+
+Specifics:
+Negative Plane Avatar: Able to summon a shadow that scales according to the cleric's level.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Phantasmal Killer (4), Enervation (5).
+
+Use: Automatic.
+]5966
+Type of Feat: Domain
+
+Prerequisite: Access to the Air domain.
+
+Specifics:
+Elemental Turning: Able to turn elementals as if they were undead.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Call Lightning (3), Chain Lightning (6).
+
+Use: Automatic.
+]5968
+Type of Feat: Domain
+
+Prerequisite: Access to the Animal domain.
+
+Specifics:
+Clerics who take the Animal domain are able to summon more powerful allies.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Cat's Grace (2), True Seeing (3), Polymorph Self (5).
+
+Use: Automatic.
+]5969
+Type of Feat: Domain
+
+Prerequisite: Access to the Destruction domain.
+
+Specifics:
+Weaken Constructs: Able to damage constructs while using the turn ability.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Stinking Cloud (3), Acid Fog (6).
+
+Use: Automatic.
+]5970
+Type of Feat: Domain
+
+Prerequisite: Access to the Earth domain.
+
+Specifics:
+Turn Elementals: Able to turn elementals as if they were undead.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Stoneskin (4), Energy Buffer (5)
+
+Use: Automatic.
+]5971
+Type of Feat: Domain
+
+Prerequisite: Access to the Evil domain.
+
+Specifics:
+Turn Outsiders: Able to turn outsiders as if they were undead.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Negative Energy Ray (1), Negative Energy Burst (3), Enervation (5).
+
+Use: Automatic.
+]5972
+Type of Feat: Domain
+
+Prerequisite: Access to the Fire domain.
+
+Specifics:
+Turn Elementals: Able to turn elementals as if they were undead.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Wall of Fire (4), Energy Buffer (5).
+
+Use: Automatic.
+]5973
+Type of Feat: Domain
+
+Prerequisite: Access to the Good domain.
+
+Specifics:
+Turn Outsider: Able to turn outsiders as if they were undead.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Stoneskin (4), Lesser Planar Binding (5).
+
+Use: Automatic.
+]5974
+Type of Feat: Domain
+
+Prerequisite: Access to the Healing domain.
+
+Specifics:
+Empower Healing: The following healing spells are cast as if Empowered by the feat: Cure Light Wounds, Cure Moderate Wounds, Cure Serious Wounds, Cure Critical Wounds.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Cure Serious Wounds (2), Heal(5).
+
+Use: Automatic.
+]5975
+Type of Feat: Domain
+
+Prerequisite: Access to the Knowledge domain.
+
+Specifics:
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Identify (1), Knock (2), Clairvoyance/Clairaudience (3), True Seeing (4), Legend Lore (6).
+
+Use: Automatic.
+]5976
+Type of Feat: Domain
+
+Prerequisite: Access to the Magic domain.
+
+Specifics:
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Mage Armor (1), Melf's Acid Arrow (2), Negative Energy Burst (3), Stoneskin (4), Ice Storm (5).
+
+Use: Automatic.
+]5977
+Type of Feat: Domain
+
+Prerequisite: Access to the Plant domain.
+
+Specifics:
+Turn Vermin: Able to turn vermin as if they were undead.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Barkskin (2), Creeping Doom (7).
+
+Use: Automatic.
+]5978
+Type of Feat: Domain
+
+Prerequisite: Access to the Sun domain.
+
+Specifics:
+Exceptional Turning: Add 1d6 to all turning checks to determine the maximum HD of undead turned. Also add 1d4 to the number of undead Hit Dice turned.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Searing Light (2), Sunbeam (7).
+
+Use: Automatic.
+]5979
+Type of Feat: Domain
+
+Prerequisite: Access to the Travel domain.
+
+Specifics:
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Entangle (1), Web (2), Freedom of Movement (3), Slow (4), Haste (5).
+
+Use: Automatic.
+]5980
+Type of Feat: Domain
+
+Prerequisite: Access to the Trickery domain.
+
+Specifics:
+Divine Trickery: Bonus to Hide, Persuade, Search, Disable Trap, Move Silently, Open Lock, and Pick Pockets checks equal to 1 per 2 levels. This effect lasts for 5 turns + the cleric's Charisma modifier.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Invisibility (2), Invisibility Sphere (3), Improved Invisibility (5).
+
+Use: Automatic.
+]5981
+Type of Feat: Domain
+
+Prerequisite: Access to the Water domain.
+
+Specifics:
+Turn Elementals: Able to turn elementals as if they were undead.
+Bonus Spells: The cleric gains access to the following spells at the specified spell level: Poison (3), Ice Storm (5).
+
+Use: Automatic.
+]8339
+Type of Feat: Class
+
+Prerequisite: Barbarian level 14.
+
+Specifics: This feat allows barbarians to shrug off two points of damage from each attack that hits them.
+
+Use: Automatic.
+]8340
+Type of Feat: Class
+
+Prerequisite: Barbarian level 17.
+
+Specifics: This feat allows barbarians to shrug off three points of damage from each attack that hits them.
+
+Use: Automatic.
+]8341
+Type of Feat: Class
+
+Prerequisite: Barbarian level 20.
+
+Specifics: This feat allows barbarians to shrug off four points of damage from each attack that hits them.
+
+Use: Automatic.
+]8187
+Type of Feat: Race
+
+Prerequisite: Elf, half-elf, or gnome.
+
+Specifics: Low-light vision grants the ability to see in the dark, but not as far as darkvision.
+
+Use: Automatic.
+]66847
+Type of Feat: Class
+
+Prerequisite: Ranger level 1.
+
+Specifics: Rangers, when wearing light armor, get all the benefits of having the ambidexterity and two-weapon fighting feats. While wearing medium or heavy armor they lose these benefits.
+
+Use: Automatic.
+]67701
+Type of Feat: Race
+
+Prerequisite: Gnome or Halfling.
+
+Specifics: Gnomes and halflings are small creatures.  As such, they gain bonuses to their attack rolls, armor class and hide checks when dealing with larger creatures.
+
+Note: Because they are so small, they cannot use the following weapons: dire mace, two-bladed sword, double axe, greataxe, greatsword, halberd, heavy flail, quarterstaff, scythe and spear.
+
+Use: Automatic.
+]2752
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: The character gains a +4 bonus to initiative checks.
+
+Use: Automatic.
+]2754
+Type of Feat: General
+
+Prerequisite: Can only take this feat at 1st-level.
+
+Specifics: Character gains a +2 bonus on Perform and Spot checks.
+
+Use: Automatic.
+]2756
+Type of Feat: General
+
+Prerequisite: Can only take this feat at 1st-level.
+
+Specifics: Character gains a +2 bonus on Initiative and a +2 bonus on Spot checks.
+
+Use: Automatic.
+]2758
+Type of Feat: General
+
+Prerequisite: Can only take this feat at 1st-level.
+
+Specifics: Character gains a +2 bonus on resisting Taunts and a +1 bonus on Will saving throws.
+
+Use: Automatic.
+]2760
+Type of Feat: General
+
+Prerequisite: Can only take this feat at 1st-level.
+
+Specifics: Character gains a +2 bonus on Lore checks and Spellcraft checks.
+
+Use: Automatic.
+]2762
+Type of Feat: General
+
+Prerequisite: Can only take this feat at 1st-level.
+
+Specifics: Character gains a +1 bonus on all saving throws.
+
+Use: Automatic.
+]2764
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: Character gains a +4 bonus on Fortitude saving throws against poison.
+
+Use: Automatic.
+]2766
+Type of Feat: General
+
+Prerequisite: Can only take this feat at 1st-level.
+
+Specifics: Character gains a +2 bonus on Appraise and Persuade checks.
+
+Use: Automatic.
+]2770
+Type of Feat: General
+
+Prerequisite: Can only take this feat at 1st-level.
+
+Specifics: Character gains a +1 reflex saving throw bonus. Also, any saving throws versus poison gain an additional +2 fortitude bonus.
+
+Use: Automatic.
+]2772
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: Character gains a +2 bonus on Hide and Move Silently checks.
+
+Use: Automatic.
+]2776
+Type of Feat: General
+
+Prerequisite: Can only take this feat at 1st-level.
+
+Specifics: Character gains a +1 bonus to Fortitude and Will saving throws, as well as a +1 bonus to any saving throw versus Death magic.
+
+Use: Automatic.
+]2774
+Type of Feat: General
+
+Prerequisite: Int 13+.
+Required for: Improved Expertise, Whirlwind Attack
+
+Specifics: A character with this feat can make defensive attacks, gaining a +5 bonus to AC but receiving a -5 penalty to attack rolls.
+
+Use: Combat Mode.
+]2778
+Type of Feat: General
+
+Prerequisite: Int 13+, Expertise.
+
+Specifics: A character with this feat can make defensive attacks, gaining a +10 bonus to AC but receiving a -10 penalty to attack rolls.
+
+Use: Combat Mode.
+]2780
+Type of Feat: General
+
+Prerequisite: Str 13+, Power Attack, Cleave, base attack bonus +4 or higher.
+
+Specifics: As cleave, except that there is no limit to the number of additional attacks that the character may make after killing one opponent.
+
+Use: Automatic.
+]2782
+Type of Feat: General
+
+Prerequisite: Dex 13+, Dodge, Mobility, base attack bonus +4 or higher.
+Required for: Whirlwind Attack
+
+Specifics: Enemies do not get attacks of opportunity against the character when the character is moving around in combat.
+
+Use: Automatic.
+]2791
+Type of Feat: General
+
+Prerequisite: Spell Focus.
+
+Specifics: A character becomes even more adept with spells of a particular school of magic. The character gains a +4 bonus to the spell save DC for all spells of the chosen school.
+
+Use: Automatic. This feat may be selected multiple times, but the effects do not stack. It applies to a different school of magic in each case.
+]2793
+Type of Feat: General
+
+Prerequisite: Spell Penetration.
+
+Specifics: A +4 bonus on caster level checks is granted to the character, when trying to beat a creature's spell resistance.
+
+Use: Automatic.
+]2795
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: Character gains a +2 bonus on Initiative checks and a +2 bonus on Persuade checks.
+
+Use: Automatic.
+]2802
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: This feat grants the character the ability to fight well, even if blinded or against invisible creatures. The character gets to reroll its miss chance percentile one time to see if it actually hits. Furthermore, invisible creatures get no bonus to hit the character in melee.
+
+Use: Automatic.
+]2842
+Type of Feat: General
+
+Prerequisite: Base attack bonus +3, Dex 15+, Improved Unarmed Strike.
+
+Specifics: If the character succeeds in hitting an opponent with an unarmed attack, they get an additional free attack against another, nearby enemy. There is a maximum of one free attack per round.
+
+Use: Automatic.
+]2806
+Type of Feat: General
+
+Prerequisite: Base attack bonus +2, Stunning Fist.
+
+Specifics: The character gains 3 extra stunning attacks per day.
+
+Use: Automatic.
+]2808
+Type of Feat: General
+
+Prerequisite: Base attack bonus +2.
+
+Specifics: The character is able to reload so quickly that they get the same number of attacks with any crossbow as they would if they were using a normal bow.
+
+Use: Automatic.
+]2810
+Type of Feat: General
+
+Prerequisite: Base attack bonus +3, Wis 13+.
+
+Specifics: Wisdom guides the character's ranged attacks, letting them use their Wisdom modifier, if it is higher, instead of their Dexterity when firing ranged weapons.
+
+Use: Automatic.
+]2812
+Type of Feat: General
+
+Prerequisite: Turn Undead, Cha 13+, Str 13+, Power Attack.
+
+Specifics: The character may spend one of his turn undead attempts to add his Charisma bonus to all weapon damage for a number of rounds equal to the Charisma bonus.
+
+Use: Selected.
+]2814
+Type of Feat: General
+
+Prerequisite: Turn Undead, Cha 13+, Str 13+, Power Attack.
+
+Specifics: The character may spend one of his turn undead attempts to add his Charisma bonus to his armor class for a number of rounds equal to the Charisma bonus.
+
+Use: Selected.
+]2823
+Type of Feat: General
+
+Prerequisite: Spell focus in the chosen school.
+
+Specifics: Character gains a +2 bonus to saving throws versus the chosen school of magic.
+
+Use: Automatic.
+]2825
+Type of Feat: General
+
+Prerequisite: Bard Song.
+
+Specifics: The character may use bard song four extra times per day.
+
+Use: Automatic.
+]2827
+Type of Feat: General
+
+Prerequisite: Bard Song.
+
+Specifics: The effects of the bard's songs will last an additional 5 rounds.
+
+Use: Automatic.
+]2804
+Type of Feat: General
+
+Prerequisite: Base attack bonus +2.
+
+Specifics: The character knows brutal and effective fighting tactics. By sacrificing all other attacks during the round, the character can elect to perform a dirty fighting move that will deal an extra 1d4 points of damage. This mode cannot be used with power attack.
+
+Use: Combat Mode.
+]2829
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: Character gains a +4 bonus on Fortitude saving throws to resist the effects of disease.
+
+Use: Automatic.
+]2835
+Type of Feat: General
+
+Prerequisite: Fort save bonus +8.
+
+Specifics: Character gains +5 resistance against the chosen type of energy (first 5 points of damage of this type of energy is ignored).
+
+Use: Automatic.
+]2940
+Type of Feat: Class
+
+Prerequisite: Shadowdancer level 1.
+
+Specifics: The shadowdancer is able to use the Hide skill even while being observed. 
+Note: This ability will not always be successful in the frenzy of combat -- but disengaging from the enemy before attempting to hide in plain sight will succeed.
+
+Use: Automatic.
+]2941
+Type of Feat: Class
+
+Prerequisite: Shadowdancer 3.
+
+Specifics: Once per day the shadowdancer may inflict an illusory daze upon a target. This daze lasts for 5 rounds.
+
+Use: Selected.
+]2942
+Type of Feat: Class
+
+Prerequisite: Shadowdancer level 3.
+
+Specifics: Once per day the shadowdancer can summon in a shadow. This shadow is extremely difficult to turn and becomes more powerful as the shadowdancer gains levels.
+
+Use: Selected.
+]2943
+Type of Feat: Class
+
+Prerequisite: Shadowdancer level 4.
+
+Specifics: Three times per day the shadowdancer can call upon the shadows in the area to help conceal her. She gains a 5% concealment bonus, damage reduction of 5/+1 and a +1 AC bonus. The effect lasts for 5 rounds. This improves to 10% concealment, 5/+2 damage reduction, and  +2 AC bonus at level 6 and at level 8 it becomes 15% concealment, 10/+2 damage reduction and +3 AC. At level 10, Shadow Evade grants 20% concealment, 10/+3 damage reduction and a +4 AC bonus.
+
+Use: Selected.
+]2952
+Type of Feat: Class
+
+Prerequisite: Harper Scout level 2.
+
+Specifics: The harper receives a +2 saving throw bonus vs. traps.
+
+Use: Automatic.
+]2953
+Type of Feat: Class
+
+Prerequisite: Harper Scout level 3.
+
+Specifics: Once per day, the harper or a target receives a +2 saving throw bonus on all saving throws for 5 turns.
+
+Use: Selected.
+]2954
+Type of Feat: Class
+
+Prerequisite: Harper Scout level 4.
+
+Specifics: The harper receives a +2 saving throw bonus against mind-affecting spells.
+
+Use: Automatic.
+]2955
+Type of Feat: Class
+
+Prerequisite: Harper Scout level 5.
+
+Specifics: Once per day, the harper may make a magical potion.
+
+Use: Selected.
+]2969
+Type of Feat: Class
+
+Prerequisite: Harper Scout level 2.
+
+Specifics: A harper scout at 2nd level is able to cast the spell Sleep once per day.
+
+Use: Selected.
+]2970
+Type of Feat: Class
+
+Prerequisite: Harper Scout level 3.
+
+Specifics: A harper scout at 3rd level is able to cast the spell Cat's Grace once per day.
+
+Use: Selected.
+]2971
+Type of Feat: Class
+
+Prerequisite: Harper Scout level 4.
+
+Specifics: A harper scout at 4th level is able to cast the spell Eagle's Splendor once per day.
+
+Use: Selected.
+]2972
+Type of Feat: Class
+
+Prerequisite: Harper Scout level 5.
+
+Specifics: A harper scout at 5th level is able to cast the spell Invisibility once per day.
+
+Use: Selected.
+]8680
+Type of Feat: Class
+
+Prerequisite: Arcane Archer.
+
+Specifics: With this feat, every arrow an Arcane Archer nocks and lets fly gets a +1 enhancement bonus. This bonus only works for the Arcane Archer. For every two levels of Arcane Archer past 1st, the enhancement goes up by +1.
+
+Use: Automatic.
+]8686
+Type of Feat: Class
+
+Prerequisite: Arcane Archer level 2.
+
+Specifics: At 2nd level, an Arcane Archer gains the ability to summon a magical arrow and fire it at an enemy. If it hits, it explodes as a fireball spell, doing fire damage to all hostile creatures in the area of effect.
+
+Use: Selected.
+]8688
+Type of Feat: Class
+
+Prerequisite: Arcane Archer level 4.
+
+Specifics: At 4th level, an Arcane Archer gains the ability to launch an arrow once per day that cannot miss its target. At 6th level this ability can be used twice per day. This arrow is magically created at the moment the archer uses this ability.
+
+Use: Selected.
+]8691
+Type of Feat: Class
+
+Prerequisite: Arcane Archer level 8.
+
+Specifics: In lieu of a regular attack, once per day an 8th level Arcane Archer can fire an arrow at each and every target within range, to a maximum of one target for every Arcane Archer level they have.
+
+Use: Selected.
+]8693
+Type of Feat: Class
+
+Prerequisite: Arcane Archer level 10.
+
+Specifics: At 10th level, an Arcane Archer can enchant an arrow once per day that forces a target, if damaged by the arrow, to make a Fortitude save or be slain.
+
+Use: Combat Mode.
+]8695
+Type of Feat: Class
+
+Prerequisite: Assassin.
+
+Specifics: At 1st level, an Assassin may use a death attack, which functions similarly to a sneak attack in that if the target is not in combat they become victim to the death attack. The successful attack forces the target to make a Fortitude save or become paralyzed. Even if they succeed with the saving throw they still suffer +1d6 points of damage in addition to the normal damage the attack caused. This damage increases to 2d6 at level 3,  3d6 at level 5, 4d6 at level 7, and 5d6 at level 9.
+
+Use: Automatic.
+]40052
+Type of Feat: Class
+
+Prerequisite: Blackguard level 4.
+
+Specifics: Whenever the character makes a successful attack against an opponent who is flat-footed, cannot see them, or who is in combat with someone else, the character's blow delivers extra damage. This extra damage is +1d6 at 4th level and an additional +1d6 every three levels thereafter. This extra damage is not multiplied in the case of a critical hit.
+
+Use: Automatic. Monsters of the construct and undead types are immune to sneak attacks, as are any creatures that are immune to critical hits.
+]8701
+Type of Feat: Class
+
+Prerequisite: Assassin.
+
+Specifics: Starting at 2nd level, an Assassin gains a natural saving throw bonus to all poisons of +1 for every two levels.
+
+Use: Automatic.
+]8707
+Type of Feat: Class
+
+Prerequisite: Assassin level 2.
+
+Specifics: Starting at 2nd level, an Assassin gains the ability to cast Ghostly Visage.
+
+Use: Selected.
+]8709
+Type of Feat: Class
+
+Prerequisite: Assassin level 5.
+
+Specifics: Starting at 5th level, an Assassin gains the ability to cast Darkness.
+
+Use: Selected.
+]8711
+Type of Feat: Class
+
+Prerequisite: Assassin level 7.
+
+Specifics: Starting at 7th level, an Assassin gains the ability to cast Invisibility.
+
+Use: Selected.
+]8713
+Type of Feat: Class
+
+Prerequisite: Assassin level 9.
+
+Specifics: Starting at 9th level, an Assassin gains the ability to cast Improved Invisibility.
+
+Use: Selected.
+]8714
+Type of Feat: Class
+
+Prerequisite: Blackguard level 2.
+
+Specifics: Once a day, a Blackguard of 2nd level or higher may attempt to smite a good aligned enemy with one normal melee attack. The Blackguard adds their Charisma bonus to the attack roll and adds 1 extra point of damage per class level.
+
+Use: Selected. 1/day.
+]8716
+Type of Feat: Class
+
+Prerequisite: Blackguard level 2.
+
+Specifics: A Blackguard adds their Charisma bonus to all saving throws.
+
+Use: Automatic.
+]8718
+Type of Feat: Class
+
+Prerequisite: Blackguard level 3.
+
+Specifics: A Blackguard may summon a ghast once per day. At 7th level this ability improves and a doom knight is summoned instead.
+
+Use: Selected.
+]8720
+Type of Feat: Class
+
+Prerequisite: Blackguard level 5.
+
+Specifics: Starting at 5th level, a Blackguard may summon a succubus. At 9th level this ability improves and grants the power to summon a vrock.
+
+Use: Selected.
+]8722
+Type of Feat: Class
+
+Prerequisite: Blackguard level 6.
+
+Specifics: Starting at 6th level, a Blackguard may cast Inflict Serious Wounds.
+
+Use: Selected.
+]8724
+Type of Feat: Class
+
+Prerequisite: Blackguard level 8.
+
+Specifics: Starting at 8th level, a Blackguard may cast Inflict Critical Wounds.
+
+Use: Selected.
+]9163
+Type of Feat: Class
+
+Prerequisite: Blackguard level 2.
+
+Specifics: Starting at 2nd level, a Blackguard may cast Bull's Strength.
+
+Use: Selected.
+]9164
+Type of Feat: Class
+
+Prerequisite: Blackguard level 7.
+
+Specifics: Starting at 7th level, a Blackguard may cast Contagion.
+
+Use: Selected.
+]110706
+Type of Feat: General
+
+Prerequisite: None.
+
+Specifics: Using nonvisual senses, such as sensitivity to vibrations, scent, acute hearing, or echolocation, the creature maneuvers and fights as well as a sighted creature. Invisibility and darkness are irrelevant. The creature usually does not need to make Spot or Listen checks to notice creatures within range of its blindsight ability.
+
+Use: Automatic.
+]3896
+Type of Feat: General
+
+Prerequisite: 21st level
+
+Specifics: The character gains a natural +2 bonus to armor class.
+
+Use: Automatic.
+]3898
+Type of Feat: General
+
+Prerequisite: 21st level, Dex 25+
+
+Specifics: The character is able to cast Haste on himself once per day. The effect will last 10 rounds.
+
+Use: Selected.
+]3902
+Type of Feat: General
+
+Prerequisite: 21st level, Con 21+
+
+Specifics: The character gains damage reduction 3/-.
+
+Use: Automatic.
+]3904
+Type of Feat: General
+
+Prerequisite: Epic Damage Reduction I
+
+Specifics: The character gains damage reduction 6/-.
+
+Use: Automatic.
+]3906
+Type of Feat: General
+
+Prerequisite: Epic Damage Reduction II
+
+Specifics: The character gains damage reduction 9/-.
+
+Use: Automatic.
+]3909
+Type of Feat: Combat
+
+Prerequisite: Strength 25+, Cleave, Great Cleave, Improved Critical (weapon to be chosen), Overwhelming Critical (weapon to be chosen), Power Attack, Weapon Focus (weapon to be chosen).
+
+Specifics: Whenever scoring a critical hit with the chosen weapon, the character's target must make a Fortitude save or die instantly. Creatures who are immune to critical hits are not affected by this feat.
+
+Use: Automatic.
+]3947
+Type of Feat: Monster
+
+Prerequisite: -
+
+Specifics: Grants Devastating Critical with the creature weapon.
+
+Use: Automatic.
+]3949
+Type of Feat: Defensive
+
+Prerequisite: 21st level
+
+Specifics: The character gains resistance 10 to cold damage. This feat may be taken multiple times, to a maximum of 100.
+
+Use: Automatic.
+]3970
+Type of Feat: Defensive
+
+Prerequisite: 21st level
+
+Specifics: The character gains resistance 10 to acid damage. This feat may be taken multiple times, to a maximum of 100.
+
+Use: Automatic.
+]3990
+Type of Feat: Defensive
+
+Prerequisite: 21st level
+
+Specifics: The character gains resistance 10 to fire damage. This feat may be taken multiple times to a maximum resistance of 100.
+
+Use: Automatic.
+]4015
+Type of Feat: Defensive
+
+Prerequisite: 21st level
+
+Specifics: The character gains resistance 10 to electrical damage. This feat may be taken multiple times, to a maximum resistance of 100.
+
+Use: Automatic.
+]4035
+Type of Feat: Defensive
+
+Prerequisite: 21st level
+
+Specifics: The character gains resistance 10 to sonic damage. This feat may be taken multiple times, to a maximum resistance of 100.
+
+Use: Automatic.
+]4055
+Type of Feat: General
+
+Prerequisite: 21st level
+
+Specifics: The character gains a +4 bonus to all Fortitude saves.
+
+Use: Automatic.
+]4057
+Type of Feat: Combat
+
+Prerequisite: 21st level
+
+Specifics: The character's skill at combat grows and he gains a +1 bonus to all attacks.
+
+Use: Automatic.
+]4059
+Type of Feat: General
+
+Prerequisite: 21st level
+
+Specifics: The character has tremendously fast reflexes and gains a +4 bonus to all Reflex saves.
+
+Use: Automatic.
+]4061
+Type of Feat: General
+
+Prerequisite: 21st level
+
+Specifics: The character gains a +4 bonus to all Bluff, Intimidate, Persuasion and Taunt checks because they have become very well known.
+
+Use: Automatic.
+]4063
+Type of Feat: General
+
+Prerequisite: 21st level, 20 ranks in the chosen skill.
+
+Specifics: The character gains a +10 bonus on all skill checks with the chosen skill.
+
+Use: Automatic.
+]4084
+Type of Feat: Spell
+
+Prerequisite: 21st level, Spell Focus and Greater Spell Focus in the chosen school, ability to cast 9th level spells.
+
+Specifics: The character gains a +6 to the Difficulty Class for all saving throws against spells from the chosen school of magic.
+
+Use: Automatic.
+]8413
+Type of Feat: Spell
+
+Prerequisite: 21st level, Spell Penetration and Greater Spell Penetration.
+
+Specifics: The character gains a +6 bonus on caster level checks to beat a creature's spell resistance.
+
+Use: Automatic.
+]8415
+Type of Feat: Combat
+
+Prerequisite: 21st level, Weapon Focus with chosen weapon.
+
+Specifics: The character gains a +2 bonus to all attack rolls with the chosen weapon.
+
+Use: Automatic.
+]8454
+Type of Feat: Monster
+
+Prerequisite: -
+
+Specifics: Grants Epic Weapon Focus with the creature weapon.
+
+Use: Automatic.
+]8456
+Type of Feat: Combat
+
+Prerequisite: 21st level, Weapon Focus, Epic Weapon Focus and Weapon Specialization in the chosen weapon.
+
+Specifics: The character gains a +4 bonus to all damage done by the chosen weapon.
+
+Use: Automatic.
+]8494
+Type of Feat: Monster
+
+Prerequisite: -
+
+Specifics: Grants Epic Weapon Specialization with the creature weapon.
+
+Use: Automatic.
+]8496
+Type of Feat: General
+
+Prerequisite: 21st level.
+
+Specifics: The character gains a +4 bonus to all Will saves.
+
+Use: Automatic.
+]8498
+Type of Feat: Spell
+
+Prerequisite: 21st level, Combat Casting, Concentration 25+ ranks.
+
+Specifics: The character does not incur attacks of opportunity for casting spells while threatened.
+
+Use: Automatic.
+]8500
+Type of Feat: General
+
+Prerequisite: Monk, Ki Strike +3, Wisdom 21
+
+Specifics: The monk's unarmed attack counts as a +4 magic weapon against creatures with damage reduction.
+
+Use: Automatic.
+]83388
+Type of Feat: Class
+
+Prerequisite: Monk, Improved Ki Strike +4
+
+Specifics: The monk's unarmed attack counts as a +5 magic weapon against creatures with damage reduction.
+
+Use: Automatic.
+]8504
+Type of Feat: General
+
+Prerequisite: 21st level, Diamond Soul Feat.
+
+Specifics: The character gains a +2 to spell resistance. This feat may be taken multiple times.
+
+Use: Automatic.
+]8524
+Type of Feat: Combat
+
+Prerequisite: 21st level, Strength 23+, Cleave, Great Cleave, Improved Critical (in chosen weapon) and Power Attack.
+
+Specifics: When using the weapon chosen, the character deals +1d6 points of damage on a successful critical hit. If the weapon's critical multiplier is x3, add +2d6, and if the multiplier is x4, add 3d6.
+
+Use: Automatic.
+]8562
+Type of Feat: Monster
+
+Prerequisite: -
+
+Specifics: Grants Overwhelming Critical with the creature weapon.
+
+Use: Automatic.
+]8564
+Type of Feat: General
+
+Prerequisite: Constitution 25+, Great Fortitude.
+
+Specifics: Makes the character immune to all diseases and poisons.
+
+Use: Automatic.
+]8566
+Type of Feat: General
+
+Prerequisite: 21st level, Dexterity 30+, Hide 30 ranks, Tumble 30 ranks and Improved Evasion.
+
+Specifics: The character gains a 10% concealment bonus. This feat may be taken multiple times, to a maximum of 50% concealment.
+
+Use: Automatic.
+]8576
+Type of Feat: Combat
+
+Prerequisite: Epic Character, Improved Initiative.
+
+Specifics: The character gains a +8 bonus on initiative checks.
+
+Use: Automatic.
+]8578
+Type of Feat: General
+
+Prerequisite: 21st level.
+
+Specifics: The character gains 20 hit points. This feat may be taken multiple times, up to a maximum of 200 hit points.
+
+Use: Automatic.
+]3956
+Type of Feat: General
+
+Prerequisite: 21st level
+
+Specifics: The character gains +1 to their Charisma. This may be taken multiple times, to a maximum of +10.
+
+Use: Automatic.
+]3980
+Type of Feat: General
+
+Prerequisite: 21st level
+
+Specifics: The character gains +1 to their Constitution. This may be taken multiple times, to a maximum of +10.
+
+Use: Automatic.
+]4004
+Type of Feat: General
+
+Prerequisite: 21st level
+
+Specifics: The character gains a +1 to their Dexterity. This may be taken multiple times, to a maximum bonus of +10.
+
+Use: Automatic.
+]4033
+Type of Feat: General
+
+Prerequisite: 21st level
+
+Specifics: The character gains a +1 to their Intelligence. This may be taken multiple times, to a maximum bonus of +10.
+
+Use: Automatic.
+]8508
+Type of Feat: General
+
+Prerequisite: 21st level.
+
+Specifics: The character gains a +1 to their Wisdom. This may be taken multiple times, to a maximum bonus of +10.
+
+Use: Automatic.
+]8574
+Type of Feat: General
+
+Prerequisite: 21st level.
+
+Specifics: The character gains a +1 to their Strength. This may be taken multiple times, to a maximum bonus of +10.
+
+Use: Automatic.
+]8598
+Type of Feat: Class
+
+Prerequisite: 21st level, Charisma 25+, Smite Good or Smite Evil.
+
+Specifics: Whenever the character makes a successful smite attack, it adds two times the characters level to damage. This feat may be taken multiple times, up to a maximum of 10 times - each time adding additional damage equal to the character's level to the smite attack.
+
+Use: Combat Mode.
+]8609
+Type of Feat: General
+
+Prerequisite: 8d6 Rogue Sneak Attack or 8d6 Blackguard Sneak Attack or 8d6 Assassin Death Attack.
+
+Specifics: Add +1d6 to your sneak attack damage. This feat may be taken multiple times, to a maximum of +10d6.
+
+Use: Automatic.
+]8623
+Type of Feat: General
+
+Prerequisite: 21st level, Dexterity 19+, Wisdom 19+, Improved Unarmed Strike and Stunning Fist.
+
+Specifics: Adds +2 to the DC of the character's stunning attack. This feat may be taken multiple times, to a maximum of +20 DC.
+
+Use: Automatic.
+]8634
+Type of Feat: General
+
+Prerequisite: 21st level, Wisdom 25+, Charisma 25+ and Turn Undead.
+
+Specifics: This feat allows outsiders to be turned like undead.
+
+Use: Selected. If the character has twice as many levels as the outsiders have Hit Die, the outsiders are instantly destroyed.
+]8637
+Type of Feat: General
+
+Prerequisite: Ranger 21st level.
+
+Specifics: Any weapon the character wields against any of their favored enemies is treated as a bane weapon for that creature type (+2 to hit and an additional +2d6 damage).
+
+Use: Automatic.
+]8639
+Type of Feat: General
+
+Prerequisite: 21st level, Dexterity 25+, Dodge, Tumble 30 ranks, Improved Evasion and Defensive Roll.
+
+Specifics: The character avoids the first attack each round.
+
+Use: Automatic.
+]8643
+Type of Feat: Spell
+
+Prerequisite: 21st level, Quicken Spell, Spellcraft 30, ability to cast 9th level spells.
+
+Specifics: This feat allows the character to cast spells with a moment of thought.
+This feat may be taken multiple times:
+Automatic Quicken Spell I: Quicken any level 0 - 3 spells
+Automatic Quicken Spell II: Quicken any level 4 - 6 spells
+Automatic Quicken Spell III: Quicken any level 7 - 9 spells
+
+Use: Automatic.
+]8647
+Type of Feat: Spell
+
+Prerequisite: 21st level, Silent Spell, Spellcraft 24, ability to cast 9th level spells.
+
+Specifics: This feat allows the character to cast all spells of a given level range without the caster making any sound. This is especially useful if the caster has been silenced.
+This feat may be taken multiple times:
+Automatic Silent Spell I:   Cast any level 0 - 3 spell as silent spell
+Automatic Silent Spell II:  Cast any level 4 - 6 spell as silent spell
+Automatic Silent Spell III: Cast any level 7 - 9 spell as silent spell
+
+Use: Automatic.
+]8651
+Type of Feat: Spell
+
+Prerequisite: 21st level, Still Spell, Spellcraft 27, ability to cast 9th level spells.
+
+Specifics: This feat allows the character to cast all spells of a given level range as still spells automatically. These spells may be cast while wearing armor.
+This feat may be taken multiple times:
+Automatic Still Spell I:   Cast any level 0 - 3 spell as still spell
+Automatic Still Spell II:  Cast any level 4 - 6 spell as still spell
+Automatic Still Spell III: Cast any level 7 - 9 spell as still spell
+
+Use: Automatic.
+]8655
+Type of Feat: General
+
+Prerequisite: Intelligence 13+, Expertise, Dexterity 13+, Dodge, Mobility, Spring Attack, Base Attack of +4.
+Required for: Improved Whirlwind Attack
+
+Specifics: The character performs a full attack action,  and makes one melee attack at full base attack bonus against each opponent within 5 feet.
+
+Use: Selected.
+]8657
+Type of Feat: Combat
+
+Prerequisite: 21st level, Intelligence 13+, Dexterity 23+,  Dodge, Expertise, Mobility, Spring Attack, and  Whirlwind Attack .
+
+Specifics: The character performs a full attack action, and makes one melee attack at full base attack bonus against all opponents they threaten.
+
+Use: Selected.
+]8660
+Type of Feat: General
+
+Prerequisite: 21st level, Strength 21+, Constitution 21+ and Greater Rage.
+
+Specifics: When the character rages, they gain +8 to Strength and Constitution and a +4 morale bonus to Will saves. These bonuses replace the normal rage bonuses.
+
+Use: Combat Mode.
+]8662
+Type of Feat: General
+
+Prerequisite: 21st level, Perform and Bard Song.
+
+Specifics: This feat allows the effects of bardic music to last ten times longer.
+
+Use: Automatic.
+]8664
+Type of Feat: Class
+
+Prerequisite: -
+
+Specifics: Bards are able to sing a song that can curse their enemies. Deafened creatures are not affected by the bard's singing. The song affects all enemies within 30 feet and lasts for 10 rounds. The higher the bard's final Perform skill and class level, the more powerful the Curse song. All of the penalties listed are additive.
+3 Perform and Bard Level 1: -1 to Attack and Damage rolls.
+6 Perform and Bard Level 2: -1 to Will Saves.
+9 Perform and Bard Level 3: -1 to Damage rolls and -1 to Fortitude Saves.
+12 Perform and Bard Level 6: -1 to Reflex saves, -1 to Skill rolls.
+15 Perform and Bard Level 8: -1 to Attack rolls, 8 damage.
+18 Perform and Bard Level 11: -2 to Dodge Armor Class, -1 to Skill rolls.
+Perform 21 and Bard Level 14: -1 to Damage rolls, 8 damage and -1 Dodge Armor Class.
+Perform 24 and Bard Level 15: -1 Will Saves, -1 Reflex Saves, -1 Fortitude Saves, -1 Dodge Armor Class.
+Perform 25 and Bard Level 16: -1 Will Saves, 4 damage. -1 Dodge Armor Class.
+For each additional 5 Perform and 1 Class level in Bard an additional 2 damage is granted.
+
+Use: Selected.
+]83580
+Type of Feat: General
+
+Prerequisite: Epic Shifter.
+
+Specifics: The character with this ability can transform into a selection of powerful undead creatures three times per day:
+Risen Lord, Vampire and Spectre.
+
+Use: Selected. After choosing the ability, the character must select an undead type to change into.
+]8668
+Type of Feat: Epic
+
+Prerequisite: 21st level, Wisdom 30+ and Wild Shape 6x/day.
+
+Specifics: The character may use wild shape to change into a dragon. The transformation has a duration of 1 hour per class level.
+
+Use: Selected, after selecting, the character must choose what type of dragon they will appear as.
+]8670
+Type of Feat: Epic Spell
+
+Prerequisite: 21st level, the ability to cast 9th level spells and 15 ranks in spellcraft.
+
+Specifics: The caster summons a powerful mummy warrior to do their bidding.
+
+Use: Cast.
+]8672
+Type of Feat: Epic Spell
+
+Prerequisite: 21st level, the ability to cast 9th level spells and 22 ranks in spellcraft.
+
+Specifics: The caster summons a powerful adult red dragon to the targeted location to fight on his side.
+
+Use: Cast.
+]8674
+Type of Feat: Epic Spell
+Prerequisites: 21st level, the ability to cast 9th level spells and 32 ranks in spellcraft
+
+Specifics: The caster creates a ball of energy that does 10d6 points of acid, fire, electrical and sonic damage to all targets in its blast radius.
+
+Use: Cast.
+]8676
+Type of Feat: Epic Spell
+
+Prerequisite: 21st level, the ability to cast 9th level spells and 26 ranks in spellcraft.
+
+Specifics: The caster gets a +20 armor class bonus.
+
+Use: Cast.
+]8678
+Type of Feat: Epic Spell
+Prerequisites: 21st level, the ability to cast 9th level spells and 25 ranks in spellcraft.
+
+Specifics: The caster deals 35d6 energy damage to a single target.
+Save: Fortitude for half damage.
+
+Use: Cast.
+]8728
+Type of Feat: Class.
+
+Prerequisite: Weapon Focus (with weapon to be chosen).
+
+Specifics: The weapon chosen to be a weapon of choice by a Weapon Master becomes the focus for all of their special abilities.
+
+Use: Automatic.
+]8732
+Type of Feat: Class.
+
+Prerequisite: Weapon of Choice, Weapon Master level 1.
+
+Specifics: Once per day per level, a Weapon Master may use this feat to do maximum damage to their opponent.
+
+Use: Selected.
+]8734
+Type of Feat: Class.
+
+Prerequisite: Weapon of Choice, Weapon Master level 5.
+
+Specifics: With their weapon of choice, the multiplier is increased by x1 to all critical hits. Thus a x2 critical multiplier becomes a x3.
+
+Use: Automatic.
+]8736
+Type of Feat: Class
+
+Prerequisite: Weapon of Choice, Weapon Master level 5.
+
+Specifics: The Weapon Master gains a +1 bonus to all attack rolls with their weapon of choice.
+
+Use: Automatic.
+]8738
+Type of Feat: Class
+
+Prerequisite: Weapon of Choice, Weapon Master level 7.
+
+Specifics: The Weapon Master gains an additional +2 to the threat range of their weapon of choice.
+
+Use: Automatic.
+]8740
+Type of Feat: Class
+
+Prerequisite: Pale Master level 1.
+
+Specifics: The Pale Master gains an innate +2 bonus to their AC at 1st, 4th and 8th level.
+
+Use: Automatic.
+]8744
+Type of Feat: Class
+
+Prerequisite: Pale Master level 2.
+
+Specifics: Once per day a Pale Master may animate dead as a spell-like ability.
+
+Use: Selected.
+]8747
+Type of Feat: Class
+
+Prerequisite: Pale Master level 4.
+
+Specifics: The Pale Master can summon an undead creature twice per day as a spell-like ability.
+The level of the Pale Master determines the type of undead that is summoned:
+4th and 5th level: Ghoul
+6th level: Shadow
+7th level: Ghast
+8th level: Wight
+9th level: Wraith
+
+Use: Selected.
+]8749
+Type of Feat: Class
+
+Prerequisite: Pale Master level 5.
+
+Specifics: The Pale Master gains +3 hit points per level.
+
+Use: Automatic.
+]8751
+Type of Feat: Class
+
+Prerequisite: Pale Master level 6.
+
+Specifics: Two times per day a Pale Master may use their undead arm to paralyze foes. At level 8 this may be used three times per day.
+
+Use: Selected.
+]8754
+Type of Feat: Class
+
+Prerequisite: Pale Master level 7.
+
+Specifics: Pale Master becomes immune to stun, hold, and paralyzation.
+
+Use: Automatic
+]8758
+Type of Feat: Class
+
+Prerequisite: Pale Master level 9.
+
+Specifics: At 9th level, a Pale Master may summon a greater undead once per day as a spell-like ability. The Pale Master's level determines the type of undead summoned:
+Level 9: Mummy Warrior
+Level 10: Spectre
+Level 12:Vampire Rogue
+Level 14: Greater Bodak
+Level 16: Ghoul King
+Level 18: Vampire Mage
+Level 20: Skeleton Blackguard
+Level 22: Lich
+Level 24: Lich Lord
+Level 26: Alhoon
+Level 28: Elder Alhoon
+Level 30: Demilich
+
+Use: Selected
+]8760
+Type of Feat: Class
+
+Prerequisite: Pale Master level 10.
+
+Specifics: At 10th level, a Pale Master becomes immune to Critical Hits.
+
+Use: Automatic
+]8762
+Type of Feat: Class
+
+Prerequisite: Pale Master level 10.
+
+Specifics: At 10th level a Pale Master's touch becomes deadly, instantly killing unless a DC 17 fortitude save is made.
+
+Use: Selected.
+]83391
+Type of Feat: Class
+
+Prerequisite: Shifter, Epic Druid.
+
+Specifics: The character with this ability can take the shape of a red, green, black, white or blue wyrmling three times per day. He gains the wyrmling's signature ability, its breath weapon. As the shifter rises in levels, the damage potential of the breath weapon increases.
+
+Use: Selected. After choosing the ability, the character must select which kind of wyrmling he wants to transform into.
+]8767
+Type of Feat: Class
+
+Prerequisite: Shifter level 3.
+
+Specifics: At 3rd level, a Shifter may shift into various creature forms (Minotaur, Harpy, Gargoyle) three times per day.
+]8769
+Type of Feat: Class
+
+Prerequisite: Shifter level 5.
+
+Specifics: At 5th level, a Shifter may shift into the form of a Manticore, Basilisk or Drider three times per day.
+
+Use: Selected
+]8771
+Type of Feat: Class
+
+Prerequisite: Shifter level 7.
+
+Specifics: At 7th level, a Shifter may shift into various humanoid forms. A shifter may do this 3 times per day.
+
+Use: Selected
+]8773
+Type of Feat: Class
+
+Prerequisite: Shifter level 10.
+
+Specifics: At 10th level, a Shifter may shift into the form of a large dire tiger, medusa or mindflayer three times per day.
+
+Use: Selected
+]8775
+Type of Feat: Class
+
+Prerequisite: Champion of Torm level 2.
+
+Specifics: Sacred Defense adds a +1 bonus to all saving throws for every 2 levels of Champion of Torm.
+
+Use: Automatic
+]8781
+Type of Feat: Class
+
+Prerequisite: Champion of Torm level 5.
+
+Specifics: The Champion is able to channel a portion of their deities's power once per day giving them a +3 bonus on attack rolls, damage, and saving throws for a number of rounds equal to their Charisma bonus. They also gain damage reduction of 5/+1. The attack and saving throw bonuses increase by +2 at level 10
+
+Use: Selected
+]8783
+Type of Feat: Class
+
+Prerequisite: Smite Evil or Smite Good.
+
+Specifics: This feat increases the smiting ability to 3 times per day.
+
+Use: Selected
+]68891
+Type of Feat: Item Creation
+
+Prerequisite: Spellcaster Level 3+.
+
+Specifics: The character can create a potion of any spell of 3rd level or lower that the character knows and that targets a single creature. Brewing a potion will cost a small amount of XP as well as some gold to cover the material cost. The costs for brewing a potion depends on the level of the spell as well as the level of the resulting potion:
+Some examples:
+A potion of bless (1)   will costs 50 gp and 2 XP
+A potion of prayer (5)  will cost 750 gp and 30 XP
+
+
+Use: Selected (In order to brew a potion, the character has to cast the spell in question on an empty magical potion bottle).
+]68912
+Type of Feat: Item Creation
+
+Prerequisite: Spellcaster Level 1st+.
+
+Specifics: You can create a scroll of any spell that you know. Scribing a scroll costs a small amount of XP and gold, depending on the level of the spell to scribe. The costs for scribing a scroll depends on the level of the spell as well as the level of the resulting scroll:
+Some examples:
+A scroll of bless (1)   will costs  25 gp and 6 XP
+A scroll of fireball (5) will cost 375 gp and 15 XP
+A scroll of chain lightning (11) will cost 1650 gp and 66 XP
+
+Use: Selected (In order to scribe a scroll, the character has to cast the spell in question on a specially prepared blank scroll)
+]76387
+Type of Feat: Item Creation
+
+Prerequisite: Spellcaster Level  5th+.
+
+Specifics: The spellcaster can create a wand of any spell of 4th level or lower that he knows. Crafting a wand costs a small amount of XP and gold, depending on the level of the spell to be crafted into the wand.  A newly created wand has 1d20 + 1 charge per level of the character (up to a maximum of 50 charges). The costs for crafting a wand depend on the level of the spell as well as the level of the resulting wand:
+Some examples:
+A wand of magic missile(5)   will costs 3750 gp and 150 XP
+A wand of acid arrow (5)  will cost 7500gp and 300 XP
+A wand of fireballs (5)  will cost 11250 gp and 450 XP
+
+
+Use: Selected (In order to craft a wand, the character has to cast the spell in question on a specially crafted wand)
+]76424
+Type of Feat: Class
+
+Prerequisite: Dwarven Defender Level 1.
+When he needs to, the defender can become a stalwart bastion of defense. In this defensive stance, a defender gains phenomenal strength and durability but he cannot move from the spot he is defending. He gains the following benefits:
++2 Strength
++4 Constitution
++2 resistance bonus on all saves
++4 dodge bonus to AC
+At first level, this ability can be used 1/day. Every 2 levels beyond 1, the dwaven defender gains an additional use per day.
+
+Use: Selected
+]76429
+Type of Feat: Defensive
+
+Specifics: At 6th level, the dwarven defender gains the ability to shrug off 3 points of damage from each blow or attack.  At 10th Level the damage reduction increases to 6 points of damage per attack or blow.
+Epic Progression: For each 4 levels after 10, the damage reduction increases by 3 points.
+
+Use: Automatic.
+]76431
+Type of Feat: Class
+
+Prerequisite: Dwarven Defender Level 2.
+
+Specifics: The character retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+
+Use: Automatic.
+]76434
+Type of Feat: Class
+
+Prerequisite: Dwarven Defender Level 5
+
+Specifics: The character can no longer be flanked, since he can react to opponents on opposite sides of him as easily as he can react to a single attack. The character also retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+
+Use: Automatic.
+]76435
+Type of Feat: Class
+
+Prerequisite: Dwarven Defender Level 10.
+
+Specifics:  The character gains an intuitive sense that alerts him to danger from traps, giving him a +1 bonus to Reflex saves made to avoid traps. Additionally the character cannot be flanked, since he can react to opponents on opposite sides of him as easily as he can react to a single attack and also retains his Dex bonus to AC, even if caught flat-footed or attacked by a hidden or invisible creature.
+
+Use: Automatic.
+]83372
+Type of Feat: Class specific
+
+Prerequisite: Assassin level 1 or Blackguard level 1.
+
+Specifics: The  character is trained in the use of poison and never  has to make a dexterity check when applying poison to a blade.
+
+Use: Automatic.
+]83499
+Type of Feat: Class
+
+Prerequisite: Red Dragon Disciple.
+
+Specifics: A dragon disciple becomes more draconic in appearance. His skin develops tiny iridescent scales, nearly invisible. This provides increasing natural armor bonuses to his base Armor Class (+1 at 1st, +2 at 5th and +3 at 8th  and +4 at 10th level).
+
+Use: Automatic
+]83500
+Type of Feat: Class
+
+Prerequisite: Red Dragon Disciple.
+
+Specifics: As the dragon disciple gains levels in this prestige class, his ability scores increase by the following table:
+Level
+2 :  +2 to Strength
+4 :  +2 to Strength
+7 :  +2 to Con
+9 : +2 to Int
+10: +4 to Strength, +2 to Charisma
+
+Use: Automatic
+]83501
+Type of Feat: Class
+
+Prerequisite: Red Dragon Disciple level 10.
+
+Specifics: The red dragon disciple gains immunity to paralysis.
+
+Use: Automatic
+]83502
+Type of Feat: Class
+
+Prerequisite: Red Dragon Disciple level 10.
+
+Specifics: The character gains immunity to fire.
+
+Use: Automatic
+]83503
+Type of Feat: Class
+
+Prerequisite: Red Dragon Disciple level 3.
+
+Specifics: At third and seventh level, the dragon disciple begins to develop his ancestor's signature ability: a fiery breath weapon. While the damage potential of the breath weapon slowly raises until reaching its full potential on level ten, save DC (19) and area of effect (30' cone) stay the same
+Level
+3:  Damage 2d10
+7:  Damage 4d10
+10: Damage 6d10
+
+Use: Selected
+]83505
+You have advanced from the ranks of seasoned warriors to become the epic fighter -- a true master of battle. More than a mere sword-swinger, the epic fighter knows how to best his opponents in any arena. Though your journey to achieve this goal has been long and hard, you are in fact just starting out on another path --  you are a fledgling in the realm of Gods and other powerful beings.
+
+Hit Die: d10
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic fighter gains a bonus feat every two levels after 20th
+
+Epic Fighter Bonus Feats List:
+Armor Skin, Damage Reduction, Devastating Critical, Epic Toughness, Epic Weapon Focus, Epic Prowess,  Epic Weapon Specialization, Improved Stunning Fist, Improved Whirlwind Attack, Overwhelming Critical, Superior Initiative.
+]83529
+You are now an epic barbarian -- a furious warrior who can cut his opponents to ribbons with awe-inspiring ease. You have become the very incarnation of rage.
+
+Hit Die: d12
+Skill Points at Each Additional Level: 4+ Int Modifier
+Bonus Feats:  The epic barbarian gains a bonus feat every four levels after 20th
+
+Epic Barbarian Bonus Feats List:
+Armor Skin, Damage Reduction, Devastating Critical, Epic Toughness, Epic Prowess,  Epic Weapon Focus, Mighty Rage, Overwhelming Critical, Superior Initiative, Terrifying Rage, Thundering Rage.
+]83530
+Your music is beyond merely inspiring...it has become epic. You can move even the cruelest creature or inspire your allies to the heights of power and bravery.
+
+Hit Die: d6
+Skill Points at Each Additional Level: 4+ Int Modifier
+Bonus Feats:  The epic bard gains a bonus feat every three levels after 20th
+
+Epic Bard Bonus Feats List:
+Curse Song, Epic Skill Focus, Epic Will, Great Charisma, Great Dexterity, Improved Combat Casting, Lasting Inspiration, Epic Spell Focus.
+]83531
+You are among the most elite of your deity's servants, spreading the word and acting as emissary. You are the epic cleric, commanding great power and respect.
+
+Hit Die: d8
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic cleric gains a bonus feat every three levels after 20th
+
+Epic Cleric Bonus Feats List:
+Armor Skin, Automatic Quicken Spell, Automatic Silent Spell, Automatic Still Spell, Epic Spell Focus, Epic Spell Penetration, Great Wisdom, Improved Combat Casting, Planar Turning.
+]83532
+Powerful, primal forces dominate nature and now you have become the epic druid, capable of harnessing them. You have become a mighty symbol of the natural world and the balance demands that you use your great powers responsibly.
+
+Hit Die: d8
+Skill Points at Each Additional Level: 4+ Int Modifier
+Bonus Feats:  The epic druid gains a bonus feat every four levels after 20th
+
+Epic Druid Bonus Feats List:
+Automatic Quicken Spell, Automatic Silent Spell, Automatic Still Spell,  Dragon Shape, Energy Resistance, Epic Spell Focus, Epic Spell Penetration, Great Wisdom, Improved Combat Casting,
+]83533
+Your speed, power, grace, and force of will are unmatched by mortal beings. You are the epic monk, with an inner tranquility that lesser characters cannot even dream of.
+
+Hit Die: d8
+Skill Points at Each Additional Level: 4+ Int Modifier
+Bonus Feats:  The epic monk gains a bonus feat every five levels after 20th
+
+Epic Monk Bonus Feats List:
+Armor Skin, Blinding Speed, Damage Reduction, Energy Resistance, Epic Toughness, Improved Ki Strike, Improved Spell Resistance, Improved Stunning Fist, Self-Concealment.
+]83534
+You, the epic paladin, stand at the forefront of the battle against chaos and evil in the world. You shine as a beacon of hope to all who fight the good fight.
+
+Hit Die: d10
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic paladin gains a bonus feat every three levels after 20th
+
+Epic Paladin Bonus Feats List:
+Armor Skin, Devastating Critical, Epic Toughness, Epic Weapon Focus, Epic Prowess, Epic Reputation, Great Smiting, Improved Combat Casting, Overwhelming Critical, Perfect Health, Planar Turning.
+]83535
+You move with deadly grace and keen mind through the natural world. The epic ranger is both a protector and a hunter and your powers reflect this.
+
+Hit Die: d10
+Skill Points at Each Additional Level: 4+ Int Modifier
+Bonus Feats:  The epic ranger gains a bonus feat every three levels after 20th
+
+Epic Ranger Bonus Feats List:
+Bane of Enemies, Blinding Speed, Epic Toughness, Epic Prowess, Epic Weapon Focus, Favored Enemy, Improved Combat Casting, Perfect Health.
+]83536
+You are the ultimate thief with legendary skills and many a tale of a derring-do.
+
+Hit Die: d6
+Skill Points at Each Additional Level: 8+ Int Modifier
+Bonus Feats:  The epic rogue gains a bonus feat every four levels after 20th
+
+Special:
+Sneak Attack: this continues to improve by 1d6 at each odd-numbered level the epic rogue gains.
+
+Epic Rogue Bonus Feats List:
+Blinding Speed, Crippling Strike, Defensive Roll, Epic Skill Focus, Epic Dodge, Epic Reputation, Improved Evasion, Improved Sneak Attack, Opportunist, Self-Concealment, Skill Mastery, Slippery Mind, Superior Initiative.
+]83537
+You have become a near mythic being -- the epic sorcerer. But still the need for ever greater power never ceases.
+
+Hit Die: d4
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic sorcerer gains a bonus feat every three levels after 20th
+
+Epic Sorcerer Bonus Feats List:
+Automatic Quicken Spell, Automatic Silent Spell, Automatic Still Spell, Energy Resistance, Epic Spell Focus, Epic Spell Penetration, Improved Combat Casting.
+]83538
+Knowledge is power and the quest for knowledge never ends. There is an ever lasting supply of arcane lore for you, the epic wizard,  to discover.
+
+Hit Die: d4
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic wizard gains a bonus feat every three levels after 20th
+
+Epic Wizard Bonus Feats List:
+Automatic Quicken Spell, Automatic Silent Spell, Automatic Still Spell, Epic Spell Focus, Epic Spell Penetration, Great Intelligence, Improved Combat Casting.
+]83539
+You are the living extension of your bow. Lesser beings can only gape in awe at the wonders you can achieve with your bow.
+
+Hit Die: d8
+Skill Points at Each Additional Level: 4+ Int Modifier
+Bonus Feats:  The epic arcane archer gains a bonus feat every four levels
+
+Special:
+Enchant Arrow: For every two levels beyond 9th, the potency of the arrows fired by the arcane archer increases by +1.
+
+Epic Arcane Archer Bonus Feats List:
+Blinding Speed, Devastating Critical Longbow, Devastating Critical Shortbow, Epic Prowess, Epic Toughness, Epic Reflexes, Great Dexterity, Improved Combat Casting, Overwhelming Critical Longbow, Overwhelming Critical Shortbow, Epic Weapon Focus Longbow, Epic Weapon Focus Shortbow
+]83540
+You are the epic assassin, capable of sliding from shadow to shadow; lying in wait until your target is vulnerable, then striking like a cobra, leaving only a cold corpse behind.
+
+Hit Die: d6
+Skill Points at Each Additional Level: 4+ Int Modifier
+Bonus Feats:  The epic assassin gains a bonus feat every four levels after 10th.
+
+Special:
+Sneak Attack: improves by +1d6 every two levels after 9th.
+Poison Saving Throws: an additional +1 for every two levels after 10th on the assassin's saving throws against poison.
+
+Epic Assassin Bonus Feats List:
+Epic Reflexes, Epic Skill Focus (hide), Epic Skill Focus (move silently), Great Dexterity, Improved Combat Casting, Improved Sneak Attack, Self-Concealment, Superior Initiative.
+]83542
+You are a twisted reflection of the epic paladin, radiating evil power from every pore of your body.
+
+Hit Die: d10
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic blackguard gains a bonus feat every three levels
+
+Special:
+Sneak attack: increases by +1d6 every three levels after 10th.
+Summon Fiend: For every five blackguard levels above 10th, the summoned fiend gains +2 bonus Hit Dice, its natural armor increases by +2, and its Strength and Intelligence each increase by +1.
+
+Epic Blackguard Bonus Feats List:
+Armor Skin, Devastating Critical, Epic Toughness, Epic Weapon Focus, Epic Reputation, Epic Fiendish Servant,  Epic Prowess, Great Smiting, Improved Combat Casting, Improved Sneak Attack, Overwhelming Critical, Perfect Health, Planar Turning.
+]83541
+You have become almost indistinguishable from the darkness that cloaks you. As an epic shadowdancer you can become as shadow.
+
+Hit Die: d8
+Skill Points at Each Additional Level: 6+ Int Modifier
+Bonus Feats:  The epic shadowdancer gains a bonus feat every three levels
+
+Special:
+Shadow Evade: gains an additional +2 to its damage reduction amount and an additional +1 to its ability to resist magical weapons for every five levels (i.e., a 15th level shadowdancer has 20% concealment and 12/4 damage reduction).
+
+Epic Shadowdancer Bonus Feats List:
+Blinding Speed, Epic Shadow Lord, Epic Skill Focus, Epic Dodge, Epic Reflexes, Improved Whirlwind Attack, Self-Concealment, Superior Initiative.
+]83544
+Torm guides the Epic Champion of Torm on her life journey. She has ascended through the ranks of holy warriors to become a symbol of Torm's might.
+
+Hit Die: d10
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic champion of Torm gains a bonus feat every four levels.
+
+Special:
+Sacred Defense: Saving throws continue to improve by +1 for every 2 levels.
+Divine Wrath: Every five levels the attack, damage and saving throw bonuses increases by a further +2.
+
+Epic Champion of Torm Bonus Feats List:
+Automatic Quicken Spell, Automatic Silence Spell, Automatic Still Spell, Armor Skin, Epic Damage Reduction, Epic Prowess, Devastating Critical, Epic Toughness, Epic Weapon Focus, Great Wisdom, Greater Smiting, Improved Combat Casting, Improved Stunning Fist, Improved Whirlwind Attack, Overwhelming Critical, Planar Turning, Epic Spell Focus, Epic Spell Penetration, Superior Initiative.
+]83545
+Your bond with your weapon of choice becomes stronger and devastatingly effective as you become the epic weapon master.
+
+Hit Die: d10
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic weapon master gains a bonus feat every three levels
+
+Special:  Superior Weapon Focus: For every three levels after 10th an additional +1 bonus to attack is granted to the Weapon of Choice.
+
+Epic Weapon Master Bonus Feats List:
+Armor Skin, Blinding Speed, Epic Damage Reduction, Devastating Critical, Epic Toughness, Epic Prowess, Epic Weapon Focus, Improved Whirlwind Attack, Overwhelming Critical, Superior Initiative.
+]83548
+Your bond with the undead continues to grow as you become the epic pale master.
+
+Hit Die: d6
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic pale master gains a bonus feat every three levels
+Special
+Boneskin: Improves by +2 for every four levels past level 8.
+Undead Graft: Can use this supernatural attack an additional time per day for every 3 levels gained.
+Death Master Touch: The DC to resist the deadly effect of the epic pale master's touch raises by +1 each 2 levels past level 10.
+Deathless Vigor: This feat now grants 5 hit points every five levels.
+Epic Spells: From level 15 on, the Epic Spells are added to the list of bonus feats the pale master can choose from.
+
+Epic Pale Master Bonus Feats List:
+Automatic Quicken Spell, Automatic Silent Spell, Automatic Still Spell,  Energy Resistance, Epic Spell Focus,  Epic Spell Penetration, Improved Combat Casting.
+]83546
+You have become the very definition of immovable object. You are a stalwart warrior that can stand your ground against virtually any foe imaginable.
+
+Hit Die: d12
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic dwarven defender gains a bonus feat every four levels
+
+Special:
+Defensive Stance: an additional use per day is gained for every two levels past 9th.
+Damage Reduction: the damage reduction increases by 3 points for every four levels above 10th.
+
+Epic Dwarven Defender Bonus Feats List:
+Armor Skin, Damage Reduction, Devastating Critical, Energy Resistance, Epic Toughness, Epic Prowess, Epic Weapon Focus, Overwhelming Critical, Perfect Health.
+]83547
+You are the master of shapeshifting, able to become virtually any creature imaginable. Your powers continue to grow as an epic shifter.
+
+Hit Die: d8
+Skill Points at Each Additional Level: 4+ Int Modifier
+Bonus Feats:  The epic shifter gains a bonus feat every three levels
+
+Special:  Increases Shifting - At level 13 the shifter gains the ability to use his Humanoid Shape Ability infinite times.
+At level 16 he gains unlimited use of his Greater Wildshape IV ability.
+Many aspects of the shifter's Greater Wildshape forms continue to improve as he gains epic levels.
+
+Epic Shifter Bonus Feats List:
+Automatic Quicken Spell, Automatic Silent Spell, Automatic Still Spell, Construct Shape, Dragon Shape, Energy Resistance, Epic Spell Focus, Epic Spell Penetration, Improved Combat Casting, Great Wisdom, Outsider Shape, Undead Shape,
+]83549
+Embracing your draconic heritage is but one stop on your life journey. Your quest to understand, command, and harness your draconic energies has taken you into realm of the epic.
+
+Hit Die: d12
+Skill Points at Each Additional Level: 2+ Int Modifier
+Bonus Feats:  The epic dragon disciple gains a bonus feat every four levels after 10th
+
+Your breath weapon damage potential increases by 1d10 for every 3 levels after 10th.
+The save DC against your breath weapon increses by +1 every 4 levels after 10th.
+Your natural AC increases by +1 for every 5 levels after 10th.
+
+Epic Dragon Disciple Bonus Feats List:
+Armor Skin, Automatic Quicken Spell, Automatic Silent Spell, Automatic Still Spell,  Epic Damage Reduction, Epic Prowess, Epic Reputation, Epic Spell Focus, Epic Spell Penetration, Epic Toughness, Improved Combat Casting.
+]83569
+Type of Feat: General
+
+Prerequisite: Epic Barbarian, Strength 25.
+
+Specifics:  Any weapon the barbarian wields while in a rage does an additional 2d6 points of damage on a critical hit. There is a 50% chance for a creature hit by one of the barbarian's weapons to deafened for 3 rounds.
+
+Use: Automatic
+]83582
+Type of Feat: General
+
+Prerequisite: Epic Barbarian, Intimidate 25 ranks.
+
+Specifics:  While the barbarian is raging, any enemy that comes close to him must make a Will save opposed by the barbarian's Intimidate check or becomes panicked for 1d6 rounds. Opponents with up to twice the barbarian's Hit Dice will not flee but will receive a -2 penalty to attack and saving throw rolls. Creatures with more then 2x the barbarian's Hit Dice are not affected by the rage.
+
+Use: Automatic while in rage
+]83608
+Type of Feat: Epic Spell
+
+Prerequisite: Epic Level Caster, the ability to cast 9th level spells and 34 ranks in spellcraft
+
+Specifics: The spell conjures a powerful magical ward around the caster protecting against all  bludgeoning, piercing and slashing damage. It grants damage reduction 50/+20 for 1 round per level.
+
+Use: Cast.
+]83666
+Your training and arduous ordeals have finally brought you to the threshold that divides the realms of mortal from those of the divine. You are an epic character, capable of choosing legendary feats and raising your skills to god-like levels. Please refer to your epic class feat(s) for specific information on class benefits derived from becoming an epic character.
+]83702
+Type of Feat: General
+
+Prerequisite: Epic Shadowdancer.
+
+Specifics:  The character's Summon Shadow ability is reinforced, allowing him to call an Epic Shadowlord to his side. Unlike a non-epic  Shadowlord, an Epic Shadowlord is a potent fighter, reinforced by his master's lifeforce, making him stronger each time the shadowdancer gains a level.
+
+Use: Automatic
+]83703
+Type of Feat: General
+
+Prerequisite: Level 15 Blackguard.
+
+Specifics:  The character's evil and hatred grow strong enough to attract the attention of an Epic Vrock when summoning a fiendish servant from the outer planes. This vile creature is a master in the arts of melee combat and, fueled by its master's evil soul, grows in strength and power as the blackguard gains new levels.
+
+Use: Automatic
+]83814
+Type of Feat: Class
+
+Prerequisite: Red Dragon Disciple.
+
+Specifics: As the dragon disciple gains levels in this prestige class, his base hit die type changes. This change is not retroactive
+
+Level
+1 -  d6
+4 -  d8
+6 -  d10
+
+
+
+Use: Automatic
+]8741
+Type of Feat: General
+
+Prerequisite: Epic Shifter, Wisdom 25
+
+Specifics:  The character can assume different outsider shapes three times per day -- either a Azer Chieftain, a Rakshasa or a Death Slaad.
+
+Use: Selected. After choosing the ability, the character must select the type of outsider to change into.
+]8742
+Type of Feat: General
+
+Prerequisite: Epic Shifter, Wisdom 27
+
+Specifics:  The character can shift into the following construct forms three times per day - Iron Golem, a Stone Golem, or a Demonflesh Golem.
+
+Use: Selected. After choosing the ability, the character must select the type of construct to change into.
+]84480
+Type of Feat: Class
+
+Prerequisite: Shifter
+
+Specifics: A shifter's ability to shapeshift into different forms grows while he is gaining levels. At some point the shifter is able to change into certain forms an infinite number of times per day:
+Level 4 : Infinite Greater Wildshape I
+Level 7: Infinite Greater Wildshape II
+Level 10: Infinite Greater Wildshape III
+Level 13: Infinite Humanoid Shape
+Level 16: Infinite Greater Wildshape IV
+
+Use: Automatic.
+]85495
+Type of Feat: Class
+
+Prerequisite: Barbarian level 23+.
+
+Specifics: An epic barbarian's damage reduction allows him to ignore the first 5 points of damage from any physical attack. This ability increases by +1 point every 3rd level past 23rd.
+
+Use: Automatic.
+]85594
+Type of Feat: Class
+
+Prerequisite: Druid, 22th Level;
+
+Specifics: Upon reaching 22th level, a Druid gains unlimited uses of his Wildshape ability.
+
+Use: Automatic.
+]85595
+Type of Feat: Class
+
+Prerequisite: Druid, 26th Level;
+
+Specifics: Upon reaching 26th level, a Druid gains unlimited uses of his Elemental Shape ability.
+
+Use: Automatic.
+]86231
+Type of Feat: Class
+
+Prerequisite: Epic Assassin.
+
+Specifics: The Assassins natural saving throw bonus to all poisons continues to increase by +1 for each two levels after 10th.
+
+Use: Automatic.
+]86784
+Type of Feat: Class
+
+Prerequisite: Weapon of Choice, Epic Weapon Master.
+
+Specifics: The Weapon Master gains a +1 bonus to all attack rolls with their weapon of choice at 13th level and every three levels afterwards. This bonus stacks with the Weapon Master's Superior Weapon Focus feat.
+
+Use: Automatic.
+]111715
+Type of Feat: Class.
+
+Prerequisite: Purple Dragon Knight level 1.
+
+Specifics: Three times per day, a Purple Dragon Knight can utter a powerful shout that gives all allies a +1 bonus to attack and a 20% bonus to land speed for one round.
+
+Use: Selected.
+]111717
+Type of Feat: Class
+
+Prerequisite: Purple Dragon Knight level 1.
+
+Specifics: You may aid an ally, giving them a +4 bonus to their armour class for one round.
+
+Use: Selected.
+]111719
+Type of Feat: Class.
+
+Prerequisite: Purple Dragon Knight level 3.
+
+Specifics: Once per day, the Purple Dragon Knight may cast the Fear spell with a caster level equal to his character level.
+
+Use: Selected.
+]111721
+Type of Feat: Class.
+
+Prerequisite: Purple Dragon Knight level 4.
+
+Specifics: Once per day, the Purple Dragon Knight may swear to defeat a single opponent. He gains a +2 bonus to Attack, Damage, Saves, and Skills vs that opponent. This lasts for a number of rounds equal to twice his class level.
+
+Use: Selected.
+]111723
+Type of Feat: Class.
+
+Prerequisite: Purple Dragon Knight level 5.
+
+Specifics: Once per day, the Purple Dragon Knight can inspire his troops to a heroic effort. Each ally in the area gains 2d10 hitpoints. This ability can affect a number of people equal to his Purple Dragon Knight level + Charisma modifier, and lasts for the same number of rounds.
+
+Use: Selected.
+]111725
+Type of Feat: Class.
+
+Prerequisite: Purple Dragon Knight level 2.
+
+Specifics: Once per day, the Purple Dragon Knight can inspire his troops in combat. All affected creatures gain a +1 bonus to Attack and Damage, and a +2 bonus against mind affecting spells. These bonuses last for 10 rounds.
+
+Use: Selected.
+]111729
+Type of Feat: General.
+
+Prerequisite: Ride 1 rank.
+Required for: Mounted Archery
+
+Specifics: While mounted, once per round you will attempt a Ride check to increase your Armour Class by 1 point for every 5 of the check result.
+
+Use: Automatic.
+]111731
+Type of Feat: General.
+
+Prerequisite: Ride 1 rank, Mounted Combat.
+
+Specifics: The attack penalty for using a bow while mounted is reduced from -4 to -2.
+
+Use: Automatic.
+]111876
+Type of Feat: General
+
+Prerequisite: None
+
+Specifics: This series of actions enables players to interact with their mounts.
+
+Use: Selected.
+
+Individual Mount: Ride on the targetted mount, or command the targetted henchman to ride on a mount.
+Individual Dismount: Targetted creature dismounts.
+]111878
+Type of Feat: General
+
+Prerequisite: None
+
+Specifics: Use this feat on a horse that is in your party to mount it. Use this feat on a henchman to instruct him or her to mount the first available horse in the party.
+
+Use: Selected.
+]111880
+Type of Feat: General
+
+Prerequisite: None
+
+Specifics: Use this feat to dismount. Use this feat on a mounted henchman to instruct him or her to dismount.
+
+Use: Selected.
+]111884
+
+Specifics: In parties with several members and mounts, this feat commands all members to mount up all at once.
+
+Use: Selected.
+]111886
+
+Specifics: In parties with several members and mounts, this feat commands all members to dismount all at once.
+
+Use: Selected.
+]111888
+Specifics: Assign a mount to a particular companion, so he will always ride on the same mount.
+
+Use: Selected.
+]111882
+Type of Feat: Class
+
+Prerequisite: Paladin
+
+Specifics: Summons to the paladin a faithful, magical beast - a warhorse mount. The beast is more powerful as the paladin gets more powerful.
+
+
+Note: Horses and the Ride skill are only used in the Premium Module "Neverwinter Nights - Wyvern Crown of Cormyr" and specific community made modules.
+
+
+Use: Selected.
+]111935
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool01 script in the toolset.
+
+Use: Selected.
+]111936
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool02 script in the toolset.
+
+Use: Selected.
+]111937
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool03 script in the toolset.
+
+Use: Selected.
+]111938
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool04 script in the toolset.
+
+Use: Selected.
+]111939
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool05 script in the toolset.
+
+Use: Selected.
+]111940
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool06 script in the toolset.
+
+Use: Selected.
+]111941
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool07 script in the toolset.
+
+Use: Selected.
+]111942
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool08 script in the toolset.
+
+Use: Selected.
+]111943
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool09 script in the toolset.
+
+Use: Selected.
+]111944
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: All DM characters start with this Instant feat. This feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_dm_tool10 script in the toolset.
+
+Use: Selected.
+]111945
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool01 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111946
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool02 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111947
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool03 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111948
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool04 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111949
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool05 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111950
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool06 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111951
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool07 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111952
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool08 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111953
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool09 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.
+]111954
+Type of Feat: Instant Custom
+
+Prerequisite: None
+
+Specifics: This instant feat can be given to players to enable a behavior you desire. The feat does nothing unless implemented in a community made module. The feat is implemented by editing the x3_pl_tool10 script in the toolset and then giving the feat to a player. This can be done by adding a item property bonus feat to a creature skin that has been previously equipped by the player through scripting.
+
+Use: Selected.

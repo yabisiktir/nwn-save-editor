@@ -1,0 +1,314 @@
+]Ability: Charisma.
+
+Requires Training: Yes.
+Classes: Druid and ranger.
+
+A successful check allows a character to charm or dominate certain creatures.
+
+Check: Animals and dire animals have a DC of 15 + the creature's hit die. For beasts and magical beasts, the DC is 19 + the creature's hit die. If the check succeeds, the creature is dominated.
+
+Special: If the character fails their check by five or more, the creature will go hostile.
+
+Use: Select this skill and then select the target creature. Dominated creatures are commanded as if they were henchmen. The creature will remain dominated for one turn per level of the character using the skill.
+]Ability: Constitution.
+
+Requires Training: No.
+Classes: All.
+
+Concentration checks are made whenever your character is distracted during the act of casting a spell. It is also used to avoid the effects of the Taunt skill.
+
+Check: The DC to avoid casting failure is equal to 10 + damage received + spell level. The caster receives a -4 penalty to his check if casting within three meters of an enemy.
+
+Use: Automatic.
+]Ability: Intelligence.
+
+Requires Training: Yes.
+Classes: All.
+
+This skill allows the character to perform a variety of actions on a trap.
+
+Check: There are four progressively difficult actions that a character may perform on a trap; base DC is determined by the difficulty rating of the trap, modified by the action being performed.
+- Assessing a trap to determine its difficulty modifies the DC by -7.
+- Flagging a trap to make it visible to the rest of the party modifies the DC by -5.
+- Recovering a trap raises the trap DC by +10.
+- Disarming a trap has no effect on the trap DC.
+
+Special: A rogue is the only class capable of disarming traps with a DC of 35 or greater. With 5 or more ranks in the Set Trap skill a character gets a +2 synergy bonus on Disable Trap checks.
+Spectacular Failure: When disarming or recovering a trap, a spectacular failure results in the trap immediately going off.
+
+Use: Assess, Flag, Recover, and Disarm are radial menu options off of a detected trap.
+]Ability: Strength.
+
+Requires Training: No.
+Classes: All.
+
+A successful check allows the character to resist any combat feat (Disarm, Called Shot, or Knockdown).
+
+Check: The DC is equal to the attacker's attack roll.
+
+Use: Automatic.
+]Ability: Wisdom.
+
+Requires Training: No.
+Classes: All.
+
+With this skill a character can use a healing kit to cure wounds and heal poisons and diseases.
+
+Check: To heal poisons and diseases, the healer must make a successful check against their DC. If he is successful, the target is healed and is cured a number of HP equal to the skill roll, plus all modifiers. If the target suffers from no poisons or diseases, it is still cured of damage.
+
+Use: Use healing kit on a wounded creature.
+]Ability: Dexterity.
+
+Requires Training: No.
+Classes: All.
+
+This skill allows a character to hide from enemies.
+
+Check: The character must succeed at an opposed test against a searching creature's Spot check. Success means that the character goes undetected.
+
+Special: The Hide and Move Silently skills combine into a single Stealth action. Movement in Stealth mode is slower than the normal rate. Wearing armor or using a torch inhibits this ability, but low light can provide a bonus. A character in Stealth mode is harder to spot if standing still, and if his stature is small.
+
+Use: Select the Stealth action from the Special Abilities radial. Invisible characters automatically enter Stealth mode. Opposed Spot and Listen rolls are made once per round, where applicable.
+]Ability: Wisdom.
+
+Requires Training: No.
+Classes: All.
+
+Listen alerts a character to hidden creatures that may be nearby.
+
+Check: Listen detects hidden creatures by opposing their Move Silently check. A successful check renders the hidden creature visible, and makes it a valid target for the listener.
+
+Special: Standing still provides a +5 bonus to a Listen check. A character with the Alertness feat gains a +2 bonus on Listen checks. Rangers gain a bonus when Listening against a favored enemy. Elves, gnomes, and halflings gain a +2 racial bonus to Listen checks. Half-elves receive a +1 racial bonus.
+
+Use: Listen is part of the Detect modal action. In Passive Detect mode, checks are made automatically every round. Active Detect mode is a modal action that reduces the normal movement rate and makes the character perform an Active Listen, as well as Spot and Search checks.
+]Ability: Intelligence.
+
+Requires Training: No.
+Classes: All.
+
+Lore allows a character to identify unknown magic items.
+
+Check: A roll against an unidentified item's value to determine magical properties that the item may possess.
+
+Special: Bards are able to identify items more easily than other classes. Various spells and items can also give a character a bonus to their lore skill.
+
+Use: Automatic every time the character examines an item.
+]Ability: Dexterity.
+
+Requires Training: No.
+Classes: All.
+
+A character may sneak quietly past an enemy.
+
+Check: A Move Silently check is opposed by the listening creature's Listen check. If the character is successful, the opposing creature remains unaware as the character moves.
+
+Special: Hide and Move Silently are combined into a single Stealth action. Movement in Stealth mode is slower than the normal rate. Wearing armor inhibits this ability, but low light can provide a bonus.
+
+Use: Select the Stealth action from the Special Abilities radial. Invisible creatures automatically enter Stealth mode.
+]Ability: Dexterity.
+
+Requires Training: Yes.
+Classes: All.
+
+This skill allows the character to enter locked rooms and open locked containers.
+
+Check: The DC is determined by the lock's difficulty rating. A successful check opens the lock.
+
+Special: Thieves tools can be used to provide bonuses to a character's Open Lock attempt, but are destroyed in the attempt whether succesful or not.
+
+Use: Select the skill and then target a locked object.
+]Ability: Dexterity.
+
+Requires Training: No.
+Classes: All.
+
+Parry allows the character to block incoming attacks and make spectacular counterattacks.
+
+Check: The DC is the modified attack roll of the incoming blow. A successful Parry check means that the attack does not damage the parrying character. A character may only parry a number of attacks per round equal to the number of attacks per round available to the character.
+
+Special: If the parry is successful and the difference between the roll and the DC is ten points or greater, a counterattack occurs. A counterattack is a free attack made by the parrying character, at his full attack bonus, against the parried opponent.
+
+Use: Select the Parry mode. The character will remain in parry mode until the mode is exited.
+]Ability: Charisma.
+
+Requires Training: No.
+Classes: Bard.
+
+A Bard using Perform can perform the bardsong, which improves their allies' ability to fight in combat and withstand mind-affecting enemies. Perform is essential for any Bard who wants to have access to their bardsong.
+
+Check: None required. The higher the rank in this skill, the better the bardsong.
+
+Use: Select the skill to affect a 30-foot radius of allies around the singer.
+]Ability: Charisma.
+
+Requires Training: No.
+Classes: All.
+
+A successful Persuade check prompts NPCs to reveal additional information or give bonus treasure in conversation.
+
+Check: The DC is determined by the NPC being spoken to.
+
+Use: Used in conversation.
+]Ability: Dexterity.
+
+Requires Training: Yes.
+Classes: All.
+
+Pick Pocket allows a character to remove items from another's backpack.
+
+Check: There are two parts to successfully picking a pocket. First, the item must be acquired, and then the targeted creature must not notice the theft. Stealing the item is a simple skill test against the target's DC. The base DC for a neutral or tolerant creature is 20, and 30 for a hostile creature. This roll is modified by armor check penalties. The targeted creature then makes an opposed Spot check against the character's Pick Pocket check. Hostile creatures have a +10 bonus to their Spot checks in this test. If the targeted creature succeeds at this opposed check, then the target has detected the theft attempt. An NPC who detects the attempt will turn hostile, and a PC will be informed that the character has attempted to use Pick Pocket on him. If the character is successful at both checks, then he steals the item without being detected.
+
+Use: Select skill, then select valid target.
+]Ability: Intelligence.
+
+Requires Training: No.
+Classes: All.
+
+Search is used to detect traps.
+
+Check: Detecting a trap is an opposed test, pitting the character's Search check against a DC equal to the Set Trap skill check, plus the strength of the trap. Only rogues may detect traps with a DC greater than 35.
+
+Special: Elves and dwarves receive a +2 bonus to their Search checks, and half-elves gain a +1 bonus.
+
+Use: Search is part of the Detect modal action. In Passive Detect mode, checks are made automatically every round. Active Detect mode is a modal action that reduces the character's normal movement rate and perform an Active Search, as well as Spot and Listen checks.
+]Ability: Dexterity.
+
+Requires Training: Yes.
+Classes: All.
+
+This skill allows a character to place trap kits.
+
+Check: When a trap kit is used, the character makes a skill check. The DC of the task is determined by the power of the trap.
+
+Special: 5 or more ranks in Disable Traps grants a +2 synergy bonus on Set Trap checks. Any party members are able to see traps that one character has set.
+Spectacular Failure: If a skill check is failed by 10 or more, the trap goes off in the attempt to set it. This can only occur if you are in combat when trying to set the trap.
+
+Use: Use a trap kit from your inventory. An icon visible to you and your party will appear on the ground to represent the trap.
+]Ability: Intelligence.
+
+Requires Training: Yes.
+Classes: All.
+
+Spellcraft is used to identify spells and to perform counterspells.
+
+Check: A successful check means that the character has identified a spell being cast by an opponent. The DC of this check is equal to 15 + spell level. The character also gains a +1 bonus for every 5 ranks in this skill to all saving throws against spells.
+
+Special: A specialist wizard gets a +2 bonus when dealing with a spell from his specialized school. As well, a successful Spellcraft check is required before your character can attempt to counterspell. The specialist wizard suffers a -5 penalty when dealing with a spell or effect from a prohibited school.
+
+Use: Spellcraft checks are automatic whenever a spell is cast nearby.
+]Ability: Wisdom.
+
+Requires Training: No.
+Classes: All.
+
+A successful Spot check reveals a hidden creature.
+
+Check: The DC is determined by the Hide check of the hidden creature.
+
+Special: The Alertness feat grants a +2 bonus on Spot checks. Rangers receive a bonus on Spot checks against their favored enemy. Elves gain a +2 bonus on Spot checks, and half-elves gain a +1 bonus.
+
+Use: Spot is part of the Detect modal action. In Passive Detect mode, checks are made automatically every round. Active Detect mode is a modal action that reduces the normal movement rate and makes the character perform an Active Spot, as well as Search and Listen checks.
+]Ability: Charisma.
+
+Requires Training: No.
+Classes: All.
+
+Taunt is used to provoke an enemy into dropping his guard for a short time.
+
+Check: The DC is a concentration check made by the target against the character's Taunt skill roll. It is considered an attack. If the taunt is successful, the opponent suffers an Armor Class penalty equal to the difference between the taunt roll and the defender's roll (to a max of a -6 penalty) for 5 rounds. The target will also suffer a 30% chance of spell failure, if they don't resist the taunt.
+
+Special: Taunt penalties are not cumulative.
+
+Use: Select skill and then target creature.
+]Ability: Charisma.
+
+Requires Training: Yes.
+Classes: Bard and Rogue.
+
+A successful Use Magic Device check allows the character to use a magic item as if he had a required class, race, or alignment.
+
+Check: The base DC is determined by the value of the item, and modified by the type of emulation the character is attempting. If the character attempts to emulate a specific race, the DC increases by 5; if he attempts to emulate a specific alignment, the DC increases by 10. Emulating a specific class does not modify the base DC.
+
+Use: Automatically applied whenever a character attempts to use or equip an item normally unusable by his class, race, or alignment.
+]Ability: Intelligence.
+
+Requires Training: No.
+Classes: All.
+
+The higher the character's skill the better the price received when selling or purchasing goods.
+
+Check: The character makes an opposed roll against the merchant's Appraise skill. If the merchant wins, the characters pay more for the goods in the store. If the character wins, they pay less. The first time the player interacts with a merchant dictates the prices in that store until their Appraise skill improves.
+
+Use: Automatic in stores.
+]Ability: Dexterity.
+
+Requires Training: Yes.
+Classes: All.
+
+The character with high tumbling is able to roll away from attacks during combat, positioning themselves safely at all times. Anytime the character might receive an attack of opportunity for moving past enemies, they will automatically attempt a tumble check against a DC of 15. If successful the attack is avoided. For every five ranks in this skill (not including Dexterity bonus) the character's armor class is also improved by +1.
+
+Check: DC 15 to avoid attack of opportunity while moving.
+
+Use: Automatic.
+]Ability: Intelligence.
+
+Requires Training: No.
+Classes: All.
+
+The character using this skill can combine raw components to form various trap kits. There is a 10% chance on any failed skill roll that the components are lost, even though a trap was not crafted.
+
+Check: The DC is determined by the type of trap being created. The more powerful the trap, the more difficult it is to build and the more components it requires.
+
+Use: Selected.
+]Ability: Charisma
+
+Requires Training: No.
+Classes: All.
+
+The character can make the outrageous or the untrue seem plausible. This skill encompasses acting, conning, fast talking, misdirection and misleading body language.
+
+Use: Selected
+]Ability: Charisma
+
+Requires Training: No.
+Classes: All.
+
+A character can use this skill to get a bully to back down or make a prisoner give the information he wants to have.
+
+Check: The character can use this skill to change others' behavior with a successful check.
+
+Use: Selected
+]Ability: Intelligence
+
+Requires Training: No.
+Classes: All.
+
+The character knows how to create most types of armor, shields and helmets from different materials.
+
+How to craft
+The character first needs to create the components required for the item he wants to create from base materials (wood, leather, metal, etc).  This can be done by selecting the craft armor option in the material item's radial menu.
+
+Each item is constructed from two different components (a larger and a smaller one), that need to be assembled in order to finish crafting process.
+
+To assemble the two components, use the craft armor option in the smaller component's radial menu and target the larger component with it. On a successful Craft Armor skill check, the new item will be created in the character's inventory.  Note that it is not possible to create magic items with your crafting skills. For further information about crafting, please refer to the manual.
+]Ability: Intelligence
+
+Requires Training: No.
+Classes: All.
+
+The character knows how to create most types of weapons and ammunition from different materials.
+
+How to craft
+The character first needs to create the components required for the item he wants to create from base materials (wood, leather, metal, etc).  This can be done by selecting the craft weapon option in the material item's radial menu.
+
+Each weapon is constructed from two different components (a larger and a smaller one), that need to be assembled in order to finish crafting process.
+
+To assemble the two components, use the craft weapon option in the smaller component's radial menu and target the larger component with it. On a successful Craft Weapon skill check, the new item will be created in the character's inventory.  Note that it is not possible to create magic items with your crafting skills. For further information about crafting, please refer to the manual.
+]Ability: Dexterity
+
+Requires Training: No.
+Classes: All.
+
+The character has spent time training to use a horse in combat, and can perform actions unskilled people cannot.
+
+Note: Horses and the Ride skill are only used in the Premium Module "Neverwinter Nights - Wyvern Crown of Cormyr" and specific community made modules.

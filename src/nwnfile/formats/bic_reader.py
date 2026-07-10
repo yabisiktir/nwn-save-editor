@@ -145,6 +145,12 @@ class CharacterInfo:
     gold: int = 0  # Gold pieces (DWORD)
     deity: str = ""  # Deity (CExoString)
     abilities: dict[str, int] = field(default_factory=dict)  # Str/Dex/Con/Int/Wis/Cha
+    #: FeatList feat ids (each struct's ``Feat`` WORD), order-preserving + distinct
+    #: (C# ``Info.FeatInfo``). These index Feat Names.txt (line index = feat id).
+    feat_ids: list[int] = field(default_factory=list)
+    #: SkillList ranks (each struct's ``Rank`` BYTE), indexed by skill id
+    #: (C# ``Info.SkillRanks``); index 0 = the first skill in Skill Names.txt.
+    skill_ranks: list[int] = field(default_factory=list)
     is_valid: bool = True
     error_message: str = ""
 
@@ -228,6 +234,8 @@ class BicFileReader:
         abilities: dict[str, int] = {}
         classes: list[tuple[CharacterClass, int]] = []
         level = 0
+        feat_ids: list[int] = []
+        skill_ranks: list[int] = []
 
         # Walk the fields of the top-level (root) struct — struct 0.
         for label, ftype, raw in gff.iter_struct_fields(0):
@@ -270,6 +278,10 @@ class BicFileReader:
                 abilities[label] = gff.read_value(ftype, raw)
             elif label == "ClassList" and ftype == _GFFType.LIST:
                 classes, level = self._read_class_list(gff, gff.read_value(ftype, raw))
+            elif label == "FeatList" and ftype == _GFFType.LIST:
+                feat_ids = self._read_feat_list(gff, gff.read_value(ftype, raw))
+            elif label == "SkillList" and ftype == _GFFType.LIST:
+                skill_ranks = self._read_skill_list(gff, gff.read_value(ftype, raw))
 
         # Assemble the display name from first + last (fall back to file stem).
         name = " ".join(part for part in (first_name.strip(), last_name.strip()) if part)
@@ -296,6 +308,8 @@ class BicFileReader:
             gold=gold,
             deity=deity,
             abilities=abilities,
+            feat_ids=feat_ids,
+            skill_ranks=skill_ranks,
             is_valid=True,
         )
 
@@ -323,7 +337,38 @@ class BicFileReader:
                 # Unknown class id — still count its levels toward the total.
                 pass
         return classes, level
-    
+
+    @staticmethod
+    def _read_feat_list(gff: "_GFF", struct_ids: list[int]) -> list[int]:
+        """Decode FeatList — each struct holds a ``Feat`` (WORD) id (C# ``FeatInfo``).
+
+        Collects the feat ids in order and de-duplicates them (C# ``.Distinct()``).
+        """
+        feat_ids: list[int] = []
+        seen: set[int] = set()
+        for struct_id in struct_ids:
+            for label, ftype, raw in gff.iter_struct_fields(struct_id):
+                if label == "Feat":
+                    feat = gff.read_value(ftype, raw)
+                    if isinstance(feat, int) and feat not in seen:
+                        seen.add(feat)
+                        feat_ids.append(feat)
+        return feat_ids
+
+    @staticmethod
+    def _read_skill_list(gff: "_GFF", struct_ids: list[int]) -> list[int]:
+        """Decode SkillList — each struct holds a ``Rank`` (BYTE); index = skill id."""
+        ranks: list[int] = []
+        for struct_id in struct_ids:
+            rank = 0
+            for label, ftype, raw in gff.iter_struct_fields(struct_id):
+                if label == "Rank":
+                    value = gff.read_value(ftype, raw)
+                    if isinstance(value, int):
+                        rank = value
+            ranks.append(rank)
+        return ranks
+
     def get_race_name(self, race_id: int) -> str:
         """Get race name from ID"""
         try:

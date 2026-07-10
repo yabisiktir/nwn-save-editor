@@ -237,6 +237,11 @@ class TestRealBic:
         assert isinstance(info.portrait_resref, str)
         assert info.portrait_resref  # this character has a portrait set
 
+        # FeatList / SkillList decode into feat ids and per-skill ranks.
+        assert info.feat_ids and all(isinstance(f, int) for f in info.feat_ids)
+        assert len(info.feat_ids) == len(set(info.feat_ids))  # distinct (C# .Distinct())
+        assert info.skill_ranks and all(r >= 0 for r in info.skill_ranks)
+
     def test_real_player_bic_extended_fields(self):
         """Gold (DWORD), Deity (CExoString) and the six ability scores decode."""
         from vaultkeeper.core.formats.bic_reader import ABILITY_LABELS

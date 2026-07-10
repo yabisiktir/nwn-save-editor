@@ -355,6 +355,30 @@ class CharacterFile:
             show_stats=show_stats,
         )
 
+    def feats(self, reference=None) -> list[tuple[str, str]]:
+        """This character's named feats + descriptions (VB ``GetFeats``)."""
+        return character_feats(self.info, reference)
+
+    def skills(self, reference=None) -> list[tuple[str, int, str]]:
+        """This character's named skills, ranks + descriptions (VB ``GetSkills``)."""
+        return character_skills(self.info, reference)
+
+
+def character_feats(info: CharacterInfo, reference=None) -> list[tuple[str, str]]:
+    """Named, de-duplicated, name-sorted feats for a character (VB ``GetFeats``)."""
+    from vaultkeeper.game.character_reference import default_reference
+
+    ref = reference if reference is not None else default_reference()
+    return ref.feats(info.feat_ids)
+
+
+def character_skills(info: CharacterInfo, reference=None) -> list[tuple[str, int, str]]:
+    """Named skills with ranks + descriptions for a character (VB ``GetSkills``)."""
+    from vaultkeeper.game.character_reference import default_reference
+
+    ref = reference if reference is not None else default_reference()
+    return ref.skills(info.skill_ranks)
+
 
 def scan_character_files(folder: Path) -> list[CharacterFile]:
     """Decode every ``.bic`` in ``folder`` (non-recursive), sorted by name.
