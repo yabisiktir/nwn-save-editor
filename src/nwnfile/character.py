@@ -54,8 +54,35 @@ CLASS_NAMES: dict[int, str] = {
     38: "Ooze", 41: "Purple Dragon Knight",
 }
 
+#: Class id -> name string-ref (VB ``BicFileInfo.ClassInfo`` Ref values). A class
+#: whose ref equals ``NON_PC_CLASS_REF`` is a non-selectable creature class.
+NON_PC_CLASS_REF = 8154
+CLASS_REFS: dict[int, int] = {
+    0: 240, 1: 241, 2: 242, 3: 243, 4: 244, 5: 245, 6: 246, 7: 247, 8: 248,
+    9: 249, 10: 250, 11: 8154, 12: 8154, 13: 8154, 14: 8154, 15: 8154, 16: 8154,
+    17: 8154, 18: 8154, 19: 8154, 20: 8155, 21: 8154, 22: 8154, 23: 8154,
+    24: 8154, 25: 8154, 26: 8154, 27: 2947, 28: 2959, 29: 9006, 30: 9010,
+    31: 9014, 32: 9018, 33: 9022, 34: 9025, 35: 9029, 36: 76422, 37: 83492,
+    38: 8154, 41: 111713,
+}
+
 #: Gender id -> display name (VB ``Gender`` list order: Male/Female/Both/None).
 GENDER_NAMES: dict[int, str] = {0: "Male", 1: "Female", 2: "Both"}
+
+
+def pc_class_names() -> list[str]:
+    """Player-selectable class names, sorted (VB ``CharacterFilter`` class list).
+
+    VB fills the class filter from ``ClassInfo.Values Where info.Ref <> NonPc`` —
+    every class whose name string-ref isn't the shared non-PC placeholder (8154).
+    Commoner (ref 8155) is therefore included, faithfully to the VB.
+    """
+    names = [
+        CLASS_NAMES[cid]
+        for cid, ref in CLASS_REFS.items()
+        if ref != NON_PC_CLASS_REF and cid in CLASS_NAMES
+    ]
+    return sorted(names)
 
 #: (LawfulChaotic, GoodEvil) corner/mid combos -> alignment title
 #: (VB ``AlignmentTitle`` keyed by TitleIndex = GoodEvil*100 + LawfulChaotic).
