@@ -1,0 +1,441 @@
+]240
+Barbarians are brave, even reckless warriors, and their great strength and heartiness makes them well suited for adventure. Barbarians scornfully reject the fighter traditions of arms training and discipline, instead tapping into a powerful rage that makes them stronger, tougher, and better able to withstand attacks. They only have the energy for a few such displays per day, but it is usually sufficient. Constant exposure to danger also gives barbarians a sort of "sixth sense," a preternatural ability to sense danger and dodge attacks, and their running stamina is legendary.
+
+- Alignment Restrictions: Any nonlawful.
+- Hit Die: d12.
+- Proficiencies: All simple and martial weapons, light armor, medium armor, and shields.
+- Skill Points (Int Modifier * 4 at 1st level): 4 + Int Modifier.
+- Ex-Barbarians: Barbarians are unable to progress in levels if their alignment ever becomes lawful.
+]241
+Bards often serve as negotiators, messengers, scouts, and spies. They love to accompany heroes (and villains) to witness heroic (or villainous) deeds firsthand, since a bard who can tell a story from personal experience earns renown among his fellows. A bard casts arcane spells without any advance preparation, much like a sorcerer. His magic emphasizes charms and illusions, and the bard can also play an inspiring song that strengthens him and his allies. Bards also share some specialized skills with rogues, and their knowledge of item lore is nearly unmatched.
+
+WARNING: To cast a spell, a bard must have a Charisma score of 10 + the spell's level. For example, to cast a 3rd-level spell, a bard must have a Charisma of 13.
+
+Standard Abilities:
+- Alignment Restrictions: Any nonlawful.
+- Hit Die: d6.
+- Proficiencies: Proficient with simple weapons. Also proficient with light armor, medium armor, and shields.
+- Skill Points (*4 at 1st level): 4 + Int Modifier.
+- Spellcasting: Arcane (Charisma-based, no spell preparation, spell failure from armor is a factor); Bards begin the game knowing all cantrips.
+- Ex-Bards: Bards cannot gain levels of experience while they are of any lawful alignment.
+]242
+Clerics act as intermediaries between the earthly and the divine (or infernal) worlds. A good cleric helps those in need, while an evil cleric seeks to spread his patron's vision of evil across the world. All clerics can heal wounds and bring people back from the brink of death, and powerful clerics can even raise the dead. Likewise, all clerics have authority over undead creatures, and they can turn away or even destroy these creatures. Clerics are trained in the use of simple weapons, and can use all forms of armor and shields without penalty, since armor does not interfere with the casting of divine spells. In addition to his normal complement of spells, every cleric chooses to focus on two of his deity's domains. These domains grants the cleric special powers, and give him access to spells that he might otherwise never learn.
+
+WARNING: To cast a spell, a cleric must have a Wisdom score of 10 + the spell's level. For example, to cast a 2nd-level spell, a cleric must have a Wisdom of 12.
+
+- Hit Die: d8.
+- Proficiencies: All simple weapons, all armor, and shields.
+- Skill Points (*4 at 1st level): 2 + Int Modifier.
+- Spellcasting: Divine (Wisdom-based, spell failure from armor is ignored).
+]243
+Druids are divine spellcasters who receive their spells from nature, not the gods. They strive to live in harmony with the natural world, and hate anything that is not part of the natural cycle, especially aberrations and undead creatures. As they gain experience, they learn to take the shapes of animals and eventually of more powerful creatures. The strict oaths taken by every druid prohibit using weapons and armor outside their tradition.
+
+WARNING: To cast a spell, a druid must have a Wisdom score of 10 + the spell's level. For example, to cast a 4th-level spell, a druid must have a Wisdom of 14.
+
+- Alignment Restrictions: Must be neutral good, lawful neutral, true neutral, chaotic neutral, or neutral evil.
+- Hit Die: d8.
+- Proficiencies: Proficient with druidic weapons, as well as light and medium armor and shields.
+- Skill Points (*4 at 1st level): 4 + Int Modifier.
+- Spellcasting: Divine (Wisdom-based, armor-related chance of spell failure is ignored).
+- Ex-Druids: A druid who is no longer neutral cannot gain levels.
+]244
+Fighters can be many things, from soldiers to criminal enforcers. Some see adventure as a way to get rich, while others use their skills to protect the innocent. Fighters have the best all-around fighting capabilities of the PC classes, and they are trained to use all standard weapons and armor. A fighter's rigorous martial training grants him many bonus feats as he progresses, and high-level fighters have access to special melee maneuvers and exotic weapons not available to any other character.
+
+- Hit Die: d10.
+- Proficiencies: All simple and martial weapons, all armor, and shields.
+- Skill Points (*4 at 1st level): 2 + Int Modifier.
+]245
+Monks are versatile warriors skilled at fighting without weapons or armor. Good-aligned monks serve as protectors of the people, while evil monks make ideal spies and assassins. Though they don't cast spells, monks channel a subtle energy, called ki. This energy allows them to perform amazing feats, such as healing themselves, catching arrows in flight, and dodging blows with lightning speed. Their mundane and ki-based abilities grow with experience, granting them more power over themselves and their environment. Monks suffer unique penalties to their abilities if they wear armor, as doing so violates their rigid oaths. A monk wearing armor loses their Wisdom and level based armor class bonuses, their movement speed, and their additional unarmed attacks per round.
+
+- Alignment Restrictions: Any lawful.
+- Hit Die: d8.
+- Proficiencies: Proficient with monk weapons.
+- Skill Points (*4 at 1st level): 4 + Int Modifier.
+]246
+Paladins take their adventures seriously, and even a mundane mission is, in the heart of the paladin, a personal test - an opportunity to demonstrate bravery, to learn tactics, and to do good in the world. Divine power protects these warriors of virtue, warding off harm, protecting them from disease, healing them and their allies, and guarding against fear. Divine power also guides their sword arms, making them among the most effective warriors against undead and evil outsiders. Many of the paladin's special abilities also benefit from a high Charisma score.
+
+WARNING: To cast a spell, a paladin must have a Wisdom score of 10 + the spell's level. For example, to cast a 2nd-level spell, a paladin must have a Wisdom of 12.
+
+- Alignment Restrictions: Lawful good only.
+- Hit Die: d10.
+- Proficiencies: All simple and martial weapons, all armor, and shields.
+- Skill Points (*4 at 1st level): 2 + Int Modifier.
+- Spellcasting: Paladin Spells. Divine (Wisdom based, armor-related chance of spell failure is ignored).
+- Ex-Paladins: A paladin that is no longer lawful good cannot gain levels until their alignment is lawful good again.
+]247
+Rangers are skilled stalkers and hunters who make their home in the woods. Their martial skill is nearly the equal of the fighter, but they lack the latter's dedication to the craft of fighting. Instead, the ranger focuses his skills and training on a specific enemy - a type of creature he bears a vengeful grudge against and hunts above all others. Rangers often accept the role of protector, aiding those who live in or travel through the woods. His skills allow him to move quietly and stick to the shadows, especially in natural settings, and he also has special knowledge of certain types of creatures. Finally, an experienced ranger has such a tie to nature that he can actually draw on natural power to cast divine spells, much as a druid does, and like a druid he is often accompanied by animal companions.
+
+WARNING: To cast a spell, a ranger must have a Wisdom score of 10 + the spell's level. For example, to cast a 3rd-level spell, a ranger must have a Wisdom of 13.
+
+- Hit Die: d10.
+- Proficiencies: All simple and martial weapons, light and medium armor, and shields.
+- Skill Points (*4 at 1st level): 4 + Int Modifier.
+- Spellcasting: Ranger Spells. Divine (Wisdom based, armor-related chance of spell failure is ignored).
+]248
+Rogues have little in common with each other. While some - maybe even the majority - are stealthy thieves, many serve as scouts, spies, investigators, diplomats, and simple thugs. Rogues are versatile, adaptable, and skilled at getting what others don't want them to get. While not equal to a fighter in combat, a rogue knows how to hit where it hurts, and a sneak attack can dish out a lot of damage. Rogues also seem to have a sixth sense when it comes to avoiding danger. Experienced rogues develop nearly magical powers and skills as they master the arts of stealth, evasion, and sneak attacks. In addition, while not capable of casting spells on their own, a rogue can sometimes "fake it" well enough to cast spells from scrolls, activate wands, and use just about any other magic item.
+
+- Hit Die: d6.
+- Proficiencies: Proficient with rogue weapons and light armor. Rogues are not proficient with shields.
+- Skill Points (*4 at 1st level): 8 + Int Modifier.
+]249
+Sorcerers are arcane spellcasters who manipulate magic energy with imagination and talent rather than studious discipline. They have no books, no mentors, no theories - just raw power that they direct at will. Sorcerers know fewer spells than wizards do and acquire them more slowly, but they can cast individual spells more often and have no need to prepare their incantations ahead of time. Also unlike wizards, sorcerers cannot specialize in a school of magic. Since sorcerers gain their powers without undergoing the years of rigorous study that wizards go through, they have more time to learn fighting skills and are proficient with simple weapons.
+
+WARNING: To cast a spell, a sorcerer must have a Charisma score of 10 + the spell's level. For example, to cast a 9th-level spell, a sorcerer must have a Charisma of 19.
+
+- Hit Die: d4.
+- Proficiencies: All simple weapons. Sorcerers are not proficient with armor or shields.
+- Skill Points (*4 at 1st level): 2 + Intelligence Modifier.
+- Spellcasting: Arcane (Charisma-based, no spell preparation, spell failure from armor is a factor).
+]250
+Wizards are arcane spellcasters who depend on intensive study to create their magic. To wizards, magic is not a talent but a difficult, rewarding art. When they are prepared for battle, wizards can use their spells to devastating effect. When caught by surprise, they are vulnerable. The wizard's strength is her spells; everything else is secondary. She learns new spells as she experiments and grows in experience, and she can also learn them from other wizards. In addition, over time a wizard learns to manipulate her spells so they go farther, work better, or are improved in some other way. A wizard can call a familiar: a small, magical, creature that serves her.
+
+WARNING: To cast a spell, a wizard must have a Intelligence score of 10 + the spell's level. For example, to cast a 9th-level spell, a wizard must have a Intelligence of 19.
+
+- Hit Die: d4.
+- Proficiencies: Proficient with wizard weapons. Wizards are not proficient with armor or shields.
+- Skill Points (*4 at 1st level): 2 + Int Modifier.
+- Spellcasting: Arcane (Intelligence-based, spell preparation is required, spell failure from armor is a factor); wizards begin the game knowing all cantrips and four 1st-level spells.
+]8154
+This is a monster class and may only be given to a monster.
+]8155
+This is the commoner class, Only NPCs may take levels in this class.
+]2947
+(PRESTIGE CLASS)
+Shadowdancers operate in the border between light and darkness. These nimble artists of deception are never completely trusted but always induce wonder when met. Many use their abilities to infiltrate past defenses and dupe others. Rogues and bards are the most common shadowdancers.
+
+- Hit Die: d8.
+- Proficiencies: Simple weapons and light armor.
+- Skill Points: 6 + Int Modifier.
+
+REQUIREMENTS:
+
+Skills: Hide 10 ranks, Move Silently 8 ranks, Tumble 5 ranks.
+Feats: Dodge and Mobility.
+
+ABILITIES:
+
+Level
+1: Hide in Plain Sight - Can hide even while being observed.
+2: Evasion - No damage on a successful reflex save.
+Darkvision - Able to see in dim areas.
+Uncanny Dodge 1 - Retain dexterity bonus to armor class, even if flat-footed.
+3: Shadow Daze - Inflict an illusory daze upon an enemy.
+Summon Shadow - Able to summon a shadow.
+4: Shadow Evade - Armor class, concealment and damage reduction bonuses.
+5: Defensive Roll - Avoid death with a reflex save.
+Uncanny Dodge 2 - +1 reflex saving throws.
+7: Slippery Mind - Failed Will saving throw gets automatic reroll.
+10: Improved Evasion - Failed reflex saving throws result in only half damage.
+Uncanny Dodge 3 - +2 reflex saving throws.
+]2959
+(PRESTIGE CLASS)
+The Harpers are a secret society. Members are dedicated to holding back evil, preserving knowledge and maintaining the balance between civilization and the wild. The Harper Scout performs many duties including espionage, stealth and reporting information.
+
+- Hit Die: d6.
+- Proficiencies: Simple weapons and light armor.
+- Skill Points: 4 + Int Modifier.
+
+REQUIREMENTS:
+
+Alignment: Any non-evil.
+Skills: Discipline 4 ranks, Search 4 ranks, Lore 6 ranks, Persuade 8 ranks.
+Feats: Alertness, Iron Will.
+
+ABILITIES:
+
+Level
+1: Bardic Knowledge: Bonus to identifying items.
+1st Favored Enemy
+2: Deneir's Eye - +2 bonus to saving throws vs. traps.
+Sleep - As spell.
+3: Tymora's Smile - +2 bonus on all saves, once per day.
+Cat's Grace - As spell.
+4: Lliira's Heart - +2 bonus to saving throws vs. mind affecting spells.
+Eagle's Splendor - As spell.
+2nd Favored Enemy
+5: Craft Harper Item - Create magical potions.
+Invisibility - As spell.
+]9006
+(PRESTIGE CLASS)
+Master of the elven warbands, the Arcane Archer is a warrior skilled in using magic to supplement their combat prowess. Fighters, rangers, paladins, and barbarians become arcane archers to add a little magic to their combat abilities. Conversely, wizards and sorcerers may take this prestige class to add combat capabilities to their repertoire.
+
+- Hit Die: d8.
+- Proficiencies: All simple and martial weapons, light and medium armor, and shields.
+- Skill Points: 4 + Int Modifier.
+
+REQUIREMENTS:
+
+Race: Elf or half-elf.
+Base Attack Bonus: +6
+Feats: Weapon Focus Longbow or Weapon Focus Shortbow, Point Blank Shot.
+Spellcasting: Able to cast 1st-level arcane spells.
+
+ABILITIES:
+
+Level
+1: Enchant Arrow +1 - All arrows fired have +1 enchantment.
+2: Imbue Arrow - Shoot a fireball arrow three times a day.
+3: Enchant Arrow +2.
+4: Seeker Arrow - Fire an arrow that cannot miss, once per day.
+5: Enchant Arrow +3.
+6: Seeker Arrow - Able to fire 2 seeker arrows a day.
+7: Enchant Arrow +4.
+8: Hail of Arrows - Fire an arrow at each and every target.
+9: Enchant Arrow +5.
+10: Arrow of Death - Fire an arrow that can instantly kill an opponent.
+]9010
+(PRESTIGE CLASS)
+The assassin is a master of dealing quick, lethal blows. Assassins often function as spies, informants, killers for hire, or agents of vengeance. Their skill in a variety of dark arts allows them to carry out missions of death with shocking, terrifying precision. Rogues, monks and bards are ideal candidates to become assassins.
+
+- Hit Die: d6.
+- Proficiencies: Simple Weapons, Light Armor Proficiency.
+- Skill Points: 4 + Int Modifier.
+
+REQUIREMENTS:
+
+Alignment: Any evil.
+Skills: Hide 8 ranks, Move Silently 8 ranks.
+
+ABILITIES:
+
+Level
+1: Death Attack +1d6 - Special sneak attack that has a chance of paralyzing opponent.
+Use Poison - Automatic success when coating a weapon with poison.
+2: Uncanny Dodge 1 - Retain dexterity bonus to armor class, even if flat-footed.
+Ghostly Visage - As spell.
++1 Fortitude save vs. poison.
+3: Death Attack +2d6 - Death attack improves.
+4: +2 Fortitude save vs. poison.
+5: Death Attack +3d6 - Death attack improves.
+Uncanny Dodge 2 - +1 reflex saving throws.
+Darkness - As spell.
+6: +3 Fortitude save vs. poison.
+7: Death Attack +4d6 - Death attack improves.
+Invisibility - As spell.
+8: +4 Fortitude save vs. poison.
+9: Death Attack +5d6 - Death attack improves.
+Improved Invisibility - As spell.
+10: Uncanny Dodge 3 - +2 reflex saving throws.
++5 Fortitude save vs. poison.
+]9014
+(PRESTIGE CLASS)
+A Blackguard epitomizes evil. They are nothing short of a mortal fiend, a black knight with the foulest sort of reputation. Many refer to Blackguards as anti-paladins due to their completely evil nature. No one class makes the best Blackguard, all that is required is a willingness to serve the forces of darkness.
+
+- Hit Die: d10.
+- Proficiencies: All simple and martial weapons, all types of armor, and shields.
+- Skill Points: 2 + Int Modifier.
+
+REQUIREMENTS:
+
+Alignment: Any evil.
+Base Attack Bonus: +6
+Skills: Hide 5 ranks.
+Feats: Cleave.
+
+ABILITIES:
+
+Level
+1: Use Poison - Automatic success when coating a weapon with poison.
+2: Smite Good - Add Charisma modifier to attack roll.
+Dark Blessing - Add Charisma modifier to saving throws.
+Bull's Strength - As spell.
+3: Turn Undead - Make undead flee.
+Create Undead - summons an undead ally.
+4: Sneak Attack +1d6.
+5: Summon Fiend - summons a fiendish ally.
+6: Inflict Serious Wounds - As spell.
+7: Contagion - As spell.
+Sneak Attack +2d6.
+8: Inflict Critical Wounds - As spell.
+10: Sneak Attack +3d6.
+]9018
+(PRESTIGE CLASS)
+Champions of Torm are mighty warriors who dedicate themselves to Torm's cause, defending holy ground, destroying enemies of the church, and slaying mythical beasts. Torm is the patron of paladins and an unswerving enemy of corruption and evil.
+
+- Hit Die: d10.
+- Proficiencies: All simple and martial weapons, light and medium armor, and shields.
+- Skill Points: 2 + Int Modifier.
+
+REQUIREMENTS:
+
+Base Attack Bonus: +7
+Feats: Weapon Focus in a melee weapon.
+Alignment: Any non evil
+
+ABILITIES:
+
+Level
+1: Lay on Hands - Can heal damage equal to class level multiplied by their Charisma modifier,  deals damage to undead creatures
+2: Sacred Defense  - +1 to all saving throws.
+3: Smite Evil -  Once per day may add Charisma bonus to attack roll and do +1 point of damage per level of Champion and Paladin.
+4: Sacred Defense  - +2 to all saving throws.
+5: Divine Wrath - Once per day +3 to attack, damage and saving throws and Damage Reduction +1/5 for a number of rounds equal to Charisma bonus.
+6: Sacred Defense  - +3 to all saving throws.
+8: Sacred Defense  - +4 to all saving throws.
+10: Sacred Defense  - +5 to all saving throws.
+
+Champions of Torm receive a bonus feat every second level.
+]9022
+(PRESTIGE CLASS)
+For the weapon master, perfection is found in the mastery of a single melee weapon. A weapon master seeks to unite this weapon of choice with his body, to make them one, and to use the weapon as naturally and without thought as any other limb.
+
+- Hit Die: d10.
+- Proficiencies: A weapon master does not gain any additional weapon or armor proficiencies.
+- Skill Points: 2 + Int Modifier.
+
+REQUIREMENTS:
+
+Base Attack Bonus: +5
+Feats: Weapon Focus in a melee weapon, Dodge, Mobility, Expertise, Spring Attack and Whirlwind Attack.
+Skills: Intimidate 4 or more ranks.
+
+ABILITIES:
+
+Level
+1: Weapon of Choice - One is chosen and there-after all Weapon Master special abilities will only work while that type of weapon in equipped.
+Ki Damage - Once per day per level maximum damage is dealt.
+5: Increase Multiplier - Add 1x to weapon critical damage multiplier (i.e. 2x becomes 3x, 3x becomes 4x, etc.).
+Superior Weapon Focus - Add +1 to attacks with weapon of choice.
+7: Ki Critical - Add +2 to weapon of choice threat range.
+]9025
+(PRESTIGE CLASS)
+Necromancy is usually a poor choice for arcane spellcasters. Those who really want to master the deathless arts almost always pursue divine means. However, an alternative exists for those who desire power over undead, without losing too much of their arcane power. Enter the pale master, who draws on a font of special lore that provides a macabre power all its own.
+
+- Hit Die: d6.
+- Proficiencies: A pale master does not gain any additional weapon or armor proficiencies.
+- Skill Points: 2 + Int Modifier.
+
+REQUIREMENTS:
+
+Arcane Spellcasting: Level 3 or higher.
+Alignment: Any non good
+
+ABILITIES:
+
+Level
+1: Bone Skin I - Add +2 to AC. This increases by another +2 for every four levels of Pale Master.
+2: Animate Dead - Once per day spell-like ability.
+3: Darkvision - Gain Darkvision ability.
+4: Summon Undead - Twice per day spell-like ability summons an undead creature.
+5: Deathless Vigor - +3 Hit Points per level
+6: Undead Graft I - Gains undead arm that twice per day can paralyze.
+7: Tough as Bone - Immune to hold, paralyze, and stunning.
+8: Undead Graft II - Paralyze touch can be used three times a day.
+9: Summon Greater Undead - Once per day spell-like ability summons a powerful undead.
+10: Deathless Mastery - Immune to critical hits.
+Deathless Master Touch - Touch of the undead arm instantly kills (DC 17).
+
+BONUS SPELLS
+
+Upon reaching level 1, 3, 5, 7, and 9 the character gains new spells per day as if he had also gained a level in his highest caster class (bard, sorcerer or wizard). He does not learn any new spells through this ability, however.
+]9029
+(PRESTIGE CLASS)
+A shifter has no form they call their own. Instead, they cloth themselves in whatever shape is most expedient at the time. While others base their identities largely on their external forms, the shifter actually comes closer to their true self through all of their transformations. Of necessity, their sense of self is based not on their outward form, but on their soul, which is truly the only constant about them. It is the inner strength of that soul that enables them to take on any shape and remain themselves within.
+
+- Hit Die: d8.
+- Proficiencies: A shifter does not gain any additional weapon or armor proficiencies.
+- Skill Points: 4 + Int Modifier.
+
+REQUIREMENTS:
+
+Feats: Alertness, Wildshape
+Spellcasting: Level 3 or higher.
+
+ABILITIES:
+
+Level
+1: Greater Wildshape I  - Can change into a chromatic wyrmling dragon three  times per day and gain use of their breath weapon.
+3: Greater Wildshape II - Can change into harpy, minotaur and gargoyle.
+4: Infinite Greater Wildshape I - Can use Greater Wildshape I unlimited times per day.
+5: Greater Wildshape III  - Can change into a drider, basilisk and manticore, gaining some of the creatures special abilities three times per day.
+7: Infinite Greater Wildshape II -  Can use Greater Wildshape II unlimited times per day.
+Humanoid Shape - Can change into humanoid type creatures three times per day.
+10: Greater Wildshape IV  - Can change into medusa, huge dire tiger and mindflayer forms, gaining some of the creatures special abilities three times per day.
+Infinite Greater Wildshape III - Can use Greater Wildshape III unlimited times per day.
+]76422
+(PRESTIGE CLASS)
+The defender is a sponsored champion of a dwarven cause, a dwarven aristocrat, a dwarven deity or the dwarven way of life. As the name might imply, this character is a skilled combatant trained in the arts of defense. A line of dwarven defenders is a far better defense than a 10-foot-thick wall of stone, and much more dangerous.
+
+- Hit Die: d12
+- Proficiencies: Simple and Martial Weapons, Light, Medium and Heavy Armor Proficiency, Shields
+- Skill Points: 2 + Int Modifier.
+
+REQUIREMENTS:
+
+Alignment: Any lawful.
+Race: Dwarf
+Feats: Dodge, Toughness.
+Base Attack Bonus: +7
+
+ABILITIES:
+
+Level
+1: Defensive stance 1/day  - Gain +2 Str, +4 Con, +2 on all saves, +4 dodge bonus on AC.
+Defensive awareness  - Dexterity bonus to AC even when flat-footed.
+3: Defensive stance 2/day.
+5: Defensive stance 3/day.
+Defensive awareness  - The character can not  be flanked anymore.
+6: Damage reduction (3).
+7: Defensive stance 4/day.
+9: Defensive stance 5/day.
+10: Damage reduction (6).
+Defensive awareness - The character gains a +1 saving throw bonus vs traps.
+]83492
+(PRESTIGE CLASS)
+It is rumored that the magical powers of sorcerers and bards is somehow connected to the presence of dragon blood in their family tree. Red Dragon Disciples are sorcerers, and sometimes bards, who use their magical power as a catalyst to ignite their red dragon blood, realizing its fullest potential. They prefer a life of exploration to a cloistered existence. Already adept at magic, many pursue adventure, especially if it furthers their goal of finding out more about their draconic heritage. They often feel drawn to areas known to harbor dragons.
+
+- Hit Die: Special (see below)
+- Proficiencies: A red dragon disciple does not gain any additional weapon or armor proficiencies.
+- Skill Points: 2+ Int Modifier.
+
+REQUIREMENTS:
+
+Class: Sorcerer or Bard
+Skills: 8 Ranks in Lore
+
+ABILITIES:
+
+Level
+1: Draconic Armor - The character's skin develops nearly invisible scales that increase his/her natural armor class by +1.
+Hit Dice Increase (d6) - The character rolls d6 for hit points. This change is not retroactive.
+2: Draconic Ability Scores -  Strength +2.
+3: Breath Weapon I - The character can breathe a cone of fire, dealing 2d10 points of damage to each opponent caught in the flames.
+4: Hit Dice Increase (d8) - The character rolls d8 for hit points. This change is not retroactive.
+Draconic Ability Scores -  Strength +2.
+5: Draconic Armor  - The character's skin becomes even harder, raising his/her natural armor class to +2.
+6: Hit Dice Increase (d10)  - The character rolls d10 for hit points.  This change is not retroactive.
+7: Breath Weapon II - The character's breath weapon damage potential increases to 4d10 points of damage.
+Draconic Ability Scores - Constitution  +2.
+8: Draconic Armor - The character's natural armor class increases to +3.
+9: Wings  - The character grows red dragon wings.
+Draconic Ability Scores - Intelligence +2.
+10: Draconic Armor  - +4 Natural Armor.
+Darkvision - The character gains a dragon's ability to see in the dark.
+Immunity to sleep, paralysis, fire.
+Draconic Ability Scores - Strength +4, Charisma +2.
+Breath Weapon III - The character does 6d10 points of damage with his breath weapon.
+]111713
+(PRESTIGE CLASS)
+The famous Purple Dragons of Cormyr are regarded across Faerun as exemplars of disciplined, skilled, loyal soldiers. Their reputation is deserved partly because of the heroic actions of their leaders, the Purple Dragon Knights. Purple Dragon Knights develop uncanny skills relating to coordinating and leading soldiers. Most are fighters, rangers or paladins, but a few bards, clerics, and rogues have been known to become Purple Dragon Knights. Sorcerers and Wizards tend to join the War Wizards, Cormyr's elite brigade of fighting spellcasters, while barbarians are too undisciplined, and druids and monks too "uncivilized" in Cormyr to enter this career.
+
+- Hit Die: d10.
+- Proficiencies: A purple dragon knight gains no additional proficiences.
+- Skill Points: 2 + Int Modifier.
+
+REQUIREMENTS:
+
+Alignment: Non-Evil and Non-Chaotic.
+Base Attack Bonus: +4.
+Feats: Mounted Combat (requires Ride 1).
+Skills: Spot 2 ranks, Intimidate 1 rank, Listen 2 ranks, Persuade 1 rank, Ride 2 ranks.
+
+ABILITIES:
+
+Level
+1: Rallying Cry - +1 Attack Bonus to all allies within 60 feet, can be used three times a day.
+Heroic Shield - Able to defend a nearby ally, granting them a +4 armor class bonus for one round.
+2: Inspire Courage - +2 saves vs. mind affecting, and +1 attack and damage, useable once a day.
+3: Fear - As fear spell, useable once per day.
+4: Inspire Courage - Can now be used twice a day.
+Oath of Wrath - +2 bonus to attack, damage, saves and skill vs. single enemy.
+5: Final Stand - +2d10 HP to a number of allies equal to Purple Dragon Knight level + Charisma Bonus, once per day.
