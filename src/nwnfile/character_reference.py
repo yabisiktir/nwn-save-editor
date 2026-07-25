@@ -8,8 +8,18 @@ program folder and which are bundled here (``game/data/``):
 * **Feat Names.txt** — one ``Name*DescRef`` line per feat; the *line index* is the
   feat id (matches the BIC ``FeatList`` WORD), and ``DescRef`` keys the descriptions.
 * **Feat Descriptions.txt** — ``]DescRef`` blocks → description by ref.
+* **PRC Feats.json** — ``{"<feat id>": "name"}`` for community PRC (Player Resource
+  Consortium) feats, whose ids run past the base table (see the merge note below).
 * **Skill Names.txt** — one name per line (UTF-16); the line index is the skill id.
 * **Skill Descriptions.txt** — ``]``-delimited blocks in skill-id order.
+
+The base ``Feat Names.txt`` only covers base NWN (ids 0-1115). A PRC character's
+``.bic`` stores feat ids in the thousands, which would fall off the end of that
+table and vanish. :meth:`CharacterReference.feats` therefore resolves each feat id
+in three tiers — the base line index first (base behaviour unchanged), then the
+bundled PRC extension map, then ``Unknown feat <id>`` for ids in neither source so
+genuine gaps stay visible (mirroring :meth:`CharacterReference.skills`). The PRC
+table is scraped from the PRC8 online manual by ``docs/prc_feats/build_prc_feats.py``.
 
 Faithful to ``BicFileInfo.GetNames`` / ``GetDescriptions`` / ``GetFeats`` / ``GetSkills``:
 feats are looked up by feat-id → line, de-duplicated by name and name-sorted; skills
@@ -23,6 +33,7 @@ skill descriptions correctly (block *i* is skill *i*'s description).
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -32,6 +43,7 @@ _DATA_DIR = Path(__file__).resolve().parent / "data"
 
 FEAT_NAMES_FILE = "Feat Names.txt"
 FEAT_DESCRIPTIONS_FILE = "Feat Descriptions.txt"
+PRC_FEAT_NAMES_FILE = "PRC Feats.json"
 SKILL_NAMES_FILE = "Skill Names.txt"
 SKILL_DESCRIPTIONS_FILE = "Skill Descriptions.txt"
 CLASS_DESCRIPTIONS_FILE = "Class Descriptions.txt"
@@ -95,6 +107,24 @@ def load_feat_descriptions(path: Path) -> dict[int, str]:
     return descriptions
 
 
+def load_prc_feat_names(path: Path) -> dict[int, str]:
+    """Parse ``PRC Feats.json`` (``{"<feat id>": "name"}``) into ``{id: name}``.
+
+    The bundled PRC (Player Resource Consortium) extension table — feat ids past
+    the base ``Feat Names.txt`` range, scraped from the PRC8 manual (see
+    ``docs/prc_feats/build_prc_feats.py``). Non-integer keys are skipped rather
+    than aborting the load.
+    """
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    result: dict[int, str] = {}
+    for key, name in raw.items():
+        try:
+            result[int(key)] = name
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
 def load_class_descriptions(path: Path) -> dict[int, str]:
     """Parse ``Class Descriptions.txt`` (``]ClassRef`` blocks) into ``{ref: description}``.
 
@@ -138,6 +168,7 @@ class CharacterReference:
 
     feat_names: list[tuple[str, int]] = field(default_factory=list)
     feat_descriptions: dict[int, str] = field(default_factory=dict)
+    prc_feat_names: dict[int, str] = field(default_factory=dict)
     skill_names: list[str] = field(default_factory=list)
     skill_descriptions: list[str] = field(default_factory=list)
     class_descriptions: dict[int, str] = field(default_factory=dict)
@@ -200,21 +231,33 @@ class CharacterReference:
     def feats(self, feat_ids: list[int]) -> list[tuple[str, str]]:
         """Named feats for a character's feat ids (VB ``GetFeats``).
 
-        Maps each id to its ``Feat Names`` line, de-duplicates by name (first wins)
-        and sorts by name. Returns ``[(name, description)]``.
+        Resolves each id in three tiers — the base ``Feat Names`` line (base NWN),
+        then the bundled PRC extension map (community feats whose ids run past the
+        base table), then ``Unknown feat <id>`` for ids in neither source — so PRC
+        feats show by name and genuine gaps stay visible rather than being silently
+        dropped (mirrors :meth:`skills`). De-duplicated by name (first wins) and
+        name-sorted. Returns ``[(name, description)]``.
         """
         seen: set[str] = set()
         feats: list[tuple[str, str]] = []
         for feat_id in feat_ids:
-            if 0 <= feat_id < len(self.feat_names):
-                name, ref = self.feat_names[feat_id]
-                if name in seen:
-                    continue
-                seen.add(name)
-                desc = self.feat_descriptions.get(ref, _FEAT_DESC_UNAVAILABLE)
-                feats.append((name, desc))
+            name, desc = self._feat_name(feat_id)
+            if name in seen:
+                continue
+            seen.add(name)
+            feats.append((name, desc))
         feats.sort(key=lambda pair: _SortKey(pair[0]))
         return feats
+
+    def _feat_name(self, feat_id: int) -> tuple[str, str]:
+        """Resolve a feat id to ``(name, description)`` — base, then PRC, then unknown."""
+        if 0 <= feat_id < len(self.feat_names):
+            name, ref = self.feat_names[feat_id]
+            return name, self.feat_descriptions.get(ref, _FEAT_DESC_UNAVAILABLE)
+        prc_name = self.prc_feat_names.get(feat_id)
+        if prc_name is not None:
+            return prc_name, _FEAT_DESC_UNAVAILABLE
+        return f"Unknown feat {feat_id}", _FEAT_DESC_UNAVAILABLE
 
     def skills(self, skill_ranks: list[int]) -> list[tuple[str, int, str]]:
         """Named skills + ranks for a character (VB ``GetSkills`` + name-sort).
@@ -274,6 +317,9 @@ def load_reference(data_dir: Path) -> CharacterReference:
         ref.feat_names = load_feat_names(feat_names)
     if feat_desc.is_file():
         ref.feat_descriptions = load_feat_descriptions(feat_desc)
+    prc_feats = data_dir / PRC_FEAT_NAMES_FILE
+    if prc_feats.is_file():
+        ref.prc_feat_names = load_prc_feat_names(prc_feats)
     if skill_names.is_file():
         ref.skill_names = load_skill_names(skill_names)
     if skill_desc.is_file():
