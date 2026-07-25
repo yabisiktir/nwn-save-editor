@@ -294,6 +294,40 @@ def test_bundled_prc_skills_loaded():
     assert min(ref.prc_skill_names) >= len(ref.skill_names)
     # A known PRC skill id (base-aligned: skill id == skills.2da row == .bic index).
     assert ref.prc_skill_names[28] == "Jump"
+    # PRC skills carry descriptions (used by skills() + all_skills()).
+    assert "Strength" in ref.prc_skill_descriptions[28]
+
+
+def test_load_prc_skill_descriptions(tmp_path):
+    from vaultkeeper.game.character_reference import load_prc_skill_descriptions
+
+    path = tmp_path / "PRC Skill Descriptions.json"
+    path.write_text('{"28": "Leap over pits.", "bad": "x"}', encoding="utf-8")
+    assert load_prc_skill_descriptions(path) == {28: "Leap over pits."}
+
+
+def test_reference_prc_skill_carries_description(tmp_path):
+    # A PRC skill (id past the base table) shows its bundled description, not the
+    # "unavailable" placeholder, in the character skill list.
+    _write(tmp_path)  # base skills are ids 0-2
+    (tmp_path / "PRC Skills.json").write_text('{"3": "Jump"}', encoding="utf-8")
+    (tmp_path / "PRC Skill Descriptions.json").write_text(
+        '{"3": "Leap over pits."}', encoding="utf-8"
+    )
+    ref = load_reference(tmp_path)
+    by_name = {name: desc for name, _rank, desc in ref.skills([0, 0, 0, 5])}
+    assert by_name["Jump"] == "Leap over pits."
+
+
+def test_all_feats_and_skills_include_full_prc_set():
+    ref = default_reference()
+    feats = dict(ref.all_feats())
+    skills = dict(ref.all_skills())
+    # The reference browse lists now span base NWN + the full PRC set.
+    assert len(feats) > 10000
+    assert feats["Divine Strike"] != "Feat description is not available."
+    assert len(skills) >= 39
+    assert "Jump" in skills and skills["Jump"] != "Skill description is not available."
 
 
 _LOCALVAULT = Path.home() / "Documents" / "Neverwinter Nights" / "localvault"

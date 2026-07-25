@@ -14,8 +14,9 @@ program folder and which are bundled here (``game/data/``):
   feat descriptions from the PRC8 manual, keyed by feat id.
 * **Skill Names.txt** — one name per line (UTF-16); the line index is the skill id.
 * **Skill Descriptions.txt** — ``]``-delimited blocks in skill-id order.
-* **PRC Skills.json** — ``{"<skill id>": "name"}`` for community PRC skills, whose
-  ids run past the base ``Skill Names.txt`` table (same three-tier merge as feats).
+* **PRC Skills.json** / **PRC Skill Descriptions.json** — ``{"<skill id>": ...}`` for
+  community PRC skills, whose ids run past the base ``Skill Names.txt`` table (same
+  three-tier merge as feats).
 * **PRC Classes.json** / **PRC Class Descriptions.json.gz** — ``{"<class id>": ...}``
   for community PRC classes, whose ids run past the base ``character.CLASS_NAMES``
   set (resolved by ``class_name``; descriptions feed the reference viewer).
@@ -59,6 +60,7 @@ PRC_FEAT_DESCRIPTIONS_FILE = "PRC Feat Descriptions.json.gz"
 SKILL_NAMES_FILE = "Skill Names.txt"
 SKILL_DESCRIPTIONS_FILE = "Skill Descriptions.txt"
 PRC_SKILL_NAMES_FILE = "PRC Skills.json"
+PRC_SKILL_DESCRIPTIONS_FILE = "PRC Skill Descriptions.json"
 CLASS_DESCRIPTIONS_FILE = "Class Descriptions.txt"
 PRC_CLASS_NAMES_FILE = "PRC Classes.json"
 PRC_CLASS_DESCRIPTIONS_FILE = "PRC Class Descriptions.json.gz"
@@ -186,8 +188,16 @@ def load_prc_skill_names(path: Path) -> dict[int, str]:
     """Parse ``PRC Skills.json`` (``{"<skill id>": "name"}``) into ``{id: name}``.
 
     The bundled PRC skill extension table — skill ids past the base ``Skill
-    Names.txt`` range, scraped from the PRC8 manual (see
+    Names.txt`` range, from the PRC8 manual (see
     ``docs/prc_feats/build_prc_skills.py``).
+    """
+    return _load_id_name_json(path)
+
+
+def load_prc_skill_descriptions(path: Path) -> dict[int, str]:
+    """Parse ``PRC Skill Descriptions.json`` (``{"<skill id>": "text"}``) into ``{id: text}``.
+
+    PRC skill descriptions from the manual skill pages, keyed by skill id.
     """
     return _load_id_name_json(path)
 
@@ -259,6 +269,7 @@ class CharacterReference:
     skill_names: list[str] = field(default_factory=list)
     skill_descriptions: list[str] = field(default_factory=list)
     prc_skill_names: dict[int, str] = field(default_factory=dict)
+    prc_skill_descriptions: dict[int, str] = field(default_factory=dict)
     class_descriptions: dict[int, str] = field(default_factory=dict)
     prc_class_names: dict[int, str] = field(default_factory=dict)
     prc_class_descriptions: dict[int, str] = field(default_factory=dict)
@@ -302,22 +313,35 @@ class CharacterReference:
         return rows
 
     def all_skills(self) -> list[tuple[str, str]]:
-        """Every skill + description, name-sorted (VB LvSkills). ``[(name, description)]``."""
+        """Every skill + description, name-sorted (VB LvSkills + PRC extension).
+
+        Lists base NWN skills then the bundled PRC skills (de-duplicated by name,
+        base wins). Returns ``[(name, description)]``.
+        """
         rows: list[tuple[str, str]] = []
+        seen: set[str] = set()
         for skill_id, name in enumerate(self.skill_names):
             if skill_id < len(self.skill_descriptions):
                 desc = self.skill_descriptions[skill_id]
             else:
                 desc = _SKILL_DESC_UNAVAILABLE
+            seen.add(name)
+            rows.append((name, desc))
+        for skill_id, name in self.prc_skill_names.items():
+            if name in seen:
+                continue
+            seen.add(name)
+            desc = self.prc_skill_descriptions.get(skill_id, _SKILL_DESC_UNAVAILABLE)
             rows.append((name, desc))
         rows.sort(key=lambda pair: _SortKey(pair[0]))
         return rows
 
     def all_feats(self) -> list[tuple[str, str]]:
-        """Every named feat + description (VB LvFeats / GetFeats).
+        """Every named feat + description (VB LvFeats / GetFeats + PRC extension).
 
-        Excludes ``Unknown`` placeholder entries, de-duplicates by name (first wins)
-        and sorts by name (``WinCompare``). Returns ``[(name, description)]``.
+        Lists base NWN feats then the bundled PRC feats, excludes ``Unknown``
+        placeholders, de-duplicates by name (first/base wins) and sorts by name
+        (``WinCompare``). Returns ``[(name, description)]``.
         """
         seen: set[str] = set()
         rows: list[tuple[str, str]] = []
@@ -326,6 +350,11 @@ class CharacterReference:
                 continue
             seen.add(name)
             rows.append((name, self.feat_descriptions.get(ref, _FEAT_DESC_UNAVAILABLE)))
+        for feat_id, name in self.prc_feat_names.items():
+            if name in seen:
+                continue
+            seen.add(name)
+            rows.append((name, self.prc_feat_descriptions.get(feat_id, _FEAT_DESC_UNAVAILABLE)))
         rows.sort(key=lambda pair: _SortKey(pair[0]))
         return rows
 
@@ -380,7 +409,7 @@ class CharacterReference:
                     desc = _SKILL_DESC_UNAVAILABLE
             elif skill_id in self.prc_skill_names:
                 name = self.prc_skill_names[skill_id]
-                desc = _SKILL_DESC_UNAVAILABLE
+                desc = self.prc_skill_descriptions.get(skill_id, _SKILL_DESC_UNAVAILABLE)
             else:
                 unknown += 1
                 name = f"Unknown {unknown}"
@@ -457,6 +486,9 @@ def load_reference(data_dir: Path) -> CharacterReference:
     prc_skills = data_dir / PRC_SKILL_NAMES_FILE
     if prc_skills.is_file():
         ref.prc_skill_names = load_prc_skill_names(prc_skills)
+    prc_skill_desc = data_dir / PRC_SKILL_DESCRIPTIONS_FILE
+    if prc_skill_desc.is_file():
+        ref.prc_skill_descriptions = load_prc_skill_descriptions(prc_skill_desc)
     class_desc = data_dir / CLASS_DESCRIPTIONS_FILE
     if class_desc.is_file():
         ref.class_descriptions = load_class_descriptions(class_desc)
