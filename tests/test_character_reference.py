@@ -11,6 +11,7 @@ from vaultkeeper.game.character_reference import (
     load_feat_descriptions,
     load_feat_names,
     load_prc_feat_names,
+    load_prc_skill_names,
     load_reference,
     load_skill_descriptions,
     load_skill_names,
@@ -132,6 +133,35 @@ def test_reference_skills_lists_ranks_with_unknown_extras(tmp_path):
     assert [n for n, _r, _d in skills] == sorted(n for n, _r, _d in skills)
 
 
+def test_reference_resolves_prc_skills(tmp_path):
+    # Skill ids past the base table (3 here) resolve via the PRC extension map;
+    # a genuinely unknown id still falls through to "Unknown N".
+    _write(tmp_path)  # base skills are ids 0-2
+    (tmp_path / "PRC Skills.json").write_text(
+        '{"3": "Jump", "4": "Truespeak"}', encoding="utf-8"
+    )
+    ref = load_reference(tmp_path)
+    by_name = {name: rank for name, rank, _desc in ref.skills([0, 0, 0, 9, 8, 0])}
+    assert by_name["Jump"] == 9  # skill id 3 -> PRC name
+    assert by_name["Truespeak"] == 8  # skill id 4 -> PRC name
+    assert by_name["Unknown 1"] == 0  # skill id 5 -> still unknown
+
+
+def test_reference_skill_base_name_wins_over_prc(tmp_path):
+    # A PRC entry for a base-range skill id must NOT override the base line.
+    _write(tmp_path)  # base owns ids 0-2 (Animal Empathy/Concentration/Discipline)
+    (tmp_path / "PRC Skills.json").write_text('{"0": "PRC Override"}', encoding="utf-8")
+    ref = load_reference(tmp_path)
+    names = [name for name, _r, _d in ref.skills([1])]
+    assert names == ["Animal Empathy"]  # base line 0, not the PRC entry
+
+
+def test_load_prc_skill_names_parses_json_and_skips_non_int(tmp_path):
+    path = tmp_path / "PRC Skills.json"
+    path.write_text('{"28": "Jump", "bad": "skip"}', encoding="utf-8")
+    assert load_prc_skill_names(path) == {28: "Jump"}
+
+
 def test_bundled_reference_available():
     ref = default_reference()
     assert ref.available
@@ -151,6 +181,15 @@ def test_bundled_prc_feats_loaded():
     assert ref.prc_feat_names[2213] == "Divine Strike"
 
 
+def test_bundled_prc_skills_loaded():
+    ref = default_reference()
+    # The bundled PRC skill extension — ids all past the base Skill Names.txt range.
+    assert len(ref.prc_skill_names) >= 11
+    assert min(ref.prc_skill_names) >= len(ref.skill_names)
+    # A known PRC skill id (base-aligned: skill id == skills.2da row == .bic index).
+    assert ref.prc_skill_names[28] == "Jump"
+
+
 _LOCALVAULT = Path.home() / "Documents" / "Neverwinter Nights" / "localvault"
 _REAL_L40 = _LOCALVAULT / "morcanfaenoble19.bic"
 
@@ -158,18 +197,22 @@ _REAL_L40 = _LOCALVAULT / "morcanfaenoble19.bic"
 @pytest.mark.skipif(
     not _REAL_L40.is_file(), reason="owner's real level-40 .bic not present"
 )
-def test_real_level40_character_resolves_all_prc_feats():
-    """Golden: the owner's real PRC level-40 character shows its full feat set.
+def test_real_level40_character_resolves_all_prc_feats_and_skills():
+    """Golden: the owner's real PRC level-40 character shows its full feat/skill set.
 
-    Before the PRC extension, ~78 of its feat ids (in the thousands) fell off the
-    end of the base table and vanished; now every id resolves to a name.
+    Before the PRC extensions, ~78 of its feat ids (in the thousands) fell off the
+    end of the base table and vanished, and 11 PRC skills (ids 28-38) showed as
+    "Unknown 1".."Unknown 11"; now every id resolves to a name.
     """
     from vaultkeeper.core.formats.bic_reader import BicFileReader
 
     info = BicFileReader().read_file(_REAL_L40)
     assert info is not None and info.level == 40
-    feats = default_reference().feats(info.feat_ids)
-    unresolved = [name for name, _desc in feats if name.startswith("Unknown feat ")]
-    assert unresolved == []
-    # The full set is large (base + PRC), not just the ~60 base feats.
-    assert len(feats) > 100
+    ref = default_reference()
+
+    feats = ref.feats(info.feat_ids)
+    assert [name for name, _d in feats if name.startswith("Unknown feat ")] == []
+    assert len(feats) > 100  # base + PRC, not just the ~60 base feats
+
+    skills = ref.skills(info.skill_ranks)
+    assert [name for name, _r, _d in skills if name.startswith("Unknown")] == []

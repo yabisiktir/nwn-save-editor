@@ -12,6 +12,8 @@ program folder and which are bundled here (``game/data/``):
   Consortium) feats, whose ids run past the base table (see the merge note below).
 * **Skill Names.txt** — one name per line (UTF-16); the line index is the skill id.
 * **Skill Descriptions.txt** — ``]``-delimited blocks in skill-id order.
+* **PRC Skills.json** — ``{"<skill id>": "name"}`` for community PRC skills, whose
+  ids run past the base ``Skill Names.txt`` table (same three-tier merge as feats).
 
 The base ``Feat Names.txt`` only covers base NWN (ids 0-1115). A PRC character's
 ``.bic`` stores feat ids in the thousands, which would fall off the end of that
@@ -46,6 +48,7 @@ FEAT_DESCRIPTIONS_FILE = "Feat Descriptions.txt"
 PRC_FEAT_NAMES_FILE = "PRC Feats.json"
 SKILL_NAMES_FILE = "Skill Names.txt"
 SKILL_DESCRIPTIONS_FILE = "Skill Descriptions.txt"
+PRC_SKILL_NAMES_FILE = "PRC Skills.json"
 CLASS_DESCRIPTIONS_FILE = "Class Descriptions.txt"
 
 _FEAT_DESC_UNAVAILABLE = "Feat description is not available."
@@ -107,14 +110,8 @@ def load_feat_descriptions(path: Path) -> dict[int, str]:
     return descriptions
 
 
-def load_prc_feat_names(path: Path) -> dict[int, str]:
-    """Parse ``PRC Feats.json`` (``{"<feat id>": "name"}``) into ``{id: name}``.
-
-    The bundled PRC (Player Resource Consortium) extension table — feat ids past
-    the base ``Feat Names.txt`` range, scraped from the PRC8 manual (see
-    ``docs/prc_feats/build_prc_feats.py``). Non-integer keys are skipped rather
-    than aborting the load.
-    """
+def _load_id_name_json(path: Path) -> dict[int, str]:
+    """Parse a ``{"<id>": "name"}`` JSON map into ``{id: name}`` (non-int keys skipped)."""
     raw = json.loads(path.read_text(encoding="utf-8"))
     result: dict[int, str] = {}
     for key, name in raw.items():
@@ -123,6 +120,26 @@ def load_prc_feat_names(path: Path) -> dict[int, str]:
         except (TypeError, ValueError):
             continue
     return result
+
+
+def load_prc_feat_names(path: Path) -> dict[int, str]:
+    """Parse ``PRC Feats.json`` (``{"<feat id>": "name"}``) into ``{id: name}``.
+
+    The bundled PRC (Player Resource Consortium) extension table — feat ids past
+    the base ``Feat Names.txt`` range, scraped from the PRC8 manual (see
+    ``docs/prc_feats/build_prc_feats.py``).
+    """
+    return _load_id_name_json(path)
+
+
+def load_prc_skill_names(path: Path) -> dict[int, str]:
+    """Parse ``PRC Skills.json`` (``{"<skill id>": "name"}``) into ``{id: name}``.
+
+    The bundled PRC skill extension table — skill ids past the base ``Skill
+    Names.txt`` range, scraped from the PRC8 manual (see
+    ``docs/prc_feats/build_prc_skills.py``).
+    """
+    return _load_id_name_json(path)
 
 
 def load_class_descriptions(path: Path) -> dict[int, str]:
@@ -171,6 +188,7 @@ class CharacterReference:
     prc_feat_names: dict[int, str] = field(default_factory=dict)
     skill_names: list[str] = field(default_factory=list)
     skill_descriptions: list[str] = field(default_factory=list)
+    prc_skill_names: dict[int, str] = field(default_factory=dict)
     class_descriptions: dict[int, str] = field(default_factory=dict)
 
     @property
@@ -262,8 +280,10 @@ class CharacterReference:
     def skills(self, skill_ranks: list[int]) -> list[tuple[str, int, str]]:
         """Named skills + ranks for a character (VB ``GetSkills`` + name-sort).
 
-        Skills without a name (ids beyond ``Skill Names``, e.g. EE-only skills) are
-        shown as ``Unknown N``. Returns ``[(name, rank, description)]`` name-sorted.
+        Resolves each skill id by position — the base ``Skill Names`` line first,
+        then the bundled PRC extension map (community skills whose ids run past the
+        base table), then ``Unknown N`` for ids in neither source. Returns
+        ``[(name, rank, description)]`` name-sorted.
         """
         unknown = 0
         rows: list[tuple[str, int, str]] = []
@@ -274,6 +294,9 @@ class CharacterReference:
                     desc = self.skill_descriptions[skill_id]
                 else:
                     desc = _SKILL_DESC_UNAVAILABLE
+            elif skill_id in self.prc_skill_names:
+                name = self.prc_skill_names[skill_id]
+                desc = _SKILL_DESC_UNAVAILABLE
             else:
                 unknown += 1
                 name = f"Unknown {unknown}"
@@ -324,6 +347,9 @@ def load_reference(data_dir: Path) -> CharacterReference:
         ref.skill_names = load_skill_names(skill_names)
     if skill_desc.is_file():
         ref.skill_descriptions = load_skill_descriptions(skill_desc)
+    prc_skills = data_dir / PRC_SKILL_NAMES_FILE
+    if prc_skills.is_file():
+        ref.prc_skill_names = load_prc_skill_names(prc_skills)
     class_desc = data_dir / CLASS_DESCRIPTIONS_FILE
     if class_desc.is_file():
         ref.class_descriptions = load_class_descriptions(class_desc)
