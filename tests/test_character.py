@@ -31,7 +31,10 @@ def _info(**kw) -> CharacterInfo:
         name="Morcan Fae",
         gender=Gender.MALE,
         race=Race.HUMAN,
-        classes=[(CharacterClass.BARD, 8), (CharacterClass.RED_DRAGON_DISCIPLE, 10)],
+        classes=[
+            (CharacterClass.BARD.value, 8),
+            (CharacterClass.RED_DRAGON_DISCIPLE.value, 10),
+        ],
         level=18,
         experience=171_000,
         alignment_good_evil=100,
@@ -46,8 +49,23 @@ def _info(**kw) -> CharacterInfo:
 class TestNameTables:
     def test_race_and_class_use_vb_display_names(self):
         assert race_name(Race.HALF_ELF) == "Half-Elf"  # not "Half Elf"
-        assert class_name(CharacterClass.CHAMPION_OF_TORM) == "Champion of Torm"
-        assert class_name(CharacterClass.RED_DRAGON_DISCIPLE) == "Red Dragon Disciple"
+        assert class_name(CharacterClass.CHAMPION_OF_TORM.value) == "Champion of Torm"
+        assert class_name(CharacterClass.RED_DRAGON_DISCIPLE.value) == "Red Dragon Disciple"
+
+    def test_class_name_resolves_base_then_prc_then_unknown(self):
+        from vaultkeeper.game.character_reference import CharacterReference
+
+        ref = CharacterReference(prc_class_names={43: "Binder"})
+        assert class_name(1, ref) == "Bard"  # base CLASS_NAMES wins
+        assert class_name(43, ref) == "Binder"  # PRC extension
+        assert class_name(9999, ref) == "Class 9999"  # neither -> visible fallback
+
+    def test_prc_prestige_class_shows_in_summary(self):
+        # A PRC prestige class id (43 = Binder) is parsed and named, not dropped as
+        # VB did — it appears in the level/summary lines via the bundled PRC table.
+        info = _info(classes=[(4, 20), (43, 20)], level=40)
+        assert "Binder 20" in level_summary(info)
+        assert "Binder (20)" in character_summary(info)
 
     def test_alignment_title_corner_only(self):
         # Args are (lawful_chaotic, good_evil).

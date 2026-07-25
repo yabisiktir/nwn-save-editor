@@ -100,7 +100,7 @@ class TestCharacterInfo:
             name="TestCharacter",
             gender=Gender.MALE,
             race=Race.HUMAN,
-            classes=[(CharacterClass.FIGHTER, 5)],
+            classes=[(CharacterClass.FIGHTER.value, 5)],
             level=5,
             experience=15000,
             alignment_good_evil=50,
@@ -220,12 +220,12 @@ class TestRealBic:
         assert info.name
         assert info.name != REAL_BIC.stem  # not the "player" file-stem fallback
 
-        # ClassList decoded into concrete classes whose levels sum to the total.
+        # ClassList decoded into (class_id, level) pairs whose levels sum to the total.
         assert info.classes
-        for char_class, class_level in info.classes:
-            assert isinstance(char_class, CharacterClass)
+        for class_id, class_level in info.classes:
+            assert isinstance(class_id, int)
             assert class_level > 0
-        assert info.level == sum(level for _cls, level in info.classes)
+        assert info.level == sum(level for _cid, level in info.classes)
 
         # Scalar fields fall in sane ranges.
         assert info.experience > 0

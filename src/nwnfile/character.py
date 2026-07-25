@@ -24,7 +24,6 @@ from pathlib import Path
 from vaultkeeper.core.formats.bic_reader import (
     ABILITY_LABELS,
     BicFileReader,
-    CharacterClass,
     CharacterInfo,
     Gender,
     Race,
@@ -108,8 +107,17 @@ def race_name(race: Race) -> str:
     return RACE_NAMES.get(race.value, f"Race {race.value}")
 
 
-def class_name(cls: CharacterClass) -> str:
-    return CLASS_NAMES.get(cls.value, f"Class {cls.value}")
+def class_name(class_id: int, reference=None) -> str:
+    """Display name for a class id — base ``CLASS_NAMES`` first, then the bundled
+    PRC class extension, then ``Class <id>`` (mirrors the feat/skill three-tier
+    resolve so community/PRC prestige classes show by name instead of vanishing).
+    """
+    if class_id in CLASS_NAMES:
+        return CLASS_NAMES[class_id]
+    from vaultkeeper.game.character_reference import default_reference
+
+    ref = reference if reference is not None else default_reference()
+    return ref.prc_class_names.get(class_id, f"Class {class_id}")
 
 
 def gender_name(gender: Gender) -> str:
@@ -139,7 +147,7 @@ def _good_evil_word(value: int) -> str:
 
 def level_summary(info: CharacterInfo) -> str:
     """One-line ``Level N (Class1 a, Class2 b)`` summary (VB ``LevelSummary``)."""
-    parts = [f"{class_name(cls)} {max(level, 1)}" for cls, level in info.classes]
+    parts = [f"{class_name(cid)} {max(level, 1)}" for cid, level in info.classes]
     return f"Level {info.level} ({', '.join(parts)})"
 
 
@@ -193,8 +201,8 @@ def character_summary(
     )
 
     # Class n (level) lines.
-    for cls, level in info.classes:
-        lines.append(f"{class_name(cls)} ({max(level, 1)})")
+    for cid, level in info.classes:
+        lines.append(f"{class_name(cid)} ({max(level, 1)})")
 
     # Experience + next-level countdown.
     lines.append("")

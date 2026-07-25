@@ -135,7 +135,9 @@ class CharacterInfo:
     name: str
     gender: Gender
     race: Race
-    classes: list[tuple[CharacterClass, int]]  # (class, level)
+    #: (class_id, level) per ClassList entry, raw class ids preserved (community/PRC
+    #: classes past the base set are kept, not dropped; named at display time).
+    classes: list[tuple[int, int]]
     level: int
     experience: int
     alignment_good_evil: int  # 0-100
@@ -316,9 +318,13 @@ class BicFileReader:
     @staticmethod
     def _read_class_list(
         gff: "_GFF", struct_ids: list[int]
-    ) -> tuple[list[tuple[CharacterClass, int]], int]:
-        """Decode ClassList — each struct has a ``Class`` (INT) + ``ClassLevel`` (SHORT)."""
-        classes: list[tuple[CharacterClass, int]] = []
+    ) -> tuple[list[tuple[int, int]], int]:
+        """Decode ClassList — each struct has a ``Class`` (INT) + ``ClassLevel`` (SHORT).
+
+        Keeps every class id as a raw int so community/PRC classes past the base
+        set are preserved (not dropped); name resolution happens at display time.
+        """
+        classes: list[tuple[int, int]] = []
         level = 0
         for struct_id in struct_ids:
             class_id: int | None = None
@@ -331,11 +337,7 @@ class BicFileReader:
             if class_id is None:
                 continue
             level += class_level
-            try:
-                classes.append((CharacterClass(class_id), class_level))
-            except ValueError:
-                # Unknown class id — still count its levels toward the total.
-                pass
+            classes.append((class_id, class_level))
         return classes, level
 
     @staticmethod

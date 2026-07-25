@@ -16,6 +16,8 @@ program folder and which are bundled here (``game/data/``):
 * **Skill Descriptions.txt** — ``]``-delimited blocks in skill-id order.
 * **PRC Skills.json** — ``{"<skill id>": "name"}`` for community PRC skills, whose
   ids run past the base ``Skill Names.txt`` table (same three-tier merge as feats).
+* **PRC Classes.json** — ``{"<class id>": "name"}`` for community PRC classes, whose
+  ids run past the base ``character.CLASS_NAMES`` set (resolved by ``class_name``).
 
 The base ``Feat Names.txt`` only covers base NWN (ids 0-1115). A PRC character's
 ``.bic`` stores feat ids in the thousands, which would fall off the end of that
@@ -54,6 +56,7 @@ SKILL_NAMES_FILE = "Skill Names.txt"
 SKILL_DESCRIPTIONS_FILE = "Skill Descriptions.txt"
 PRC_SKILL_NAMES_FILE = "PRC Skills.json"
 CLASS_DESCRIPTIONS_FILE = "Class Descriptions.txt"
+PRC_CLASS_NAMES_FILE = "PRC Classes.json"
 
 _FEAT_DESC_UNAVAILABLE = "Feat description is not available."
 _SKILL_DESC_UNAVAILABLE = "Skill description is not available."
@@ -164,6 +167,16 @@ def load_prc_skill_names(path: Path) -> dict[int, str]:
     return _load_id_name_json(path)
 
 
+def load_prc_class_names(path: Path) -> dict[int, str]:
+    """Parse ``PRC Classes.json`` (``{"<class id>": "name"}``) into ``{id: name}``.
+
+    The bundled PRC class extension table — class ids past the base
+    ``character.CLASS_NAMES`` set, from the PRC8 manual (see
+    ``docs/prc_feats/build_prc_classes.py``).
+    """
+    return _load_id_name_json(path)
+
+
 def load_class_descriptions(path: Path) -> dict[int, str]:
     """Parse ``Class Descriptions.txt`` (``]ClassRef`` blocks) into ``{ref: description}``.
 
@@ -213,6 +226,7 @@ class CharacterReference:
     skill_descriptions: list[str] = field(default_factory=list)
     prc_skill_names: dict[int, str] = field(default_factory=dict)
     class_descriptions: dict[int, str] = field(default_factory=dict)
+    prc_class_names: dict[int, str] = field(default_factory=dict)
 
     @property
     def available(self) -> bool:
@@ -380,4 +394,7 @@ def load_reference(data_dir: Path) -> CharacterReference:
     class_desc = data_dir / CLASS_DESCRIPTIONS_FILE
     if class_desc.is_file():
         ref.class_descriptions = load_class_descriptions(class_desc)
+    prc_classes = data_dir / PRC_CLASS_NAMES_FILE
+    if prc_classes.is_file():
+        ref.prc_class_names = load_prc_class_names(prc_classes)
     return ref

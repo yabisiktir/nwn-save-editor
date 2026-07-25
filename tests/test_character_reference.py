@@ -193,6 +193,21 @@ def test_load_prc_skill_names_parses_json_and_skips_non_int(tmp_path):
     assert load_prc_skill_names(path) == {28: "Jump"}
 
 
+def test_load_prc_class_names_parses_json_and_skips_non_int(tmp_path):
+    from vaultkeeper.game.character_reference import load_prc_class_names
+
+    path = tmp_path / "PRC Classes.json"
+    path.write_text('{"43": "Binder", "bad": "skip"}', encoding="utf-8")
+    assert load_prc_class_names(path) == {43: "Binder"}
+
+
+def test_bundled_prc_classes_loaded():
+    ref = default_reference()
+    # The bundled PRC class extension (prestige/base classes past base CLASS_NAMES).
+    assert len(ref.prc_class_names) > 100
+    assert ref.prc_class_names[43] == "Binder"
+
+
 def test_bundled_reference_available():
     ref = default_reference()
     assert ref.available
