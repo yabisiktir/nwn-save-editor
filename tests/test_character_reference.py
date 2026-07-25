@@ -211,6 +211,23 @@ def test_bundled_prc_classes_loaded():
     assert ref.prc_class_names[43] == "Binder"
 
 
+def test_load_prc_class_descriptions_gzip(tmp_path):
+    from vaultkeeper.game.character_reference import load_prc_class_descriptions
+
+    path = tmp_path / "PRC Class Descriptions.json.gz"
+    _write_gz_json(path, {"43": "A soul binder.", "bad": "x"})
+    assert load_prc_class_descriptions(path) == {43: "A soul binder."}
+
+
+def test_all_classes_includes_prc_with_descriptions():
+    classes = dict(default_reference().all_classes())
+    # Base classes plus the ~200 PRC classes, each with a real description.
+    assert len(classes) > 200
+    assert classes["Bard"] and classes["Bard"] != "Description is unavailable."
+    assert "Ur-Priest" in classes
+    assert classes["Binder"] != "Description is unavailable."
+
+
 def test_reference_spells_names_dedups_and_sorts():
     ref = CharacterReference(
         spell_names={151: "Resistance", 37: "Daze"},

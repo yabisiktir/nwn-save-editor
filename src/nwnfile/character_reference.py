@@ -16,8 +16,9 @@ program folder and which are bundled here (``game/data/``):
 * **Skill Descriptions.txt** — ``]``-delimited blocks in skill-id order.
 * **PRC Skills.json** — ``{"<skill id>": "name"}`` for community PRC skills, whose
   ids run past the base ``Skill Names.txt`` table (same three-tier merge as feats).
-* **PRC Classes.json** — ``{"<class id>": "name"}`` for community PRC classes, whose
-  ids run past the base ``character.CLASS_NAMES`` set (resolved by ``class_name``).
+* **PRC Classes.json** / **PRC Class Descriptions.json.gz** — ``{"<class id>": ...}``
+  for community PRC classes, whose ids run past the base ``character.CLASS_NAMES``
+  set (resolved by ``class_name``; descriptions feed the reference viewer).
 * **Spell Names.json** / **Spell Descriptions.json.gz** — ``{"<spell id>": ...}`` for
   every spell (base NWN + PRC; there is no base spell file, so this is the sole
   source). A ``.bic``'s spells come from each class's ``KnownList``/``MemorizedList``.
@@ -60,6 +61,7 @@ SKILL_DESCRIPTIONS_FILE = "Skill Descriptions.txt"
 PRC_SKILL_NAMES_FILE = "PRC Skills.json"
 CLASS_DESCRIPTIONS_FILE = "Class Descriptions.txt"
 PRC_CLASS_NAMES_FILE = "PRC Classes.json"
+PRC_CLASS_DESCRIPTIONS_FILE = "PRC Class Descriptions.json.gz"
 SPELL_NAMES_FILE = "Spell Names.json"
 SPELL_DESCRIPTIONS_FILE = "Spell Descriptions.json.gz"
 
@@ -200,6 +202,15 @@ def load_prc_class_names(path: Path) -> dict[int, str]:
     return _load_id_name_json(path)
 
 
+def load_prc_class_descriptions(path: Path) -> dict[int, str]:
+    """Parse ``PRC Class Descriptions.json.gz`` (gzipped ``{"<class id>": "text"}``).
+
+    PRC class descriptions from the manual class pages, keyed by class id (used by
+    :meth:`CharacterReference.all_classes` for the reference viewer).
+    """
+    return _load_id_name_json_gz(path)
+
+
 def load_class_descriptions(path: Path) -> dict[int, str]:
     """Parse ``Class Descriptions.txt`` (``]ClassRef`` blocks) into ``{ref: description}``.
 
@@ -250,6 +261,7 @@ class CharacterReference:
     prc_skill_names: dict[int, str] = field(default_factory=dict)
     class_descriptions: dict[int, str] = field(default_factory=dict)
     prc_class_names: dict[int, str] = field(default_factory=dict)
+    prc_class_descriptions: dict[int, str] = field(default_factory=dict)
     spell_names: dict[int, str] = field(default_factory=dict)
     spell_descriptions: dict[int, str] = field(default_factory=dict)
 
@@ -263,19 +275,28 @@ class CharacterReference:
         """Every selectable class + description, name-sorted (VB LvClasses).
 
         Ports ``ClassesSkillsAndFeats.SkillsAndFeats_Load``: excludes creature/NPC
-        classes (refs 8154/8155), maps each class to its description via its
-        string-ref (``character.CLASS_REFS``), and sorts by name (``WinCompare``).
-        Returns ``[(name, description)]``.
+        classes (refs 8154/8155), maps each base class to its description via its
+        string-ref (``character.CLASS_REFS``), then appends the bundled PRC classes
+        (description from the PRC manual). De-duplicated by name (base wins) and
+        sorted by name (``WinCompare``). Returns ``[(name, description)]``.
         """
         from vaultkeeper.game.character import CLASS_NAMES, CLASS_REFS
 
         excluded = (8154, 8155)
         rows: list[tuple[str, str]] = []
+        seen: set[str] = set()
         for class_id, name in CLASS_NAMES.items():
             ref = CLASS_REFS.get(class_id)
             if ref in excluded:
                 continue
             desc = self.class_descriptions.get(ref, _DESC_UNAVAILABLE) if ref else _DESC_UNAVAILABLE
+            seen.add(name)
+            rows.append((name, desc))
+        for class_id, name in self.prc_class_names.items():
+            if name in seen:
+                continue
+            seen.add(name)
+            desc = self.prc_class_descriptions.get(class_id, _DESC_UNAVAILABLE)
             rows.append((name, desc))
         rows.sort(key=lambda pair: _SortKey(pair[0]))
         return rows
@@ -442,6 +463,9 @@ def load_reference(data_dir: Path) -> CharacterReference:
     prc_classes = data_dir / PRC_CLASS_NAMES_FILE
     if prc_classes.is_file():
         ref.prc_class_names = load_prc_class_names(prc_classes)
+    prc_class_desc = data_dir / PRC_CLASS_DESCRIPTIONS_FILE
+    if prc_class_desc.is_file():
+        ref.prc_class_descriptions = load_prc_class_descriptions(prc_class_desc)
     spell_names = data_dir / SPELL_NAMES_FILE
     if spell_names.is_file():
         ref.spell_names = load_spell_names(spell_names)
