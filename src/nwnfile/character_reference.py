@@ -10,6 +10,8 @@ program folder and which are bundled here (``game/data/``):
 * **Feat Descriptions.txt** — ``]DescRef`` blocks → description by ref.
 * **PRC Feats.json** — ``{"<feat id>": "name"}`` for community PRC (Player Resource
   Consortium) feats, whose ids run past the base table (see the merge note below).
+* **PRC Feat Descriptions.json.gz** — ``{"<feat id>": "text"}`` (gzipped) — the PRC
+  feat descriptions from the PRC8 manual, keyed by feat id.
 * **Skill Names.txt** — one name per line (UTF-16); the line index is the skill id.
 * **Skill Descriptions.txt** — ``]``-delimited blocks in skill-id order.
 * **PRC Skills.json** — ``{"<skill id>": "name"}`` for community PRC skills, whose
@@ -35,6 +37,7 @@ skill descriptions correctly (block *i* is skill *i*'s description).
 
 from __future__ import annotations
 
+import gzip
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,6 +49,7 @@ _DATA_DIR = Path(__file__).resolve().parent / "data"
 FEAT_NAMES_FILE = "Feat Names.txt"
 FEAT_DESCRIPTIONS_FILE = "Feat Descriptions.txt"
 PRC_FEAT_NAMES_FILE = "PRC Feats.json"
+PRC_FEAT_DESCRIPTIONS_FILE = "PRC Feat Descriptions.json.gz"
 SKILL_NAMES_FILE = "Skill Names.txt"
 SKILL_DESCRIPTIONS_FILE = "Skill Descriptions.txt"
 PRC_SKILL_NAMES_FILE = "PRC Skills.json"
@@ -132,6 +136,24 @@ def load_prc_feat_names(path: Path) -> dict[int, str]:
     return _load_id_name_json(path)
 
 
+def load_prc_feat_descriptions(path: Path) -> dict[int, str]:
+    """Parse ``PRC Feat Descriptions.json.gz`` (``{"<feat id>": "text"}``) → ``{id: text}``.
+
+    Gzip-compressed JSON (the uncompressed text is ~8.6 MB), keyed by feat id —
+    the PRC feat descriptions pulled from the PRC8 manual pages (see
+    ``docs/prc_feats/build_prc_feat_descriptions.py``).
+    """
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        raw = json.load(fh)
+    result: dict[int, str] = {}
+    for key, text in raw.items():
+        try:
+            result[int(key)] = text
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
 def load_prc_skill_names(path: Path) -> dict[int, str]:
     """Parse ``PRC Skills.json`` (``{"<skill id>": "name"}``) into ``{id: name}``.
 
@@ -186,6 +208,7 @@ class CharacterReference:
     feat_names: list[tuple[str, int]] = field(default_factory=list)
     feat_descriptions: dict[int, str] = field(default_factory=dict)
     prc_feat_names: dict[int, str] = field(default_factory=dict)
+    prc_feat_descriptions: dict[int, str] = field(default_factory=dict)
     skill_names: list[str] = field(default_factory=list)
     skill_descriptions: list[str] = field(default_factory=list)
     prc_skill_names: dict[int, str] = field(default_factory=dict)
@@ -274,7 +297,8 @@ class CharacterReference:
             return name, self.feat_descriptions.get(ref, _FEAT_DESC_UNAVAILABLE)
         prc_name = self.prc_feat_names.get(feat_id)
         if prc_name is not None:
-            return prc_name, _FEAT_DESC_UNAVAILABLE
+            desc = self.prc_feat_descriptions.get(feat_id, _FEAT_DESC_UNAVAILABLE)
+            return prc_name, desc
         return f"Unknown feat {feat_id}", _FEAT_DESC_UNAVAILABLE
 
     def skills(self, skill_ranks: list[int]) -> list[tuple[str, int, str]]:
@@ -343,6 +367,9 @@ def load_reference(data_dir: Path) -> CharacterReference:
     prc_feats = data_dir / PRC_FEAT_NAMES_FILE
     if prc_feats.is_file():
         ref.prc_feat_names = load_prc_feat_names(prc_feats)
+    prc_feat_desc = data_dir / PRC_FEAT_DESCRIPTIONS_FILE
+    if prc_feat_desc.is_file():
+        ref.prc_feat_descriptions = load_prc_feat_descriptions(prc_feat_desc)
     if skill_names.is_file():
         ref.skill_names = load_skill_names(skill_names)
     if skill_desc.is_file():

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import gzip
+import json
 from pathlib import Path
 
 import pytest
@@ -10,12 +12,18 @@ from vaultkeeper.game.character_reference import (
     default_reference,
     load_feat_descriptions,
     load_feat_names,
+    load_prc_feat_descriptions,
     load_prc_feat_names,
     load_prc_skill_names,
     load_reference,
     load_skill_descriptions,
     load_skill_names,
 )
+
+
+def _write_gz_json(path: Path, mapping: dict) -> None:
+    with gzip.open(path, "wt", encoding="utf-8") as fh:
+        json.dump(mapping, fh)
 
 
 def _write(dir_: Path) -> Path:
@@ -105,6 +113,29 @@ def test_reference_resolves_prc_feats(tmp_path):
     assert dict(feats)["Divine Strike"] == "Feat description is not available."
 
 
+def test_load_prc_feat_descriptions_gzip_skips_non_int(tmp_path):
+    path = tmp_path / "PRC Feat Descriptions.json.gz"
+    _write_gz_json(path, {"2213": "Sneak the undead.", "bad": "skip"})
+    assert load_prc_feat_descriptions(path) == {2213: "Sneak the undead."}
+
+
+def test_reference_prc_feat_carries_description(tmp_path):
+    # A PRC feat resolves to its bundled name AND its bundled description.
+    _write(tmp_path)
+    (tmp_path / "PRC Feats.json").write_text('{"2213": "Divine Strike"}', encoding="utf-8")
+    _write_gz_json(tmp_path / "PRC Feat Descriptions.json.gz", {"2213": "Sneak the undead."})
+    ref = load_reference(tmp_path)
+    assert ref.feats([2213]) == [("Divine Strike", "Sneak the undead.")]
+
+
+def test_reference_prc_feat_without_description_falls_back(tmp_path):
+    # A PRC feat with a name but no bundled description shows the placeholder.
+    _write(tmp_path)
+    (tmp_path / "PRC Feats.json").write_text('{"2213": "Divine Strike"}', encoding="utf-8")
+    ref = load_reference(tmp_path)  # no descriptions file
+    assert ref.feats([2213]) == [("Divine Strike", "Feat description is not available.")]
+
+
 def test_reference_base_name_wins_over_prc(tmp_path):
     # A PRC entry for a base-range id must NOT override the base line (base first).
     _write(tmp_path)  # base owns ids 0-2 (Alertness/Ambidexterity/Berserker Rage)
@@ -181,6 +212,13 @@ def test_bundled_prc_feats_loaded():
     assert ref.prc_feat_names[2213] == "Divine Strike"
 
 
+def test_bundled_prc_feat_descriptions_loaded():
+    ref = default_reference()
+    # The bundled (gzipped) PRC feat descriptions from the PRC8 manual pages.
+    assert len(ref.prc_feat_descriptions) > 10000
+    assert "Skullclan Hunter" in ref.prc_feat_descriptions[2213]
+
+
 def test_bundled_prc_skills_loaded():
     ref = default_reference()
     # The bundled PRC skill extension — ids all past the base Skill Names.txt range.
@@ -213,6 +251,8 @@ def test_real_level40_character_resolves_all_prc_feats_and_skills():
     feats = ref.feats(info.feat_ids)
     assert [name for name, _d in feats if name.startswith("Unknown feat ")] == []
     assert len(feats) > 100  # base + PRC, not just the ~60 base feats
+    # Every feat (base and PRC) carries a real description, not the placeholder.
+    assert [n for n, d in feats if d == "Feat description is not available."] == []
 
     skills = ref.skills(info.skill_ranks)
     assert [name for name, _r, _d in skills if name.startswith("Unknown")] == []
