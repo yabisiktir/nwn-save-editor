@@ -153,6 +153,10 @@ class CharacterInfo:
     #: SkillList ranks (each struct's ``Rank`` BYTE), indexed by skill id
     #: (C# ``Info.SkillRanks``); index 0 = the first skill in Skill Names.txt.
     skill_ranks: list[int] = field(default_factory=list)
+    #: Distinct spell ids the character knows/has memorised, gathered from every
+    #: class's ``KnownList0..9`` / ``MemorizedList0..9`` (each entry's ``Spell``
+    #: WORD). Order-preserving + distinct; index the bundled Spell Names.json.
+    spell_ids: list[int] = field(default_factory=list)
     is_valid: bool = True
     error_message: str = ""
 
@@ -234,8 +238,9 @@ class BicFileReader:
         gold = 0
         deity = ""
         abilities: dict[str, int] = {}
-        classes: list[tuple[CharacterClass, int]] = []
+        classes: list[tuple[int, int]] = []
         level = 0
+        spell_ids: list[int] = []
         feat_ids: list[int] = []
         skill_ranks: list[int] = []
 
@@ -279,7 +284,9 @@ class BicFileReader:
             elif label in ABILITY_LABELS and ftype == _GFFType.BYTE:
                 abilities[label] = gff.read_value(ftype, raw)
             elif label == "ClassList" and ftype == _GFFType.LIST:
-                classes, level = self._read_class_list(gff, gff.read_value(ftype, raw))
+                classes, level, spell_ids = self._read_class_list(
+                    gff, gff.read_value(ftype, raw)
+                )
             elif label == "FeatList" and ftype == _GFFType.LIST:
                 feat_ids = self._read_feat_list(gff, gff.read_value(ftype, raw))
             elif label == "SkillList" and ftype == _GFFType.LIST:
@@ -312,20 +319,29 @@ class BicFileReader:
             abilities=abilities,
             feat_ids=feat_ids,
             skill_ranks=skill_ranks,
+            spell_ids=spell_ids,
             is_valid=True,
         )
 
-    @staticmethod
+    #: Per-class spellbook list fields (spontaneous KnownList + prepared MemorizedList).
+    _SPELL_LISTS = frozenset(
+        [f"KnownList{i}" for i in range(10)] + [f"MemorizedList{i}" for i in range(10)]
+    )
+
+    @classmethod
     def _read_class_list(
-        gff: "_GFF", struct_ids: list[int]
-    ) -> tuple[list[tuple[int, int]], int]:
+        cls, gff: "_GFF", struct_ids: list[int]
+    ) -> tuple[list[tuple[int, int]], int, list[int]]:
         """Decode ClassList — each struct has a ``Class`` (INT) + ``ClassLevel`` (SHORT).
 
         Keeps every class id as a raw int so community/PRC classes past the base
         set are preserved (not dropped); name resolution happens at display time.
+        Also gathers the distinct spell ids from each class's spellbook lists.
         """
         classes: list[tuple[int, int]] = []
         level = 0
+        spell_ids: list[int] = []
+        seen_spells: set[int] = set()
         for struct_id in struct_ids:
             class_id: int | None = None
             class_level = 0
@@ -334,11 +350,26 @@ class BicFileReader:
                     class_id = gff.read_value(ftype, raw)
                 elif label == "ClassLevel":
                     class_level = gff.read_value(ftype, raw)
+                elif label in cls._SPELL_LISTS and ftype == _GFFType.LIST:
+                    cls._collect_spells(gff, gff.read_value(ftype, raw), spell_ids, seen_spells)
             if class_id is None:
                 continue
             level += class_level
             classes.append((class_id, class_level))
-        return classes, level
+        return classes, level, spell_ids
+
+    @staticmethod
+    def _collect_spells(
+        gff: "_GFF", entry_ids: list[int], out: list[int], seen: set[int]
+    ) -> None:
+        """Append each spellbook entry's ``Spell`` id to ``out`` (distinct, ordered)."""
+        for entry_id in entry_ids:
+            for label, ftype, raw in gff.iter_struct_fields(entry_id):
+                if label == "Spell":
+                    spell = gff.read_value(ftype, raw)
+                    if isinstance(spell, int) and spell not in seen:
+                        seen.add(spell)
+                        out.append(spell)
 
     @staticmethod
     def _read_feat_list(gff: "_GFF", struct_ids: list[int]) -> list[int]:

@@ -398,6 +398,10 @@ class CharacterFile:
         """This character's named skills, ranks + descriptions (VB ``GetSkills``)."""
         return character_skills(self.info, reference)
 
+    def spells(self, reference=None) -> list[tuple[str, str]]:
+        """This character's named spells + descriptions (from KnownList/MemorizedList)."""
+        return character_spells(self.info, reference)
+
 
 def character_feats(info: CharacterInfo, reference=None) -> list[tuple[str, str]]:
     """Named, de-duplicated, name-sorted feats for a character (VB ``GetFeats``)."""
@@ -413,6 +417,14 @@ def character_skills(info: CharacterInfo, reference=None) -> list[tuple[str, int
 
     ref = reference if reference is not None else default_reference()
     return ref.skills(info.skill_ranks)
+
+
+def character_spells(info: CharacterInfo, reference=None) -> list[tuple[str, str]]:
+    """Named, de-duplicated, name-sorted spells for a character (KnownList/MemorizedList)."""
+    from vaultkeeper.game.character_reference import default_reference
+
+    ref = reference if reference is not None else default_reference()
+    return ref.spells(info.spell_ids)
 
 
 def scan_character_files(folder: Path) -> list[CharacterFile]:

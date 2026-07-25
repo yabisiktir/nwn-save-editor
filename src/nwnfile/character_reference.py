@@ -18,6 +18,9 @@ program folder and which are bundled here (``game/data/``):
   ids run past the base ``Skill Names.txt`` table (same three-tier merge as feats).
 * **PRC Classes.json** — ``{"<class id>": "name"}`` for community PRC classes, whose
   ids run past the base ``character.CLASS_NAMES`` set (resolved by ``class_name``).
+* **Spell Names.json** / **Spell Descriptions.json.gz** — ``{"<spell id>": ...}`` for
+  every spell (base NWN + PRC; there is no base spell file, so this is the sole
+  source). A ``.bic``'s spells come from each class's ``KnownList``/``MemorizedList``.
 
 The base ``Feat Names.txt`` only covers base NWN (ids 0-1115). A PRC character's
 ``.bic`` stores feat ids in the thousands, which would fall off the end of that
@@ -57,9 +60,12 @@ SKILL_DESCRIPTIONS_FILE = "Skill Descriptions.txt"
 PRC_SKILL_NAMES_FILE = "PRC Skills.json"
 CLASS_DESCRIPTIONS_FILE = "Class Descriptions.txt"
 PRC_CLASS_NAMES_FILE = "PRC Classes.json"
+SPELL_NAMES_FILE = "Spell Names.json"
+SPELL_DESCRIPTIONS_FILE = "Spell Descriptions.json.gz"
 
 _FEAT_DESC_UNAVAILABLE = "Feat description is not available."
 _SKILL_DESC_UNAVAILABLE = "Skill description is not available."
+_SPELL_DESC_UNAVAILABLE = "Spell description is not available."
 _DESC_UNAVAILABLE = "Description is unavailable."
 
 
@@ -117,16 +123,26 @@ def load_feat_descriptions(path: Path) -> dict[int, str]:
     return descriptions
 
 
-def _load_id_name_json(path: Path) -> dict[int, str]:
-    """Parse a ``{"<id>": "name"}`` JSON map into ``{id: name}`` (non-int keys skipped)."""
-    raw = json.loads(path.read_text(encoding="utf-8"))
+def _coerce_int_keys(raw: dict) -> dict[int, str]:
+    """``{"<id>": value}`` -> ``{id: value}``, skipping non-integer keys."""
     result: dict[int, str] = {}
-    for key, name in raw.items():
+    for key, value in raw.items():
         try:
-            result[int(key)] = name
+            result[int(key)] = value
         except (TypeError, ValueError):
             continue
     return result
+
+
+def _load_id_name_json(path: Path) -> dict[int, str]:
+    """Parse a ``{"<id>": "name"}`` JSON map into ``{id: name}`` (non-int keys skipped)."""
+    return _coerce_int_keys(json.loads(path.read_text(encoding="utf-8")))
+
+
+def _load_id_name_json_gz(path: Path) -> dict[int, str]:
+    """Parse a gzipped ``{"<id>": "text"}`` JSON map into ``{id: text}``."""
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        return _coerce_int_keys(json.load(fh))
 
 
 def load_prc_feat_names(path: Path) -> dict[int, str]:
@@ -146,15 +162,22 @@ def load_prc_feat_descriptions(path: Path) -> dict[int, str]:
     the PRC feat descriptions pulled from the PRC8 manual pages (see
     ``docs/prc_feats/build_prc_feat_descriptions.py``).
     """
-    with gzip.open(path, "rt", encoding="utf-8") as fh:
-        raw = json.load(fh)
-    result: dict[int, str] = {}
-    for key, text in raw.items():
-        try:
-            result[int(key)] = text
-        except (TypeError, ValueError):
-            continue
-    return result
+    return _load_id_name_json_gz(path)
+
+
+def load_spell_names(path: Path) -> dict[int, str]:
+    """Parse ``Spell Names.json`` (``{"<spell id>": "name"}``) into ``{id: name}``.
+
+    The bundled spell name table — base NWN *and* PRC spells (there is no base
+    spell file to preserve; the manual is the sole source). See
+    ``docs/prc_feats/build_spells.py``.
+    """
+    return _load_id_name_json(path)
+
+
+def load_spell_descriptions(path: Path) -> dict[int, str]:
+    """Parse ``Spell Descriptions.json.gz`` (gzipped ``{"<spell id>": "text"}``)."""
+    return _load_id_name_json_gz(path)
 
 
 def load_prc_skill_names(path: Path) -> dict[int, str]:
@@ -227,6 +250,8 @@ class CharacterReference:
     prc_skill_names: dict[int, str] = field(default_factory=dict)
     class_descriptions: dict[int, str] = field(default_factory=dict)
     prc_class_names: dict[int, str] = field(default_factory=dict)
+    spell_names: dict[int, str] = field(default_factory=dict)
+    spell_descriptions: dict[int, str] = field(default_factory=dict)
 
     @property
     def available(self) -> bool:
@@ -343,6 +368,26 @@ class CharacterReference:
         rows.sort(key=lambda row: _SortKey(row[0]))
         return rows
 
+    def spells(self, spell_ids: list[int]) -> list[tuple[str, str]]:
+        """Named spells for a character's spell ids (from the bundled spell tables).
+
+        Maps each id (a spells.2da row = the ``.bic`` ``Spell`` WORD) to its name +
+        description, de-duplicates by name (first wins) and sorts by name. Ids with
+        no bundled name show as ``Unknown spell <id>`` so gaps stay visible.
+        Returns ``[(name, description)]``.
+        """
+        seen: set[str] = set()
+        spells: list[tuple[str, str]] = []
+        for spell_id in spell_ids:
+            name = self.spell_names.get(spell_id, f"Unknown spell {spell_id}")
+            if name in seen:
+                continue
+            seen.add(name)
+            desc = self.spell_descriptions.get(spell_id, _SPELL_DESC_UNAVAILABLE)
+            spells.append((name, desc))
+        spells.sort(key=lambda pair: _SortKey(pair[0]))
+        return spells
+
 
 class _SortKey:
     """Adapter to sort strings with ``win_compare`` (StrCmpLogicalW natural order)."""
@@ -397,4 +442,10 @@ def load_reference(data_dir: Path) -> CharacterReference:
     prc_classes = data_dir / PRC_CLASS_NAMES_FILE
     if prc_classes.is_file():
         ref.prc_class_names = load_prc_class_names(prc_classes)
+    spell_names = data_dir / SPELL_NAMES_FILE
+    if spell_names.is_file():
+        ref.spell_names = load_spell_names(spell_names)
+    spell_desc = data_dir / SPELL_DESCRIPTIONS_FILE
+    if spell_desc.is_file():
+        ref.spell_descriptions = load_spell_descriptions(spell_desc)
     return ref

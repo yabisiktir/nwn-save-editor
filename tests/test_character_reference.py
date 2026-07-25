@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from vaultkeeper.game.character_reference import (
+    CharacterReference,
     default_reference,
     load_feat_descriptions,
     load_feat_names,
@@ -18,6 +19,8 @@ from vaultkeeper.game.character_reference import (
     load_reference,
     load_skill_descriptions,
     load_skill_names,
+    load_spell_descriptions,
+    load_spell_names,
 )
 
 
@@ -208,6 +211,39 @@ def test_bundled_prc_classes_loaded():
     assert ref.prc_class_names[43] == "Binder"
 
 
+def test_reference_spells_names_dedups_and_sorts():
+    ref = CharacterReference(
+        spell_names={151: "Resistance", 37: "Daze"},
+        spell_descriptions={151: "Save bonus."},
+    )
+    # ids 151, 37, 151 (dup), 9999 (unknown) -> named, deduped, sorted.
+    spells = ref.spells([151, 37, 151, 9999])
+    assert [n for n, _d in spells] == ["Daze", "Resistance", "Unknown spell 9999"]
+    assert dict(spells)["Resistance"] == "Save bonus."
+    assert dict(spells)["Daze"] == "Spell description is not available."
+    assert dict(spells)["Unknown spell 9999"] == "Spell description is not available."
+
+
+def test_load_spell_names_and_descriptions(tmp_path):
+    (tmp_path / "Spell Names.json").write_text(
+        '{"151": "Resistance", "bad": "x"}', encoding="utf-8"
+    )
+    assert load_spell_names(tmp_path / "Spell Names.json") == {151: "Resistance"}
+    _write_gz_json(tmp_path / "Spell Descriptions.json.gz", {"151": "Save bonus."})
+    assert load_spell_descriptions(tmp_path / "Spell Descriptions.json.gz") == {
+        151: "Save bonus."
+    }
+
+
+def test_bundled_spells_loaded():
+    ref = default_reference()
+    # The bundled spell tables cover base NWN + PRC (no base spell file exists).
+    assert len(ref.spell_names) > 700
+    assert len(ref.spell_descriptions) > 700
+    assert ref.spell_names[151] == "Resistance"  # base cantrip
+    assert ref.spell_names[1500] == "Read Magic"  # PRC-added spell
+
+
 def test_bundled_reference_available():
     ref = default_reference()
     assert ref.available
@@ -271,3 +307,7 @@ def test_real_level40_character_resolves_all_prc_feats_and_skills():
 
     skills = ref.skills(info.skill_ranks)
     assert [name for name, _r, _d in skills if name.startswith("Unknown")] == []
+
+    # The Bard's spellbook resolves to real spell names (base + PRC), 0 unknown.
+    spells = ref.spells(info.spell_ids)
+    assert spells and [n for n, _d in spells if n.startswith("Unknown spell ")] == []

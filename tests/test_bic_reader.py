@@ -227,6 +227,10 @@ class TestRealBic:
             assert class_level > 0
         assert info.level == sum(level for _cid, level in info.classes)
 
+        # Spellbook (KnownList/MemorizedList) decoded to distinct int spell ids.
+        assert all(isinstance(sid, int) for sid in info.spell_ids)
+        assert len(info.spell_ids) == len(set(info.spell_ids))
+
         # Scalar fields fall in sane ranges.
         assert info.experience > 0
         assert info.hit_points > 0
