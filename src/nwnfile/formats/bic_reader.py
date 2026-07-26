@@ -171,6 +171,8 @@ class InventoryItem:
     identified: bool
     stolen: bool
     description: str
+    #: ``ModelPart1`` — the item's icon/model variant (indexes the base item's icon).
+    model_part: int = 0
     #: ``LocalizedName`` StrRef when the name is not stored inline (base items name
     #: themselves via ``dialog.tlk``); ``-1`` when a name is present inline.
     name_strref: int = -1
@@ -598,6 +600,7 @@ class BicFileReader:
             identified=bool(value("Identified", 0)),
             stolen=bool(value("Stolen", 0)),
             description=description,
+            model_part=value("ModelPart1", 0) if isinstance(value("ModelPart1"), int) else 0,
             name_strref=name_strref,
             properties=properties,
             contents=contents,
