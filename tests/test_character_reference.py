@@ -240,12 +240,13 @@ def test_reference_spells_names_dedups_and_sorts():
         spell_names={151: "Resistance", 37: "Daze"},
         spell_descriptions={151: "Save bonus."},
     )
-    # ids 151, 37, 151 (dup), 9999 (unknown) -> named, deduped, sorted.
-    spells = ref.spells([151, 37, 151, 9999])
-    assert [n for n, _d in spells] == ["Daze", "Resistance", "Unknown spell 9999"]
-    assert dict(spells)["Resistance"] == "Save bonus."
-    assert dict(spells)["Daze"] == "Spell description is not available."
-    assert dict(spells)["Unknown spell 9999"] == "Spell description is not available."
+    # ids 151, 37, 151 (dup), 9999 (unknown) -> named, deduped, sorted; with levels.
+    spells = ref.spells([151, 37, 151, 9999], {151: 0, 37: 0})
+    assert [n for n, _d, _lvl in spells] == ["Daze", "Resistance", "Unknown spell 9999"]
+    by_name = {n: (d, lvl) for n, d, lvl in spells}
+    assert by_name["Resistance"] == ("Save bonus.", 0)
+    assert by_name["Daze"] == ("Spell description is not available.", 0)
+    assert by_name["Unknown spell 9999"] == ("Spell description is not available.", None)
 
 
 def test_load_spell_names_and_descriptions(tmp_path):
@@ -367,5 +368,7 @@ def test_real_level40_character_resolves_all_prc_feats_and_skills():
     assert [name for name, _r, _d in skills if name.startswith("Unknown")] == []
 
     # The Bard's spellbook resolves to real spell names (base + PRC), 0 unknown.
-    spells = ref.spells(info.spell_ids)
-    assert spells and [n for n, _d in spells if n.startswith("Unknown spell ")] == []
+    spells = ref.spells(info.spell_ids, info.spell_levels)
+    assert spells and [n for n, _d, _lvl in spells if n.startswith("Unknown spell ")] == []
+    # The Bard's spellbook records spell levels (cantrips at level 0).
+    assert any(lvl == 0 for _n, _d, lvl in spells)

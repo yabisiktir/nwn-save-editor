@@ -432,24 +432,27 @@ class CharacterReference:
         rows.sort(key=lambda row: _SortKey(row[0]))
         return rows
 
-    def spells(self, spell_ids: list[int]) -> list[tuple[str, str]]:
+    def spells(
+        self, spell_ids: list[int], spell_levels: dict[int, int] | None = None
+    ) -> list[tuple[str, str, int | None]]:
         """Named spells for a character's spell ids (from the bundled spell tables).
 
-        Maps each id (a spells.2da row = the ``.bic`` ``Spell`` WORD) to its name +
-        description, de-duplicates by name (first wins) and sorts by name. Ids with
-        no bundled name show as ``Unknown spell <id>`` so gaps stay visible.
-        Returns ``[(name, description)]``.
+        Maps each id (a spells.2da row = the ``.bic`` ``Spell`` WORD) to its name,
+        description and spell level (from ``spell_levels``, ``None`` when unknown),
+        de-duplicates by name (first wins) and sorts by name. Ids with no bundled
+        name show as ``Unknown spell <id>``. Returns ``[(name, description, level)]``.
         """
         seen: set[str] = set()
-        spells: list[tuple[str, str]] = []
+        spells: list[tuple[str, str, int | None]] = []
         for spell_id in spell_ids:
             name = self.spell_names.get(spell_id, f"Unknown spell {spell_id}")
             if name in seen:
                 continue
             seen.add(name)
             desc = self.spell_descriptions.get(spell_id, _SPELL_DESC_UNAVAILABLE)
-            spells.append((name, desc))
-        spells.sort(key=lambda pair: _SortKey(pair[0]))
+            level = spell_levels.get(spell_id) if spell_levels else None
+            spells.append((name, desc, level))
+        spells.sort(key=lambda row: _SortKey(row[0]))
         return spells
 
 

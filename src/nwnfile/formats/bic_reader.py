@@ -233,6 +233,9 @@ class CharacterInfo:
     #: class's ``KnownList0..9`` / ``MemorizedList0..9`` (each entry's ``Spell``
     #: WORD). Order-preserving + distinct; index the bundled Spell Names.json.
     spell_ids: list[int] = field(default_factory=list)
+    #: spell id -> lowest spell level it is known/memorised at (the ``KnownList<N>``
+    #: / ``MemorizedList<N>`` index N).
+    spell_levels: dict[int, int] = field(default_factory=dict)
     #: Items worn in equipment slots (``Equip_ItemList``).
     equipped_items: list[EquippedItem] = field(default_factory=list)
     #: Items carried in the backpack (``ItemList``); containers hold nested items.
@@ -330,6 +333,7 @@ class BicFileReader:
         classes: list[tuple[int, int]] = []
         level = 0
         spell_ids: list[int] = []
+        spell_levels: dict[int, int] = {}
         feat_ids: list[int] = []
         skill_ranks: list[int] = []
         equipped_items: list[EquippedItem] = []
@@ -400,7 +404,7 @@ class BicFileReader:
             elif label in ABILITY_LABELS and ftype == _GFFType.BYTE:
                 abilities[label] = gff.read_value(ftype, raw)
             elif label == "ClassList" and ftype == _GFFType.LIST:
-                classes, level, spell_ids = self._read_class_list(
+                classes, level, spell_ids, spell_levels = self._read_class_list(
                     gff, gff.read_value(ftype, raw)
                 )
             elif label == "FeatList" and ftype == _GFFType.LIST:
@@ -451,6 +455,7 @@ class BicFileReader:
             feat_ids=feat_ids,
             skill_ranks=skill_ranks,
             spell_ids=spell_ids,
+            spell_levels=spell_levels,
             equipped_items=equipped_items,
             inventory_items=inventory_items,
             is_valid=True,
@@ -464,16 +469,18 @@ class BicFileReader:
     @classmethod
     def _read_class_list(
         cls, gff: "_GFF", struct_ids: list[int]
-    ) -> tuple[list[tuple[int, int]], int, list[int]]:
+    ) -> tuple[list[tuple[int, int]], int, list[int], dict[int, int]]:
         """Decode ClassList — each struct has a ``Class`` (INT) + ``ClassLevel`` (SHORT).
 
         Keeps every class id as a raw int so community/PRC classes past the base
         set are preserved (not dropped); name resolution happens at display time.
-        Also gathers the distinct spell ids from each class's spellbook lists.
+        Also gathers the distinct spell ids from each class's spellbook lists, plus
+        each spell's lowest spell level (the ``KnownList<N>``/``MemorizedList<N>`` N).
         """
         classes: list[tuple[int, int]] = []
         level = 0
         spell_ids: list[int] = []
+        spell_levels: dict[int, int] = {}
         seen_spells: set[int] = set()
         for struct_id in struct_ids:
             class_id: int | None = None
@@ -484,25 +491,35 @@ class BicFileReader:
                 elif label == "ClassLevel":
                     class_level = gff.read_value(ftype, raw)
                 elif label in cls._SPELL_LISTS and ftype == _GFFType.LIST:
-                    cls._collect_spells(gff, gff.read_value(ftype, raw), spell_ids, seen_spells)
+                    spell_level = int(label[len("KnownList"):]) if label.startswith(
+                        "KnownList"
+                    ) else int(label[len("MemorizedList"):])
+                    cls._collect_spells(
+                        gff, gff.read_value(ftype, raw), spell_ids, seen_spells,
+                        spell_level, spell_levels,
+                    )
             if class_id is None:
                 continue
             level += class_level
             classes.append((class_id, class_level))
-        return classes, level, spell_ids
+        return classes, level, spell_ids, spell_levels
 
     @staticmethod
     def _collect_spells(
-        gff: "_GFF", entry_ids: list[int], out: list[int], seen: set[int]
+        gff: "_GFF", entry_ids: list[int], out: list[int], seen: set[int],
+        spell_level: int, levels: dict[int, int],
     ) -> None:
-        """Append each spellbook entry's ``Spell`` id to ``out`` (distinct, ordered)."""
+        """Append each spellbook entry's ``Spell`` id (distinct) + record its level."""
         for entry_id in entry_ids:
             for label, ftype, raw in gff.iter_struct_fields(entry_id):
                 if label == "Spell":
                     spell = gff.read_value(ftype, raw)
-                    if isinstance(spell, int) and spell not in seen:
-                        seen.add(spell)
-                        out.append(spell)
+                    if isinstance(spell, int):
+                        if spell not in seen:
+                            seen.add(spell)
+                            out.append(spell)
+                        if spell_level < levels.get(spell, 99):
+                            levels[spell] = spell_level
 
     @staticmethod
     def _read_feat_list(gff: "_GFF", struct_ids: list[int]) -> list[int]:
