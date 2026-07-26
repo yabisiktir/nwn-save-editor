@@ -30,11 +30,34 @@ def test_generic_bonus_appends_cost_value():
 
 
 def test_generic_zero_cost_has_no_magnitude():
-    assert describe_property(_prop(12, 29, 0), {12: "Bonus Feat"}) == "Bonus Feat"
+    # prop 71 (True Seeing) uses no subtype table -> just the name.
+    assert describe_property(_prop(71, 0, 0), {71: "True Seeing"}) == "True Seeing"
 
 
 def test_unknown_property_id_falls_back():
     assert describe_property(_prop(999, 0, 0), {}) == "Property 999"
+
+
+def test_feat_subtype_resolved_from_hak_table():
+    # Bonus Feat (12), subtype 2 -> iprp_feats FeatIndex 6 -> Cleave (bundled map).
+    assert describe_property(_prop(12, 2, 0)) == "Bonus Feat: Cleave"
+
+
+def test_spell_subtype_resolved_from_hak_table():
+    # Cast Spell (15), subtype 28 -> iprp_spells -> Chain Lightning (bundled map).
+    assert describe_property(_prop(15, 28, 0)) == "Cast Spell: Chain Lightning"
+
+
+def test_skill_subtype_resolved():
+    # Skill Bonus (52), subtype 3 -> skills.2da id 3 -> Discipline, with +8.
+    assert describe_property(_prop(52, 3, 8)) == "Skill Bonus: Discipline +8"
+
+
+def test_bundled_subtype_maps_loaded():
+    from vaultkeeper.game.item_properties import _feats, _spells
+
+    assert len(_feats()) > 10000  # iprp_feats resolved to feat names
+    assert len(_spells()) > 500  # iprp_spells resolved to spell names
 
 
 def test_describe_properties_uses_bundled_names():

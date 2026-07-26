@@ -12,16 +12,21 @@ Data sources (grounded):
   below (``iprp_abilities`` / ``iprp_damagetype``); the ability table is the same
   Str..Cha order as :data:`bic_reader.ABILITY_LABELS`.
 
-Only these two (most common) subtype categories are resolved by name. Other
-subtypes (bonus-feat, cast-spell, skill, class, racial) reference large,
-PRC-specific ``iprp_*`` tables and are left unresolved rather than guessed, so the
-property still shows by type (e.g. ``"Bonus Feat"``). ``CostValue`` is appended as a
-``+N`` magnitude except for damage properties, where it indexes a dice/cost table
-rather than a flat bonus.
+* **Bonus-Feat / Cast-Spell subtypes** — bundled ``Item Property {Feat,Spell}
+  Subtypes.json.gz`` (gzipped ``{subtype: name}``), built from the installed PRC hak's
+  ``iprp_feats`` / ``iprp_spells`` 2da (see
+  ``docs/prc_feats/build_item_property_subtypes.py``). Those subtypes are an
+  indirection (``iprp_*`` row -> feat.2da/spells.2da), resolved to names at build time.
+* **Skill subtypes** — the bundled skill tables (subtype == skill id).
+
+``CostValue`` is appended as a ``+N`` magnitude for the bonus-style properties
+(ability/AC/enhancement/skill/generic) but not for damage/feat/spell, where it
+indexes a dice/uses table rather than a flat bonus.
 """
 
 from __future__ import annotations
 
+import gzip
 import json
 from pathlib import Path
 
@@ -29,6 +34,8 @@ from vaultkeeper.core.formats.bic_reader import ItemProperty
 
 _DATA_DIR = Path(__file__).resolve().parent / "data"
 PROPERTY_NAMES_FILE = "Item Property Names.json"
+FEAT_SUBTYPES_FILE = "Item Property Feat Subtypes.json.gz"
+SPELL_SUBTYPES_FILE = "Item Property Spell Subtypes.json.gz"
 
 #: iprp_abilities.2da subtype -> ability name (used by Ability Bonus / Decreased).
 ABILITY_SUBTYPES: dict[int, str] = {
@@ -45,11 +52,13 @@ DAMAGE_SUBTYPES: dict[int, str] = {
 _ABILITY_PROPS = frozenset({0, 27})
 #: PropertyName ids whose ``Subtype`` is a damage type (iprp_damagetype).
 _DAMAGE_PROPS = frozenset({3, 16, 17, 18, 19, 20, 21, 23, 24, 33, 34})
+#: Bonus Feat (iprp_feats), Cast Spell (iprp_spells), Skill Bonus (skills.2da id).
+_FEAT_PROPS = frozenset({12})
+_SPELL_PROPS = frozenset({15})
+_SKILL_PROPS = frozenset({52, 29})  # 52 Skill Bonus, 29 Decreased Skill
 
 
-def load_property_names(path: Path) -> dict[int, str]:
-    """Parse ``Item Property Names.json`` (``{"<id>": "name"}``) into ``{id: name}``."""
-    raw = json.loads(path.read_text(encoding="utf-8"))
+def _coerce(raw: dict) -> dict[int, str]:
     result: dict[int, str] = {}
     for key, name in raw.items():
         try:
@@ -59,7 +68,20 @@ def load_property_names(path: Path) -> dict[int, str]:
     return result
 
 
+def load_property_names(path: Path) -> dict[int, str]:
+    """Parse ``Item Property Names.json`` (``{"<id>": "name"}``) into ``{id: name}``."""
+    return _coerce(json.loads(path.read_text(encoding="utf-8")))
+
+
+def _load_gz(path: Path) -> dict[int, str]:
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        return _coerce(json.load(fh))
+
+
 _cached: dict[int, str] | None = None
+_feat_subtypes: dict[int, str] | None = None
+_spell_subtypes: dict[int, str] | None = None
+_skill_subtypes: dict[int, str] | None = None
 
 
 def default_property_names() -> dict[int, str]:
@@ -71,21 +93,61 @@ def default_property_names() -> dict[int, str]:
     return _cached
 
 
+def _feats() -> dict[int, str]:
+    global _feat_subtypes
+    if _feat_subtypes is None:
+        path = _DATA_DIR / FEAT_SUBTYPES_FILE
+        _feat_subtypes = _load_gz(path) if path.is_file() else {}
+    return _feat_subtypes
+
+
+def _spells() -> dict[int, str]:
+    global _spell_subtypes
+    if _spell_subtypes is None:
+        path = _DATA_DIR / SPELL_SUBTYPES_FILE
+        _spell_subtypes = _load_gz(path) if path.is_file() else {}
+    return _spell_subtypes
+
+
+def _skills() -> dict[int, str]:
+    global _skill_subtypes
+    if _skill_subtypes is None:
+        from vaultkeeper.game.character_reference import default_reference
+
+        ref = default_reference()
+        skills = dict(enumerate(ref.skill_names))
+        skills.update(ref.prc_skill_names)
+        _skill_subtypes = skills
+    return _skill_subtypes
+
+
 def describe_property(prop: ItemProperty, names: dict[int, str] | None = None) -> str:
     """A readable one-line description of an item property (name + subtype + magnitude)."""
     names = default_property_names() if names is None else names
     name = names.get(prop.property_name, f"Property {prop.property_name}")
+    pid = prop.property_name
 
-    if prop.property_name in _ABILITY_PROPS:
+    def with_cost(text: str) -> str:
+        return f"{text} +{prop.cost_value}" if prop.cost_value else text
+
+    if pid in _ABILITY_PROPS:
         subtype = ABILITY_SUBTYPES.get(prop.subtype)
-        base = f"{name}: {subtype}" if subtype else name
-        return f"{base} +{prop.cost_value}" if prop.cost_value else base
-    if prop.property_name in _DAMAGE_PROPS:
-        subtype = DAMAGE_SUBTYPES.get(prop.subtype)
+        return with_cost(f"{name}: {subtype}" if subtype else name)
+    if pid in _SKILL_PROPS:
+        subtype = _skills().get(prop.subtype)
+        return with_cost(f"{name}: {subtype}" if subtype else name)
+    if pid in _DAMAGE_PROPS:
         # CostValue here indexes a dice/cost table, not a flat +N — omit it.
+        subtype = DAMAGE_SUBTYPES.get(prop.subtype)
+        return f"{name}: {subtype}" if subtype else name
+    if pid in _FEAT_PROPS:
+        subtype = _feats().get(prop.subtype)
+        return f"{name}: {subtype}" if subtype else name
+    if pid in _SPELL_PROPS:
+        subtype = _spells().get(prop.subtype)
         return f"{name}: {subtype}" if subtype else name
 
-    return f"{name} +{prop.cost_value}" if prop.cost_value else name
+    return with_cost(name)
 
 
 def describe_properties(properties: list[ItemProperty]) -> list[str]:
