@@ -171,6 +171,9 @@ class InventoryItem:
     identified: bool
     stolen: bool
     description: str
+    #: ``LocalizedName`` StrRef when the name is not stored inline (base items name
+    #: themselves via ``dialog.tlk``); ``-1`` when a name is present inline.
+    name_strref: int = -1
     properties: list[ItemProperty] = field(default_factory=list)
     contents: list["InventoryItem"] = field(default_factory=list)
 
@@ -555,7 +558,10 @@ class BicFileReader:
         name = (value("LocalizedName") or "").strip()
         resref = (value("TemplateResRef") or "").strip()
         tag = (value("Tag") or "").strip()
+        name_strref = -1
         if not name:
+            if "LocalizedName" in fields:
+                name_strref = gff.read_locstring_strref(fields["LocalizedName"][1])
             name = f"(unnamed: {resref or tag})" if (resref or tag) else "(unnamed item)"
 
         description = (value("DescIdentified") or value("Description") or "").strip()
@@ -575,6 +581,7 @@ class BicFileReader:
             identified=bool(value("Identified", 0)),
             stolen=bool(value("Stolen", 0)),
             description=description,
+            name_strref=name_strref,
             properties=properties,
             contents=contents,
         )
@@ -685,6 +692,11 @@ class _GFF:
         if not 0 <= struct_id < self._struct_count:
             return -1
         return struct.unpack_from("<I", self._data, self._struct_offset + struct_id * 12)[0]
+
+    def read_locstring_strref(self, raw: bytes) -> int:
+        """The StrRef of a ``CExoLocString`` field (``-1`` when none is set)."""
+        offset = struct.unpack("<I", raw)[0]
+        return struct.unpack_from("<i", self._data, self._field_data_offset + offset + 4)[0]
 
     def iter_struct_fields(self, struct_id: int):
         """Yield ``(label, field_type, raw4)`` for every field of a struct."""

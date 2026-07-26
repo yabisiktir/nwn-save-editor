@@ -242,6 +242,13 @@ class TestRealBic:
         a_property = next(e.item.properties[0] for e in info.equipped_items if e.item.properties)
         assert isinstance(a_property.property_name, int)
 
+        # Base items with no inline name record their dialog.tlk StrRef for lookup.
+        def _walk(items):
+            for it in items:
+                yield it
+                yield from _walk(it.contents)
+        assert any(it.name_strref >= 0 for it in _walk(info.inventory_items))
+
         # Character-sheet scalars decode (raw race id kept; combat + bio present).
         assert isinstance(info.race_id, int)
         assert info.base_attack_bonus > 0
