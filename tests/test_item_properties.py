@@ -43,9 +43,32 @@ def test_feat_subtype_resolved_from_hak_table():
     assert describe_property(_prop(12, 2, 0)) == "Bonus Feat: Cleave"
 
 
-def test_spell_subtype_resolved_from_hak_table():
-    # Cast Spell (15), subtype 28 -> iprp_spells -> Chain Lightning (bundled map).
-    assert describe_property(_prop(15, 28, 0)) == "Cast Spell: Chain Lightning"
+def test_cast_spell_shows_spell_level_and_uses():
+    # Cast Spell (15), subtype 28 -> Chain Lightning (level 6); CostValue 12 = 5 uses/day.
+    assert describe_property(_prop(15, 28, 0)) == "Cast Spell: Chain Lightning (level 6)"
+    assert describe_property(_prop(15, 28, 12)) == (
+        "Cast Spell: Chain Lightning (level 6, 5 uses/day)"
+    )
+
+
+def test_immunity_and_on_hit_subtypes():
+    assert describe_property(_prop(37, 3, 0)) == "Immunity: Poison"
+    assert describe_property(_prop(48, 1, 0)) == "On Hit: Stun"
+
+
+def test_improved_saving_throws_and_vs_racial_group():
+    assert describe_property(_prop(40, 13, 4)) == "Improved Saving Throws: Poison +4"
+    assert describe_property(_prop(4, 20, 12)) == (
+        "AC Bonus vs. Racial Group: Outsider +12"
+    )
+
+
+def test_bundled_onhit_spell_and_spell_levels_loaded():
+    from vaultkeeper.game.item_properties import _onhit_spells, _spell_levels
+
+    assert len(_onhit_spells()) > 50
+    assert len(_spell_levels()) > 500
+    assert _spell_levels()[28] == 6  # Chain Lightning innate level
 
 
 def test_skill_subtype_resolved():

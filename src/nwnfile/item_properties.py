@@ -36,6 +36,8 @@ _DATA_DIR = Path(__file__).resolve().parent / "data"
 PROPERTY_NAMES_FILE = "Item Property Names.json"
 FEAT_SUBTYPES_FILE = "Item Property Feat Subtypes.json.gz"
 SPELL_SUBTYPES_FILE = "Item Property Spell Subtypes.json.gz"
+SPELL_LEVELS_FILE = "Item Property Spell Levels.json"
+ONHIT_SPELL_SUBTYPES_FILE = "Item Property OnHit Spell Subtypes.json.gz"
 
 #: iprp_abilities.2da subtype -> ability name (used by Ability Bonus / Decreased).
 ABILITY_SUBTYPES: dict[int, str] = {
@@ -48,13 +50,69 @@ DAMAGE_SUBTYPES: dict[int, str] = {
     6: "Acid", 7: "Cold", 8: "Divine", 9: "Electrical", 10: "Fire",
     11: "Negative Energy", 12: "Positive Energy", 13: "Sonic",
 }
+#: iprp_chargecost.2da CostValue -> uses/day (from base_2da.bif; Cast Spell charges).
+SPELL_USES: dict[int, str] = {
+    1: "single use", 2: "5 charges/use", 3: "4 charges/use", 4: "3 charges/use",
+    5: "2 charges/use", 6: "1 charge/use", 7: "0 charges/use", 8: "1 use/day",
+    9: "2 uses/day", 10: "3 uses/day", 11: "4 uses/day", 12: "5 uses/day",
+    13: "unlimited use",
+}
+#: Small standard subtype charts (Leto ``Subtype.html`` iprp_* tables), by anchor.
+_SUBTYPE_CHARTS: dict[str, dict[int, str]] = {
+    "immun_misc": {0: "Sneak Attack", 1: "Level/Ability Drain",
+        2: "Mind-Affecting Spells", 3: "Poison", 4: "Disease", 5: "Fear",
+        6: "Knockdown", 7: "Paralysis", 8: "Critical Hit", 9: "Death Magic"},
+    "on_hit": {0: "Sleep", 1: "Stun", 2: "Hold", 3: "Confusion", 5: "Daze",
+        6: "Doom", 7: "Fear", 8: "Knock", 9: "Slow", 10: "Lesser Dispel",
+        11: "Dispel Magic", 12: "Greater Dispel", 13: "Mordenkainen's Disjunction",
+        14: "Silence", 15: "Deafness", 16: "Blindness", 17: "Level Drain",
+        18: "Ability Drain", 19: "Item Poison", 20: "Disease",
+        21: "Slay Racial Group", 22: "Slay Alignment Group", 23: "Slay Alignment",
+        24: "Vorpal", 25: "Wounding"},
+    "immun_school": {0: "General", 1: "Abjuration", 2: "Conjuration",
+        3: "Divination", 4: "Enchantment", 5: "Evocation", 6: "Illusion",
+        7: "Necromancy", 8: "Transmutation"},
+    "vfx": {0: "Acid", 1: "Cold", 2: "Electrical", 3: "Fire", 4: "Sonic", 5: "Evil"},
+    "bonus_save": {0: "Universal", 1: "Acid", 3: "Cold", 4: "Death", 5: "Disease",
+        6: "Divine", 7: "Electrical", 8: "Fear", 9: "Fire", 11: "Mind-Affecting",
+        12: "Negative", 13: "Poison", 14: "Positive", 15: "Sonic"},
+    "bonus_savespec": {0: "Fortitude", 1: "Will", 2: "Reflex"},
+    "use_align_grp": {1: "Neutral", 2: "Lawful", 3: "Chaotic", 4: "Good", 5: "Evil"},
+    "use_alignment": {0: "Lawful Good", 1: "Lawful Neutral", 2: "Lawful Evil",
+        3: "Neutral Good", 4: "True Neutral", 5: "Neutral Evil", 6: "Chaotic Good",
+        7: "Chaotic Neutral", 8: "Chaotic Evil"},
+    "use_race": {0: "Dwarf", 1: "Elf", 2: "Gnome", 3: "Halfling", 4: "Half-Elf",
+        5: "Half-Orc", 6: "Human", 7: "Aberration", 8: "Animal", 9: "Beast",
+        10: "Construct", 11: "Dragon", 12: "Goblinoid", 13: "Monstrous", 14: "Orc",
+        15: "Reptilian", 16: "Elemental", 17: "Fey", 18: "Giant",
+        19: "Magical Beast", 20: "Outsider", 23: "Shapechanger", 24: "Undead",
+        25: "Vermin", 29: "Ooze"},
+    "acmodtype": {0: "Dodge", 1: "Natural", 2: "Armor", 3: "Shield", 4: "Deflection"},
+}
+#: PropertyName -> (subtype chart, whether to append "+CostValue").
+_CHART_PROPS: dict[int, tuple[str, bool]] = {
+    37: ("immun_misc", False), 48: ("on_hit", False),
+    54: ("immun_school", False), 83: ("vfx", False),
+    40: ("bonus_save", True), 49: ("bonus_save", False),
+    41: ("bonus_savespec", True), 50: ("bonus_savespec", False),
+    2: ("use_align_grp", True), 7: ("use_align_grp", True),
+    57: ("use_align_grp", True), 17: ("use_align_grp", False),
+    62: ("use_align_grp", False),
+    5: ("use_alignment", True), 9: ("use_alignment", True),
+    59: ("use_alignment", True), 19: ("use_alignment", False),
+    65: ("use_alignment", False),
+    4: ("use_race", True), 8: ("use_race", True), 58: ("use_race", True),
+    18: ("use_race", False), 64: ("use_race", False),
+    28: ("acmodtype", False),
+}
 #: PropertyName ids whose ``Subtype`` is an ability (iprp_abilities).
 _ABILITY_PROPS = frozenset({0, 27})
 #: PropertyName ids whose ``Subtype`` is a damage type (iprp_damagetype).
-_DAMAGE_PROPS = frozenset({3, 16, 17, 18, 19, 20, 21, 23, 24, 33, 34})
+_DAMAGE_PROPS = frozenset({3, 16, 20, 21, 23, 24, 33, 34})
 #: Bonus Feat (iprp_feats), Cast Spell (iprp_spells), Skill Bonus (skills.2da id).
 _FEAT_PROPS = frozenset({12})
-_SPELL_PROPS = frozenset({15})
+_SPELL_PROP = 15  # Cast Spell -> iprp_spells subtype + innate level + uses/day
+_ONHIT_SPELL_PROP = 82  # On Hit Cast Spell -> iprp_onhitspell subtype
 _SKILL_PROPS = frozenset({52, 29})  # 52 Skill Bonus, 29 Decreased Skill
 _CLASS_PROPS = frozenset({63})  # Use Limitation Class -> subtype is a class id
 _SPELL_SLOT_PROP = 13  # Bonus Spell Slot of Level: subtype = class, CostValue = level
@@ -85,6 +143,8 @@ def _load_gz(path: Path) -> dict[int, str]:
 _cached: dict[int, str] | None = None
 _feat_subtypes: dict[int, str] | None = None
 _spell_subtypes: dict[int, str] | None = None
+_onhit_spell_subtypes: dict[int, str] | None = None
+_spell_level_map: dict[int, str] | None = None
 _skill_subtypes: dict[int, str] | None = None
 
 
@@ -111,6 +171,22 @@ def _spells() -> dict[int, str]:
         path = _DATA_DIR / SPELL_SUBTYPES_FILE
         _spell_subtypes = _load_gz(path) if path.is_file() else {}
     return _spell_subtypes
+
+
+def _onhit_spells() -> dict[int, str]:
+    global _onhit_spell_subtypes
+    if _onhit_spell_subtypes is None:
+        path = _DATA_DIR / ONHIT_SPELL_SUBTYPES_FILE
+        _onhit_spell_subtypes = _load_gz(path) if path.is_file() else {}
+    return _onhit_spell_subtypes
+
+
+def _spell_levels() -> dict[int, str]:
+    global _spell_level_map
+    if _spell_level_map is None:
+        path = _DATA_DIR / SPELL_LEVELS_FILE
+        _spell_level_map = load_property_names(path) if path.is_file() else {}
+    return _spell_level_map
 
 
 def _class_name(class_id: int) -> str:
@@ -160,9 +236,26 @@ def describe_property(prop: ItemProperty, names: dict[int, str] | None = None) -
     if pid in _FEAT_PROPS:
         subtype = _feats().get(prop.subtype)
         return f"{name}: {subtype}" if subtype else name
-    if pid in _SPELL_PROPS:
-        subtype = _spells().get(prop.subtype)
-        return f"{name}: {subtype}" if subtype else name
+    if pid == _SPELL_PROP:  # Cast Spell: <spell> (level N, uses/day)
+        spell = _spells().get(prop.subtype)
+        if not spell:
+            return name
+        level = _spell_levels().get(prop.subtype)
+        detail = ", ".join(
+            part for part in (
+                f"level {level}" if level is not None else "",
+                SPELL_USES.get(prop.cost_value, ""),
+            ) if part
+        )
+        return f"{name}: {spell}" + (f" ({detail})" if detail else "")
+    if pid == _ONHIT_SPELL_PROP:  # On Hit Cast Spell: <spell>
+        spell = _onhit_spells().get(prop.subtype)
+        return f"{name}: {spell}" if spell else name
+    if pid in _CHART_PROPS:
+        chart, is_bonus = _CHART_PROPS[pid]
+        subtype = _SUBTYPE_CHARTS[chart].get(prop.subtype)
+        base = f"{name}: {subtype}" if subtype is not None and prop.subtype != 0xFFFF else name
+        return with_cost(base) if is_bonus else base
 
     return with_cost(name)
 
