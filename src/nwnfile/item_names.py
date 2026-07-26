@@ -12,6 +12,7 @@ fallback). Resolution is best-effort: with no install/tlk, names are unchanged.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from vaultkeeper.core.formats.bic_reader import CharacterInfo, InventoryItem
@@ -19,6 +20,30 @@ from vaultkeeper.core.formats.tlk_reader import CUSTOM_TLK_BASE, TlkReader, TlkT
 
 _DIALOG_LANGS = ("en", "de", "fr", "it", "es", "pl")
 _tlk_cache: dict[Path, TlkTable | None] = {}
+
+_DATA_DIR = Path(__file__).resolve().parent / "data"
+BASE_ITEM_NAMES_FILE = "Base Item Names.json"
+_base_item_names: dict[int, str] | None = None
+
+
+def default_base_item_names() -> dict[int, str]:
+    """Bundled base item type names (``baseitems.2da`` id -> name), cached."""
+    global _base_item_names
+    if _base_item_names is None:
+        path = _DATA_DIR / BASE_ITEM_NAMES_FILE
+        _base_item_names = {}
+        if path.is_file():
+            for key, name in json.loads(path.read_text(encoding="utf-8")).items():
+                try:
+                    _base_item_names[int(key)] = name
+                except (TypeError, ValueError):
+                    continue
+    return _base_item_names
+
+
+def base_item_type(base_item: int) -> str | None:
+    """The item-type name for a ``BaseItem`` id (e.g. 52 -> "Ring"), or ``None``."""
+    return default_base_item_names().get(base_item)
 
 
 def _dialog_tlk_path(game_root: Path) -> Path | None:

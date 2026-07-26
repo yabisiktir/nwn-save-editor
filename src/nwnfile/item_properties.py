@@ -105,6 +105,14 @@ _CHART_PROPS: dict[int, tuple[str, bool]] = {
     18: ("use_race", False), 64: ("use_race", False),
     28: ("acmodtype", False),
 }
+#: iprp_immuncost/iprp_damvulcost.2da CostValue -> percentage (Damage Immunity /
+#: Vulnerability); iprp_resistcost.2da CostValue -> soak amount (Damage Resistance).
+_IMMUNITY_PCT: dict[int, str] = {
+    1: "5%", 2: "10%", 3: "25%", 4: "50%", 5: "75%", 6: "90%", 7: "100%",
+}
+_RESIST_AMOUNT: dict[int, str] = {row: f"{row * 5}/-" for row in range(1, 11)}
+_DAMAGE_PCT_PROPS = frozenset({20, 24})  # Damage Immunity / Vulnerability
+_DAMAGE_RESIST_PROP = 23  # Damage Resistance
 #: PropertyName ids whose ``Subtype`` is an ability (iprp_abilities).
 _ABILITY_PROPS = frozenset({0, 27})
 #: PropertyName ids whose ``Subtype`` is a damage type (iprp_damagetype).
@@ -230,9 +238,16 @@ def describe_property(prop: ItemProperty, names: dict[int, str] | None = None) -
         subtype = _skills().get(prop.subtype)
         return with_cost(f"{name}: {subtype}" if subtype else name)
     if pid in _DAMAGE_PROPS:
-        # CostValue here indexes a dice/cost table, not a flat +N — omit it.
         subtype = DAMAGE_SUBTYPES.get(prop.subtype)
-        return f"{name}: {subtype}" if subtype else name
+        base = f"{name}: {subtype}" if subtype else name
+        if pid in _DAMAGE_PCT_PROPS:  # Damage Immunity / Vulnerability -> percentage
+            pct = _IMMUNITY_PCT.get(prop.cost_value)
+            return f"{base} {pct}" if pct else base
+        if pid == _DAMAGE_RESIST_PROP:  # Damage Resistance -> soak amount
+            amount = _RESIST_AMOUNT.get(prop.cost_value)
+            return f"{base} {amount}" if amount else base
+        # Other damage props: CostValue indexes a dice table, not a flat +N — omit.
+        return base
     if pid in _FEAT_PROPS:
         subtype = _feats().get(prop.subtype)
         return f"{name}: {subtype}" if subtype else name

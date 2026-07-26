@@ -6,7 +6,12 @@ import struct
 
 from vaultkeeper.core.formats.bic_reader import InventoryItem
 from vaultkeeper.core.formats.tlk_reader import TlkReader
-from vaultkeeper.game.item_names import ItemNameResolver, resolver_for
+from vaultkeeper.game.item_names import (
+    ItemNameResolver,
+    base_item_type,
+    default_base_item_names,
+    resolver_for,
+)
 
 
 def _make_tlk(strings: list[str]) -> bytes:
@@ -78,3 +83,11 @@ def test_resolver_unavailable_without_tlk(tmp_path):
     item = _item("(unnamed: x)", strref=0)
     resolver.resolve_items([item])
     assert item.name == "(unnamed: x)"  # unchanged
+
+
+def test_bundled_base_item_types():
+    names = default_base_item_names()
+    assert len(names) > 50
+    assert base_item_type(52) == "Ring"
+    assert base_item_type(16) == "Armor"
+    assert base_item_type(999999) is None

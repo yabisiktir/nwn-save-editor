@@ -56,6 +56,13 @@ def test_immunity_and_on_hit_subtypes():
     assert describe_property(_prop(48, 1, 0)) == "On Hit: Stun"
 
 
+def test_damage_immunity_percentage_and_resistance_amount():
+    # Damage Immunity (20): subtype = Fire, CostValue 7 = 100% (iprp_immuncost).
+    assert describe_property(_prop(20, 10, 7)) == "Damage Immunity: Fire 100%"
+    # Damage Resistance (23): subtype = Cold, CostValue 4 = 20/- (iprp_resistcost).
+    assert describe_property(_prop(23, 7, 4)) == "Damage Resistance: Cold 20/-"
+
+
 def test_improved_saving_throws_and_vs_racial_group():
     assert describe_property(_prop(40, 13, 4)) == "Improved Saving Throws: Poison +4"
     assert describe_property(_prop(4, 20, 12)) == (
