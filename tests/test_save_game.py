@@ -167,6 +167,7 @@ def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
     view = sgv.SaveGameViewer([save], _Ctrl())
     qtbot.addWidget(view)
     view._current = save
+    view._edit_toggle.setChecked(True)  # enter edit mode
     view._edit_target = ("area1", 0, store)
 
     class _FakeDialog:
@@ -187,18 +188,62 @@ def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("My Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
 
+    # 1) staging the edit does NOT write anything yet — it's pending
     before = view._list.count()
     view._edit_store()
+    assert view._session is not None and view._session.has_edits
+    assert view._pending_list.count() == 1
+    assert not (tmp_path / "000001 - My Edit").exists()
 
-    # a new save folder was created, added to the list, and carries the edit
+    # 2) committing writes a new save carrying the edit; original untouched
+    view._save_as_new()
     new_folder = tmp_path / "000001 - My Edit"
     assert new_folder.is_dir()
     assert view._list.count() == before + 1
+    assert view._session is None  # session cleared after save
     edited = read_area_contents(next(new_folder.glob("*.sav")), "area1").stores[0]
     assert edited.markup == 111
     assert edited.black_market is True
-    # the original save is untouched
     assert read_area_contents(save.sav_path, "area1").stores[0].markup == 200
+
+
+def test_save_viewer_discard_clears_pending(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _git_with_store, _make_save, _store_struct
+    from vaultkeeper.config.settings import Settings
+    from vaultkeeper.game.save_area import read_area_contents
+
+    save = _make_save(tmp_path, _git_with_store(_store_struct(markup=200)))
+    store = read_area_contents(save.sav_path, "area1").stores[0]
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    view._edit_target = ("area1", 0, store)
+    view._ensure_session().set_store_fields("area1", 0, markup=1)
+    view._refresh_pending()
+    assert view._pending_list.count() == 1
+
+    monkeypatch.setattr(
+        sgv.QMessageBox, "question", lambda *a, **k: sgv.QMessageBox.StandardButton.Yes
+    )
+    view._discard_all()
+    assert view._session is None
+    assert view._pending_list.count() == 0
+    # nothing was written
+    assert not any(p.name.startswith("000001") for p in tmp_path.iterdir())
 
 
 # Real saves on the developer's machine (skipped when absent).

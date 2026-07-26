@@ -18,6 +18,7 @@ Safety model:
 from __future__ import annotations
 
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 
 from vaultkeeper.core.formats.erf_reader import ErfReader
@@ -32,6 +33,41 @@ class SaveEditError(Exception):
     """A save could not be read, edited or written."""
 
 
+@dataclass
+class PendingChange:
+    """One staged edit, for the viewer's pending-changes list + dirty markers."""
+
+    kind: str  #: e.g. "store" — which editor produced it
+    key: tuple  #: identifies the edited object (e.g. ``(area_resref, store_index)``)
+    where: str  #: human label, e.g. "Nature Store — Beorunna's Well"
+    summary: str  #: what changed, e.g. "buy markup 200%→120%; black market off→on"
+
+
+def _fmt_pct(value: int) -> str:
+    return f"{value}%"
+
+
+def _fmt_gold(value: int) -> str:
+    return "unlimited" if value < 0 else str(value)
+
+
+def _fmt_bool(value: int) -> str:
+    return "on" if value else "off"
+
+
+#: store edit key -> (GFF label, "int"|"bool", display name, value formatter).
+_STORE_FIELDS: dict[str, tuple[str, str, str, object]] = {
+    "markup": ("MarkUp", "int", "buy markup", _fmt_pct),
+    "markdown": ("MarkDown", "int", "sell-back markdown", _fmt_pct),
+    "store_gold": ("StoreGold", "int", "store gold", _fmt_gold),
+    "identify_price": ("IdentifyPrice", "int", "identify price",
+                       lambda v: "none" if v < 0 else str(v)),
+    "max_buy_price": ("MaxBuyPrice", "int", "max buy price",
+                      lambda v: "no limit" if v < 0 else str(v)),
+    "black_market": ("BlackMarket", "bool", "black market", _fmt_bool),
+}
+
+
 class SaveEditor:
     """Accumulates edits to a save's resources and writes them to a new save.
 
@@ -39,15 +75,8 @@ class SaveEditor:
     materialises them into a new save folder and verifies the result.
     """
 
-    #: editable store field -> (GFF label, "int" | "bool").
-    STORE_FIELDS: dict[str, tuple[str, str]] = {
-        "markup": ("MarkUp", "int"),
-        "markdown": ("MarkDown", "int"),
-        "store_gold": ("StoreGold", "int"),
-        "identify_price": ("IdentifyPrice", "int"),
-        "max_buy_price": ("MaxBuyPrice", "int"),
-        "black_market": ("BlackMarket", "bool"),
-    }
+    #: editable store field names (the public keyword args of set_store_fields).
+    STORE_FIELDS = tuple(_STORE_FIELDS)
 
     def __init__(self, save: SaveGame) -> None:
         if save.sav_path is None:
@@ -55,30 +84,75 @@ class SaveEditor:
         self._save = save
         self._reader = ErfReader()
         self._areas: dict[str, Gff] = {}  # area resref (lower) -> loaded .git tree
-        self._dirty: set[str] = set()
+        #: original store field values, per (area, index), captured on first touch.
+        self._store_originals: dict[tuple[str, int], dict[str, object]] = {}
+        #: staged changes keyed by (kind, key) so re-editing an object replaces it.
+        self._changes: dict[tuple[str, tuple], PendingChange] = {}
 
     @property
     def has_edits(self) -> bool:
-        return bool(self._dirty)
+        return bool(self._changes)
+
+    def pending_changes(self) -> list[PendingChange]:
+        """The staged edits, in the order they were first made."""
+        return list(self._changes.values())
+
+    def discard(self) -> None:
+        """Drop every staged edit (re-reads happen fresh afterwards)."""
+        self._areas.clear()
+        self._store_originals.clear()
+        self._changes.clear()
 
     # -- store editing ---------------------------------------------------- #
-    def set_store_fields(self, area_resref: str, store_index: int, **values) -> None:
-        """Stage edits to a store's scalar settings (only non-``None`` values apply)."""
+    def set_store_fields(
+        self, area_resref: str, store_index: int, *, where: str | None = None, **values
+    ) -> None:
+        """Stage edits to a store's scalar settings (only non-``None`` values apply).
+
+        ``where`` is a display label for the pending-changes list. Re-editing the
+        same store updates its single pending entry; reverting every field to its
+        original value removes it.
+        """
         store = self._store_struct(area_resref, store_index)
-        changed = False
+        tkey = (area_resref.lower(), store_index)
+        if tkey not in self._store_originals:
+            self._store_originals[tkey] = {
+                label: store.fields[label].value
+                for label, _kind, _disp, _fmt in _STORE_FIELDS.values()
+                if label in store.fields
+            }
         for key, value in values.items():
             if value is None:
                 continue
-            if key not in self.STORE_FIELDS:
+            if key not in _STORE_FIELDS:
                 raise SaveEditError(f"unknown store field {key!r}")
-            label, kind = self.STORE_FIELDS[key]
+            label, kind, _disp, _fmt = _STORE_FIELDS[key]
             gfield = store.fields.get(label)
             if gfield is None:
                 raise SaveEditError(f"store has no {label!r} field to edit")
             gfield.value = int(value) if kind == "int" else (1 if value else 0)
-            changed = True
-        if changed:
-            self._dirty.add(area_resref.lower())
+        self._record_store_change(area_resref, store_index, store, where)
+
+    def _record_store_change(self, area_resref, store_index, store, where) -> None:
+        tkey = (area_resref.lower(), store_index)
+        original = self._store_originals[tkey]
+        parts = []
+        for _key, (label, _kind, disp, fmt) in _STORE_FIELDS.items():
+            if label not in store.fields:
+                continue
+            now = store.fields[label].value
+            was = original.get(label)
+            if now != was:
+                parts.append(f"{disp} {fmt(was)}→{fmt(now)}")
+        change_key = ("store", tkey)
+        if parts:
+            self._changes[change_key] = PendingChange(
+                kind="store", key=(area_resref, store_index),
+                where=where or (store.get("Tag") or f"Store {store_index}"),
+                summary="; ".join(parts),
+            )
+        else:  # reverted to original -> no longer a pending change
+            self._changes.pop(change_key, None)
 
     def _area_tree(self, area_resref: str) -> Gff:
         key = area_resref.lower()
@@ -103,8 +177,12 @@ class SaveEditor:
         return stores[store_index]
 
     # -- write ------------------------------------------------------------ #
+    def _dirty_areas(self) -> set[str]:
+        """Area resrefs (lower) touched by at least one pending change."""
+        return {change.key[0].lower() for change in self._changes.values()}
+
     def _overrides(self) -> dict[tuple[str, int], bytes]:
-        return {(key, _GIT_RESTYPE): write_gff(self._areas[key]) for key in self._dirty}
+        return {(key, _GIT_RESTYPE): write_gff(self._areas[key]) for key in self._dirty_areas()}
 
     def save_as(self, dest_folder: Path) -> SaveGame:
         """Write the edited save to a new folder and return it (verified).
