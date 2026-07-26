@@ -53,6 +53,21 @@ def test_skill_subtype_resolved():
     assert describe_property(_prop(52, 3, 8)) == "Skill Bonus: Discipline +8"
 
 
+def test_use_limitation_class_names_the_class():
+    # prop 63, subtype 32 -> Champion of Torm (base CLASS_NAMES).
+    assert describe_property(_prop(63, 32, 0)) == "Use Limitation Class: Champion of Torm"
+
+
+def test_bonus_spell_slot_shows_level_and_class():
+    # prop 13, subtype 1 = Bard, CostValue 4 = spell level.
+    assert describe_property(_prop(13, 1, 4)) == "Bonus Spell Slot of Level 4: Bard"
+
+
+def test_spell_level_property_shows_level_not_plus_bonus():
+    # prop 78 Immunity Spells by Level, CostValue 6 is a spell level (not "+6").
+    assert describe_property(_prop(78, 0, 6)) == "Immunity Spells by Level 6"
+
+
 def test_bundled_subtype_maps_loaded():
     from vaultkeeper.game.item_properties import _feats, _spells
 

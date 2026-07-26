@@ -56,6 +56,10 @@ _DAMAGE_PROPS = frozenset({3, 16, 17, 18, 19, 20, 21, 23, 24, 33, 34})
 _FEAT_PROPS = frozenset({12})
 _SPELL_PROPS = frozenset({15})
 _SKILL_PROPS = frozenset({52, 29})  # 52 Skill Bonus, 29 Decreased Skill
+_CLASS_PROPS = frozenset({63})  # Use Limitation Class -> subtype is a class id
+_SPELL_SLOT_PROP = 13  # Bonus Spell Slot of Level: subtype = class, CostValue = level
+#: Names end "... Level"; CostValue is the spell level, not a flat bonus.
+_SPELL_LEVEL_PROPS = frozenset({78, 88, 89, 90})
 
 
 def _coerce(raw: dict) -> dict[int, str]:
@@ -109,6 +113,13 @@ def _spells() -> dict[int, str]:
     return _spell_subtypes
 
 
+def _class_name(class_id: int) -> str:
+    """Class name for a Use-Limitation/Bonus-Spell-Slot subtype (base -> PRC -> Class N)."""
+    from vaultkeeper.game.character import class_name
+
+    return class_name(class_id)
+
+
 def _skills() -> dict[int, str]:
     global _skill_subtypes
     if _skill_subtypes is None:
@@ -130,6 +141,12 @@ def describe_property(prop: ItemProperty, names: dict[int, str] | None = None) -
     def with_cost(text: str) -> str:
         return f"{text} +{prop.cost_value}" if prop.cost_value else text
 
+    if pid in _CLASS_PROPS:
+        return f"{name}: {_class_name(prop.subtype)}"
+    if pid == _SPELL_SLOT_PROP:  # Bonus Spell Slot of Level <n>: <class>
+        return f"{name} {prop.cost_value}: {_class_name(prop.subtype)}"
+    if pid in _SPELL_LEVEL_PROPS:  # name ends "... Level" -> append the level
+        return f"{name} {prop.cost_value}"
     if pid in _ABILITY_PROPS:
         subtype = ABILITY_SUBTYPES.get(prop.subtype)
         return with_cost(f"{name}: {subtype}" if subtype else name)
