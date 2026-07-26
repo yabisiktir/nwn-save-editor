@@ -144,6 +144,63 @@ def test_save_viewer_area_contents_tree(qtbot, tmp_path, monkeypatch):
     assert "Commoner" in faction_text and "neutral (50)" in faction_text
 
 
+def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _git_with_store, _make_save, _store_struct
+    from vaultkeeper.config.settings import Settings
+    from vaultkeeper.game.save_area import read_area_contents
+
+    save = _make_save(tmp_path, _git_with_store(_store_struct(markup=200)))
+    store = read_area_contents(save.sav_path, "area1").stores[0]
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._edit_target = ("area1", 0, store)
+
+    class _FakeDialog:
+        def __init__(self, _store, _parent=None):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def values(self):
+            return {"markup": 111, "black_market": True}
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.store_edit_dialog.StoreEditDialog", _FakeDialog
+    )
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("My Edit", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    before = view._list.count()
+    view._edit_store()
+
+    # a new save folder was created, added to the list, and carries the edit
+    new_folder = tmp_path / "000001 - My Edit"
+    assert new_folder.is_dir()
+    assert view._list.count() == before + 1
+    edited = read_area_contents(next(new_folder.glob("*.sav")), "area1").stores[0]
+    assert edited.markup == 111
+    assert edited.black_market is True
+    # the original save is untouched
+    assert read_area_contents(save.sav_path, "area1").stores[0].markup == 200
+
+
 # Real saves on the developer's machine (skipped when absent).
 _SAVES = Path.home() / "Documents" / "Neverwinter Nights" / "saves"
 
