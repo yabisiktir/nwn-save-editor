@@ -7,6 +7,11 @@ uses the base item's ``DefaultIcon`` (a per-type picture). Both are TGA resource
 the base game's BIF archives, read with :class:`KeyBifReader` (so this needs the
 install; it degrades to "no icon" without it).
 
+Custom content (CEP/PRC) ships its own item-icon variants inside haks — also TGA.
+When a ``hak_dir`` is given (opt-in, it is slower), those haks are indexed once and
+searched as a fallback, so e.g. a ring's exact ``iit_ring_100`` from ``cep2_core5``
+is used instead of the generic base ``iit_ring``.
+
 Returns raw TGA bytes — the Qt conversion to a pixmap lives in the UI.
 """
 
@@ -15,6 +20,7 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
+from vaultkeeper.core.formats.erf_reader import ErfReader, ErfResource
 from vaultkeeper.core.formats.key_bif_reader import KeyBifReader
 
 _TGA_RES_TYPE = 3
@@ -24,11 +30,15 @@ _MAX_RESREF = 16
 class ItemIconSource:
     """Looks up item inventory icons (TGA bytes) from the install, cached."""
 
-    def __init__(self, game_root: Path | None) -> None:
+    def __init__(self, game_root: Path | None, hak_dir: Path | None = None) -> None:
         self._reader = KeyBifReader.for_install(game_root)
         #: base item id -> (ItemClass, DefaultIcon, ModelType)
         self._base_items: dict[int, tuple[str, str, int]] = {}
         self._cache: dict[tuple[int, int], bytes | None] = {}
+        #: opt-in hak icon search: resref -> (hak path, resource), built lazily.
+        self._hak_dir = hak_dir if hak_dir is not None and hak_dir.is_dir() else None
+        self._hak_index: dict[str, tuple[Path, ErfResource]] | None = None
+        self._erf = ErfReader()
         if self._reader is not None:
             self._load_base_items()
 
@@ -79,15 +89,52 @@ class ItemIconSource:
             candidates.append(default_icon)
         return [c[:_MAX_RESREF] for c in candidates]
 
+    def _build_hak_index(self) -> None:
+        """Index every ``i*`` TGA icon across the hak folder (once, ~0.5s)."""
+        index: dict[str, tuple[Path, ErfResource]] = {}
+        if self._hak_dir is not None:
+            for hak in sorted(self._hak_dir.glob("*.hak")):
+                try:
+                    info = self._erf.read_info(hak)
+                    if info is None or not info.is_valid:
+                        continue
+                    for res in self._erf.list_resources(hak):
+                        if res.res_type == _TGA_RES_TYPE and res.resref.startswith("i"):
+                            index.setdefault(res.resref.lower(), (hak, res))
+                except Exception:  # noqa: BLE001 — a bad hak just contributes no icons
+                    continue
+        self._hak_index = index
+
+    def _hak_bytes(self, resref: str) -> bytes | None:
+        if self._hak_dir is None:
+            return None
+        if self._hak_index is None:
+            self._build_hak_index()
+        entry = self._hak_index.get(resref.lower()) if self._hak_index else None
+        if entry is None:
+            return None
+        hak, res = entry
+        try:
+            return self._erf.read_resource_bytes(hak, res)
+        except Exception:  # noqa: BLE001
+            return None
+
     def icon_bytes(self, base_item: int, model_part: int) -> bytes | None:
-        """Raw TGA bytes for an item's icon (cached), or ``None`` if not found."""
+        """Raw TGA bytes for an item's icon (cached), or ``None`` if not found.
+
+        Each candidate resref is tried in the base game first, then (if a hak
+        folder was supplied) in the haks — so a custom per-variant icon beats the
+        generic base fallback.
+        """
         key = (base_item, model_part)
         if key not in self._cache:
             data = None
-            if self._reader is not None:
-                for resref in self._candidates(base_item, model_part):
+            for resref in self._candidates(base_item, model_part):
+                if self._reader is not None:
                     data = self._reader.read(resref, _TGA_RES_TYPE)
-                    if data is not None:
-                        break
+                if data is None:
+                    data = self._hak_bytes(resref)
+                if data is not None:
+                    break
             self._cache[key] = data
         return self._cache[key]
