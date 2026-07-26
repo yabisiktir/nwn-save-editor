@@ -231,6 +231,13 @@ class TestRealBic:
         assert all(isinstance(sid, int) for sid in info.spell_ids)
         assert len(info.spell_ids) == len(set(info.spell_ids))
 
+        # Inventory: equipped items carry a slot + name, backpack has items and at
+        # least one container (bag) with nested contents.
+        assert info.equipped_items
+        assert all(e.slot_name and e.item.name for e in info.equipped_items)
+        assert info.inventory_items
+        assert any(it.is_container and it.contents for it in info.inventory_items)
+
         # Scalar fields fall in sane ranges.
         assert info.experience > 0
         assert info.hit_points > 0

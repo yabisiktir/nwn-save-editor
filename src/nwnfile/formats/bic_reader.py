@@ -28,6 +28,17 @@ logger = get_logger(__name__)
 #: Ability-score BYTE fields (VB/C# ``Info.cs`` ``Str``/``Dex``/…), display order.
 ABILITY_LABELS = ("Str", "Dex", "Con", "Int", "Wis", "Cha")
 
+#: Equipment slot bit (``Equip_ItemList`` struct's programmer id = ``2**slot``) ->
+#: display name (NWN ``INVENTORY_SLOT_*``). Creature slots (skin/creature weapons)
+#: hold PRC-granted bonuses so they are surfaced too.
+EQUIP_SLOT_NAMES: dict[int, str] = {
+    1: "Head", 2: "Chest", 4: "Boots", 8: "Arms", 16: "Right Hand",
+    32: "Left Hand", 64: "Cloak", 128: "Left Ring", 256: "Right Ring",
+    512: "Neck", 1024: "Belt", 2048: "Arrows", 4096: "Bullets", 8192: "Bolts",
+    16384: "Creature Weapon L", 32768: "Creature Weapon R",
+    65536: "Creature Weapon B", 131072: "Skin",
+}
+
 
 class _GFFType(IntEnum):
     """GFF field type ids (see GffReader.cs)."""
@@ -130,6 +141,37 @@ class CharacterClass(Enum):
 
 
 @dataclass
+class InventoryItem:
+    """One item from a ``.bic`` (``ItemList``/``Equip_ItemList`` struct).
+
+    ``name`` is the item's ``LocalizedName`` (falling back to its resref/tag when
+    blank — e.g. plain containers). ``contents`` holds a container's nested items.
+    """
+    name: str
+    base_item: int
+    tag: str
+    resref: str
+    stack_size: int
+    identified: bool
+    stolen: bool
+    description: str
+    property_count: int
+    contents: list["InventoryItem"] = field(default_factory=list)
+
+    @property
+    def is_container(self) -> bool:
+        return bool(self.contents)
+
+
+@dataclass
+class EquippedItem:
+    """An :class:`InventoryItem` worn in an equipment slot."""
+    slot: int  # the slot bit (2**INVENTORY_SLOT)
+    slot_name: str
+    item: InventoryItem
+
+
+@dataclass
 class CharacterInfo:
     """Character information extracted from BIC file"""
     name: str
@@ -157,6 +199,10 @@ class CharacterInfo:
     #: class's ``KnownList0..9`` / ``MemorizedList0..9`` (each entry's ``Spell``
     #: WORD). Order-preserving + distinct; index the bundled Spell Names.json.
     spell_ids: list[int] = field(default_factory=list)
+    #: Items worn in equipment slots (``Equip_ItemList``).
+    equipped_items: list[EquippedItem] = field(default_factory=list)
+    #: Items carried in the backpack (``ItemList``); containers hold nested items.
+    inventory_items: list[InventoryItem] = field(default_factory=list)
     is_valid: bool = True
     error_message: str = ""
 
@@ -243,6 +289,8 @@ class BicFileReader:
         spell_ids: list[int] = []
         feat_ids: list[int] = []
         skill_ranks: list[int] = []
+        equipped_items: list[EquippedItem] = []
+        inventory_items: list[InventoryItem] = []
 
         # Walk the fields of the top-level (root) struct — struct 0.
         for label, ftype, raw in gff.iter_struct_fields(0):
@@ -291,6 +339,12 @@ class BicFileReader:
                 feat_ids = self._read_feat_list(gff, gff.read_value(ftype, raw))
             elif label == "SkillList" and ftype == _GFFType.LIST:
                 skill_ranks = self._read_skill_list(gff, gff.read_value(ftype, raw))
+            elif label == "Equip_ItemList" and ftype == _GFFType.LIST:
+                equipped_items = self._read_equipped(gff, gff.read_value(ftype, raw))
+            elif label == "ItemList" and ftype == _GFFType.LIST:
+                inventory_items = [
+                    self._read_item(gff, sid) for sid in gff.read_value(ftype, raw)
+                ]
 
         # Assemble the display name from first + last (fall back to file stem).
         name = " ".join(part for part in (first_name.strip(), last_name.strip()) if part)
@@ -320,6 +374,8 @@ class BicFileReader:
             feat_ids=feat_ids,
             skill_ranks=skill_ranks,
             spell_ids=spell_ids,
+            equipped_items=equipped_items,
+            inventory_items=inventory_items,
             is_valid=True,
         )
 
@@ -402,6 +458,51 @@ class BicFileReader:
             ranks.append(rank)
         return ranks
 
+    @classmethod
+    def _read_equipped(cls, gff: "_GFF", struct_ids: list[int]) -> list[EquippedItem]:
+        """Decode ``Equip_ItemList`` — each struct's programmer id is its slot bit."""
+        equipped: list[EquippedItem] = []
+        for struct_id in struct_ids:
+            slot = gff.struct_type(struct_id)
+            item = cls._read_item(gff, struct_id)
+            equipped.append(EquippedItem(slot, EQUIP_SLOT_NAMES.get(slot, f"Slot {slot}"), item))
+        return equipped
+
+    @classmethod
+    def _read_item(cls, gff: "_GFF", struct_id: int) -> InventoryItem:
+        """Decode one item struct, recursing into a container's nested ``ItemList``."""
+        fields = {label: (ftype, raw) for label, ftype, raw in gff.iter_struct_fields(struct_id)}
+
+        def value(name, default=None):
+            if name in fields:
+                return gff.read_value(*fields[name])
+            return default
+
+        name = (value("LocalizedName") or "").strip()
+        resref = (value("TemplateResRef") or "").strip()
+        tag = (value("Tag") or "").strip()
+        if not name:
+            name = f"(unnamed: {resref or tag})" if (resref or tag) else "(unnamed item)"
+
+        description = (value("DescIdentified") or value("Description") or "").strip()
+        prop_count = len(value("PropertiesList") or []) if "PropertiesList" in fields else 0
+        contents: list[InventoryItem] = []
+        if "ItemList" in fields:
+            contents = [cls._read_item(gff, sid) for sid in (value("ItemList") or [])]
+
+        return InventoryItem(
+            name=name,
+            base_item=value("BaseItem", -1) if isinstance(value("BaseItem"), int) else -1,
+            tag=tag,
+            resref=resref,
+            stack_size=value("StackSize", 1) or 1,
+            identified=bool(value("Identified", 0)),
+            stolen=bool(value("Stolen", 0)),
+            description=description,
+            property_count=prop_count,
+            contents=contents,
+        )
+
     def get_race_name(self, race_id: int) -> str:
         """Get race name from ID"""
         try:
@@ -479,6 +580,15 @@ class _GFF:
             self._field_indices_offset, self._field_indices_len,
             self._list_indices_offset, _list_indices_len,
         ) = self._HEADER.unpack_from(data, 8)
+
+    def struct_type(self, struct_id: int) -> int:
+        """The struct's programmer-defined type id (the first header word).
+
+        For ``Equip_ItemList`` elements this is the equipment slot bit (``2**slot``).
+        """
+        if not 0 <= struct_id < self._struct_count:
+            return -1
+        return struct.unpack_from("<I", self._data, self._struct_offset + struct_id * 12)[0]
 
     def iter_struct_fields(self, struct_id: int):
         """Yield ``(label, field_type, raw4)`` for every field of a struct."""
