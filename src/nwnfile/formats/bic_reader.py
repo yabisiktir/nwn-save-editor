@@ -141,6 +141,22 @@ class CharacterClass(Enum):
 
 
 @dataclass
+class ItemProperty:
+    """One magical property from an item's ``PropertiesList`` struct.
+
+    ``property_name`` is the itempropdef.2da row (the property type); ``subtype``
+    keys the property's subtype table; ``cost_value`` is its magnitude (a +N for
+    the linear-bonus properties). Named/formatted by :mod:`game.item_properties`.
+    """
+    property_name: int
+    subtype: int
+    cost_table: int
+    cost_value: int
+    param1: int
+    param1_value: int
+
+
+@dataclass
 class InventoryItem:
     """One item from a ``.bic`` (``ItemList``/``Equip_ItemList`` struct).
 
@@ -155,12 +171,16 @@ class InventoryItem:
     identified: bool
     stolen: bool
     description: str
-    property_count: int
+    properties: list[ItemProperty] = field(default_factory=list)
     contents: list["InventoryItem"] = field(default_factory=list)
 
     @property
     def is_container(self) -> bool:
         return bool(self.contents)
+
+    @property
+    def property_count(self) -> int:
+        return len(self.properties)
 
 
 @dataclass
@@ -539,7 +559,9 @@ class BicFileReader:
             name = f"(unnamed: {resref or tag})" if (resref or tag) else "(unnamed item)"
 
         description = (value("DescIdentified") or value("Description") or "").strip()
-        prop_count = len(value("PropertiesList") or []) if "PropertiesList" in fields else 0
+        properties: list[ItemProperty] = []
+        if "PropertiesList" in fields:
+            properties = [cls._read_property(gff, pid) for pid in (value("PropertiesList") or [])]
         contents: list[InventoryItem] = []
         if "ItemList" in fields:
             contents = [cls._read_item(gff, sid) for sid in (value("ItemList") or [])]
@@ -553,8 +575,28 @@ class BicFileReader:
             identified=bool(value("Identified", 0)),
             stolen=bool(value("Stolen", 0)),
             description=description,
-            property_count=prop_count,
+            properties=properties,
             contents=contents,
+        )
+
+    @staticmethod
+    def _read_property(gff: "_GFF", struct_id: int) -> ItemProperty:
+        """Decode one ``PropertiesList`` entry into an :class:`ItemProperty`."""
+        fields = {label: (ftype, raw) for label, ftype, raw in gff.iter_struct_fields(struct_id)}
+
+        def value(name, default=0):
+            if name in fields:
+                val = gff.read_value(*fields[name])
+                return val if isinstance(val, int) else default
+            return default
+
+        return ItemProperty(
+            property_name=value("PropertyName"),
+            subtype=value("Subtype"),
+            cost_table=value("CostTable"),
+            cost_value=value("CostValue"),
+            param1=value("Param1", 255),
+            param1_value=value("Param1Value"),
         )
 
     def get_race_name(self, race_id: int) -> str:

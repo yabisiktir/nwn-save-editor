@@ -237,6 +237,10 @@ class TestRealBic:
         assert all(e.slot_name and e.item.name for e in info.equipped_items)
         assert info.inventory_items
         assert any(it.is_container and it.contents for it in info.inventory_items)
+        # Equipped items decode their magical properties (PropertyName + Subtype …).
+        assert any(e.item.properties for e in info.equipped_items)
+        a_property = next(e.item.properties[0] for e in info.equipped_items if e.item.properties)
+        assert isinstance(a_property.property_name, int)
 
         # Character-sheet scalars decode (raw race id kept; combat + bio present).
         assert isinstance(info.race_id, int)
