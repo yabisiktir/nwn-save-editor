@@ -30,7 +30,7 @@ def _info(**kw) -> CharacterInfo:
     base = dict(
         name="Morcan Fae",
         gender=Gender.MALE,
-        race=Race.HUMAN,
+        race_id=Race.HUMAN.value,
         classes=[
             (CharacterClass.BARD.value, 8),
             (CharacterClass.RED_DRAGON_DISCIPLE.value, 10),
@@ -48,7 +48,7 @@ def _info(**kw) -> CharacterInfo:
 
 class TestNameTables:
     def test_race_and_class_use_vb_display_names(self):
-        assert race_name(Race.HALF_ELF) == "Half-Elf"  # not "Half Elf"
+        assert race_name(Race.HALF_ELF.value) == "Half-Elf"  # not "Half Elf"
         assert class_name(CharacterClass.CHAMPION_OF_TORM.value) == "Champion of Torm"
         assert class_name(CharacterClass.RED_DRAGON_DISCIPLE.value) == "Red Dragon Disciple"
 
@@ -59,6 +59,14 @@ class TestNameTables:
         assert class_name(1, ref) == "Bard"  # base CLASS_NAMES wins
         assert class_name(43, ref) == "Binder"  # PRC extension
         assert class_name(9999, ref) == "Class 9999"  # neither -> visible fallback
+
+    def test_race_name_resolves_base_then_prc_then_unknown(self):
+        from vaultkeeper.game.character_reference import CharacterReference
+
+        ref = CharacterReference(prc_race_names={159: "Bralani Eladrin"})
+        assert race_name(6, ref) == "Human"  # base RACE_NAMES wins
+        assert race_name(159, ref) == "Bralani Eladrin"  # PRC extension
+        assert race_name(9999, ref) == "Race 9999"  # neither -> visible fallback
 
     def test_prc_prestige_class_shows_in_summary(self):
         # A PRC prestige class id (43 = Binder) is parsed and named, not dropped as
@@ -111,6 +119,31 @@ class TestSummary:
         assert "Gold: None" in text
         assert "Deity:" not in text
 
+    def test_character_sheet_fields_shown_with_stats(self):
+        info = _info(
+            subrace="Giant", age=200, armor_class=117, base_attack_bonus=27,
+            save_fortitude=77, save_reflex=88, save_will=68,
+            hit_points=1172, current_hit_points=352,
+            biography="You remember very little of your home.",
+        )
+        text = character_summary(info, show_stats=True)
+        assert "Human (Giant)," in text  # subrace shown next to race
+        assert "Hit Points: 352 / 1,172" in text  # current / max
+        assert "Age: 200" in text
+        assert "Armor Class: 117" in text
+        assert "Base Attack Bonus: +27" in text
+        assert "Fortitude: 77, Reflex: 88, Will: 68" in text
+        assert "Biography:" in text
+        assert "You remember very little" in text
+
+    def test_biography_and_combat_hidden_in_plain_summary(self):
+        # The plain (filter) summary omits the biography + combat block so bio text
+        # can't false-match the class filter.
+        info = _info(biography="A brave fighter of the north.", armor_class=20)
+        plain = character_summary(info)
+        assert "Biography:" not in plain
+        assert "Armor Class" not in plain
+
     def test_next_level_countdown(self):
         # level 8 threshold is LEVEL_XP[8] = 36000; xp 30000 -> 6000 to go.
         text = character_summary(_info(level=8, experience=30_000))
@@ -140,7 +173,7 @@ class TestSummary:
         bad = CharacterInfo(
             name="",
             gender=Gender.MALE,
-            race=Race.HUMAN,
+            race_id=Race.HUMAN.value,
             classes=[],
             level=1,
             experience=0,

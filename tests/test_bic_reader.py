@@ -99,7 +99,7 @@ class TestCharacterInfo:
         char = CharacterInfo(
             name="TestCharacter",
             gender=Gender.MALE,
-            race=Race.HUMAN,
+            race_id=Race.HUMAN.value,
             classes=[(CharacterClass.FIGHTER.value, 5)],
             level=5,
             experience=15000,
@@ -112,7 +112,7 @@ class TestCharacterInfo:
         
         assert char.name == "TestCharacter"
         assert char.gender == Gender.MALE
-        assert char.race == Race.HUMAN
+        assert char.race_id == Race.HUMAN.value
         assert char.level == 5
         assert char.is_valid is True
     
@@ -121,7 +121,7 @@ class TestCharacterInfo:
         char = CharacterInfo(
             name="",
             gender=Gender.MALE,
-            race=Race.HUMAN,
+            race_id=Race.HUMAN.value,
             classes=[],
             level=0,
             experience=0,
@@ -237,6 +237,11 @@ class TestRealBic:
         assert all(e.slot_name and e.item.name for e in info.equipped_items)
         assert info.inventory_items
         assert any(it.is_container and it.contents for it in info.inventory_items)
+
+        # Character-sheet scalars decode (raw race id kept; combat + bio present).
+        assert isinstance(info.race_id, int)
+        assert info.base_attack_bonus > 0
+        assert info.current_hit_points > 0
 
         # Scalar fields fall in sane ranges.
         assert info.experience > 0

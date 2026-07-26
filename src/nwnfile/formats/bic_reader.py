@@ -176,7 +176,9 @@ class CharacterInfo:
     """Character information extracted from BIC file"""
     name: str
     gender: Gender
-    race: Race
+    #: Race id (racialtypes.2da row); raw so PRC custom races past the base set are
+    #: kept (named at display time via ``character.race_name``).
+    race_id: int
     #: (class_id, level) per ClassList entry, raw class ids preserved (community/PRC
     #: classes past the base set are kept, not dropped; named at display time).
     classes: list[tuple[int, int]]
@@ -184,10 +186,19 @@ class CharacterInfo:
     experience: int
     alignment_good_evil: int  # 0-100
     alignment_lawful_chaotic: int  # 0-100
-    hit_points: int
+    hit_points: int  # MaxHitPoints (SHORT)
     portrait_resref: str = ""  # Portrait resource reference
     gold: int = 0  # Gold pieces (DWORD)
     deity: str = ""  # Deity (CExoString)
+    subrace: str = ""  # Subrace (CExoString)
+    age: int = 0  # Age (INT)
+    biography: str = ""  # Description (CExoLocString) — the PC's biography text
+    armor_class: int = 0  # ArmorClass (SHORT)
+    base_attack_bonus: int = 0  # BaseAttackBonus (BYTE)
+    save_fortitude: int = 0  # FortSaveThrow (CHAR)
+    save_reflex: int = 0  # RefSaveThrow (CHAR)
+    save_will: int = 0  # WillSaveThrow (CHAR)
+    current_hit_points: int = 0  # CurrentHitPoints (SHORT)
     abilities: dict[str, int] = field(default_factory=dict)  # Str/Dex/Con/Int/Wis/Cha
     #: FeatList feat ids (each struct's ``Feat`` WORD), order-preserving + distinct
     #: (C# ``Info.FeatInfo``). These index Feat Names.txt (line index = feat id).
@@ -252,7 +263,7 @@ class BicFileReader:
         return CharacterInfo(
             name=file_path.stem,
             gender=Gender.MALE,
-            race=Race.HUMAN,
+            race_id=Race.HUMAN.value,
             classes=[],
             level=1,
             experience=0,
@@ -275,7 +286,7 @@ class BicFileReader:
         first_name = ""
         last_name = ""
         gender = Gender.MALE
-        race = Race.HUMAN
+        race_id = Race.HUMAN.value
         alignment_good_evil = 50
         alignment_lawful_chaotic = 50
         experience = 0
@@ -283,6 +294,15 @@ class BicFileReader:
         portrait_resref = ""
         gold = 0
         deity = ""
+        subrace = ""
+        age = 0
+        biography = ""
+        armor_class = 0
+        base_attack_bonus = 0
+        save_fortitude = 0
+        save_reflex = 0
+        save_will = 0
+        current_hit_points = 0
         abilities: dict[str, int] = {}
         classes: list[tuple[int, int]] = []
         level = 0
@@ -305,10 +325,7 @@ class BicFileReader:
             elif label == "Race":
                 val = gff.read_value(ftype, raw)
                 if isinstance(val, int):
-                    try:
-                        race = Race(val)
-                    except ValueError:
-                        race = Race.HUMAN
+                    race_id = val
             elif label == "GoodEvil":
                 val = gff.read_value(ftype, raw)
                 if isinstance(val, int):
@@ -329,6 +346,34 @@ class BicFileReader:
                 gold = gff.read_value(ftype, raw)
             elif label == "Deity" and ftype == _GFFType.CEXOSTRING:
                 deity = gff.read_value(ftype, raw) or ""
+            elif label == "Subrace" and ftype == _GFFType.CEXOSTRING:
+                subrace = gff.read_value(ftype, raw) or ""
+            elif label == "Description" and ftype == _GFFType.CEXOLOCSTRING:
+                biography = gff.read_value(ftype, raw) or ""
+            elif label == "Age" and ftype == _GFFType.INT:
+                age = gff.read_value(ftype, raw)
+            elif label == "ArmorClass":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    armor_class = val
+            elif label == "BaseAttackBonus" and ftype == _GFFType.BYTE:
+                base_attack_bonus = gff.read_value(ftype, raw)
+            elif label == "FortSaveThrow":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    save_fortitude = val
+            elif label == "RefSaveThrow":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    save_reflex = val
+            elif label == "WillSaveThrow":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    save_will = val
+            elif label == "CurrentHitPoints":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    current_hit_points = val
             elif label in ABILITY_LABELS and ftype == _GFFType.BYTE:
                 abilities[label] = gff.read_value(ftype, raw)
             elif label == "ClassList" and ftype == _GFFType.LIST:
@@ -360,7 +405,7 @@ class BicFileReader:
         return CharacterInfo(
             name=name,
             gender=gender,
-            race=race,
+            race_id=race_id,
             classes=classes,
             level=level,
             experience=experience,
@@ -370,6 +415,15 @@ class BicFileReader:
             portrait_resref=portrait_resref,
             gold=gold,
             deity=deity,
+            subrace=subrace,
+            age=age,
+            biography=biography,
+            armor_class=armor_class,
+            base_attack_bonus=base_attack_bonus,
+            save_fortitude=save_fortitude,
+            save_reflex=save_reflex,
+            save_will=save_will,
+            current_hit_points=current_hit_points,
             abilities=abilities,
             feat_ids=feat_ids,
             skill_ranks=skill_ranks,

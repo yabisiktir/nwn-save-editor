@@ -20,6 +20,8 @@ program folder and which are bundled here (``game/data/``):
 * **PRC Classes.json** / **PRC Class Descriptions.json.gz** — ``{"<class id>": ...}``
   for community PRC classes, whose ids run past the base ``character.CLASS_NAMES``
   set (resolved by ``class_name``; descriptions feed the reference viewer).
+* **PRC Races.json** — ``{"<race id>": "name"}`` for community PRC races, whose ids
+  run past base ``character.RACE_NAMES`` (resolved by ``race_name``).
 * **Spell Names.json** / **Spell Descriptions.json.gz** — ``{"<spell id>": ...}`` for
   every spell (base NWN + PRC; there is no base spell file, so this is the sole
   source). A ``.bic``'s spells come from each class's ``KnownList``/``MemorizedList``.
@@ -64,6 +66,7 @@ PRC_SKILL_DESCRIPTIONS_FILE = "PRC Skill Descriptions.json"
 CLASS_DESCRIPTIONS_FILE = "Class Descriptions.txt"
 PRC_CLASS_NAMES_FILE = "PRC Classes.json"
 PRC_CLASS_DESCRIPTIONS_FILE = "PRC Class Descriptions.json.gz"
+PRC_RACE_NAMES_FILE = "PRC Races.json"
 SPELL_NAMES_FILE = "Spell Names.json"
 SPELL_DESCRIPTIONS_FILE = "Spell Descriptions.json.gz"
 
@@ -221,6 +224,16 @@ def load_prc_class_descriptions(path: Path) -> dict[int, str]:
     return _load_id_name_json_gz(path)
 
 
+def load_prc_race_names(path: Path) -> dict[int, str]:
+    """Parse ``PRC Races.json`` (``{"<race id>": "name"}``) into ``{id: name}``.
+
+    The bundled PRC race extension — racialtypes.2da ids past the base
+    ``character.RACE_NAMES`` set, from the PRC8 manual (see
+    ``docs/prc_feats/build_prc_races.py``).
+    """
+    return _load_id_name_json(path)
+
+
 def load_class_descriptions(path: Path) -> dict[int, str]:
     """Parse ``Class Descriptions.txt`` (``]ClassRef`` blocks) into ``{ref: description}``.
 
@@ -273,6 +286,7 @@ class CharacterReference:
     class_descriptions: dict[int, str] = field(default_factory=dict)
     prc_class_names: dict[int, str] = field(default_factory=dict)
     prc_class_descriptions: dict[int, str] = field(default_factory=dict)
+    prc_race_names: dict[int, str] = field(default_factory=dict)
     spell_names: dict[int, str] = field(default_factory=dict)
     spell_descriptions: dict[int, str] = field(default_factory=dict)
 
@@ -498,6 +512,9 @@ def load_reference(data_dir: Path) -> CharacterReference:
     prc_class_desc = data_dir / PRC_CLASS_DESCRIPTIONS_FILE
     if prc_class_desc.is_file():
         ref.prc_class_descriptions = load_prc_class_descriptions(prc_class_desc)
+    prc_races = data_dir / PRC_RACE_NAMES_FILE
+    if prc_races.is_file():
+        ref.prc_race_names = load_prc_race_names(prc_races)
     spell_names = data_dir / SPELL_NAMES_FILE
     if spell_names.is_file():
         ref.spell_names = load_spell_names(spell_names)

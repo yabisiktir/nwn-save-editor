@@ -26,7 +26,6 @@ from vaultkeeper.core.formats.bic_reader import (
     BicFileReader,
     CharacterInfo,
     Gender,
-    Race,
 )
 
 #: Race id -> display name (VB ``BicFileInfo.Race``).
@@ -103,8 +102,17 @@ def _title_index(lawful_chaotic: int, good_evil: int) -> int:
     return good_evil * 100 + lawful_chaotic
 
 
-def race_name(race: Race) -> str:
-    return RACE_NAMES.get(race.value, f"Race {race.value}")
+def race_name(race_id: int, reference=None) -> str:
+    """Display name for a race id — base ``RACE_NAMES`` first, then the bundled PRC
+    race extension, then ``Race <id>`` (so PRC custom races like Bralani Eladrin
+    show by name instead of falling back to Human).
+    """
+    if race_id in RACE_NAMES:
+        return RACE_NAMES[race_id]
+    from vaultkeeper.game.character_reference import default_reference
+
+    ref = reference if reference is not None else default_reference()
+    return ref.prc_race_names.get(race_id, f"Race {race_id}")
 
 
 def class_name(class_id: int, reference=None) -> str:
@@ -164,16 +172,19 @@ def character_summary(
 
         FirstName LastName [the Title] (level)
 
-        Gender Race, Lawful-Chaotic (v), Good-Evil (v)
+        Gender Race [(Subrace)], Lawful-Chaotic (v), Good-Evil (v)
         Class1 (level)
         Class2 (level)
 
         Experience: n
         Next Level Countdown: n
 
-        Hit Points: n
+        Hit Points: [current /] max
+        Gold / Deity
+        [show_stats: abilities, Age, Armor Class, BAB, Saving Throws]
         Portrait: resref
         Updated: dd MMM yyyy HH:MM
+        [show_stats: Biography]
 
     On an unreadable file, returns ``default_value`` followed by the error.
     """
@@ -192,11 +203,12 @@ def character_summary(
     lines.append(header)
     lines.append("")
 
-    # Gender Race, Lawful-Chaotic (v), Good-Evil (v)
+    # Gender Race [(Subrace)], Lawful-Chaotic (v), Good-Evil (v)
     lc = info.alignment_lawful_chaotic
     ge = info.alignment_good_evil
+    subrace = f" ({info.subrace})" if info.subrace else ""
     lines.append(
-        f"{gender_name(info.gender)} {race_name(info.race)}, "
+        f"{gender_name(info.gender)} {race_name(info.race_id)}{subrace}, "
         f"{_lawful_chaotic_word(lc)} ({lc}), {_good_evil_word(ge)} ({ge})"
     )
 
@@ -214,9 +226,12 @@ def character_summary(
         text = f"{countdown:,}" if countdown else "None"
         lines.append(f"Next Level Countdown: {text}")
 
-    # Hit points, gold, deity (VB order), optional ability-score block, portrait.
+    # Hit points, gold, deity (VB order), optional ability-score + combat block.
     lines.append("")
-    lines.append(f"Hit Points: {info.hit_points:,}")
+    if info.current_hit_points and info.current_hit_points != info.hit_points:
+        lines.append(f"Hit Points: {info.current_hit_points:,} / {info.hit_points:,}")
+    else:
+        lines.append(f"Hit Points: {info.hit_points:,}")
     lines.append(f"Gold: {info.gold:,}" if info.gold else "Gold: None")
     if info.deity:
         lines.append(f"Deity: {info.deity}")
@@ -224,11 +239,28 @@ def character_summary(
         lines.append("")
         for stat in ABILITY_LABELS:
             lines.append(f"{stat}: {info.abilities.get(stat, 0)}")
+    if show_stats:
+        lines.append("")
+        if info.age:
+            lines.append(f"Age: {info.age}")
+        lines.append(f"Armor Class: {info.armor_class}")
+        lines.append(f"Base Attack Bonus: +{info.base_attack_bonus}")
+        lines.append(
+            f"Saving Throws — Fortitude: {info.save_fortitude}, "
+            f"Reflex: {info.save_reflex}, Will: {info.save_will}"
+        )
 
     lines.append("")
     lines.append(f"Portrait: {info.portrait_resref}")
     if updated is not None:
         lines.append(f"Updated: {updated:%d %b %Y %H:%M}")
+
+    # Biography last, and only in the detailed view (kept out of the plain summary
+    # so its freeform text can't accidentally match the class filter).
+    if show_stats and info.biography.strip():
+        lines.append("")
+        lines.append("Biography:")
+        lines.append(info.biography.strip())
 
     return "\n".join(lines)
 

@@ -211,6 +211,13 @@ def test_bundled_prc_classes_loaded():
     assert ref.prc_class_names[43] == "Binder"
 
 
+def test_bundled_prc_races_loaded():
+    ref = default_reference()
+    # The bundled PRC race extension (racialtypes past base RACE_NAMES).
+    assert len(ref.prc_race_names) > 100
+    assert ref.prc_race_names[159] == "Bralani Eladrin"
+
+
 def test_load_prc_class_descriptions_gzip(tmp_path):
     from vaultkeeper.game.character_reference import load_prc_class_descriptions
 
