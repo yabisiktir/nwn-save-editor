@@ -403,6 +403,44 @@ def test_save_viewer_edit_skill_rank(qtbot, tmp_path, monkeypatch):
     assert char.fields["SkillList"].value.structs[3].fields["Rank"].value == 50
 
 
+def test_save_viewer_clone_store_item(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save_with_git
+    from vaultkeeper.config.settings import Settings
+    from vaultkeeper.core.formats.bic_reader import InventoryItem
+
+    save = _make_char_save_with_git(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Cloned", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    shop_item = InventoryItem(
+        name="Shop Sword", base_item=3, tag="", resref="shopsword", stack_size=1,
+        identified=True, stolen=False, description="",
+    )
+    view._clone_from_area("area1", shop_item)  # as the context menu would
+    assert view._pending_list.count() == 1
+    view._save_as_new()
+    carried = _ifo_char(next((tmp_path / "000001 - Cloned").glob("*.sav"))).fields["ItemList"]
+    assert any(s.fields["TemplateResRef"].value == "shopsword" for s in carried.value.structs)
+
+
 def test_save_viewer_add_and_remove_feat(qtbot, tmp_path, monkeypatch):
     from types import SimpleNamespace
 

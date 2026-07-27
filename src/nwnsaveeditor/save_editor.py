@@ -429,13 +429,31 @@ class SaveEditor:
         """Append a copy of an existing player item to the carried inventory.
 
         Cloning a known-good item is the safe way to "add an item": it is already
-        valid for this character/module. The clone gets ``struct_type`` 0 (carried)
-        and a fresh unique ``ObjectId`` so it can't collide with the original, and
-        is appended to both ``module.ifo`` and the ``player.bic`` mirror.
+        valid for this character/module.
         """
+        source = self._item_struct(self._module_tree(), source_path)
+        name = where or (source.get("TemplateResRef") or "item")
+        self._clone_into_carried(source, where=name, summary="added a copy to inventory")
+
+    def add_item_from_area(self, area_resref: str, resref: str, *, where: str = "") -> None:
+        """Clone an item that lives in an area (a store's stock, a creature's or a
+        container's item) into the player's carried inventory.
+
+        The source is found in the area's ``.git`` by its blueprint ``resref`` — a
+        complete, module-valid item struct — and copied over unchanged (bar a fresh
+        ObjectId + carried slot). The area itself is not modified.
+        """
+        source = self._find_area_item(self._area_tree(area_resref).root, resref)
+        if source is None:
+            raise SaveEditError(f"could not find item {resref!r} in area {area_resref!r}")
+        self._clone_into_carried(
+            source, where=where or resref, summary=f"added a copy from {area_resref}"
+        )
+
+    def _clone_into_carried(self, source: GffStruct, *, where: str, summary: str) -> None:
+        """Deep-copy an item struct into the player's ItemList (both trees), staged."""
         import copy
 
-        source = self._item_struct(self._module_tree(), source_path)
         clone = copy.deepcopy(source)
         clone.struct_type = 0  # a carried item (equipped items carry a slot bit)
         new_id = self._next_object_id()
@@ -447,11 +465,31 @@ class SaveEditor:
                 carried.value.structs.append(copy.deepcopy(clone))
         self._char_dirty = True
         self._add_seq += 1
-        name = where or (clone.get("TemplateResRef") or "item")
         self._changes[("add-item", self._add_seq)] = PendingChange(
-            kind="add-item", key=("add-item", self._add_seq),
-            where=name, summary="added a copy to inventory",
+            kind="add-item", key=("add-item", self._add_seq), where=where, summary=summary,
         )
+
+    def _find_area_item(self, struct: GffStruct, resref: str) -> GffStruct | None:
+        """First item struct (has ``BaseItem``) with this ``TemplateResRef``, DFS.
+
+        ``BaseItem`` distinguishes items from the creatures/placeables that also
+        carry a ``TemplateResRef``.
+        """
+        if "BaseItem" in struct.fields and (
+            (struct.get("TemplateResRef") or "").lower() == resref.lower()
+        ):
+            return struct
+        for field in struct.fields.values():
+            if field.type == GffType.STRUCT:
+                hit = self._find_area_item(field.value, resref)
+                if hit is not None:
+                    return hit
+            elif field.type == GffType.LIST:
+                for child in field.value.structs:
+                    hit = self._find_area_item(child, resref)
+                    if hit is not None:
+                        return hit
+        return None
 
     def _next_object_id(self) -> int:
         """A fresh ObjectId above every real (< OBJECT_INVALID) id in module.ifo."""

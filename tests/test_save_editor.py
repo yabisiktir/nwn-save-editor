@@ -492,3 +492,64 @@ def test_add_item_copy_is_independent(tmp_path):
     items = carried["ItemList"].value.structs
     items[-1].fields["BaseItem"].value = 999  # mutate the clone
     assert items[0].fields["BaseItem"].value != 999  # source unchanged
+
+
+def _make_char_save_with_git(tmp_path, name="000000 - test") -> SaveGame:
+    """A save whose .sav also holds an area .git with a store item to clone."""
+    ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Mod_PlayerList": GffField(GffType.LIST, GffList([_character()])),
+    }))
+    # a .git: a store whose single panel holds one item (resref "shopsword").
+    store_item = GffStruct(struct_type=0, fields={
+        "BaseItem": GffField(GffType.INT, 3),
+        "TemplateResRef": GffField(GffType.CRESREF, "shopsword"),
+        "LocalizedName": _loc("Shop Sword"),
+        "ObjectId": GffField(GffType.DWORD, 55),
+        "PropertiesList": GffField(GffType.LIST, GffList([_prop(6, 0, 5)])),
+    })
+    store = GffStruct(struct_type=0, fields={
+        "Tag": GffField(GffType.CEXOSTRING, "SHOP"),
+        "StoreList": GffField(GffType.LIST, GffList([
+            GffStruct(struct_type=0, fields={
+                "ItemList": GffField(GffType.LIST, GffList([store_item])),
+            }),
+        ])),
+    })
+    git = Gff("GIT ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "StoreList": GffField(GffType.LIST, GffList([store])),
+    }))
+    bic = Gff("BIC ", "V3.2", _character())
+    folder = tmp_path / name
+    folder.mkdir()
+    (folder / "x.sav").write_bytes(_make_erf([
+        ("module", 2014, write_gff(ifo)), ("area1", 2023, write_gff(git)),
+    ]))
+    (folder / "player.bic").write_bytes(write_gff(bic))
+    return SaveGame(folder=folder)
+
+
+def test_clone_store_item_into_inventory(tmp_path):
+    save = _make_char_save_with_git(tmp_path)
+    editor = SaveEditor(save)
+    editor.add_item_from_area("area1", "shopsword", where="Shop Sword")
+    assert "from area1" in editor.pending_changes()[0].summary
+
+    new_save = editor.save_as(tmp_path / "out")
+    carried = _ifo_char(new_save.sav_path).fields["ItemList"].value.structs
+    clone = carried[-1]
+    assert clone.fields["TemplateResRef"].value == "shopsword"
+    assert clone.struct_type == 0  # a carried item now
+    assert len(clone.fields["PropertiesList"].value.structs) == 1  # kept its property
+    # the source area .git was only read, never modified
+    er = ErfReader()
+
+    def git(sav):
+        return er.read_resource_bytes(sav, er.find_resource(sav, "area1", res_type=2023))
+
+    assert git(save.sav_path) == git(new_save.sav_path)
+
+
+def test_clone_missing_resref_errors(tmp_path):
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    with pytest.raises(SaveEditError, match="could not find"):
+        editor.add_item_from_area("area1", "no_such_item")
