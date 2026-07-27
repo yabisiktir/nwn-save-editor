@@ -13,9 +13,16 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import Qt  # noqa: E402
+
 from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog  # noqa: E402
 
 _ITEMS = [(1, "Alertness"), (6, "Cleave"), (391, "Great Cleave"), (2, "Ambidexterity")]
+
+
+def _names(dialog):
+    tree = dialog._tree
+    return [tree.topLevelItem(i).text(1) for i in range(tree.topLevelItemCount())]
 
 
 def test_first_row_selected_on_open(qtbot):
@@ -34,6 +41,25 @@ def test_filter_selects_the_top_match(qtbot):
     assert dialog.selected_id() == 391  # Great Cleave
 
 
+def test_filter_matches_raw_id(qtbot):
+    dialog = IdPickerDialog("Pick", _ITEMS)
+    qtbot.addWidget(dialog)
+    dialog._filter.setText("391")  # typing the id also finds the row
+    assert dialog.selected_id() == 391
+
+
+def test_id_column_shows_the_raw_id(qtbot):
+    dialog = IdPickerDialog("Pick", _ITEMS)
+    qtbot.addWidget(dialog)
+    tree = dialog._tree
+    ids = {
+        tree.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
+        for i in range(tree.topLevelItemCount())
+    }
+    assert ids == {1, 2, 6, 391}
+    assert tree.columnCount() == 2 and tree.headerItem().text(0) == "ID"
+
+
 def test_no_match_selects_nothing(qtbot):
     dialog = IdPickerDialog("Pick", _ITEMS)
     qtbot.addWidget(dialog)
@@ -42,10 +68,8 @@ def test_no_match_selects_nothing(qtbot):
 
 
 def test_prc_ids_are_marked(qtbot):
-    dialog = IdPickerDialog(
-        "Pick", _ITEMS, mark_ids=frozenset({391}), mark_label="PRC"
-    )
+    dialog = IdPickerDialog("Pick", _ITEMS, mark_ids=frozenset({391}), mark_label="PRC")
     qtbot.addWidget(dialog)
-    labels = [dialog._list.item(i).text() for i in range(dialog._list.count())]
-    assert any("Great Cleave" in text and "PRC" in text for text in labels)
-    assert not any("Cleave  [6]" in text and "PRC" in text for text in labels)
+    names = _names(dialog)
+    assert any("Great Cleave" in text and "PRC" in text for text in names)
+    assert not any(text == "Cleave" and "PRC" in text for text in names)
