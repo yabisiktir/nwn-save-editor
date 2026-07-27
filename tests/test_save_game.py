@@ -168,7 +168,7 @@ def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
     qtbot.addWidget(view)
     view._current = save
     view._edit_toggle.setChecked(True)  # enter edit mode
-    view._edit_target = ("area1", 0, store)
+    view._edit_target = ("store", "area1", 0, store)
 
     class _FakeDialog:
         def __init__(self, _store, _parent=None):
@@ -190,7 +190,7 @@ def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
 
     # 1) staging the edit does NOT write anything yet — it's pending
     before = view._list.count()
-    view._edit_store()
+    view._edit_selected()
     assert view._session is not None and view._session.has_edits
     assert view._pending_list.count() == 1
     assert not (tmp_path / "000001 - My Edit").exists()
@@ -244,6 +244,75 @@ def test_save_viewer_discard_clears_pending(qtbot, tmp_path, monkeypatch):
     assert view._pending_list.count() == 0
     # nothing was written
     assert not any(p.name.startswith("000001") for p in tmp_path.iterdir())
+
+
+def test_save_viewer_character_node_edits_item_property(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._edit_toggle.setChecked(True)
+
+    # find + expand the Player character node
+    tree = view._areas
+    char = next(
+        tree.topLevelItem(i) for i in range(tree.topLevelItemCount())
+        if tree.topLevelItem(i).data(0, sgv._NODE_ROLE)[0] == "character"
+    )
+    char.setExpanded(True)  # lazily populates equipped/carried + properties
+    equipped = char.child(0)
+    assert equipped.text(0) == "Equipped (1)"
+    helm = equipped.child(0)
+    ability = helm.child(0)  # the Ability Bonus property node
+    assert ability.data(0, sgv._NODE_ROLE)[0] == "property"
+
+    tree.setCurrentItem(ability)  # sets the edit target
+    assert view._edit_target is not None and view._edit_target[0] == "property"
+
+    # edit its magnitude via the (monkeypatched) property dialog
+    class _FakeDialog:
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def value(self):
+            return 8
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.property_edit_dialog.PropertyEditDialog", _FakeDialog
+    )
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("My Char Edit", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._edit_selected()
+    assert view._pending_list.count() == 1
+    view._save_as_new()
+    new = tmp_path / "000001 - My Char Edit"
+    assert new.is_dir()
+    # the ability bonus magnitude landed in module.ifo of the new save
+    char_struct = _ifo_char(next(new.glob("*.sav")))
+    helm_struct = char_struct.fields["Equip_ItemList"].value.structs[0]
+    assert helm_struct.fields["PropertiesList"].value.structs[0].fields["CostValue"].value == 8
 
 
 # Real saves on the developer's machine (skipped when absent).
