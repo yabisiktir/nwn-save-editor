@@ -42,6 +42,7 @@ class IdPickerDialog(QDialog):
         self._filter = QLineEdit()
         self._filter.setPlaceholderText("Search…")
         self._filter.textChanged.connect(self._apply_filter)
+        self._filter.returnPressed.connect(self.accept)  # Enter picks the top match
         layout.addWidget(self._filter)
 
         self._list = QListWidget()
@@ -50,6 +51,8 @@ class IdPickerDialog(QDialog):
             item = QListWidgetItem(f"{name}  [{id_}]{suffix}")
             item.setData(_ID_ROLE, id_)
             self._list.addItem(item)
+        if self._list.count():
+            self._list.setCurrentRow(0)  # always have a selection so OK/Enter works
         self._list.itemDoubleClicked.connect(lambda _i: self.accept())
         layout.addWidget(self._list, 1)
 
@@ -62,10 +65,19 @@ class IdPickerDialog(QDialog):
 
     def _apply_filter(self, text: str) -> None:
         needle = text.lower()
+        first_visible = None
         for i in range(self._list.count()):
             item = self._list.item(i)
-            item.setHidden(needle not in item.text().lower())
+            hidden = needle not in item.text().lower()
+            item.setHidden(hidden)
+            if not hidden and first_visible is None:
+                first_visible = item
+        # Keep a visible row selected so OK/Enter always picks the top match.
+        if first_visible is not None:
+            self._list.setCurrentItem(first_visible)
 
     def selected_id(self) -> int | None:
         item = self._list.currentItem()
-        return item.data(_ID_ROLE) if item is not None else None
+        if item is None or item.isHidden():
+            return None
+        return item.data(_ID_ROLE)
