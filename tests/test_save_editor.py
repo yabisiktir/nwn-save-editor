@@ -216,10 +216,15 @@ def _character() -> GffStruct:
         "BaseItem": GffField(GffType.INT, 60),
         "ItemList": GffField(GffType.LIST, GffList([_item("Ring", 0, [_prop(1, 0, 4)], oid=102)])),
     })
+    skills = [
+        GffStruct(struct_type=0, fields={"Rank": GffField(GffType.BYTE, r)})
+        for r in (0, 2, 5, 43, 0)  # id 3 == Discipline
+    ]
     return GffStruct(struct_type=0xFFFFFFFF, fields={
         "FirstName": _loc("Hero"),
         "Equip_ItemList": GffField(GffType.LIST, GffList([helm])),
         "ItemList": GffField(GffType.LIST, GffList([bag])),
+        "SkillList": GffField(GffType.LIST, GffList(skills)),
     })
 
 
@@ -337,6 +342,32 @@ def test_add_item_copy_appends_clone_with_fresh_id(tmp_path):
     assert len(bic.root.fields["ItemList"].value.structs) == 2
     # original save untouched
     assert len(_ifo_char(save.sav_path).fields["ItemList"].value.structs) == 1
+
+
+def test_edit_skill_rank_syncs_ifo_and_bic(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    skills = editor.player_skills()
+    assert len(skills) == 5
+    discipline = skills[3]
+    assert discipline.name == "Discipline" and discipline.rank == 43
+    editor.set_skill_rank(3, 48, where=discipline.name)
+    assert editor.has_edits and "43→48" in editor.pending_changes()[0].summary
+
+    new_save = editor.save_as(tmp_path / "out")
+    char = _ifo_char(new_save.sav_path)
+    assert char.fields["SkillList"].value.structs[3].fields["Rank"].value == 48
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert bic.root.fields["SkillList"].value.structs[3].fields["Rank"].value == 48
+    assert _ifo_char(save.sav_path).fields["SkillList"].value.structs[3].fields["Rank"].value == 43
+
+
+def test_reverting_skill_removes_pending(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.set_skill_rank(3, 48)
+    assert editor.has_edits
+    editor.set_skill_rank(3, 43)  # back to original
+    assert not editor.has_edits
 
 
 def test_add_item_copy_is_independent(tmp_path):

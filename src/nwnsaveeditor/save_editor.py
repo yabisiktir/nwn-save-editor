@@ -46,6 +46,15 @@ class EditableProperty:
 
 
 @dataclass
+class EditableSkill:
+    """A player-character skill: its id, name and current rank."""
+
+    index: int
+    name: str
+    rank: int
+
+
+@dataclass
 class EditableItem:
     """A player-character item located by its GFF path, for property editing."""
 
@@ -127,6 +136,8 @@ class SaveEditor:
         self._prop_originals: dict[tuple[tuple, int], tuple[int, int]] = {}
         self._max_obj_id: int | None = None  # for handing out fresh item ObjectIds
         self._add_seq = 0  # distinguishes each "add item" pending entry
+        #: original skill rank per skill index, captured on first touch.
+        self._skill_originals: dict[int, int] = {}
 
     @property
     def has_edits(self) -> bool:
@@ -148,6 +159,7 @@ class SaveEditor:
         self._prop_originals.clear()
         self._max_obj_id = None
         self._add_seq = 0
+        self._skill_originals.clear()
 
     # -- store editing ---------------------------------------------------- #
     def set_store_fields(
@@ -433,6 +445,50 @@ class SaveEditor:
         oid = struct.fields.get("ObjectId")
         if oid is not None:
             out.append(oid.value)
+
+    # -- skill editing ---------------------------------------------------- #
+    def player_skills(self) -> list[EditableSkill]:
+        """The player character's skills (id, name, rank), in skill-id order."""
+        from vaultkeeper.game.character_reference import default_reference
+
+        ref = default_reference()
+        skills = self._player_struct(self._module_tree()).fields.get("SkillList")
+        if skills is None or skills.type != GffType.LIST:
+            return []
+        return [
+            EditableSkill(i, ref.skill_name(i), struct.get("Rank") or 0)
+            for i, struct in enumerate(skills.value.structs)
+        ]
+
+    def set_skill_rank(self, skill_index: int, rank: int, *, where: str = "") -> None:
+        """Stage a change to a skill's rank (reverting to its original removes it)."""
+        if skill_index not in self._skill_originals:
+            self._skill_originals[skill_index] = (
+                self._skill_struct(self._module_tree(), skill_index).get("Rank") or 0
+            )
+        for tree in self._targets():
+            try:
+                self._skill_struct(tree, skill_index).fields["Rank"].value = int(rank)
+            except SaveEditError:
+                continue  # player.bic diverged; module.ifo is authoritative
+        self._char_dirty = True
+        was, now = self._skill_originals[skill_index], int(rank)
+        change_key = ("skill", skill_index)
+        if now != was:
+            self._changes[change_key] = PendingChange(
+                kind="skill", key=skill_index,
+                where=where or f"Skill {skill_index}", summary=f"rank {was}→{now}",
+            )
+        else:
+            self._changes.pop(change_key, None)
+
+    def _skill_struct(self, tree: Gff, skill_index: int) -> GffStruct:
+        skills = self._player_struct(tree).fields.get("SkillList")
+        if skills is None or skills.type != GffType.LIST:
+            raise SaveEditError("character has no skills")
+        if not 0 <= skill_index < len(skills.value.structs):
+            raise SaveEditError(f"skill {skill_index} out of range")
+        return skills.value.structs[skill_index]
 
     # -- write ------------------------------------------------------------ #
     def _dirty_areas(self) -> set[str]:

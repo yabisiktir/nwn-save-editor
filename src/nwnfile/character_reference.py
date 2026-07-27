@@ -404,6 +404,12 @@ class CharacterReference:
             return prc_name, desc
         return f"Unknown feat {feat_id}", _FEAT_DESC_UNAVAILABLE
 
+    def skill_name(self, skill_id: int) -> str:
+        """The name of a skill by its id (base table, then PRC map, then ``Skill N``)."""
+        if 0 <= skill_id < len(self.skill_names):
+            return self.skill_names[skill_id]
+        return self.prc_skill_names.get(skill_id, f"Skill {skill_id}")
+
     def skills(self, skill_ranks: list[int]) -> list[tuple[str, int, str]]:
         """Named skills + ranks for a character (VB ``GetSkills`` + name-sort).
 

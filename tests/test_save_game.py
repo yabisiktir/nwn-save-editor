@@ -354,6 +354,55 @@ def test_save_viewer_add_item_copy(qtbot, tmp_path, monkeypatch):
     assert len(carried.value.structs) == 2  # bag + its clone
 
 
+def test_save_viewer_edit_skill_rank(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    view._edit_target = ("skill", 3, "Discipline", 43)  # skill id 3
+
+    class _FakeDialog:
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def value(self):
+            return 50
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.property_edit_dialog.PropertyEditDialog", _FakeDialog
+    )
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Skilled", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._edit_selected()
+    assert view._pending_list.count() == 1
+    view._save_as_new()
+    char = _ifo_char(next((tmp_path / "000001 - Skilled").glob("*.sav")))
+    assert char.fields["SkillList"].value.structs[3].fields["Rank"].value == 50
+
+
 # Real saves on the developer's machine (skipped when absent).
 _SAVES = Path.home() / "Documents" / "Neverwinter Nights" / "saves"
 
