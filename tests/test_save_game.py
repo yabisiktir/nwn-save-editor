@@ -306,9 +306,11 @@ def test_save_viewer_character_node_edits_item_property(qtbot, tmp_path, monkeyp
         tree.topLevelItem(i) for i in range(tree.topLevelItemCount())
         if tree.topLevelItem(i).data(0, sgv._NODE_ROLE)[0] == "character"
     )
-    char.setExpanded(True)  # lazily populates equipped/carried + properties
-    equipped = char.child(0)
-    assert equipped.text(0) == "Equipped (1)"
+    char.setExpanded(True)  # lazily populates details/equipped/carried + properties
+    equipped = next(
+        char.child(i) for i in range(char.childCount())
+        if char.child(i).text(0) == "Equipped (1)"
+    )
     helm = equipped.child(0)
     ability = helm.child(0)  # the Ability Bonus property node
     assert ability.data(0, sgv._NODE_ROLE)[0] == "property"
@@ -459,6 +461,56 @@ class _FakeTables:
 
     def property_name_label(self, pn):
         return "Ability Bonus"
+
+
+def test_save_viewer_edit_character_field(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save_with_details
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save_with_details(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    gold = next(f for f in view._ensure_session().player_fields() if f.field == "Gold")
+    view._edit_target = ("char-field", gold)
+
+    class _Dialog:
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def value(self):
+            return 9999
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.property_edit_dialog.PropertyEditDialog", _Dialog
+    )
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Gold Edit", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._edit_selected()
+    assert view._pending_list.count() == 1
+    view._save_as_new()
+    char = _ifo_char(next((tmp_path / "000001 - Gold Edit").glob("*.sav")))
+    assert char.fields["Gold"].value == 9999
 
 
 def test_property_editor_dialog_builds_edits(qtbot):

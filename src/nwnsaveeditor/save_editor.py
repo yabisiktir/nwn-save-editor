@@ -64,6 +64,39 @@ class EditableSkill:
 
 
 @dataclass
+class CharacterField:
+    """A top-level editable character field (gold, an ability, alignment, name …)."""
+
+    field: str  #: the GFF field name (e.g. "Gold", "Str", "FirstName")
+    display: str
+    kind: str  #: "int" | "name"
+    value: object  #: current value (int, or the name text)
+    minimum: int = 0
+    maximum: int = 0
+
+
+#: editable scalar character fields: (GFF field, display, min, max).
+_CHARACTER_FIELDS: tuple[tuple[str, str, int, int], ...] = (
+    ("Gold", "Gold", 0, 2_000_000_000),
+    ("Experience", "Experience (XP)", 0, 2_000_000_000),
+    ("Str", "Strength", 1, 100),
+    ("Dex", "Dexterity", 1, 100),
+    ("Con", "Constitution", 1, 100),
+    ("Int", "Intelligence", 1, 100),
+    ("Wis", "Wisdom", 1, 100),
+    ("Cha", "Charisma", 1, 100),
+    ("GoodEvil", "Good–Evil (100 = Good)", 0, 100),
+    ("LawfulChaotic", "Lawful–Chaotic (100 = Lawful)", 0, 100),
+    ("Age", "Age", 0, 100_000),
+    ("CurrentHitPoints", "Current HP", 0, 32_000),
+)
+#: editable name fields (CExoLocString).
+_CHARACTER_NAMES: tuple[tuple[str, str], ...] = (
+    ("FirstName", "First name"), ("LastName", "Last name"),
+)
+
+
+@dataclass
 class EditableItem:
     """A player-character item located by its GFF path, for property editing."""
 
@@ -187,6 +220,8 @@ class SaveEditor:
         self._add_seq = 0  # distinguishes each "add item" pending entry
         #: original skill rank per skill index, captured on first touch.
         self._skill_originals: dict[int, int] = {}
+        #: original value per touched top-level character field.
+        self._char_field_originals: dict[str, object] = {}
         #: the character's feat ids at load, captured on the first feat op.
         self._feat_originals: set[int] | None = None
         #: original spell ids per (class_index, list_field), first spell op.
@@ -213,6 +248,7 @@ class SaveEditor:
         self._max_obj_id = None
         self._add_seq = 0
         self._skill_originals.clear()
+        self._char_field_originals.clear()
         self._feat_originals = None
         self._spell_originals.clear()
 
@@ -632,6 +668,63 @@ class SaveEditor:
         if not 0 <= skill_index < len(skills.value.structs):
             raise SaveEditError(f"skill {skill_index} out of range")
         return skills.value.structs[skill_index]
+
+    # -- top-level character fields --------------------------------------- #
+    def player_fields(self) -> list[CharacterField]:
+        """Editable character fields present on the character (gold, abilities …)."""
+        player = self._player_struct(self._module_tree())
+        fields: list[CharacterField] = []
+        for name, display, lo, hi in _CHARACTER_FIELDS:
+            if name in player.fields:
+                fields.append(CharacterField(name, display, "int", player.get(name) or 0, lo, hi))
+        for name, display in _CHARACTER_NAMES:
+            if name in player.fields:
+                loc = player.get(name)
+                text = loc.text() if loc is not None else ""
+                fields.append(CharacterField(name, display, "name", text))
+        return fields
+
+    def set_character_field(self, field: str, value: int, *, where: str = "") -> None:
+        """Stage a change to a scalar character field (both trees), reverting removes it."""
+        base = self._player_struct(self._module_tree())
+        if field not in self._char_field_originals:
+            self._char_field_originals[field] = base.get(field)
+        for tree in self._targets():
+            player = self._player_struct(tree)
+            if field in player.fields:
+                player.fields[field].value = int(value)
+        self._char_dirty = True
+        self._record_char_field(field, where, f"{self._char_field_originals[field]}→{int(value)}")
+
+    def set_character_name(self, field: str, text: str, *, where: str = "") -> None:
+        """Stage a change to a character name field (CExoLocString) in both trees."""
+        base = self._player_struct(self._module_tree())
+        if field not in self._char_field_originals:
+            loc = base.get(field)
+            self._char_field_originals[field] = loc.text() if loc is not None else ""
+        for tree in self._targets():
+            loc = self._player_struct(tree).get(field)
+            if loc is not None:
+                if loc.substrings:
+                    loc.substrings[0] = (loc.substrings[0][0], text)
+                else:
+                    loc.substrings.append((0, text))
+                loc.strref = -1  # store the name inline
+        self._char_dirty = True
+        was = self._char_field_originals[field]
+        self._record_char_field(field, where, f"“{was}”→“{text}”", changed=text != was)
+
+    def _record_char_field(self, field, where, summary, *, changed=None) -> None:
+        if changed is None:
+            now = self._player_struct(self._module_tree()).get(field)
+            changed = now != self._char_field_originals[field]
+        key = ("char-field", field)
+        if changed:
+            self._changes[key] = PendingChange(
+                kind="char-field", key=field, where=where or field, summary=summary,
+            )
+        else:
+            self._changes.pop(key, None)
 
     # -- feat editing ----------------------------------------------------- #
     def player_feats(self) -> list[tuple[int, str, bool]]:

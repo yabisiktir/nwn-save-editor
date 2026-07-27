@@ -588,6 +588,58 @@ def _helm_props(char):
     return helm.fields["PropertiesList"].value.structs
 
 
+def _make_char_save_with_details(tmp_path, name="000000 - test"):
+    char = _character()
+    char.fields["Gold"] = GffField(GffType.DWORD, 100)
+    char.fields["Str"] = GffField(GffType.BYTE, 12)
+    char.fields["GoodEvil"] = GffField(GffType.BYTE, 50)
+    ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Mod_PlayerList": GffField(GffType.LIST, GffList([char])),
+    }))
+    bic_char = _character()
+    bic_char.fields["Gold"] = GffField(GffType.DWORD, 100)
+    bic_char.fields["Str"] = GffField(GffType.BYTE, 12)
+    bic = Gff("BIC ", "V3.2", bic_char)
+    folder = tmp_path / name
+    folder.mkdir()
+    (folder / "x.sav").write_bytes(_make_erf([("module", 2014, write_gff(ifo))]))
+    (folder / "player.bic").write_bytes(write_gff(bic))
+    return SaveGame(folder=folder)
+
+
+def test_player_fields_lists_editable_character_fields(tmp_path):
+    editor = SaveEditor(_make_char_save_with_details(tmp_path))
+    fields = {f.field: f for f in editor.player_fields()}
+    assert fields["Gold"].value == 100 and fields["Gold"].kind == "int"
+    assert fields["Str"].value == 12
+    assert fields["FirstName"].kind == "name" and fields["FirstName"].value == "Hero"
+
+
+def test_set_character_field_and_name_sync(tmp_path):
+    save = _make_char_save_with_details(tmp_path)
+    editor = SaveEditor(save)
+    editor.set_character_field("Gold", 5000, where="Gold")
+    editor.set_character_field("Str", 20, where="Strength")
+    editor.set_character_name("FirstName", "Renamed", where="First name")
+    assert any("100→5000" in c.summary for c in editor.pending_changes())
+
+    new_save = editor.save_as(tmp_path / "out")
+    char = _ifo_char(new_save.sav_path)
+    assert char.fields["Gold"].value == 5000 and char.fields["Str"].value == 20
+    assert char.fields["FirstName"].value.text() == "Renamed"
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert bic.root.fields["Gold"].value == 5000  # mirror synced
+    assert _ifo_char(save.sav_path).fields["Gold"].value == 100  # original untouched
+
+
+def test_char_field_revert_removes_pending(tmp_path):
+    editor = SaveEditor(_make_char_save_with_details(tmp_path))
+    editor.set_character_field("Str", 30)
+    assert editor.has_edits
+    editor.set_character_field("Str", 12)  # back to original
+    assert not editor.has_edits
+
+
 def test_set_property_changes_subtype_and_cost(tmp_path):
     save = _make_char_save(tmp_path)
     editor = SaveEditor(save)

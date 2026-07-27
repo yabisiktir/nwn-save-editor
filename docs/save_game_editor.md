@@ -34,8 +34,12 @@ buy markup, sell-back markdown, store gold, identify price, max buy price and th
 black-market flag.
 
 ### The player character
-Expand the **Player character** node. It has **Equipped**, **Carried**, **Skills**,
-**Feats** and **Spells**.
+Expand the **Player character** node. It has **Details**, **Equipped**, **Carried**,
+**Skills**, **Feats** and **Spells**.
+
+- **Details:** the core character fields — gold, experience (XP), the six ability
+  scores, alignment (Good–Evil / Lawful–Chaotic, 0–100), age, current HP and the
+  first/last name. Select one and click **Edit…** to change it.
 
 - **Item properties — edit a value:** select a magical property under an item and
   click **Edit…**. Every field is a dropdown (or a searchable picker for the huge
