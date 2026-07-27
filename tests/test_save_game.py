@@ -403,6 +403,93 @@ def test_save_viewer_edit_skill_rank(qtbot, tmp_path, monkeypatch):
     assert char.fields["SkillList"].value.structs[3].fields["Rank"].value == 50
 
 
+def test_save_viewer_add_and_remove_feat(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+
+    # add feat 5 via the (monkeypatched) picker; remove base feat 1 directly
+    class _Picker:
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def selected_feat_id(self):
+            return 5
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.feat_picker_dialog.FeatPickerDialog", _Picker
+    )
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Feats Edit", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._add_feat()
+    view._remove_feat(1, True)  # base feat -> no PRC confirm
+    assert view._pending_list.count() == 2
+    view._save_as_new()
+    ids = {
+        s.fields["Feat"].value
+        for s in _ifo_char(next((tmp_path / "000001 - Feats Edit").glob("*.sav")))
+        .fields["FeatList"].value.structs
+    }
+    assert 5 in ids and 1 not in ids
+
+
+def test_save_viewer_remove_prc_feat_warns(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+
+    calls = []
+    monkeypatch.setattr(
+        sgv.QMessageBox, "warning",
+        lambda *a, **k: calls.append(a) or sgv.QMessageBox.StandardButton.No,
+    )
+    view._remove_feat(9000, False)  # PRC feat -> must prompt; No -> no change
+    assert calls  # a warning was shown
+    assert view._session is None or not view._session.has_edits
+
+
 # Real saves on the developer's machine (skipped when absent).
 _SAVES = Path.home() / "Documents" / "Neverwinter Nights" / "saves"
 

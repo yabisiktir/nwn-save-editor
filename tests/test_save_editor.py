@@ -220,11 +220,16 @@ def _character() -> GffStruct:
         GffStruct(struct_type=0, fields={"Rank": GffField(GffType.BYTE, r)})
         for r in (0, 2, 5, 43, 0)  # id 3 == Discipline
     ]
+    feats = [  # ids 1, 2 are base; 9000 is a PRC-range id
+        GffStruct(struct_type=1, fields={"Feat": GffField(GffType.WORD, fid)})
+        for fid in (1, 2, 9000)
+    ]
     return GffStruct(struct_type=0xFFFFFFFF, fields={
         "FirstName": _loc("Hero"),
         "Equip_ItemList": GffField(GffType.LIST, GffList([helm])),
         "ItemList": GffField(GffType.LIST, GffList([bag])),
         "SkillList": GffField(GffType.LIST, GffList(skills)),
+        "FeatList": GffField(GffType.LIST, GffList(feats)),
     })
 
 
@@ -368,6 +373,49 @@ def test_reverting_skill_removes_pending(tmp_path):
     assert editor.has_edits
     editor.set_skill_rank(3, 43)  # back to original
     assert not editor.has_edits
+
+
+def _feat_ids(char) -> set[int]:
+    return {s.fields["Feat"].value for s in char.fields["FeatList"].value.structs}
+
+
+def test_player_feats_flags_base_vs_prc(tmp_path):
+    feats = SaveEditor(_make_char_save(tmp_path)).player_feats()
+    by_id = {fid: is_base for fid, _name, is_base in feats}
+    assert by_id[1] is True and by_id[2] is True  # base
+    assert by_id[9000] is False  # PRC-range id
+
+
+def test_add_and_remove_feat_syncs_ifo_and_bic(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    editor.add_feat(5)  # a base feat not present
+    editor.remove_feat(1)  # a base feat present
+    summaries = {c.where: c.summary for c in editor.pending_changes()}
+    assert any("add feat" in s for s in summaries.values())
+    assert any("remove feat" in s for s in summaries.values())
+
+    new_save = editor.save_as(tmp_path / "out")
+    ids = _feat_ids(_ifo_char(new_save.sav_path))
+    assert 5 in ids and 1 not in ids
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    bic_ids = {s.fields["Feat"].value for s in bic.root.fields["FeatList"].value.structs}
+    assert 5 in bic_ids and 1 not in bic_ids
+    assert 1 in _feat_ids(_ifo_char(save.sav_path))  # original untouched
+
+
+def test_add_then_remove_feat_nets_to_nothing(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.add_feat(5)
+    assert editor.has_edits
+    editor.remove_feat(5)  # back to original set
+    assert not editor.has_edits
+
+
+def test_prc_feat_change_is_flagged(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.remove_feat(9000)  # a PRC feat
+    assert "PRC" in editor.pending_changes()[0].summary
 
 
 def test_add_item_copy_is_independent(tmp_path):
