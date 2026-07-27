@@ -456,6 +456,14 @@ class CharacterReference:
         rows.sort(key=lambda row: _SortKey(row[0]))
         return rows
 
+    def spell_name(self, spell_id: int) -> str:
+        """The name of a spell by id (bundled base+PRC table), or ``Unknown spell N``."""
+        return self.spell_names.get(spell_id, f"Unknown spell {spell_id}")
+
+    def all_spell_ids(self) -> list[tuple[int, str]]:
+        """Every known spell as ``(id, name)`` — for a picker."""
+        return sorted(self.spell_names.items())
+
     def spells(
         self, spell_ids: list[int], spell_levels: dict[int, int] | None = None
     ) -> list[tuple[str, str, int | None]]:

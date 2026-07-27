@@ -128,6 +128,14 @@ def class_name(class_id: int, reference=None) -> str:
     return ref.prc_class_names.get(class_id, f"Class {class_id}")
 
 
+def is_base_class(class_id: int) -> bool:
+    """True for a base-game class. PRC prestige classes route spellcasting through
+    PRC's own scripted spellbook, so editing their KnownList/MemorizedList may not
+    persist — warn for those.
+    """
+    return class_id in CLASS_NAMES
+
+
 def gender_name(gender: Gender) -> str:
     return GENDER_NAMES.get(gender.value, "")
 

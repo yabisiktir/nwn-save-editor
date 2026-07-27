@@ -436,11 +436,11 @@ def test_save_viewer_add_and_remove_feat(qtbot, tmp_path, monkeypatch):
 
             return QDialog.DialogCode.Accepted
 
-        def selected_feat_id(self):
+        def selected_id(self):
             return 5
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.feat_picker_dialog.FeatPickerDialog", _Picker
+        "vaultkeeper.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker
     )
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Feats Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
@@ -487,6 +487,92 @@ def test_save_viewer_remove_prc_feat_warns(qtbot, tmp_path, monkeypatch):
     )
     view._remove_feat(9000, False)  # PRC feat -> must prompt; No -> no change
     assert calls  # a warning was shown
+    assert view._session is None or not view._session.has_edits
+
+
+def test_save_viewer_add_and_remove_spell(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    bard = next(b for b in view._ensure_session().player_spellbook() if b.class_id == 1)
+
+    class _Picker:
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def selected_id(self):
+            return 300
+
+    monkeypatch.setattr("vaultkeeper.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker)
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Spells Edit", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._add_spell(bard.class_index, "KnownList0", True)  # base class -> no confirm
+    view._remove_spell(bard.class_index, "KnownList0", 100, True)
+    assert view._pending_list.count() == 2
+    view._save_as_new()
+    kl0 = {
+        s.fields["Spell"].value
+        for s in _ifo_char(next((tmp_path / "000001 - Spells Edit").glob("*.sav")))
+        .fields["ClassList"].value.structs[bard.class_index].fields["KnownList0"].value.structs
+    }
+    assert 300 in kl0 and 100 not in kl0
+
+
+def test_save_viewer_prc_class_spell_warns(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    prc = next(b for b in view._ensure_session().player_spellbook() if b.class_id == 500)
+
+    calls = []
+    monkeypatch.setattr(
+        sgv.QMessageBox, "warning",
+        lambda *a, **k: calls.append(a) or sgv.QMessageBox.StandardButton.No,
+    )
+    view._remove_spell(prc.class_index, "KnownList0", 200, False)  # PRC class -> prompt
+    assert calls
     assert view._session is None or not view._session.has_edits
 
 

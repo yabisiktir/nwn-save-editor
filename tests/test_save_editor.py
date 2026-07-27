@@ -224,12 +224,30 @@ def _character() -> GffStruct:
         GffStruct(struct_type=1, fields={"Feat": GffField(GffType.WORD, fid)})
         for fid in (1, 2, 9000)
     ]
+
+    def _spell(sid):
+        return GffStruct(struct_type=3, fields={"Spell": GffField(GffType.WORD, sid)})
+
+    classes = [
+        GffStruct(struct_type=2, fields={  # Bard (base caster)
+            "Class": GffField(GffType.INT, 1),
+            "ClassLevel": GffField(GffType.SHORT, 8),
+            "KnownList0": GffField(GffType.LIST, GffList([_spell(100), _spell(101)])),
+            "KnownList1": GffField(GffType.LIST, GffList([])),  # empty level
+        }),
+        GffStruct(struct_type=2, fields={  # a PRC class id
+            "Class": GffField(GffType.INT, 500),
+            "ClassLevel": GffField(GffType.SHORT, 5),
+            "KnownList0": GffField(GffType.LIST, GffList([_spell(200)])),
+        }),
+    ]
     return GffStruct(struct_type=0xFFFFFFFF, fields={
         "FirstName": _loc("Hero"),
         "Equip_ItemList": GffField(GffType.LIST, GffList([helm])),
         "ItemList": GffField(GffType.LIST, GffList([bag])),
         "SkillList": GffField(GffType.LIST, GffList(skills)),
         "FeatList": GffField(GffType.LIST, GffList(feats)),
+        "ClassList": GffField(GffType.LIST, GffList(classes)),
     })
 
 
@@ -416,6 +434,53 @@ def test_prc_feat_change_is_flagged(tmp_path):
     editor = SaveEditor(_make_char_save(tmp_path))
     editor.remove_feat(9000)  # a PRC feat
     assert "PRC" in editor.pending_changes()[0].summary
+
+
+def _kl(char, class_index, field):
+    structs = char.fields["ClassList"].value.structs[class_index].fields[field].value.structs
+    return {s.fields["Spell"].value for s in structs}
+
+
+def test_player_spellbook_lists_caster_classes(tmp_path):
+    book = SaveEditor(_make_char_save(tmp_path)).player_spellbook()
+    bard = next(b for b in book if b.class_id == 1)
+    assert bard.is_base
+    assert {sl.list_field for sl in bard.lists} == {"KnownList0", "KnownList1"}
+    prc = next(b for b in book if b.class_id == 500)
+    assert not prc.is_base
+
+
+def test_add_and_remove_spell_syncs_ifo_and_bic(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    bard = next(b for b in editor.player_spellbook() if b.class_id == 1)
+    editor.add_spell(bard.class_index, "KnownList0", 300)
+    editor.remove_spell(bard.class_index, "KnownList0", 100)
+    new_save = editor.save_as(tmp_path / "out")
+    ids = _kl(_ifo_char(new_save.sav_path), bard.class_index, "KnownList0")
+    assert 300 in ids and 100 not in ids
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert 300 in _kl(bic.root, bard.class_index, "KnownList0")
+    assert 100 in _kl(_ifo_char(save.sav_path), bard.class_index, "KnownList0")  # original
+
+
+def test_add_then_remove_spell_nets_to_nothing(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    bard = next(b for b in editor.player_spellbook() if b.class_id == 1)
+    editor.add_spell(bard.class_index, "KnownList0", 300)
+    assert editor.has_edits
+    editor.remove_spell(bard.class_index, "KnownList0", 300)
+    assert not editor.has_edits
+
+
+def test_add_spell_to_empty_level_uses_minimal_struct(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    bard = next(b for b in editor.player_spellbook() if b.class_id == 1)
+    editor.add_spell(bard.class_index, "KnownList1", 50)  # was empty
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    kl1 = _ifo_char(new_save.sav_path).fields["ClassList"].value.structs[
+        bard.class_index].fields["KnownList1"].value.structs
+    assert len(kl1) == 1 and kl1[0].fields["Spell"].value == 50 and kl1[0].struct_type == 3
 
 
 def test_add_item_copy_is_independent(tmp_path):

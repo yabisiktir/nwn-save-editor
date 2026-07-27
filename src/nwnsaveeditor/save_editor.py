@@ -107,6 +107,28 @@ _STORE_FIELDS: dict[str, tuple[str, str, str, object]] = {
 }
 
 
+@dataclass
+class SpellList:
+    """One spell list on a class — a KnownList/MemorizedList at a spell level."""
+
+    class_index: int
+    list_field: str  #: e.g. "KnownList2" — the GFF field on the class struct
+    kind: str  #: "Known" (spontaneous) | "Memorized" (prepared)
+    level: int
+    spells: list[tuple[int, str]]  #: (spell id, name)
+
+
+@dataclass
+class ClassSpellbook:
+    """A caster class's spell lists (only classes that have a spellbook)."""
+
+    class_index: int
+    class_id: int
+    class_name: str
+    is_base: bool  #: PRC classes route casting through PRC scripts — warn on edits
+    lists: list[SpellList]
+
+
 class SaveEditor:
     """Accumulates edits to a save's resources and writes them to a new save.
 
@@ -140,6 +162,8 @@ class SaveEditor:
         self._skill_originals: dict[int, int] = {}
         #: the character's feat ids at load, captured on the first feat op.
         self._feat_originals: set[int] | None = None
+        #: original spell ids per (class_index, list_field), first spell op.
+        self._spell_originals: dict[tuple[int, str], set[int]] = {}
 
     @property
     def has_edits(self) -> bool:
@@ -163,6 +187,7 @@ class SaveEditor:
         self._add_seq = 0
         self._skill_originals.clear()
         self._feat_originals = None
+        self._spell_originals.clear()
 
     # -- store editing ---------------------------------------------------- #
     def set_store_fields(
@@ -566,6 +591,110 @@ class SaveEditor:
                 self._changes[("feat", (verb, fid))] = PendingChange(
                     kind="feat", key=(verb, fid),
                     where=ref.feat_name(fid), summary=f"{verb} feat{note}",
+                )
+
+    # -- spell editing ---------------------------------------------------- #
+    def player_spellbook(self) -> list[ClassSpellbook]:
+        """The character's spellbook: each caster class's Known/Memorized lists."""
+        from vaultkeeper.game.character import class_name, is_base_class
+        from vaultkeeper.game.character_reference import default_reference
+
+        ref = default_reference()
+        classes = self._player_struct(self._module_tree()).fields.get("ClassList")
+        books: list[ClassSpellbook] = []
+        if classes is None or classes.type != GffType.LIST:
+            return books
+        for ci, cstruct in enumerate(classes.value.structs):
+            cid = cstruct.get("Class") or -1
+            lists: list[SpellList] = []
+            for name in cstruct.fields:
+                kind = "Known" if name.startswith("KnownList") else (
+                    "Memorized" if name.startswith("MemorizedList") else None
+                )
+                level = name[len("Memorized" if kind == "Memorized" else "Known") + 4:]
+                if kind is None or not level.isdigit():
+                    continue
+                field = cstruct.fields[name]
+                if field.type != GffType.LIST:
+                    continue
+                spells = [
+                    (s.get("Spell"), ref.spell_name(s.get("Spell")))
+                    for s in field.value.structs if s.get("Spell") is not None
+                ]
+                lists.append(SpellList(ci, name, kind, int(level), spells))
+            if lists:
+                lists.sort(key=lambda sl: (sl.kind, sl.level))
+                books.append(ClassSpellbook(ci, cid, class_name(cid), is_base_class(cid), lists))
+        return books
+
+    def add_spell(self, class_index: int, list_field: str, spell_id: int) -> None:
+        """Stage adding a spell to a class's Known/Memorized list (both trees)."""
+        self._ensure_spell_originals()
+        for tree in self._targets():
+            spell_list = self._spell_list(tree, class_index, list_field)
+            if spell_list is not None and spell_id not in self._spell_ids(spell_list):
+                spell_list.structs.append(self._new_spell_struct(spell_list, spell_id))
+        self._char_dirty = True
+        self._recompute_spell_changes(class_index, list_field)
+
+    def remove_spell(self, class_index: int, list_field: str, spell_id: int) -> None:
+        """Stage removing a spell from a class's Known/Memorized list (both trees)."""
+        self._ensure_spell_originals()
+        for tree in self._targets():
+            spell_list = self._spell_list(tree, class_index, list_field)
+            if spell_list is not None:
+                spell_list.structs[:] = [
+                    s for s in spell_list.structs if s.get("Spell") != spell_id
+                ]
+        self._char_dirty = True
+        self._recompute_spell_changes(class_index, list_field)
+
+    @staticmethod
+    def _new_spell_struct(spell_list, spell_id: int) -> GffStruct:
+        """A struct for a new spell: clone an existing one (exact shape) or minimal."""
+        import copy
+
+        if spell_list.structs:
+            clone = copy.deepcopy(spell_list.structs[0])  # preserve Ready/MetaMagic/…
+            if "Spell" in clone.fields:
+                clone.fields["Spell"].value = spell_id
+            return clone
+        return GffStruct(struct_type=3, fields={"Spell": GffField(GffType.WORD, spell_id)})
+
+    def _spell_list(self, tree: Gff, class_index: int, list_field: str):
+        classes = self._player_struct(tree).fields.get("ClassList")
+        if classes is None or not 0 <= class_index < len(classes.value.structs):
+            return None
+        field = classes.value.structs[class_index].fields.get(list_field)
+        return field.value if field is not None and field.type == GffType.LIST else None
+
+    @staticmethod
+    def _spell_ids(spell_list) -> set[int]:
+        return {s.get("Spell") for s in spell_list.structs if s.get("Spell") is not None}
+
+    def _ensure_spell_originals(self) -> None:
+        if not self._spell_originals:
+            for book in self.player_spellbook():
+                for sl in book.lists:
+                    self._spell_originals[(sl.class_index, sl.list_field)] = {
+                        sid for sid, _ in sl.spells
+                    }
+
+    def _recompute_spell_changes(self, class_index: int, list_field: str) -> None:
+        from vaultkeeper.game.character_reference import default_reference
+
+        ref = default_reference()
+        spell_list = self._spell_list(self._module_tree(), class_index, list_field)
+        current = self._spell_ids(spell_list) if spell_list is not None else set()
+        original = self._spell_originals.get((class_index, list_field), set())
+        key_prefix = (class_index, list_field)
+        for k in [k for k in self._changes if k[0] == "spell" and k[1][:2] == key_prefix]:
+            del self._changes[k]
+        for verb, ids in (("add", current - original), ("remove", original - current)):
+            for sid in sorted(ids):
+                self._changes[("spell", (class_index, list_field, verb, sid))] = PendingChange(
+                    kind="spell", key=(class_index, list_field, verb, sid),
+                    where=ref.spell_name(sid), summary=f"{verb} spell",
                 )
 
     # -- write ------------------------------------------------------------ #
