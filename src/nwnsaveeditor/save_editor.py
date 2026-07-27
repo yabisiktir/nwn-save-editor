@@ -24,7 +24,15 @@ from pathlib import Path
 from vaultkeeper.core.formats.bic_reader import ItemProperty
 from vaultkeeper.core.formats.erf_reader import ErfReader
 from vaultkeeper.core.formats.erf_writer import rewrite_erf
-from vaultkeeper.core.formats.gff import Gff, GffField, GffStruct, GffType, read_gff, write_gff
+from vaultkeeper.core.formats.gff import (
+    Gff,
+    GffField,
+    GffList,
+    GffStruct,
+    GffType,
+    read_gff,
+    write_gff,
+)
 from vaultkeeper.game.save_game import SaveGame
 
 _GIT_RESTYPE = 2023
@@ -92,6 +100,24 @@ def _fmt_bool(value: int) -> str:
 
 def _fmt_uses(value: int) -> str:
     return "unlimited" if value >= 255 else str(value)
+
+
+def _make_property_struct(
+    property_name: int, subtype: int, cost_table: int, cost_value: int
+) -> GffStruct:
+    """A full item-property struct, matching the game's field layout."""
+    return GffStruct(struct_type=0, fields={
+        "PropertyName": GffField(GffType.WORD, property_name),
+        "Subtype": GffField(GffType.WORD, subtype),
+        "CostTable": GffField(GffType.BYTE, cost_table),
+        "CostValue": GffField(GffType.WORD, cost_value),
+        "Param1": GffField(GffType.BYTE, 255),
+        "Param1Value": GffField(GffType.BYTE, 0),
+        "ChanceAppear": GffField(GffType.BYTE, 100),
+        "UsesPerDay": GffField(GffType.BYTE, 255),
+        "Useable": GffField(GffType.BYTE, 1),
+        "CustomTag": GffField(GffType.CEXOSTRING, ""),
+    })
 
 
 #: store edit key -> (GFF label, "int"|"bool", display name, value formatter).
@@ -423,6 +449,45 @@ class SaveEditor:
         if not 0 <= prop_index < len(plist.value.structs):
             raise SaveEditError(f"property {prop_index} out of range")
         return plist.value.structs[prop_index]
+
+    def add_item_property(
+        self, item_path: tuple, *, property_name: int, subtype: int, cost_value: int,
+        cost_table: int, where: str = "", label: str = "property",
+    ) -> None:
+        """Stage adding a new magical property to a player item (both trees)."""
+        self._char_dirty = True
+        for tree in self._targets():
+            item = self._item_struct(tree, item_path)
+            plist = item.fields.get("PropertiesList")
+            if plist is None or plist.type != GffType.LIST:
+                plist = GffField(GffType.LIST, GffList([]))
+                item.fields["PropertiesList"] = plist
+            struct = _make_property_struct(property_name, subtype, cost_table, cost_value)
+            struct.struct_type = len(plist.value.structs)  # struct_type == list index
+            plist.value.structs.append(struct)
+        self._add_seq += 1
+        self._changes[("prop-add", self._add_seq)] = PendingChange(
+            kind="prop-add", key=("prop-add", self._add_seq),
+            where=where or "item", summary=f"add {label}",
+        )
+
+    def remove_item_property(
+        self, item_path: tuple, prop_index: int, *, where: str = "", label: str = "property",
+    ) -> None:
+        """Stage removing a property from a player item (both trees)."""
+        self._char_dirty = True
+        for tree in self._targets():
+            plist = self._item_struct(tree, item_path).fields.get("PropertiesList")
+            if plist is not None and plist.type == GffType.LIST:
+                if 0 <= prop_index < len(plist.value.structs):
+                    del plist.value.structs[prop_index]
+                for i, struct in enumerate(plist.value.structs):  # keep struct_type == index
+                    struct.struct_type = i
+        self._add_seq += 1
+        self._changes[("prop-remove", self._add_seq)] = PendingChange(
+            kind="prop-remove", key=("prop-remove", self._add_seq),
+            where=where or "item", summary=f"remove {label}",
+        )
 
     # -- add items -------------------------------------------------------- #
     def add_item_copy(self, source_path: tuple, *, where: str = "") -> None:

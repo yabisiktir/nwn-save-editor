@@ -403,6 +403,86 @@ def test_save_viewer_edit_skill_rank(qtbot, tmp_path, monkeypatch):
     assert char.fields["SkillList"].value.structs[3].fields["Rank"].value == 50
 
 
+def test_editing_guide_dialog_opens(qtbot):
+    from PySide6.QtWidgets import QTextBrowser
+
+    from vaultkeeper.ui.dialogs.save_editor_help import SaveEditorHelpDialog
+
+    dialog = SaveEditorHelpDialog()
+    qtbot.addWidget(dialog)
+    body = dialog.findChildren(QTextBrowser)[0].toPlainText()
+    assert "Save as New Save" in body and "PRC" in body and "never touched" in body
+
+
+def test_add_property_dialog_builds_property(qtbot):
+    from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
+
+    dialog = AddPropertyDialog()
+    qtbot.addWidget(dialog)
+    # select "AC Bonus" (a magnitude, no subtype) and set +7
+    index = next(
+        i for i in range(dialog._type.count()) if dialog._type.itemText(i) == "AC Bonus"
+    )
+    dialog._type.setCurrentIndex(index)
+    dialog._magnitude.setValue(7)
+    result = dialog.result_property()
+    assert result["property_name"] == 1 and result["cost_value"] == 7
+    assert result["label"] == "AC Bonus +7"
+    assert not dialog._subtype.isVisible()  # no subtype for AC Bonus
+
+
+def test_save_viewer_add_property(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    helm = next(it for it in view._ensure_session().player_items() if it.slot == 1)
+    before = len(helm.properties)
+
+    class _Dialog:
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def result_property(self):
+            return {
+                "property_name": 1, "subtype": 0, "cost_value": 6, "cost_table": 2,
+                "label": "AC Bonus +6",
+            }
+
+    monkeypatch.setattr("vaultkeeper.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog)
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Prop Edit", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._add_property(helm)
+    assert view._pending_list.count() == 1
+    view._save_as_new()
+    char = _ifo_char(next((tmp_path / "000001 - Prop Edit").glob("*.sav")))
+    props = char.fields["Equip_ItemList"].value.structs[0].fields["PropertiesList"].value.structs
+    assert len(props) == before + 1 and props[-1].fields["CostValue"].value == 6
+
+
 def test_save_viewer_clone_store_item(qtbot, tmp_path, monkeypatch):
     from types import SimpleNamespace
 

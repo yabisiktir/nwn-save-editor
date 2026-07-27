@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import gzip
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 from vaultkeeper.core.formats.bic_reader import ItemProperty
@@ -298,6 +299,44 @@ def editable_magnitude(prop: ItemProperty) -> bool:
 def is_cast_spell(prop: ItemProperty) -> bool:
     """True for a Cast Spell property (its uses/day is meaningfully editable)."""
     return prop.property_name == _SPELL_PROP
+
+
+@dataclass
+class PropertyTemplate:
+    """A magical property that can be *added* to an item, with its valid choices."""
+
+    property_name: int
+    cost_table: int
+    label: str
+    subtypes: dict[int, str]  #: {} == no subtype (Subtype is 0)
+    magnitude: tuple[int, int] | None  #: (min, max) bonus, or None for a flag (cost 0)
+
+
+def addable_properties() -> list[PropertyTemplate]:
+    """A curated set of well-understood properties that are safe to add to an item.
+
+    Each uses a cost table where ``CostValue`` is the literal magnitude (what the
+    viewer renders as ``+N``), so the added property is valid. Ability/Skill offer
+    their subtype choices; the flag properties carry no magnitude. (Property types
+    whose CostValue indexes a dice/step table — damage, spell resistance, cast
+    spell — are deliberately excluded: they can't be built from a plain magnitude.)
+    """
+    return [
+        PropertyTemplate(0, 1, "Ability Bonus", dict(ABILITY_SUBTYPES), (1, 12)),
+        PropertyTemplate(1, 2, "AC Bonus", {}, (1, 20)),
+        PropertyTemplate(56, 2, "Attack Bonus", {}, (1, 20)),
+        PropertyTemplate(6, 2, "Enhancement Bonus", {}, (1, 20)),
+        PropertyTemplate(52, 25, "Skill Bonus", dict(_skills()), (1, 50)),
+        PropertyTemplate(40, 2, "Universal Saving Throws", {}, (1, 20)),
+        PropertyTemplate(51, 2, "Regeneration", {}, (1, 20)),
+        PropertyTemplate(67, 2, "Vampiric Regeneration", {}, (1, 20)),
+        PropertyTemplate(35, 0, "Haste", {}, None),
+        PropertyTemplate(43, 0, "Keen", {}, None),
+        PropertyTemplate(71, 0, "True Seeing", {}, None),
+        PropertyTemplate(75, 0, "Freedom of Movement", {}, None),
+        PropertyTemplate(38, 0, "Improved Evasion", {}, None),
+        PropertyTemplate(26, 0, "Darkvision", {}, None),
+    ]
 
 
 def describe_properties(properties: list[ItemProperty]) -> list[str]:

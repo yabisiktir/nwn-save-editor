@@ -553,3 +553,49 @@ def test_clone_missing_resref_errors(tmp_path):
     editor = SaveEditor(_make_char_save_with_git(tmp_path))
     with pytest.raises(SaveEditError, match="could not find"):
         editor.add_item_from_area("area1", "no_such_item")
+
+
+def _helm_props(char):
+    helm = char.fields["Equip_ItemList"].value.structs[0]
+    return helm.fields["PropertiesList"].value.structs
+
+
+def test_add_item_property_syncs_ifo_and_bic(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    helm = next(it for it in editor.player_items() if it.slot == 1)
+    before = len(helm.properties)
+    editor.add_item_property(
+        helm.path, property_name=1, subtype=0, cost_value=5, cost_table=2,
+        where="Helm", label="AC Bonus +5",
+    )
+    assert "add AC Bonus +5" in editor.pending_changes()[0].summary
+
+    new_save = editor.save_as(tmp_path / "out")
+    props = _helm_props(_ifo_char(new_save.sav_path))
+    assert len(props) == before + 1
+    added = props[-1]
+    assert added.fields["PropertyName"].value == 1 and added.fields["CostValue"].value == 5
+    assert added.struct_type == len(props) - 1  # struct_type == list index
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert len(_helm_props(bic.root)) == before + 1  # mirror synced
+
+
+def test_remove_item_property_reindexes(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    helm = next(it for it in editor.player_items() if it.slot == 1)
+    before = len(helm.properties)
+    editor.remove_item_property(helm.path, 0, where="Helm", label="first prop")
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    props = _helm_props(_ifo_char(new_save.sav_path))
+    assert len(props) == before - 1
+    assert [p.struct_type for p in props] == list(range(len(props)))  # re-indexed
+
+
+def test_addable_properties_have_valid_shapes():
+    from vaultkeeper.game.item_properties import addable_properties
+
+    templates = addable_properties()
+    assert any(t.label == "Ability Bonus" and t.subtypes for t in templates)  # subtype
+    assert any(t.label == "Haste" and t.magnitude is None for t in templates)  # flag
+    assert any(t.label == "AC Bonus" and t.magnitude and not t.subtypes for t in templates)
