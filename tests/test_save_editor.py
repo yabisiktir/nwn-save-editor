@@ -114,6 +114,34 @@ def test_save_as_refuses_existing_destination(tmp_path):
         editor.save_as(tmp_path / "exists")
 
 
+def test_overwrite_in_place_with_backup(tmp_path):
+    # editing a save and overwriting it: the same folder ends up edited, and the
+    # original is preserved (timestamped) in the backup dir.
+    save = _make_save(tmp_path, _git_with_store(_store_struct(markup=200)))
+    editor = SaveEditor(save)
+    editor.set_store_fields("area1", 0, markup=150)
+    backup_dir = tmp_path / "backups"
+    editor.save_as(save.folder, overwrite=True, backup_dir=backup_dir)
+
+    assert read_area_contents(save.sav_path, "area1").stores[0].markup == 150  # in place
+    backups = list(backup_dir.iterdir())
+    assert len(backups) == 1
+    backed = SaveGame(folder=backups[0])
+    assert read_area_contents(backed.sav_path, "area1").stores[0].markup == 200  # original
+    # siblings survived + no staging left behind
+    assert (save.folder / "player.bic").is_file()
+    assert not any(p.name.endswith(".vk-staging") for p in save.folder.parent.iterdir())
+
+
+def test_overwrite_without_backup_deletes_old(tmp_path):
+    save = _make_save(tmp_path, _git_with_store(_store_struct(markup=200)))
+    editor = SaveEditor(save)
+    editor.set_store_fields("area1", 0, markup=150)
+    editor.save_as(save.folder, overwrite=True)  # no backup_dir
+    assert read_area_contents(save.sav_path, "area1").stores[0].markup == 150
+    assert not (tmp_path / "backups").exists()
+
+
 def test_save_as_without_edits_errors(tmp_path):
     save = _make_save(tmp_path, _git_with_store(_store_struct()))
     with pytest.raises(SaveEditError, match="no edits"):

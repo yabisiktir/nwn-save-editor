@@ -207,6 +207,37 @@ def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
     assert read_area_contents(save.sav_path, "area1").stores[0].markup == 200
 
 
+def test_save_viewer_overwrite_current(qtbot, tmp_path, monkeypatch):
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _git_with_store, _make_save, _store_struct
+    from vaultkeeper.game.save_area import read_area_contents
+
+    # a save inside a saves/ dir so the backup dir lands beside it (saves/../backups)
+    saves = tmp_path / "saves"
+    saves.mkdir()
+    save = _make_save(saves, _git_with_store(_store_struct(markup=200)), name="000000 - s")
+
+    view = sgv.SaveGameViewer([save])
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    view._ensure_session().set_store_fields("area1", 0, markup=150)
+    view._refresh_pending()
+
+    monkeypatch.setattr(
+        sgv.QMessageBox, "warning",
+        lambda *a, **k: sgv.QMessageBox.StandardButton.Yes,  # confirm overwrite
+    )
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._overwrite_current()
+    # the SAME save folder now carries the edit; session cleared; a backup exists
+    assert read_area_contents(save.sav_path, "area1").stores[0].markup == 150
+    assert view._session is None
+    backup_dir = tmp_path / "vaultkeeper_backups"
+    assert backup_dir.is_dir() and len(list(backup_dir.iterdir())) == 1
+
+
 def test_save_viewer_discard_clears_pending(qtbot, tmp_path, monkeypatch):
     from types import SimpleNamespace
 

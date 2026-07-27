@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from vaultkeeper.core.formats.bic_reader import ItemProperty
@@ -821,32 +822,55 @@ class SaveEditor:
             return {"player.bic": write_gff(self._bic)}  # keep the mirror in sync
         return {}
 
-    def save_as(self, dest_folder: Path) -> SaveGame:
-        """Write the edited save to a new folder and return it (verified).
+    def save_as(
+        self, dest_folder: Path, *, overwrite: bool = False, backup_dir: Path | None = None
+    ) -> SaveGame:
+        """Write the edited save to ``dest_folder`` and return it (verified).
 
-        Copies the original save folder's other files (screenshots, ``savenfo.txt``
-        …) verbatim, writes the edited ``.sav`` and any edited sibling (player.bic).
+        By default ``dest_folder`` must not exist (a brand-new save). With
+        ``overwrite=True`` an existing save is replaced — but only after the edited
+        save is fully written to a staging folder **and verified**, so a failure
+        never harms the target. If ``backup_dir`` is given, the replaced save is
+        moved there (timestamped) rather than deleted, so it stays recoverable.
         """
         if not self.has_edits:
             raise SaveEditError("no edits to save")
-        if dest_folder.exists():
+        if dest_folder.exists() and not overwrite:
             raise SaveEditError(f"destination already exists: {dest_folder}")
+
+        staging = dest_folder.parent / f"{dest_folder.name}.vk-staging"
+        shutil.rmtree(staging, ignore_errors=True)
+        try:
+            self._write_save_to(staging)  # reads the source; dest untouched yet
+            self._verify(SaveGame(folder=staging))
+            if dest_folder.exists():  # commit: back up / remove the old, then swap in
+                self._replace_existing(dest_folder, backup_dir)
+            shutil.move(str(staging), str(dest_folder))
+        except Exception:
+            shutil.rmtree(staging, ignore_errors=True)
+            raise
+        return SaveGame(folder=dest_folder)
+
+    def _write_save_to(self, folder: Path) -> None:
+        """Materialise the edited save into a fresh ``folder`` (siblings + .sav)."""
         src_sav = self._save.sav_path
         file_overrides = self._file_overrides()
-        dest_folder.mkdir(parents=True)
-        try:
-            for item in self._save.folder.iterdir():
-                if item.is_file() and item != src_sav and item.name not in file_overrides:
-                    shutil.copy2(item, dest_folder / item.name)
-            for name, data in file_overrides.items():
-                (dest_folder / name).write_bytes(data)
-            rewrite_erf(src_sav, self._overrides(), dest_folder / src_sav.name)
-            new_save = SaveGame(folder=dest_folder)
-            self._verify(new_save)
-        except Exception:
-            shutil.rmtree(dest_folder, ignore_errors=True)  # don't leave a half-save
-            raise
-        return new_save
+        folder.mkdir(parents=True)
+        for item in self._save.folder.iterdir():
+            if item.is_file() and item != src_sav and item.name not in file_overrides:
+                shutil.copy2(item, folder / item.name)
+        for name, data in file_overrides.items():
+            (folder / name).write_bytes(data)
+        rewrite_erf(src_sav, self._overrides(), folder / src_sav.name)
+
+    @staticmethod
+    def _replace_existing(dest_folder: Path, backup_dir: Path | None) -> None:
+        if backup_dir is not None:
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            shutil.move(str(dest_folder), str(backup_dir / f"{stamp} - {dest_folder.name}"))
+        else:
+            shutil.rmtree(dest_folder)
 
     def _verify(self, new_save: SaveGame) -> None:
         """Confirm each edited resource/file in the new save matches what we wrote."""

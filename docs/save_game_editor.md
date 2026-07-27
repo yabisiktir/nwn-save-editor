@@ -11,8 +11,14 @@ backup — so editing is safe to experiment with.
    appears at the bottom.
 3. Make changes (see below). Each one is *staged* — nothing is written yet — and
    listed in the pending panel, with a ● marker on the thing you changed.
-4. Click **Save as New Save…**, type a name, and a new save folder is written next
-   to the original. It shows up in the list (and in-game).
+4. Commit your changes one of two ways:
+   - **Save as New Save…** — writes a new save folder next to the original (which is
+     left untouched). Safest.
+   - **Overwrite This Save…** — replaces the selected save in place. The version
+     being replaced is first moved to a timestamped folder under
+     `…/Neverwinter Nights/vaultkeeper_backups/`, so it stays recoverable. The edited
+     save is fully written and verified to a staging folder *before* the old one is
+     touched, so a failure never harms it.
 
 Use **Discard All** to drop every staged change, or turn **Edit** off (it asks
 before discarding unsaved changes).
