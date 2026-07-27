@@ -593,12 +593,16 @@ def _make_char_save_with_details(tmp_path, name="000000 - test"):
     char.fields["Gold"] = GffField(GffType.DWORD, 100)
     char.fields["Str"] = GffField(GffType.BYTE, 12)
     char.fields["GoodEvil"] = GffField(GffType.BYTE, 50)
+    char.fields["Appearance_Type"] = GffField(GffType.WORD, 6)
+    char.fields["Portrait"] = GffField(GffType.CRESREF, "po_hu_m_11_")
     ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
         "Mod_PlayerList": GffField(GffType.LIST, GffList([char])),
     }))
     bic_char = _character()
     bic_char.fields["Gold"] = GffField(GffType.DWORD, 100)
     bic_char.fields["Str"] = GffField(GffType.BYTE, 12)
+    bic_char.fields["Appearance_Type"] = GffField(GffType.WORD, 6)
+    bic_char.fields["Portrait"] = GffField(GffType.CRESREF, "po_hu_m_11_")
     bic = Gff("BIC ", "V3.2", bic_char)
     folder = tmp_path / name
     folder.mkdir()
@@ -638,6 +642,23 @@ def test_char_field_revert_removes_pending(tmp_path):
     assert editor.has_edits
     editor.set_character_field("Str", 12)  # back to original
     assert not editor.has_edits
+
+
+def test_appearance_and_portrait_editable(tmp_path):
+    save = _make_char_save_with_details(tmp_path)
+    fields = {f.field: f for f in SaveEditor(save).player_fields()}
+    assert fields["Appearance_Type"].kind == "appearance" and fields["Appearance_Type"].value == 6
+    assert fields["Portrait"].kind == "resref" and fields["Portrait"].value == "po_hu_m_11_"
+
+    editor = SaveEditor(save)
+    editor.set_character_field("Appearance_Type", 1, where="Appearance")  # Elf
+    editor.set_character_resref("Portrait", "po_el_f_02_", where="Portrait")
+    new_save = editor.save_as(tmp_path / "out")
+    char = _ifo_char(new_save.sav_path)
+    assert char.fields["Appearance_Type"].value == 1
+    assert char.fields["Portrait"].value == "po_el_f_02_"
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert bic.root.fields["Portrait"].value == "po_el_f_02_"  # mirror synced
 
 
 def test_set_property_changes_subtype_and_cost(tmp_path):

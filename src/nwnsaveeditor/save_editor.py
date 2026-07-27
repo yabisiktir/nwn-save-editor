@@ -682,6 +682,14 @@ class SaveEditor:
                 loc = player.get(name)
                 text = loc.text() if loc is not None else ""
                 fields.append(CharacterField(name, display, "name", text))
+        if "Appearance_Type" in player.fields:  # cosmetic model (appearance.2da)
+            fields.append(CharacterField(
+                "Appearance_Type", "Appearance", "appearance", player.get("Appearance_Type") or 0
+            ))
+        if "Portrait" in player.fields:  # cosmetic portrait resref
+            fields.append(
+                CharacterField("Portrait", "Portrait", "resref", player.get("Portrait") or "")
+            )
         return fields
 
     def set_character_field(self, field: str, value: int, *, where: str = "") -> None:
@@ -695,6 +703,19 @@ class SaveEditor:
                 player.fields[field].value = int(value)
         self._char_dirty = True
         self._record_char_field(field, where, f"{self._char_field_originals[field]}→{int(value)}")
+
+    def set_character_resref(self, field: str, resref: str, *, where: str = "") -> None:
+        """Stage a change to a CRESREF character field (e.g. Portrait) in both trees."""
+        base = self._player_struct(self._module_tree())
+        if field not in self._char_field_originals:
+            self._char_field_originals[field] = base.get(field)
+        for tree in self._targets():
+            player = self._player_struct(tree)
+            if field in player.fields:
+                player.fields[field].value = str(resref)
+        self._char_dirty = True
+        was = self._char_field_originals[field]
+        self._record_char_field(field, where, f"“{was}”→“{resref}”", changed=str(resref) != was)
 
     def set_character_name(self, field: str, text: str, *, where: str = "") -> None:
         """Stage a change to a character name field (CExoLocString) in both trees."""

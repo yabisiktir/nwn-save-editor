@@ -513,6 +513,66 @@ def test_save_viewer_edit_character_field(qtbot, tmp_path, monkeypatch):
     assert char.fields["Gold"].value == 9999
 
 
+class _FakeLook:
+    def appearance_options(self):
+        return {6: "Human", 1: "Elf", 2: "Gnome"}
+
+    def appearance_name(self, i):
+        return self.appearance_options().get(i, f"#{i}")
+
+    def portrait_resrefs(self):
+        return ["po_hu_m_11_", "po_el_f_02_", "po_dw_m_03_"]
+
+
+def test_save_viewer_edit_portrait(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save_with_details
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save_with_details(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    monkeypatch.setattr(view, "_look_tables", lambda: _FakeLook())
+    portrait = next(f for f in view._ensure_session().player_fields() if f.field == "Portrait")
+    view._edit_target = ("char-field", portrait)
+
+    class _Picker:  # picks index 1 -> "po_el_f_02_"
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def selected_id(self):
+            return 1
+
+    monkeypatch.setattr("vaultkeeper.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker)
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Look Edit", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._edit_selected()
+    assert view._pending_list.count() == 1
+    view._save_as_new()
+    char = _ifo_char(next((tmp_path / "000001 - Look Edit").glob("*.sav")))
+    assert char.fields["Portrait"].value == "po_el_f_02_"
+
+
 def test_property_editor_dialog_builds_edits(qtbot):
     from vaultkeeper.core.formats.bic_reader import ItemProperty
     from vaultkeeper.ui.dialogs.property_editor_dialog import PropertyEditorDialog
