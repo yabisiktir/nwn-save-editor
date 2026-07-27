@@ -7,14 +7,18 @@ from pathlib import Path
 import pytest
 
 from tests.test_erf_writer import _make_erf
+from vaultkeeper.core.formats.erf_reader import ErfReader
 from vaultkeeper.core.formats.gff import (
     Gff,
     GffField,
     GffList,
     GffStruct,
     GffType,
+    LocString,
+    read_gff,
     write_gff,
 )
+from vaultkeeper.game.item_properties import editable_magnitude, is_cast_spell
 from vaultkeeper.game.save_area import read_area_contents
 from vaultkeeper.game.save_editor import SaveEditError, SaveEditor
 from vaultkeeper.game.save_game import SaveGame
@@ -169,3 +173,144 @@ def test_real_save_store_edit_roundtrips(tmp_path):
     after = read_area_contents(new_save.sav_path, area_resref).stores[0]
     assert after.markup == before.markup + 7  # edit landed + verified
     assert len(after.items) == len(before.items)  # stock preserved
+
+
+# --------------------------------------------------------------------------- #
+# player-item property editing
+# --------------------------------------------------------------------------- #
+def _loc(text: str) -> GffField:
+    return GffField(GffType.CEXOLOCSTRING, LocString(strref=-1, substrings=[(0, text)]))
+
+
+def _prop(pid: int, subtype: int, cost: int, uses: int = 255) -> GffStruct:
+    return GffStruct(struct_type=0, fields={
+        "PropertyName": GffField(GffType.WORD, pid),
+        "Subtype": GffField(GffType.WORD, subtype),
+        "CostTable": GffField(GffType.BYTE, 1),
+        "CostValue": GffField(GffType.WORD, cost),
+        "Param1": GffField(GffType.BYTE, 255),
+        "Param1Value": GffField(GffType.BYTE, 0),
+        "ChanceAppear": GffField(GffType.BYTE, 100),
+        "UsesPerDay": GffField(GffType.BYTE, uses),
+        "Useable": GffField(GffType.BYTE, 1),
+    })
+
+
+def _item(name: str, slot: int, props: list[GffStruct]) -> GffStruct:
+    return GffStruct(struct_type=slot, fields={
+        "LocalizedName": _loc(name),
+        "TemplateResRef": GffField(GffType.CRESREF, "itm"),
+        "BaseItem": GffField(GffType.INT, 16),
+        "PropertiesList": GffField(GffType.LIST, GffList(props)),
+    })
+
+
+def _character() -> GffStruct:
+    """A fresh player character: a helm (Ability Bonus Str +2, Cast Spell) + a bag."""
+    helm = _item("Helm", 1, [_prop(0, 0, 2), _prop(15, 100, 3, uses=1)])  # ability + cast spell
+    bag = GffStruct(struct_type=0, fields={
+        "LocalizedName": _loc("Bag"),
+        "TemplateResRef": GffField(GffType.CRESREF, "bag"),
+        "BaseItem": GffField(GffType.INT, 60),
+        "ItemList": GffField(GffType.LIST, GffList([_item("Ring", 0, [_prop(1, 0, 4)])])),
+    })
+    return GffStruct(struct_type=0xFFFFFFFF, fields={
+        "FirstName": _loc("Hero"),
+        "Equip_ItemList": GffField(GffType.LIST, GffList([helm])),
+        "ItemList": GffField(GffType.LIST, GffList([bag])),
+    })
+
+
+def _make_char_save(tmp_path: Path, name="000000 - test") -> SaveGame:
+    ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Mod_PlayerList": GffField(GffType.LIST, GffList([_character()])),
+    }))
+    bic = Gff("BIC ", "V3.2", _character())  # a separate, identical mirror
+    folder = tmp_path / name
+    folder.mkdir()
+    (folder / "x.sav").write_bytes(_make_erf([("module", 2014, write_gff(ifo))]))
+    (folder / "player.bic").write_bytes(write_gff(bic))
+    return SaveGame(folder=folder)
+
+
+def _cost_at(root, path, prop_index):
+    struct = root
+    for label, index in path:
+        struct = struct.fields[label].value.structs[index]
+    return struct.fields["PropertiesList"].value.structs[prop_index].fields["CostValue"].value
+
+
+def _ifo_char(sav_path):
+    """The player character struct from a save's module.ifo Mod_PlayerList[0]."""
+    er = ErfReader()
+    res = er.find_resource(sav_path, "module", res_type=2014)
+    ifo = read_gff(er.read_resource_bytes(sav_path, res))
+    return ifo.root.fields["Mod_PlayerList"].value.structs[0]
+
+
+def test_player_items_walks_equipped_carried_and_bags(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    items = editor.player_items()
+    names = {it.name for it in items}
+    assert {"Helm", "Bag", "Ring"} <= names
+    helm = next(it for it in items if it.name == "Helm")
+    assert helm.slot == 1 and helm.path == (("Equip_ItemList", 0),)
+    ring = next(it for it in items if it.name == "Ring")
+    assert ring.slot is None and ring.path == (("ItemList", 0), ("ItemList", 0))  # in the bag
+
+
+def test_edit_property_magnitude_syncs_ifo_and_bic(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    helm = next(it for it in editor.player_items() if it.name == "Helm")
+    ability = helm.properties[0]
+    assert editable_magnitude(ability.prop) and ability.prop.cost_value == 2
+    editor.set_property_cost(
+        helm.path, 0, cost_value=8, where="Helm", prop_label="Ability Bonus: Str"
+    )
+    assert editor.has_edits
+    assert "+2→+8" in editor.pending_changes()[0].summary
+
+    new_save = editor.save_as(tmp_path / "out")
+    assert _cost_at(_ifo_char(new_save.sav_path), helm.path, 0) == 8
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert _cost_at(bic.root, helm.path, 0) == 8  # mirror kept in sync
+    assert _cost_at(_ifo_char(save.sav_path), helm.path, 0) == 2  # original untouched
+
+
+def test_edit_property_in_a_bag(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    ring = next(it for it in editor.player_items() if it.name == "Ring")
+    editor.set_property_cost(ring.path, 0, cost_value=9, where="Ring", prop_label="AC Bonus")
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    assert _cost_at(_ifo_char(new_save.sav_path), ring.path, 0) == 9
+
+
+def test_reverting_property_removes_pending(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    helm = next(it for it in editor.player_items() if it.name == "Helm")
+    editor.set_property_cost(helm.path, 0, cost_value=8, prop_label="x")
+    assert editor.has_edits
+    editor.set_property_cost(helm.path, 0, cost_value=2, prop_label="x")  # back to original
+    assert not editor.has_edits
+
+
+def test_cast_spell_property_is_uses_editable_not_magnitude(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    helm = next(it for it in editor.player_items() if it.name == "Helm")
+    cast = helm.properties[1]
+    assert is_cast_spell(cast.prop) and not editable_magnitude(cast.prop)
+    editor.set_property_cost(
+        helm.path, 1, uses_per_day=5, where="Helm", prop_label="Cast Spell"
+    )
+    new_save = editor.save_as(tmp_path / "out")
+    item = _ifo_char(new_save.sav_path).fields["Equip_ItemList"].value.structs[0]
+    assert item.fields["PropertiesList"].value.structs[1].fields["UsesPerDay"].value == 5
+
+
+def test_bad_path_and_index_raise(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    with pytest.raises(SaveEditError, match="does not resolve"):
+        editor.set_property_cost((("Equip_ItemList", 9),), 0, cost_value=1)
+    with pytest.raises(SaveEditError, match="out of range"):
+        editor.set_property_cost((("Equip_ItemList", 0),), 9, cost_value=1)

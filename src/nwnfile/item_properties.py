@@ -275,6 +275,31 @@ def describe_property(prop: ItemProperty, names: dict[int, str] | None = None) -
     return with_cost(name)
 
 
+def editable_magnitude(prop: ItemProperty) -> bool:
+    """True if the property's ``CostValue`` is a flat ``+N`` bonus safe to edit.
+
+    Ability/AC/skill/save/enhancement-style bonuses store their magnitude directly
+    in ``CostValue`` (what :func:`describe_property` renders as ``+N``). Cast Spell,
+    damage, feat, class and spell-level properties encode a table index or level in
+    ``CostValue`` instead — those are not simple magnitudes and are left read-only.
+    """
+    pid = prop.property_name
+    if pid in _ABILITY_PROPS or pid in _SKILL_PROPS:
+        return True
+    if pid in _CHART_PROPS:
+        return _CHART_PROPS[pid][1]  # is_bonus
+    non_magnitude = (
+        _CLASS_PROPS | _SPELL_LEVEL_PROPS | _DAMAGE_PROPS | _FEAT_PROPS
+        | set(_CHART_PROPS) | {_SPELL_SLOT_PROP, _SPELL_PROP, _ONHIT_SPELL_PROP}
+    )
+    return pid not in non_magnitude
+
+
+def is_cast_spell(prop: ItemProperty) -> bool:
+    """True for a Cast Spell property (its uses/day is meaningfully editable)."""
+    return prop.property_name == _SPELL_PROP
+
+
 def describe_properties(properties: list[ItemProperty]) -> list[str]:
     """Readable descriptions for an item's properties (bundled name table)."""
     names = default_property_names()
