@@ -327,7 +327,7 @@ def test_edit_property_magnitude_syncs_ifo_and_bic(tmp_path):
         helm.path, 0, cost_value=8, where="Helm", prop_label="Ability Bonus: Str"
     )
     assert editor.has_edits
-    assert "+2→+8" in editor.pending_changes()[0].summary
+    assert "Ability Bonus: Str" in editor.pending_changes()[0].summary
 
     new_save = editor.save_as(tmp_path / "out")
     assert _cost_at(_ifo_char(new_save.sav_path), helm.path, 0) == 8
@@ -586,6 +586,31 @@ def test_clone_missing_resref_errors(tmp_path):
 def _helm_props(char):
     helm = char.fields["Equip_ItemList"].value.structs[0]
     return helm.fields["PropertiesList"].value.structs
+
+
+def test_set_property_changes_subtype_and_cost(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    helm = next(it for it in editor.player_items() if it.slot == 1)
+    editor.set_property(
+        helm.path, 0, subtype=2, cost_value=7, where="Helm", label="Ability Bonus: Con +7",
+    )
+    assert "Ability Bonus: Con +7" in editor.pending_changes()[0].summary
+    new_save = editor.save_as(tmp_path / "out")
+    prop = _helm_props(_ifo_char(new_save.sav_path))[0]
+    assert prop.fields["Subtype"].value == 2 and prop.fields["CostValue"].value == 7
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert _helm_props(bic.root)[0].fields["Subtype"].value == 2  # mirror synced
+
+
+def test_set_property_revert_removes_pending(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    helm = next(it for it in editor.player_items() if it.slot == 1)
+    original = helm.properties[0].prop  # Ability Bonus, subtype 0, cost 2
+    editor.set_property(helm.path, 0, subtype=5, cost_value=9)
+    assert editor.has_edits
+    editor.set_property(helm.path, 0, subtype=original.subtype, cost_value=original.cost_value)
+    assert not editor.has_edits  # back to original -> no pending change
 
 
 def test_add_item_property_syncs_ifo_and_bic(tmp_path):

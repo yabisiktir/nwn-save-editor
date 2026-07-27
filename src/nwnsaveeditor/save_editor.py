@@ -181,8 +181,8 @@ class SaveEditor:
         self._bic: Gff | None = None
         self._bic_loaded = False
         self._char_dirty = False
-        #: original property (cost, uses) per (item_path, prop_index), first touch.
-        self._prop_originals: dict[tuple[tuple, int], tuple[int, int]] = {}
+        #: original editable-field values per (item_path, prop_index), first touch.
+        self._prop_originals: dict[tuple[tuple, int], dict[str, object]] = {}
         self._max_obj_id: int | None = None  # for handing out fresh item ObjectIds
         self._add_seq = 0  # distinguishes each "add item" pending entry
         #: original skill rank per skill index, captured on first touch.
@@ -346,27 +346,54 @@ class SaveEditor:
             properties=props,
         )
 
+    #: property struct fields the editor may change (all indexes into iprp_* tables).
+    _PROP_FIELDS = ("Subtype", "CostValue", "Param1", "Param1Value", "UsesPerDay")
+
+    def set_property(
+        self, item_path: tuple, prop_index: int, *,
+        subtype: int | None = None, cost_value: int | None = None,
+        param1: int | None = None, param1_value: int | None = None,
+        uses_per_day: int | None = None, where: str = "", label: str = "property",
+    ) -> None:
+        """Stage a change to a property's subtype / cost value / param (both trees).
+
+        Only non-``None`` fields change; each is a valid row in the property's
+        ``iprp_*`` table (see :mod:`vaultkeeper.game.item_property_tables`), so the
+        result can't be out of range. Reverting every field removes the pending
+        entry. Applied to ``module.ifo`` (authoritative) and the ``player.bic`` mirror.
+        """
+        okey = (tuple(item_path), prop_index)
+        base_ps = self._property_struct(self._module_tree(), item_path, prop_index)
+        if okey not in self._prop_originals:
+            self._prop_originals[okey] = {
+                field: base_ps.get(field) for field in self._PROP_FIELDS
+                if field in base_ps.fields
+            }
+        edits = {
+            "Subtype": subtype, "CostValue": cost_value,
+            "Param1": param1, "Param1Value": param1_value, "UsesPerDay": uses_per_day,
+        }
+        for tree in self._targets():
+            try:
+                ps = self._property_struct(tree, item_path, prop_index)
+            except SaveEditError:
+                continue  # player.bic diverged; module.ifo is authoritative
+            for field, value in edits.items():
+                if value is not None and field in ps.fields:
+                    ps.fields[field].value = int(value)
+        self._char_dirty = True
+        self._record_property_change(item_path, prop_index, base_ps, where, label)
+
     def set_property_cost(
         self, item_path: tuple, prop_index: int, *,
         cost_value: int | None = None, uses_per_day: int | None = None,
         where: str = "", prop_label: str = "property",
     ) -> None:
-        """Stage a change to one property's magnitude (and optionally uses/day).
-
-        Applied to ``module.ifo`` (authoritative) and mirrored into ``player.bic``.
-        Reverting to the original magnitude removes the pending entry.
-        """
-        okey = (tuple(item_path), prop_index)
-        base_ps = self._property_struct(self._module_tree(), item_path, prop_index)
-        if okey not in self._prop_originals:
-            self._prop_originals[okey] = (
-                base_ps.get("CostValue") or 0,
-                base_ps.get("UsesPerDay") if base_ps.get("UsesPerDay") is not None else 255,
-            )
-        for tree in self._targets():
-            self._apply_property(tree, item_path, prop_index, cost_value, uses_per_day)
-        self._char_dirty = True
-        self._record_property_change(item_path, prop_index, base_ps, where, prop_label)
+        """Backwards-compatible shim for the magnitude/uses quick edit."""
+        self.set_property(
+            item_path, prop_index, cost_value=cost_value, uses_per_day=uses_per_day,
+            where=where, label=prop_label,
+        )
 
     def _targets(self) -> list[Gff]:
         trees = [self._module_tree()]
@@ -375,30 +402,14 @@ class SaveEditor:
             trees.append(bic)
         return trees
 
-    def _apply_property(self, tree, item_path, prop_index, cost_value, uses_per_day) -> None:
-        try:
-            ps = self._property_struct(tree, item_path, prop_index)
-        except SaveEditError:
-            return  # player.bic structure diverged from module.ifo; ifo is authoritative
-        if cost_value is not None and "CostValue" in ps.fields:
-            ps.fields["CostValue"].value = int(cost_value)
-        if uses_per_day is not None and "UsesPerDay" in ps.fields:
-            ps.fields["UsesPerDay"].value = int(uses_per_day)
-
-    def _record_property_change(self, item_path, prop_index, ps, where, prop_label) -> None:
-        was_cost, was_uses = self._prop_originals[(tuple(item_path), prop_index)]
-        now_cost = ps.get("CostValue") or 0
-        now_uses = ps.get("UsesPerDay") if ps.get("UsesPerDay") is not None else 255
-        parts = []
-        if now_cost != was_cost:
-            parts.append(f"+{was_cost}→+{now_cost}")
-        if now_uses != was_uses:
-            parts.append(f"{_fmt_uses(was_uses)}→{_fmt_uses(now_uses)}/day")
+    def _record_property_change(self, item_path, prop_index, base_ps, where, label) -> None:
+        original = self._prop_originals[(tuple(item_path), prop_index)]
+        now = {field: base_ps.get(field) for field in original}
         change_key = ("property", (tuple(item_path), prop_index))
-        if parts:
+        if now != original:
             self._changes[change_key] = PendingChange(
                 kind="property", key=(item_path, prop_index),
-                where=where or "item", summary=f"{prop_label}: {', '.join(parts)}",
+                where=where or "item", summary=f"edited → {label}",
             )
         else:
             self._changes.pop(change_key, None)

@@ -445,6 +445,90 @@ def test_editing_guide_dialog_opens(qtbot):
     assert "Save as New Save" in body and "PRC" in body and "never touched" in body
 
 
+class _FakeTables:
+    available = True
+
+    def subtype_options(self, pn):
+        return {0: "Str", 1: "Dex", 2: "Con"} if pn == 0 else None
+
+    def cost_options(self, ct):
+        return {1: "+1", 2: "+2", 5: "+5", 7: "+7"}
+
+    def param1_options(self, pn):
+        return None
+
+    def property_name_label(self, pn):
+        return "Ability Bonus"
+
+
+def test_property_editor_dialog_builds_edits(qtbot):
+    from vaultkeeper.core.formats.bic_reader import ItemProperty
+    from vaultkeeper.ui.dialogs.property_editor_dialog import PropertyEditorDialog
+
+    prop = ItemProperty(
+        property_name=0, subtype=0, cost_table=1, cost_value=2, param1=255, param1_value=0
+    )
+    dialog = PropertyEditorDialog(prop, _FakeTables(), 255)
+    qtbot.addWidget(dialog)
+    dialog._subtype_combo.setCurrentIndex(dialog._subtype_combo.findData(2))  # Con
+    dialog._cost_combo.setCurrentIndex(dialog._cost_combo.findData(5))  # +5
+    result = dialog.result()
+    assert result == {"subtype": 2, "cost_value": 5}
+
+
+def test_save_viewer_edit_property_full(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+    helm = next(it for it in view._ensure_session().player_items() if it.slot == 1)
+    prop = helm.properties[0]  # Ability Bonus, subtype 0, cost 2
+
+    monkeypatch.setattr(view, "_property_tables", lambda: _FakeTables())
+
+    class _Dialog:
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            from PySide6.QtWidgets import QDialog
+
+            return QDialog.DialogCode.Accepted
+
+        def result(self):
+            return {"subtype": 2, "cost_value": 7}
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.property_editor_dialog.PropertyEditorDialog", _Dialog
+    )
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("PropFull", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._edit_property(helm.path, prop.index, prop, "Helm")
+    assert view._pending_list.count() == 1
+    view._save_as_new()
+    p = _ifo_char(next((tmp_path / "000001 - PropFull").glob("*.sav"))).fields[
+        "Equip_ItemList"].value.structs[0].fields["PropertiesList"].value.structs[0]
+    assert p.fields["Subtype"].value == 2 and p.fields["CostValue"].value == 7
+
+
 def test_add_property_dialog_builds_property(qtbot):
     from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
 

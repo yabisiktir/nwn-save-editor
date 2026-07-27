@@ -38,9 +38,12 @@ Expand the **Player character** node. It has **Equipped**, **Carried**, **Skills
 **Feats** and **Spells**.
 
 - **Item properties — edit a value:** select a magical property under an item and
-  click **Edit…** to change its magnitude (e.g. *Ability Bonus: Dexterity* +8 → +12),
-  or a Cast-Spell property's uses/day. Only properties whose value is a plain bonus
-  are editable; others (damage dice, cast-spell, etc.) are shown read-only.
+  click **Edit…**. Every field is a dropdown (or a searchable picker for the huge
+  feat/spell lists) populated from the game's `iprp_*` tables, so you can change the
+  **subtype** (which ability / damage type / spell …), the **value** (`+8`, `1d6`,
+  `5 Charges/Use`, `50%` …) and, for Cast-Spell properties, **uses/day** — and can
+  only pick values the game recognises, so an edit can't corrupt the item. (To change
+  the property *type* itself, remove it and add a new one.)
 - **Item properties — add / remove:** right-click an item → **Add a property…** and
   choose a type (Ability/AC/Attack/Enhancement/Skill bonus, saving throws,
   regeneration, or a flag like Haste/Keen/True Seeing/Freedom of Movement/Improved
