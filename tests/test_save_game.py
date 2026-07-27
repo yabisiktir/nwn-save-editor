@@ -315,6 +315,45 @@ def test_save_viewer_character_node_edits_item_property(qtbot, tmp_path, monkeyp
     assert helm_struct.fields["PropertiesList"].value.structs[0].fields["CostValue"].value == 8
 
 
+def test_save_viewer_add_item_copy(qtbot, tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from tests.test_save_editor import _ifo_char, _make_char_save
+    from vaultkeeper.config.settings import Settings
+
+    save = _make_char_save(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def _settings(self):
+            return Settings()
+
+        def set_inventory_nwn_style(self, _v):
+            pass
+
+    view = sgv.SaveGameViewer([save], _Ctrl())
+    qtbot.addWidget(view)
+    view._current = save
+    view._editing = True
+
+    bag = next(it for it in view._ensure_session().player_items() if it.name == "Bag")
+
+    class _Item:  # minimal stand-in with the attrs _add_item_copy needs
+        path = bag.path
+        name = "Bag"
+
+    monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Added Item", True))
+    monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
+
+    view._add_item_copy(_Item())
+    assert view._pending_list.count() == 1
+    view._save_as_new()
+    carried = _ifo_char(next((tmp_path / "000001 - Added Item").glob("*.sav"))).fields["ItemList"]
+    assert len(carried.value.structs) == 2  # bag + its clone
+
+
 # Real saves on the developer's machine (skipped when absent).
 _SAVES = Path.home() / "Documents" / "Neverwinter Nights" / "saves"
 

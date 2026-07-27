@@ -125,6 +125,8 @@ class SaveEditor:
         self._char_dirty = False
         #: original property (cost, uses) per (item_path, prop_index), first touch.
         self._prop_originals: dict[tuple[tuple, int], tuple[int, int]] = {}
+        self._max_obj_id: int | None = None  # for handing out fresh item ObjectIds
+        self._add_seq = 0  # distinguishes each "add item" pending entry
 
     @property
     def has_edits(self) -> bool:
@@ -144,6 +146,8 @@ class SaveEditor:
         self._bic_loaded = False
         self._char_dirty = False
         self._prop_originals.clear()
+        self._max_obj_id = None
+        self._add_seq = 0
 
     # -- store editing ---------------------------------------------------- #
     def set_store_fields(
@@ -361,7 +365,7 @@ class SaveEditor:
             return tree.root
         raise SaveEditError("save has no player character")
 
-    def _property_struct(self, tree: Gff, item_path: tuple, prop_index: int) -> GffStruct:
+    def _item_struct(self, tree: Gff, item_path: tuple) -> GffStruct:
         struct = self._player_struct(tree)
         for label, index in item_path:
             field = struct.fields.get(label)
@@ -370,12 +374,65 @@ class SaveEditor:
             if not 0 <= index < len(field.value.structs):
                 raise SaveEditError(f"item path {item_path} does not resolve")
             struct = field.value.structs[index]
-        plist = struct.fields.get("PropertiesList")
+        return struct
+
+    def _property_struct(self, tree: Gff, item_path: tuple, prop_index: int) -> GffStruct:
+        plist = self._item_struct(tree, item_path).fields.get("PropertiesList")
         if plist is None or plist.type != GffType.LIST:
             raise SaveEditError(f"property {prop_index} out of range")
         if not 0 <= prop_index < len(plist.value.structs):
             raise SaveEditError(f"property {prop_index} out of range")
         return plist.value.structs[prop_index]
+
+    # -- add items -------------------------------------------------------- #
+    def add_item_copy(self, source_path: tuple, *, where: str = "") -> None:
+        """Append a copy of an existing player item to the carried inventory.
+
+        Cloning a known-good item is the safe way to "add an item": it is already
+        valid for this character/module. The clone gets ``struct_type`` 0 (carried)
+        and a fresh unique ``ObjectId`` so it can't collide with the original, and
+        is appended to both ``module.ifo`` and the ``player.bic`` mirror.
+        """
+        import copy
+
+        source = self._item_struct(self._module_tree(), source_path)
+        clone = copy.deepcopy(source)
+        clone.struct_type = 0  # a carried item (equipped items carry a slot bit)
+        new_id = self._next_object_id()
+        if "ObjectId" in clone.fields:
+            clone.fields["ObjectId"].value = new_id
+        for tree in self._targets():
+            carried = self._player_struct(tree).fields.get("ItemList")
+            if carried is not None and carried.type == GffType.LIST:
+                carried.value.structs.append(copy.deepcopy(clone))
+        self._char_dirty = True
+        self._add_seq += 1
+        name = where or (clone.get("TemplateResRef") or "item")
+        self._changes[("add-item", self._add_seq)] = PendingChange(
+            kind="add-item", key=("add-item", self._add_seq),
+            where=name, summary="added a copy to inventory",
+        )
+
+    def _next_object_id(self) -> int:
+        """A fresh ObjectId above every real (< OBJECT_INVALID) id in module.ifo."""
+        if self._max_obj_id is None:
+            ids: list[int] = []
+            self._collect_object_ids(self._module_tree().root, ids)
+            valid = [i for i in ids if i < 0x7F000000]
+            self._max_obj_id = max(valid) if valid else 0
+        self._max_obj_id += 1
+        return self._max_obj_id
+
+    def _collect_object_ids(self, struct: GffStruct, out: list[int]) -> None:
+        for field in struct.fields.values():
+            if field.type == GffType.STRUCT:
+                self._collect_object_ids(field.value, out)
+            elif field.type == GffType.LIST:
+                for child in field.value.structs:
+                    self._collect_object_ids(child, out)
+        oid = struct.fields.get("ObjectId")
+        if oid is not None:
+            out.append(oid.value)
 
     # -- write ------------------------------------------------------------ #
     def _dirty_areas(self) -> set[str]:

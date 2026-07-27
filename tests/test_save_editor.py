@@ -196,10 +196,11 @@ def _prop(pid: int, subtype: int, cost: int, uses: int = 255) -> GffStruct:
     })
 
 
-def _item(name: str, slot: int, props: list[GffStruct]) -> GffStruct:
+def _item(name: str, slot: int, props: list[GffStruct], oid: int = 100) -> GffStruct:
     return GffStruct(struct_type=slot, fields={
+        "ObjectId": GffField(GffType.DWORD, oid),
         "LocalizedName": _loc(name),
-        "TemplateResRef": GffField(GffType.CRESREF, "itm"),
+        "TemplateResRef": GffField(GffType.CRESREF, name.lower()),
         "BaseItem": GffField(GffType.INT, 16),
         "PropertiesList": GffField(GffType.LIST, GffList(props)),
     })
@@ -207,12 +208,13 @@ def _item(name: str, slot: int, props: list[GffStruct]) -> GffStruct:
 
 def _character() -> GffStruct:
     """A fresh player character: a helm (Ability Bonus Str +2, Cast Spell) + a bag."""
-    helm = _item("Helm", 1, [_prop(0, 0, 2), _prop(15, 100, 3, uses=1)])  # ability + cast spell
+    helm = _item("Helm", 1, [_prop(0, 0, 2), _prop(15, 100, 3, uses=1)], oid=100)
     bag = GffStruct(struct_type=0, fields={
+        "ObjectId": GffField(GffType.DWORD, 101),
         "LocalizedName": _loc("Bag"),
         "TemplateResRef": GffField(GffType.CRESREF, "bag"),
         "BaseItem": GffField(GffType.INT, 60),
-        "ItemList": GffField(GffType.LIST, GffList([_item("Ring", 0, [_prop(1, 0, 4)])])),
+        "ItemList": GffField(GffType.LIST, GffList([_item("Ring", 0, [_prop(1, 0, 4)], oid=102)])),
     })
     return GffStruct(struct_type=0xFFFFFFFF, fields={
         "FirstName": _loc("Hero"),
@@ -314,3 +316,35 @@ def test_bad_path_and_index_raise(tmp_path):
         editor.set_property_cost((("Equip_ItemList", 9),), 0, cost_value=1)
     with pytest.raises(SaveEditError, match="out of range"):
         editor.set_property_cost((("Equip_ItemList", 0),), 9, cost_value=1)
+
+
+def test_add_item_copy_appends_clone_with_fresh_id(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    bag = next(it for it in editor.player_items() if it.name == "Bag")
+    editor.add_item_copy(bag.path, where="Bag")
+    assert editor.has_edits
+    assert "added a copy" in editor.pending_changes()[0].summary
+
+    new_save = editor.save_as(tmp_path / "out")
+    carried = _ifo_char(new_save.sav_path).fields["ItemList"].value.structs
+    assert len(carried) == 2  # original bag + its clone
+    clone = carried[-1]
+    assert clone.struct_type == 0 and clone.fields["TemplateResRef"].value == "bag"
+    assert clone.fields["ObjectId"].value == 103  # max existing (102) + 1
+    # player.bic mirror also grew
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert len(bic.root.fields["ItemList"].value.structs) == 2
+    # original save untouched
+    assert len(_ifo_char(save.sav_path).fields["ItemList"].value.structs) == 1
+
+
+def test_add_item_copy_is_independent(tmp_path):
+    # editing the clone in the tree must not alter the source item
+    editor = SaveEditor(_make_char_save(tmp_path))
+    bag = next(it for it in editor.player_items() if it.name == "Bag")
+    editor.add_item_copy(bag.path, where="Bag")
+    carried = editor._item_struct(editor._module_tree(), ()).fields  # player struct
+    items = carried["ItemList"].value.structs
+    items[-1].fields["BaseItem"].value = 999  # mutate the clone
+    assert items[0].fields["BaseItem"].value != 999  # source unchanged
