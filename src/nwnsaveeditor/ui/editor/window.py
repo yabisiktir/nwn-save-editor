@@ -155,6 +155,7 @@ class SaveEditorWindow(QMainWindow):
         layout.addWidget(self._open_btn)
 
         self._rule_mode = w.SegmentedControl((("strict", "Strict"), ("free", "Free")))
+        self._rule_mode.changed.connect(lambda _: self._refresh_screens())
         self._rule_mode.setToolTip(
             "Strict blocks values that break the game's rules. Free writes them as "
             "entered — the game may clamp or reject them on load."

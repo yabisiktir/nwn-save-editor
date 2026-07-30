@@ -227,3 +227,52 @@ def _text_of(widget) -> str:
     from PySide6.QtWidgets import QLabel
 
     return "\n".join(label.text() for label in widget.findChildren(QLabel))
+
+
+# -- rule mode -------------------------------------------------------------- #
+def test_strict_mode_caps_the_skill_stepper_at_the_rank_limit(window, screen):
+    from vaultkeeper.game.rules import skill_rank_limit
+
+    window._edit_toggle.setChecked(True)
+    window._rule_mode.set_value("strict")
+    screen.refresh()
+    screen._tabs.set_value("skills")
+
+    info = window.character_info()
+    cap = skill_rank_limit(getattr(info, "level", 0) or 0)
+    steppers = screen._pages.widget(1).findChildren(QSpinBox)
+    assert steppers, "edit mode should give skills steppers"
+    assert all(box.maximum() == cap for box in steppers)
+
+
+def test_free_mode_lifts_the_skill_cap(window, screen):
+    window._edit_toggle.setChecked(True)
+    window._rule_mode.set_value("free")
+    screen.refresh()
+    steppers = screen._pages.widget(1).findChildren(QSpinBox)
+    assert steppers
+    assert all(box.maximum() == 255 for box in steppers)
+
+
+def test_switching_rule_mode_re_renders_the_screens(window, screen):
+    """The mode changes what inputs allow, so the screens have to be rebuilt."""
+    window._edit_toggle.setChecked(True)
+    window._rule_mode.set_value("strict")
+    window._refresh_screens()
+    strict_max = [b.maximum() for b in screen._pages.widget(1).findChildren(QSpinBox)]
+
+    window._rule_mode.set_value("free")
+    window._refresh_screens()
+    free_max = [b.maximum() for b in screen._pages.widget(1).findChildren(QSpinBox)]
+    assert free_max != strict_max
+
+
+def test_neither_mode_lets_an_ability_exceed_what_a_byte_holds(window, screen):
+    """Free mode breaks rules, never the file."""
+    window._edit_toggle.setChecked(True)
+    for mode in ("strict", "free"):
+        window._rule_mode.set_value(mode)
+        screen.refresh()
+        steppers = _ability_steppers(screen)
+        assert steppers
+        assert all(box.maximum() <= 255 for box in steppers), mode

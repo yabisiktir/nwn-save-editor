@@ -34,6 +34,7 @@ from vaultkeeper.game.character import (
     class_name,
     race_name,
 )
+from vaultkeeper.game.rules import limits_for, skill_limits
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 
@@ -309,6 +310,7 @@ class CharacterScreen(QWidget):
             # missing one would look editable and silently do nothing.
             stats.addWidget(_ability_row(
                 field, label, score, was,
+                limits=self._limits(field, info),
                 on_change=(
                     self._set_ability
                     if self._window.editing and field in editable
@@ -320,6 +322,24 @@ class CharacterScreen(QWidget):
         stats.addStretch(1)
         row.addLayout(stats, 1)
         return card
+
+    def _limits(self, field: str, info):
+        """The range this field may take under the current rule mode."""
+        session = self._window._session
+        gff_type = None
+        if session is not None:
+            try:
+                player = session._player_struct(session._module_tree())
+                entry = player.fields.get(field)
+                gff_type = entry.type if entry is not None else None
+            except Exception:
+                gff_type = None
+        return limits_for(
+            field, gff_type,
+            strict=self._window.rule_mode() == "strict",
+            level=getattr(info, "level", 0) or 0,
+            max_hit_points=getattr(info, "hit_points", 0) or 0,
+        )
 
     def _set_ability(self, field: str, score: int) -> None:
         display = next(label for key, label in ABILITIES if key == field)
@@ -414,9 +434,15 @@ class CharacterScreen(QWidget):
         line.addWidget(w.body(skill.name, t.TEXT, 13), 1)
 
         if self._window.editing:
+            info = self._window.character_info()
+            limits = skill_limits(
+                strict=self._window.rule_mode() == "strict",
+                level=getattr(info, "level", 0) or 0,
+            )
             box = QSpinBox()
-            box.setRange(0, 255)
-            box.setValue(skill.rank)
+            box.setRange(limits.minimum, limits.maximum)
+            box.setToolTip(limits.reason)
+            box.setValue(min(skill.rank, limits.maximum))
             box.setFixedWidth(64)
             box.setStyleSheet(_INPUT_QSS)
             box.valueChanged.connect(lambda v, s=skill: self._set_skill(s, v))
@@ -735,7 +761,9 @@ def _sheet_divider() -> QFrame:
     return line
 
 
-def _ability_row(field: str, label: str, score: int, was=None, *, on_change=None) -> QWidget:
+def _ability_row(
+    field: str, label: str, score: int, was=None, *, limits=None, on_change=None
+) -> QWidget:
     """One ability: gold initial chip, name, score, and the derived modifier.
 
     ``was`` is the pre-edit score when this ability has a staged change — the
@@ -772,8 +800,12 @@ def _ability_row(field: str, label: str, score: int, was=None, *, on_change=None
 
     if on_change is not None:
         stepper = QSpinBox()
-        stepper.setRange(1, 100)  # the save-editor's own clamp for an ability score
-        stepper.setValue(score)
+        if limits is not None:
+            stepper.setRange(limits.minimum, limits.maximum)
+            stepper.setToolTip(limits.reason)
+        else:
+            stepper.setRange(1, 255)
+        stepper.setValue(min(score, stepper.maximum()))
         stepper.setFixedWidth(62)
         stepper.setStyleSheet(_INPUT_QSS)
         stepper.valueChanged.connect(lambda v, f=field: on_change(f, v))
