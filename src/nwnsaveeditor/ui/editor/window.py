@@ -251,10 +251,12 @@ class SaveEditorWindow(QMainWindow):
         """Screens that exist. Sections absent from this map render an empty state."""
         from vaultkeeper.ui.save_editor.screens.character import CharacterScreen
         from vaultkeeper.ui.save_editor.screens.inventory import InventoryScreen
+        from vaultkeeper.ui.save_editor.screens.spellbook import SpellbookScreen
 
         return {
             "character": lambda: CharacterScreen(self),
             "inventory": lambda: InventoryScreen(self),
+            "spellbook": lambda: SpellbookScreen(self),
         }
 
     # -- the API screens are built against ------------------------------- #
