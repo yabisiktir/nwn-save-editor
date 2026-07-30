@@ -61,6 +61,8 @@ _KIND_SECTIONS: dict[str, str] = {
     "add-item": "inventory",
     "store": "area",
     "raw": "raw",
+    "variable": "quests",
+    "module-field": "party",
 }
 
 

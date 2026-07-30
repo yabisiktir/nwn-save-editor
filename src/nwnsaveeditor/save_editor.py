@@ -296,6 +296,9 @@ class SaveEditor:
         self._recording = True  # False while replaying, so replay doesn't re-log
         #: original value per raw-edited (target, path).
         self._raw_originals: dict[tuple, object] = {}
+        #: original value per edited module variable index / module setting.
+        self._variable_originals: dict[int, object] = {}
+        self._module_field_originals: dict[str, object] = {}
 
     @property
     def has_edits(self) -> bool:
@@ -432,6 +435,8 @@ class SaveEditor:
         self._feat_originals = None
         self._spell_originals.clear()
         self._raw_originals.clear()
+        self._variable_originals.clear()
+        self._module_field_originals.clear()
 
     # -- store editing ---------------------------------------------------- #
     @_records(lambda area_resref, store_index, **_k: ("store", area_resref, store_index))
@@ -1129,6 +1134,88 @@ class SaveEditor:
                     kind="spell", key=(class_index, list_field, verb, sid),
                     where=ref.spell_name(sid), summary=f"{verb} spell",
                 )
+
+    # -- world state + party ------------------------------------------------ #
+    #: editable module-level settings: GFF field -> (display, min, max).
+    MODULE_FIELDS: dict[str, tuple[str, int, int]] = {
+        "Mod_MaxHenchmen": ("Max henchmen", 0, 20),
+        "Mod_PartyControl": ("Party control", 0, 1),
+        "Mod_XPScale": ("XP scale (%)", 0, 1000),
+    }
+
+    def module_variables(self) -> list:
+        """The module's persistent script variables (its world state)."""
+        from vaultkeeper.game.world_state import read_variables
+
+        return read_variables(self._module_tree())
+
+    @_records(lambda index, *_a, **_k: ("variable", index))
+    def set_variable(self, index: int, value, *, where: str = "") -> None:
+        """Set a module variable's value, keeping its stored type."""
+        from vaultkeeper.game.world_state import EDITABLE_TYPES
+
+        entry_field = self._module_tree().root.fields.get("VarTable")
+        table = entry_field.value if entry_field is not None else None
+        if table is None or index >= len(table.structs):
+            raise SaveEditError("no such module variable")
+        struct = table.structs[index]
+        type_code = int(struct.fields["Type"].value)
+        if type_code not in EDITABLE_TYPES:
+            raise SaveEditError("this variable's type cannot be edited safely")
+
+        entry = struct.fields["Value"]
+        original = self._variable_originals.setdefault(index, entry.value)
+        try:
+            entry.value = type(entry.value)(value)
+        except (TypeError, ValueError) as exc:
+            raise SaveEditError(f"{value!r} does not fit this variable") from exc
+
+        self._char_dirty = True  # the variable lives in module.ifo
+        name = str(struct.fields["Name"].value)
+        key = ("variable", index)
+        if entry.value != original:
+            self._changes[key] = PendingChange(
+                kind="variable", key=index, where=where or name,
+                summary=f"{original}→{entry.value}",
+            )
+        else:
+            self._changes.pop(key, None)
+
+    def module_fields(self) -> list[CharacterField]:
+        """Editable module-level settings present in this save."""
+        root = self._module_tree().root
+        out: list[CharacterField] = []
+        for field, (display, low, high) in self.MODULE_FIELDS.items():
+            entry = root.fields.get(field)
+            if entry is None:
+                continue  # not every module writes every setting
+            out.append(CharacterField(
+                field=field, display=display, kind="int",
+                value=entry.value, minimum=low, maximum=high,
+            ))
+        return out
+
+    @_records(lambda field, *_a, **_k: ("module-field", field))
+    def set_module_field(self, field: str, value: int, *, where: str = "") -> None:
+        """Set a module-level setting (henchmen cap, party control, XP scale)."""
+        if field not in self.MODULE_FIELDS:
+            raise SaveEditError(f"{field} is not an editable module setting")
+        entry = self._module_tree().root.fields.get(field)
+        if entry is None:
+            raise SaveEditError(f"this module has no {field} setting")
+        original = self._module_field_originals.setdefault(field, entry.value)
+        entry.value = type(entry.value)(value)
+        self._char_dirty = True
+
+        key = ("module-field", field)
+        if entry.value != original:
+            self._changes[key] = PendingChange(
+                kind="module-field", key=field,
+                where=where or self.MODULE_FIELDS[field][0],
+                summary=f"{original}→{entry.value}",
+            )
+        else:
+            self._changes.pop(key, None)
 
     # -- raw GFF editing ---------------------------------------------------- #
     #: which trees the Raw Data screen may browse and edit.

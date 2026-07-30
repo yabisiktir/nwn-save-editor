@@ -1,0 +1,194 @@
+"""Module variables, party settings and companion detection."""
+
+from __future__ import annotations
+
+import pytest
+
+from tests.test_save_editor import _make_char_save_with_details
+from vaultkeeper.core.formats.gff import GffField, GffList, GffStruct, GffType
+from vaultkeeper.game.companions import OBJECT_INVALID, _companion
+from vaultkeeper.game.save_editor import SaveEditError, SaveEditor
+from vaultkeeper.game.world_state import (
+    INT,
+    LOCATION,
+    OBJECT,
+    STRING,
+    Variable,
+    matches,
+    read_variables,
+)
+
+
+def _var(name: str, type_code: int, gff_type: GffType, value) -> GffStruct:
+    return GffStruct(struct_type=0, fields={
+        "Name": GffField(GffType.CEXOSTRING, name),
+        "Type": GffField(GffType.DWORD, type_code),
+        "Value": GffField(gff_type, value),
+    })
+
+
+@pytest.fixture
+def editor(tmp_path) -> SaveEditor:
+    """An editor over a save whose module.ifo really holds a VarTable.
+
+    The table has to be written to disk, not just poked into the loaded tree:
+    undo replays the command log from a clean reload, which would discard an
+    in-memory-only injection.
+    """
+    seed = SaveEditor(_make_char_save_with_details(tmp_path))
+    seed._module_tree().root.fields["VarTable"] = GffField(GffType.LIST, GffList([
+        _var("QUEST_STAGE", INT, GffType.INT, 3),
+        _var("PLAYER_TITLE", STRING, GffType.CEXOSTRING, "Hero"),
+        _var("GOLEM_REF", OBJECT, GffType.DWORD, 6915),
+    ]))
+    seed.set_character_field("Gold", 1, where="Gold")  # so save_as has work to do
+    return SaveEditor(seed.save_as(tmp_path / "with-vars"))
+
+
+# -- reading ---------------------------------------------------------------- #
+def test_variables_are_read_with_their_type(editor):
+    variables = editor.module_variables()
+    assert [v.name for v in variables] == ["QUEST_STAGE", "PLAYER_TITLE", "GOLEM_REF"]
+    assert [v.type_name for v in variables] == ["int", "string", "object"]
+
+
+def test_object_and_location_variables_are_not_editable():
+    """They hold runtime handles — editing one points a script at nothing."""
+    assert not Variable(0, "x", OBJECT, 1).editable
+    assert not Variable(0, "x", LOCATION, 1).editable
+    assert Variable(0, "x", INT, 1).editable
+    assert "object ids" in Variable(0, "x", OBJECT, 1).why_locked
+
+
+def test_a_module_with_no_variables_reads_as_empty(tmp_path):
+    editor = SaveEditor(_make_char_save_with_details(tmp_path))
+    editor._module_tree().root.fields.pop("VarTable", None)
+    assert read_variables(editor._module_tree()) == []
+
+
+def test_search_matches_name_or_value():
+    variable = Variable(0, "QUEST_STAGE", INT, 3)
+    assert matches(variable, "")
+    assert matches(variable, "quest")
+    assert matches(variable, "3")
+    assert not matches(variable, "zzz")
+
+
+# -- editing ---------------------------------------------------------------- #
+def test_setting_a_variable_stages_it(editor):
+    editor.set_variable(0, 7, where="QUEST_STAGE")
+    change = editor.pending_changes()[0]
+    assert change.kind == "variable"
+    assert change.summary == "3→7"
+    assert editor.module_variables()[0].value == 7
+
+
+def test_returning_a_variable_to_its_original_clears_the_change(editor):
+    editor.set_variable(0, 7, where="QUEST_STAGE")
+    editor.set_variable(0, 3, where="QUEST_STAGE")
+    assert not editor.has_edits
+
+
+def test_a_variable_keeps_its_stored_type(editor):
+    editor.set_variable(1, 12345, where="PLAYER_TITLE")
+    assert editor.module_variables()[1].value == "12345", "a string stays a string"
+
+
+def test_an_object_variable_refuses_to_be_edited(editor):
+    with pytest.raises(SaveEditError, match="cannot be edited safely"):
+        editor.set_variable(2, 1, where="GOLEM_REF")
+
+
+def test_an_unknown_variable_index_is_rejected(editor):
+    with pytest.raises(SaveEditError, match="no such module variable"):
+        editor.set_variable(99, 1)
+
+
+def test_a_variable_edit_undoes(editor):
+    editor.set_variable(0, 7, where="QUEST_STAGE")
+    editor.undo()
+    assert editor.module_variables()[0].value == 3
+    assert not editor.has_edits
+
+
+def test_a_variable_edit_reaches_the_written_save(editor, tmp_path):
+    from tests.test_save_editor import _ifo_char  # noqa: F401  (import guard)
+
+    editor.set_variable(0, 7, where="QUEST_STAGE")
+    new_save = editor.save_as(tmp_path / "out")
+    written = SaveEditor(new_save).module_variables()
+    assert written[0].value == 7
+
+
+# -- module settings -------------------------------------------------------- #
+def test_module_fields_report_only_what_the_module_has(editor):
+    root = editor._module_tree().root
+    root.fields["Mod_MaxHenchmen"] = GffField(GffType.BYTE, 1)
+    fields = {f.field for f in editor.module_fields()}
+    assert "Mod_MaxHenchmen" in fields
+    assert "Mod_PartyControl" not in fields, "absent settings are not invented"
+
+
+def test_setting_a_module_field_stages_and_undoes(editor):
+    editor._module_tree().root.fields["Mod_MaxHenchmen"] = GffField(GffType.BYTE, 1)
+    editor.set_module_field("Mod_MaxHenchmen", 4, where="Max henchmen")
+    assert editor.pending_changes()[0].summary == "1→4"
+    editor.undo()
+    assert not editor.has_edits
+
+
+def test_an_unknown_module_field_is_rejected(editor):
+    with pytest.raises(SaveEditError, match="not an editable module setting"):
+        editor.set_module_field("Mod_Nonsense", 1)
+
+
+def test_a_module_field_the_save_lacks_is_rejected(editor):
+    editor._module_tree().root.fields.pop("Mod_MaxHenchmen", None)
+    with pytest.raises(SaveEditError, match="has no Mod_MaxHenchmen"):
+        editor.set_module_field("Mod_MaxHenchmen", 4)
+
+
+# -- companion detection ---------------------------------------------------- #
+def _creature(**fields) -> GffStruct:
+    defaults = {
+        "Tag": GffField(GffType.CEXOSTRING, ""),
+        "IsPC": GffField(GffType.BYTE, 0),
+        "MasterID": GffField(GffType.DWORD, OBJECT_INVALID),
+        "CurrentHitPoints": GffField(GffType.SHORT, 10),
+        "MaxHitPoints": GffField(GffType.SHORT, 20),
+    }
+    defaults.update(fields)
+    return GffStruct(struct_type=0, fields=defaults)
+
+
+def test_a_stock_henchman_tag_is_recognised():
+    creature = _creature(Tag=GffField(GffType.CEXOSTRING, "NW_HEN_DAE"))
+    companion = _companion("area1", creature)
+    assert companion is not None
+    assert companion.tag == "NW_HEN_DAE"
+    assert not companion.is_associated
+
+
+def test_a_creature_following_a_master_is_recognised():
+    creature = _creature(MasterID=GffField(GffType.DWORD, 1234))
+    companion = _companion("area1", creature)
+    assert companion is not None and companion.is_associated
+
+
+def test_an_ordinary_creature_is_not_a_companion():
+    assert _companion("area1", _creature(Tag=GffField(GffType.CEXOSTRING, "GUARD"))) is None
+
+
+def test_the_player_is_not_their_own_companion():
+    creature = _creature(
+        Tag=GffField(GffType.CEXOSTRING, "NW_HEN_DAE"),
+        IsPC=GffField(GffType.BYTE, 1),
+    )
+    assert _companion("area1", creature) is None
+
+
+def test_a_nameless_companion_falls_back_to_its_tag():
+    companion = _companion(
+        "area1", _creature(Tag=GffField(GffType.CEXOSTRING, "NW_HEN_LIN"))
+    )
+    assert companion.display_name == "NW_HEN_LIN"

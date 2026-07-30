@@ -1,0 +1,230 @@
+"""The Quests & World State screen.
+
+**Variables** is the real half: a module keeps its persistent script state in
+``module.ifo``'s ``VarTable`` — the flags and counters a campaign uses to remember
+what has happened — and those are listed, searchable and editable here.
+
+**Journal** is not. A quest journal lives in a ``.jrl`` resource, and no save
+examined for this project contains one: a ``.sav`` holds only ``are``/``git``/
+``fac``/``ifo`` plus an embedded SQLite blob. Rather than show an empty tab that
+looks broken, the tab says what is missing and where the journal actually lives.
+"""
+
+from __future__ import annotations
+
+from PySide6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLineEdit,
+    QMessageBox,
+    QScrollArea,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
+from vaultkeeper.game.world_state import matches
+from vaultkeeper.ui.save_editor import tokens as t
+from vaultkeeper.ui.save_editor import widgets as w
+
+#: How many variable rows to build at once. A module can hold hundreds.
+PAGE = 150
+
+
+class QuestsScreen(QWidget):
+    """The Quests & World State section."""
+
+    def __init__(self, window, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._window = window
+        self._filter = ""
+        self._shown = PAGE
+        self.setStyleSheet(f"background:{t.APP_BG};")
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(26, 22, 26, 22)
+        outer.setSpacing(14)
+        outer.addWidget(w.heading("Quests & World State"))
+
+        self._tabs = w.TabStrip((("variables", "Variables"), ("journal", "Journal")))
+        self._tabs.changed.connect(lambda _: self._show_tab())
+        outer.addWidget(self._tabs)
+
+        self._pages = QStackedWidget()
+        self._pages.setStyleSheet("background:transparent;")
+        self._variables_page = QWidget()
+        self._variables_page.setStyleSheet("background:transparent;")
+        self._variables_layout = QVBoxLayout(self._variables_page)
+        self._variables_layout.setContentsMargins(0, 0, 0, 0)
+        self._variables_layout.setSpacing(10)
+        self._pages.addWidget(self._variables_page)
+        self._pages.addWidget(self._journal_page())
+        outer.addWidget(self._pages, 1)
+
+        self.refresh()
+
+    # -- data --------------------------------------------------------------- #
+    def _variables(self) -> list:
+        try:
+            return self._window.session().module_variables()
+        except Exception:
+            return []
+
+    def _pending_keys(self) -> set:
+        session = self._window._session
+        changes = session.pending_changes() if session is not None else []
+        return {c.key for c in changes if c.kind == "variable"}
+
+    # -- rebuilding --------------------------------------------------------- #
+    def refresh(self) -> None:
+        _clear(self._variables_layout)
+        variables = self._variables()
+        if not variables:
+            self._variables_layout.addWidget(w.body(
+                "This module keeps no persistent variables.", t.TEXT_2, 13
+            ))
+            self._variables_layout.addStretch(1)
+            self._show_tab()
+            return
+
+        visible = [v for v in variables if matches(v, self._filter)]
+        header = QHBoxLayout()
+        header.addWidget(w.cap_label(
+            f"Module variables — {len(visible)} of {len(variables)}"
+        ))
+        header.addStretch(1)
+        self._variables_layout.addLayout(header)
+
+        search = QLineEdit()
+        search.setPlaceholderText("Search by name or value…")
+        search.setText(self._filter)
+        search.setStyleSheet(
+            f"QLineEdit{{background:#1e1713;border:1px solid {t.hairline(0.18)};"
+            f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};"
+            f"font-size:12px;padding:6px 9px;}}"
+        )
+        search.textChanged.connect(self._set_filter)
+        self._variables_layout.addWidget(search)
+
+        pending = self._pending_keys()
+        body = QWidget()
+        body.setStyleSheet("background:transparent;")
+        column = QVBoxLayout(body)
+        column.setContentsMargins(0, 0, 6, 0)
+        column.setSpacing(0)
+        for variable in visible[: self._shown]:
+            column.addWidget(self._row(variable, variable.index in pending))
+        if len(visible) > self._shown:
+            more = w.ghost_button(f"Show {min(PAGE, len(visible) - self._shown)} more")
+            more.clicked.connect(self._show_more)
+            column.addWidget(more)
+        column.addStretch(1)
+        self._variables_layout.addWidget(_scroll(body), 1)
+        self._show_tab()
+
+    def _row(self, variable, dirty: bool) -> QWidget:
+        row = QWidget()
+        row.setStyleSheet(
+            f"background:{t.gold_tint(0.12) if dirty else 'transparent'};"
+            f"border-bottom:1px solid {t.hairline(0.06)};"
+        )
+        line = QHBoxLayout(row)
+        line.setContentsMargins(10, 6, 10, 6)
+        line.setSpacing(10)
+        if dirty:
+            line.addWidget(w.status_dot())
+        line.addWidget(w.mono(variable.name, t.GOLD if dirty else t.TEXT, 11.5), 1)
+        line.addWidget(w.body(variable.type_name, t.TEXT_3, 11))
+        line.addWidget(w.mono(str(variable.value)[:48], t.TEXT_2, 11.5))
+        if not variable.editable:
+            locked = w.body("read-only", t.TEXT_3, 10.5)
+            locked.setToolTip(variable.why_locked)
+            line.addWidget(locked)
+        elif self._window.editing:
+            edit = w.small_ghost("Edit…")
+            edit.clicked.connect(lambda _=False, v=variable: self._edit(v))
+            line.addWidget(edit)
+        return row
+
+    def _journal_page(self) -> QWidget:
+        page = QWidget()
+        page.setStyleSheet("background:transparent;")
+        column = QVBoxLayout(page)
+        column.setContentsMargins(0, 10, 0, 0)
+        column.setSpacing(10)
+        column.addWidget(w.body(
+            "A save game does not carry the quest journal.", t.TEXT, 13
+        ))
+        column.addWidget(w.body(
+            "A .sav holds the areas (are/git), the faction table, module.ifo and an "
+            "embedded database — there is no .jrl resource in any save examined for "
+            "this project, so there are no journal entries here to show or edit. "
+            "Quest progress that a module tracks itself appears under Variables; "
+            "the journal text lives in the module or campaign, not in the save.",
+            t.TEXT_2, 12.5,
+        ))
+        column.addStretch(1)
+        return page
+
+    # -- actions ------------------------------------------------------------ #
+    def _show_tab(self) -> None:
+        self._pages.setCurrentIndex(0 if self._tabs.value() == "variables" else 1)
+
+    def _set_filter(self, text: str) -> None:
+        self._filter = text
+        self._shown = PAGE
+        self.refresh()
+
+    def _show_more(self) -> None:
+        self._shown += PAGE
+        self.refresh()
+
+    def _edit(self, variable) -> None:
+        from vaultkeeper.ui.dialogs.property_edit_dialog import PropertyEditDialog
+
+        if isinstance(variable.value, str):
+            from PySide6.QtWidgets import QInputDialog
+
+            text, ok = QInputDialog.getText(
+                self, "Edit variable", variable.name, text=str(variable.value)
+            )
+            if not ok:
+                return
+            new_value = text
+        else:
+            dialog = PropertyEditDialog(
+                variable.name, f"{variable.type_name}:", int(variable.value),
+                minimum=-2_147_483_648, maximum=2_147_483_647, parent=self,
+            )
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            new_value = dialog.value()
+
+        try:
+            self._window.session().set_variable(
+                variable.index, new_value, where=variable.name
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Edit failed", str(exc))
+            return
+        self._window.notify_changed()
+
+
+def _scroll(body: QWidget) -> QScrollArea:
+    area = QScrollArea()
+    area.setWidgetResizable(True)
+    area.setFrameShape(QScrollArea.Shape.NoFrame)
+    area.setStyleSheet("QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS)
+    area.setWidget(body)
+    return area
+
+
+def _clear(layout) -> None:
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        if widget is not None:
+            widget.setParent(None)
+            widget.deleteLater()
+        elif item.layout() is not None:
+            _clear(item.layout())
