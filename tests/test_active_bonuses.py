@@ -167,8 +167,8 @@ def test_only_the_class_numbers_the_record_stores_are_quoted():
     result = ab.compute([], [], info)
     assert len(result.classes) == 2
     assert dict(result.class_facts) == {
-        "Base attack bonus": "+27", "Base Fortitude": "+73",
-        "Base Reflex": "+67", "Base Will": "+57",
+        "Base attack bonus": "+27", "Base Fortitude save": "+73",
+        "Base Reflex save": "+67", "Base Will save": "+57",
     }
 
 

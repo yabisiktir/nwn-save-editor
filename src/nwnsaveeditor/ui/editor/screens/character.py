@@ -854,9 +854,10 @@ class CharacterScreen(QWidget):
         facts.addStretch(1)
         panel.body_layout().addLayout(facts)
         panel.body_layout().addWidget(w.body(
-            "Only these four class-derived numbers are stored; everything else a "
-            "class grants — bonus attacks, sneak dice, aura effects — the engine "
-            "recomputes, and the save never writes down.",
+            "These four are the numbers the record stores, quoted as-is — what the "
+            "engine folded into them before writing is not recorded. Everything "
+            "else a class grants — bonus attacks, sneak dice, aura effects — it "
+            "recomputes on load and never writes down at all.",
             t.TEXT_3, 11.5,
         ))
         column.addWidget(panel)

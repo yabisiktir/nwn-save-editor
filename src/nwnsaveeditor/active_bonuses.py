@@ -342,11 +342,13 @@ def compute(items, feats, info, effects=(), name_of=None) -> ActiveBonuses:
         ]
         # These four the record stores outright — they are the only class-derived
         # numbers that can be quoted without running the rules.
+        # Labelled the way the Details tab labels the same fields, so the two
+        # screens can't be read as quoting two different numbers.
         result.class_facts = [
             ("Base attack bonus", _signed(getattr(info, "base_attack_bonus", 0))),
-            ("Base Fortitude", _signed(getattr(info, "save_fortitude", 0))),
-            ("Base Reflex", _signed(getattr(info, "save_reflex", 0))),
-            ("Base Will", _signed(getattr(info, "save_will", 0))),
+            ("Base Fortitude save", _signed(getattr(info, "save_fortitude", 0))),
+            ("Base Reflex save", _signed(getattr(info, "save_reflex", 0))),
+            ("Base Will save", _signed(getattr(info, "save_will", 0))),
         ]
     return result
 
