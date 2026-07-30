@@ -54,8 +54,26 @@ ABILITIES: tuple[tuple[str, str], ...] = (
     ("Int", "Intelligence"), ("Wis", "Wisdom"), ("Cha", "Charisma"),
 )
 
+#: The Effects tab's two views: what the save stores, and what it adds up to.
+EFFECT_VIEWS: tuple[tuple[str, str], ...] = (
+    ("active", "Active effects"),
+    ("bonuses", "Active bonuses"),
+)
+
 #: A sentinel ``SpellId``/``CreatorId``: the field is a DWORD, so "none" is all-ones.
 _NO_ID = 0xFFFFFFFF
+
+#: Printed under the computed view. It is the point of the view, not a footnote:
+#: a number whose scope is unstated is worse than no number at all.
+_SCOPE_NOTE = (
+    "Scope: these are the bonuses your equipped gear grants, read straight off the "
+    "items. NWN does not stack two item bonuses of the same kind — it applies the "
+    "largest and drops the rest — and the save does not record which one it picked, "
+    "so a group with more than one source shows both the largest and the sum rather "
+    "than picking for you. Feats, class abilities and untagged spell effects are "
+    "listed but carry no number: working out what they contribute means running the "
+    "game's rules, which this editor does not do."
+)
 
 
 def ability_modifier(score: int) -> int:
@@ -74,6 +92,7 @@ class CharacterScreen(QWidget):
         super().__init__(parent)
         self._window = window
         self._skin = "leather"
+        self._effects_view = "active"
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
@@ -734,7 +753,32 @@ class CharacterScreen(QWidget):
 
     # -- Effects ------------------------------------------------------------ #
     def _build_effects(self, layout: QVBoxLayout, info) -> None:
-        layout.setSpacing(10)
+        """Two answers to two different questions, behind one switch.
+
+        ``Active effects`` is what the save literally stores; ``Active bonuses``
+        is the computed "where do my numbers come from" view. The raw list alone
+        does not answer the second question, and the computed one cannot replace
+        the first, so neither is allowed to hide the other.
+        """
+        layout.setSpacing(12)
+        switch = w.SegmentedControl(EFFECT_VIEWS)
+        switch.set_value(self._effects_view)
+        switch.changed.connect(lambda _: self._set_effects_view(switch.value()))
+        row = QHBoxLayout()
+        row.addWidget(switch)
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        if self._effects_view == "bonuses":
+            self._build_bonuses(layout, info)
+        else:
+            self._build_active_effects(layout)
+
+    def _set_effects_view(self, key: str) -> None:
+        self._effects_view = key
+        self.refresh()
+
+    def _build_active_effects(self, layout: QVBoxLayout) -> None:
         effects = self._read_effects()
         if not effects:
             layout.addWidget(w.body("No active effects on this character.", t.TEXT_2))
@@ -742,8 +786,12 @@ class CharacterScreen(QWidget):
             return
         panel = w.Panel(padding=0)
         panel.body_layout().setSpacing(0)
-        for effect in effects:
-            panel.body_layout().addWidget(_effect_row(effect))
+        # An effect can be stamped on a character many times over — the owner's
+        # save carries three identical EffectHolyTouch entries. Collapsing them
+        # the way the item panel collapses repeated properties keeps the list
+        # about what is running rather than about how often it was applied.
+        for effect, repeats in _collapse_effects(effects):
+            panel.body_layout().addWidget(_effect_row(effect, repeats))
         layout.addWidget(panel)
         layout.addWidget(w.body(
             "Read-only — the engine derives these from equipped items, active feats "
@@ -755,6 +803,106 @@ class CharacterScreen(QWidget):
             t.TEXT_3, 12,
         ))
         layout.addStretch(1)
+
+    # -- Effects → Active bonuses ------------------------------------------- #
+    def _build_bonuses(self, layout: QVBoxLayout, info) -> None:
+        """The computed view: every bonus this save can actually attribute."""
+        bonuses = self._active_bonuses(info)
+        layout.addWidget(w.body(
+            "Where your numbers come from, as far as the save says. Each line names "
+            "the item that grants it.",
+            t.TEXT_2, 12.5,
+        ))
+        for category, groups in bonuses.by_category():
+            layout.addWidget(w.cap_label(category))
+            panel = w.Panel(padding=0)
+            panel.body_layout().setSpacing(0)
+            for group in groups:
+                panel.body_layout().addWidget(_bonus_group_row(group))
+            layout.addWidget(panel)
+
+        if not bonuses.groups:
+            layout.addWidget(w.body(
+                "Nothing equipped on this character grants a magical property.",
+                t.TEXT_2, 12.5,
+            ))
+        layout.addWidget(self._bonus_sources_panel(bonuses))
+        layout.addWidget(w.body(_SCOPE_NOTE, t.TEXT_3, 11.5))
+        layout.addStretch(1)
+
+    def _bonus_sources_panel(self, bonuses) -> QWidget:
+        """Classes, feats and ongoing effects — the sources that can't be summed."""
+        holder = QWidget()
+        holder.setStyleSheet("background:transparent;")
+        column = QVBoxLayout(holder)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(10)
+
+        column.addWidget(w.cap_label("Classes"))
+        panel = w.Panel(padding=14)
+        panel.body_layout().setSpacing(6)
+        panel.body_layout().addWidget(w.body(
+            " · ".join(bonuses.classes) or "—", t.TEXT, 13
+        ))
+        facts = QHBoxLayout()
+        facts.setSpacing(20)
+        for label, value in bonuses.class_facts:
+            facts.addWidget(_combat_stat(label, value, "stored on the record"))
+        facts.addStretch(1)
+        panel.body_layout().addLayout(facts)
+        panel.body_layout().addWidget(w.body(
+            "Only these four class-derived numbers are stored; everything else a "
+            "class grants — bonus attacks, sneak dice, aura effects — the engine "
+            "recomputes, and the save never writes down.",
+            t.TEXT_3, 11.5,
+        ))
+        column.addWidget(panel)
+
+        column.addWidget(w.cap_label("Feats"))
+        feats = w.Panel(padding=14)
+        feats.body_layout().addWidget(w.body(
+            f"{bonuses.feat_count} feats on this character. The save records which "
+            "feats you have, never what each one contributes — that is the rules "
+            "engine's arithmetic, so no feat is credited with a number here. Feats "
+            "handed out by your gear are listed above under "
+            "\"Feats granted by gear\".",
+            t.TEXT_2, 12.5,
+        ))
+        column.addWidget(feats)
+
+        column.addWidget(w.cap_label("Ongoing effects"))
+        effects = w.Panel(padding=14)
+        effects.body_layout().setSpacing(6)
+        named = [e for e in bonuses.spell_effects if e.attributed]
+        unnamed = [e for e in bonuses.spell_effects if not e.attributed]
+        for effect in named:
+            effects.body_layout().addWidget(w.body(
+                f"{effect.name} — caster level {effect.caster_level}", t.TEXT, 12.5
+            ))
+        if not bonuses.spell_effects:
+            effects.body_layout().addWidget(w.body("None running.", t.TEXT_2, 12.5))
+        elif unnamed:
+            effects.body_layout().addWidget(w.body(
+                f"{len(unnamed)} of the {len(bonuses.spell_effects)} effects on this "
+                "character name no spell. What each one changes is stored against the "
+                "engine's internal effect enum, which this editor deliberately does "
+                "not guess at — see the Active effects view for the raw entries.",
+                t.TEXT_2, 12.5,
+            ))
+        column.addWidget(effects)
+        return holder
+
+    def _active_bonuses(self, info):
+        from vaultkeeper.game import active_bonuses
+
+        try:
+            session = self._window.session()
+            items, feats = session.player_items(), session.player_feats()
+        except Exception:
+            items, feats = [], []
+        return active_bonuses.compute(
+            items, feats, info, self._read_effects(), name_of=self._window.item_name,
+        )
 
     def _read_effects(self) -> list[dict]:
         """The player's ``EffectList``, as far as it can be read without guessing.
@@ -783,6 +931,10 @@ class CharacterScreen(QWidget):
         for struct in effect_list.structs:
             spell_id = struct.get("SpellId")
             duration = struct.get("Duration") or 0.0
+            # CasterLevel is a DWORD, so "unset" arrives as all-ones rather than 0 —
+            # on the owner's save several effects carry 4294967295. Printing that as
+            # a caster level would be nonsense, so it reads as "no caster level".
+            caster = struct.get("CasterLevel") or 0
             effects.append({
                 "tag": struct.get("CustomTag") or "",
                 "type": struct.get("Type"),
@@ -792,7 +944,7 @@ class CharacterScreen(QWidget):
                     if spell_id is not None and spell_id != _NO_ID
                     else ""
                 ),
-                "caster_level": struct.get("CasterLevel") or 0,
+                "caster_level": 0 if caster == _NO_ID else caster,
                 "duration": duration,
             })
         return effects
@@ -1040,24 +1192,95 @@ def _combat_stat(label: str, value: str, source: str) -> QWidget:
     return holder
 
 
-def _effect_row(effect: dict) -> QWidget:
+def _collapse_effects(effects: list[dict]) -> list[tuple[dict, int]]:
+    """Fold effects that are identical in every field the row shows into ``N×``."""
+    order: list[tuple] = []
+    seen: dict[tuple, list] = {}
+    for effect in effects:
+        key = tuple(sorted(effect.items(), key=lambda kv: kv[0]))
+        if key in seen:
+            seen[key][1] += 1
+        else:
+            seen[key] = [effect, 1]
+            order.append(key)
+    return [(seen[key][0], seen[key][1]) for key in order]
+
+
+def _effect_row(effect: dict, repeats: int = 1) -> QWidget:
+    """One effect, meaningful parts first and the raw ids kept deliberately small.
+
+    The spell that cast it, how long it has left and at what caster level are what
+    a player can act on; ``Type``/``SubType`` are engine internals that must stay
+    visible (they are all the save says about the untagged ones) without leading.
+    """
     row = QWidget()
     row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
     line = QHBoxLayout(row)
     line.setContentsMargins(14, 9, 14, 9)
     line.setSpacing(12)
 
-    name = effect["tag"] or effect["spell"] or f"Effect type {effect['type']}"
-    line.addWidget(w.body(name, t.TEXT, 13), 1)
-    if effect["spell"]:
-        line.addWidget(w.body(
-            f"{effect['spell']} (caster level {effect['caster_level']})", t.TEXT_2, 12.5
-        ))
+    name = effect["spell"] or effect["tag"] or "Unnamed effect"
+    if repeats > 1:
+        name = f"{repeats}×  {name}"
+    title = w.body(name, t.TEXT, 13)
+    if repeats > 1:
+        title.setToolTip(f"The save carries {repeats} identical copies of this effect.")
+    line.addWidget(title, 1)
+
+    # The tag only earns its own column when it is not already the row's name.
+    if effect["spell"] and effect["tag"]:
+        line.addWidget(w.body(effect["tag"], t.TEXT_2, 12))
+    caster = effect.get("caster_level")
+    if caster:
+        line.addWidget(w.body(f"caster level {caster}", t.TEXT_2, 12.5))
     duration = effect["duration"]
     line.addWidget(w.body(
         "permanent" if not duration else f"{duration:.0f}s left", t.TEXT_2, 12.5
     ))
-    line.addWidget(w.mono(f"type {effect['type']}/{effect['subtype']}", t.TEXT_3, 11))
+
+    raw = w.mono(f"type {effect['type']}/{effect['subtype']}", t.TEXT_3, 10.5)
+    raw.setToolTip(
+        "The engine's internal effect type and subtype, exactly as the save stores "
+        "them. They are not the EFFECT_TYPE_* constants scripts use — that is a "
+        "different enum — so this editor shows the numbers rather than a wrong name."
+    )
+    line.addWidget(raw)
+    return row
+
+
+def _bonus_group_row(group) -> QWidget:
+    """One thing a number feeds into, with every source that feeds it."""
+    row = QWidget()
+    row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
+    column = QVBoxLayout(row)
+    column.setContentsMargins(14, 9, 14, 9)
+    column.setSpacing(5)
+
+    head = QHBoxLayout()
+    head.setSpacing(10)
+    subject = w.body(group.subject, t.TEXT, 13)
+    subject.setStyleSheet(subject.styleSheet() + "font-weight:600;")
+    head.addWidget(subject, 1)
+    summary = w.body(group.summary, t.GOLD, 12.5)
+    summary.setStyleSheet(summary.styleSheet() + "font-weight:700;")
+    if group.largest is not None and group.total != group.largest:
+        summary.setToolTip(
+            "NWN applies only the largest item bonus of a given kind, so the sum is "
+            "shown beside it rather than instead of it — the save does not record "
+            "which the engine used."
+        )
+    head.addWidget(summary)
+    column.addLayout(head)
+
+    for contribution in group.contributions:
+        line = QHBoxLayout()
+        line.setContentsMargins(10, 0, 0, 0)
+        line.setSpacing(8)
+        line.addWidget(w.body(contribution.source, t.TEXT_3, 11.5))
+        line.addWidget(w.body(contribution.label, t.TEXT_2, 12), 1)
+        if contribution.amount is not None:
+            line.addWidget(w.mono(_signed(contribution.amount), t.TEXT_2, 11.5))
+        column.addLayout(line)
     return row
 
 
