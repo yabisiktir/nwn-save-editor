@@ -6,7 +6,6 @@ import pytest
 
 from tests.test_save_editor import _make_char_save_with_details
 from vaultkeeper.core.formats.gff import GffField, GffList, GffStruct, GffType
-from vaultkeeper.game.companions import OBJECT_INVALID, _companion
 from vaultkeeper.game.save_editor import SaveEditError, SaveEditor
 from vaultkeeper.game.world_state import (
     INT,
@@ -146,49 +145,3 @@ def test_a_module_field_the_save_lacks_is_rejected(editor):
     editor._module_tree().root.fields.pop("Mod_MaxHenchmen", None)
     with pytest.raises(SaveEditError, match="has no Mod_MaxHenchmen"):
         editor.set_module_field("Mod_MaxHenchmen", 4)
-
-
-# -- companion detection ---------------------------------------------------- #
-def _creature(**fields) -> GffStruct:
-    defaults = {
-        "Tag": GffField(GffType.CEXOSTRING, ""),
-        "IsPC": GffField(GffType.BYTE, 0),
-        "MasterID": GffField(GffType.DWORD, OBJECT_INVALID),
-        "CurrentHitPoints": GffField(GffType.SHORT, 10),
-        "MaxHitPoints": GffField(GffType.SHORT, 20),
-    }
-    defaults.update(fields)
-    return GffStruct(struct_type=0, fields=defaults)
-
-
-def test_a_stock_henchman_tag_is_recognised():
-    creature = _creature(Tag=GffField(GffType.CEXOSTRING, "NW_HEN_DAE"))
-    companion = _companion("area1", creature)
-    assert companion is not None
-    assert companion.tag == "NW_HEN_DAE"
-    assert not companion.is_associated
-
-
-def test_a_creature_following_a_master_is_recognised():
-    creature = _creature(MasterID=GffField(GffType.DWORD, 1234))
-    companion = _companion("area1", creature)
-    assert companion is not None and companion.is_associated
-
-
-def test_an_ordinary_creature_is_not_a_companion():
-    assert _companion("area1", _creature(Tag=GffField(GffType.CEXOSTRING, "GUARD"))) is None
-
-
-def test_the_player_is_not_their_own_companion():
-    creature = _creature(
-        Tag=GffField(GffType.CEXOSTRING, "NW_HEN_DAE"),
-        IsPC=GffField(GffType.BYTE, 1),
-    )
-    assert _companion("area1", creature) is None
-
-
-def test_a_nameless_companion_falls_back_to_its_tag():
-    companion = _companion(
-        "area1", _creature(Tag=GffField(GffType.CEXOSTRING, "NW_HEN_LIN"))
-    )
-    assert companion.display_name == "NW_HEN_LIN"

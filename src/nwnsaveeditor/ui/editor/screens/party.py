@@ -73,6 +73,9 @@ class PartyScreen(QWidget):
         _clear(self._outer)
         self._outer.addWidget(w.heading("Party & Campaign"))
 
+        self._outer.addWidget(w.cap_label("This save"))
+        self._outer.addWidget(self._summary())
+
         fields = self._fields()
         self._outer.addWidget(w.cap_label("Module settings"))
         if not fields:
@@ -112,6 +115,47 @@ class PartyScreen(QWidget):
                 "This save carries no campaign database.", t.TEXT_3, 12.5
             ))
         self._outer.addStretch(1)
+
+    def _summary(self) -> QWidget:
+        """The module state the read-only viewer showed beside the screenshot."""
+        save = self._window.save
+        info = save.module_info() if save is not None else None
+        panel = w.Panel(padding=0)
+        body = panel.body_layout()
+        body.setSpacing(0)
+        if info is None:
+            body.addWidget(w.body("This save's module state could not be read.",
+                                  t.TEXT_3, 12.5))
+            return panel
+        rows = [
+            ("Module", info.name + (f"  [{info.tag}]" if info.tag else "")),
+            ("Saved", f"{save.saved:%d %b %Y %H:%M}" if save.saved else "—"),
+            ("Location", save.location or "—"),
+        ]
+        if info.game_time:
+            rows.append(("In-game date", info.game_time))
+        rows += [
+            ("Day length", f"{info.minutes_per_hour} min/hour, "
+                           f"dawn {info.dawn_hour}, dusk {info.dusk_hour}"),
+            ("Entry area", info.entry_area or "—"),
+            ("Min game version", info.min_game_version or "—"),
+            ("Players / areas", f"{info.player_count} / {len(info.areas)}"),
+        ]
+        for label, value in rows:
+            body.addWidget(self._kv(label, str(value)))
+        return panel
+
+    @staticmethod
+    def _kv(label: str, value: str) -> QWidget:
+        row = QWidget()
+        row.setStyleSheet(
+            f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};"
+        )
+        line = QHBoxLayout(row)
+        line.setContentsMargins(14, 8, 14, 8)
+        line.addWidget(w.body(label, t.TEXT_2, 12.5), 1)
+        line.addWidget(w.mono(value, t.TEXT, 11.5))
+        return row
 
     def _row(self, field, dirty: bool) -> QWidget:
         row = QWidget()

@@ -57,7 +57,8 @@ class _PanelBase(QWidget):
         outer.addWidget(area)
 
     def _add_identity(self, item) -> None:
-        name = w.body(item.name or "(unnamed item)", t.TEXT, 14)
+        resolved = self._display_name(item)
+        name = w.body(resolved or "(unnamed item)", t.TEXT, 14)
         name.setStyleSheet(name.styleSheet() + "font-weight:600;")
         self._body.addWidget(name)
         kind = base_item_type(item.base_item)
@@ -65,6 +66,13 @@ class _PanelBase(QWidget):
         if getattr(item, "resref", ""):
             self._body.addWidget(w.mono(item.resref, t.TEXT_3, 11))
         self._body.addWidget(w.hline())
+
+    def _display_name(self, item) -> str:
+        """The item's name with its strref resolved, if the screen can do that."""
+        window = getattr(getattr(self, "_screen", None), "_window", None)
+        if window is not None and hasattr(window, "item_name"):
+            return window.item_name(item)
+        return getattr(item, "name", "") or ""
 
     def _empty(self, message: str) -> None:
         self._body.addWidget(w.body(message, t.TEXT_3, 12.5))

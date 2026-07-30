@@ -153,6 +153,10 @@ class SaveEditorWindow(QMainWindow):
         self._open_btn = w.ghost_button("Open Save…")
         self._open_btn.clicked.connect(self._choose_save)
         layout.addWidget(self._open_btn)
+        guide = w.ghost_button("Guide…")
+        guide.setToolTip("How the save editor works")
+        guide.clicked.connect(self._show_guide)
+        layout.addWidget(guide)
 
         self._rule_mode = w.SegmentedControl((("strict", "Strict"), ("free", "Free")))
         self._rule_mode.changed.connect(lambda _: self._refresh_screens())
@@ -259,7 +263,6 @@ class SaveEditorWindow(QMainWindow):
         from vaultkeeper.ui.save_editor.screens.area import AreaScreen
         from vaultkeeper.ui.save_editor.screens.backups import BackupsScreen
         from vaultkeeper.ui.save_editor.screens.character import CharacterScreen
-        from vaultkeeper.ui.save_editor.screens.companions import CompanionsScreen
         from vaultkeeper.ui.save_editor.screens.inventory import InventoryScreen
         from vaultkeeper.ui.save_editor.screens.party import PartyScreen
         from vaultkeeper.ui.save_editor.screens.quests import QuestsScreen
@@ -270,7 +273,6 @@ class SaveEditorWindow(QMainWindow):
             "character": lambda: CharacterScreen(self),
             "inventory": lambda: InventoryScreen(self),
             "spellbook": lambda: SpellbookScreen(self),
-            "companions": lambda: CompanionsScreen(self),
             "quests": lambda: QuestsScreen(self),
             "party": lambda: PartyScreen(self),
             "area": lambda: AreaScreen(self),
@@ -323,6 +325,20 @@ class SaveEditorWindow(QMainWindow):
         from vaultkeeper.game.item_names import resolver_for
 
         return resolver_for(self._game_root())
+
+    def item_name(self, item) -> str:
+        """An item's display name, with its strref resolved through dialog.tlk.
+
+        Many items store only a strref; without this they show as
+        "(unnamed: <resref>)", which is what the read-only viewer resolved.
+        """
+        name = getattr(item, "name", "") or ""
+        strref = getattr(item, "name_strref", -1)
+        if strref is not None and strref >= 0:
+            resolved = self._resolver().name_for(strref)
+            if resolved:
+                return resolved
+        return name
 
     def _game_root(self):
         return getattr(getattr(self._controller, "ctx", None), "game_root", None)
@@ -463,6 +479,11 @@ class SaveEditorWindow(QMainWindow):
     def _redo(self) -> None:
         if self._session is not None and self._session.redo():
             self.notify_changed()
+
+    def _show_guide(self) -> None:
+        from vaultkeeper.ui.dialogs.save_editor_help import SaveEditorHelpDialog
+
+        SaveEditorHelpDialog(self).exec()
 
     def _toggle_ledger(self) -> None:
         self._ledger.toggle()

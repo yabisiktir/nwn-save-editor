@@ -26,7 +26,6 @@ SECTIONS: tuple[Section, ...] = (
     Section("character", "Character", "CH"),
     Section("inventory", "Inventory & Equipment", "IN"),
     Section("spellbook", "Spellbook", "SP"),
-    Section("companions", "Companions", "CO"),
     Section("quests", "Quests & World State", "QW"),
     Section("party", "Party & Campaign", "PC"),
     Section("area", "Area Contents", "AR"),
@@ -41,7 +40,6 @@ SECTION_BLURBS: dict[str, str] = {
     "inventory": "Equipped slots, the carried bag, and each item's magical properties.",
     "spellbook": "Known & memorized spells per caster class and level, with PRC "
                  "prestige spellbooks flagged.",
-    "companions": "Edit henchmen and summon/familiar state alongside the player character.",
     "quests": "Journal entries and per-module local/global boolean, number and string variables.",
     "party": "Party-wide gold/XP and campaign-persistent global variables.",
     "area": "Browse an area's stores, creatures and containers — and edit store pricing.",

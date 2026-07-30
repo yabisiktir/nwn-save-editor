@@ -167,8 +167,33 @@ class InventoryScreen(QWidget):
         if any(bit in equipped for bit in CREATURE_SLOTS):
             column.addWidget(self._build_creature_slots(equipped))
 
-        column.addWidget(w.heading(f"Carried ({len(carried)})"))
-        column.addWidget(self._build_bag(carried))
+        # Split the bag by container. Two thirds of a real character's items live
+        # inside bags, and a single flat grid gives no clue which item is in what.
+        loose = [i for i in carried if len(i.path) == 1]
+        inside: dict[tuple, list] = {}
+        for item in carried:
+            if len(item.path) > 1:
+                inside.setdefault(tuple(item.path[:-1]), []).append(item)
+
+        column.addWidget(w.heading(f"Carried ({len(loose)})"))
+        column.addWidget(self._build_bag(self._sorted(loose)))
+        # A character can carry several identically-named bags, so number the
+        # repeats — "Inside Bag of Holding" seven times tells you nothing.
+        seen: dict[str, int] = {}
+        for parent_path, contents in sorted(
+            inside.items(), key=lambda kv: self._name(by_path.get(kv[0])).lower()
+        ):
+            container = by_path.get(parent_path)
+            label = self._name(container) or "container"
+            seen[label] = seen.get(label, 0) + 1
+            total = sum(
+                1 for path in inside
+                if (self._name(by_path.get(path)) or "container") == label
+            )
+            if total > 1:
+                label = f"{label} #{seen[label]}"
+            column.addWidget(w.cap_label(f"Inside {label} ({len(contents)})"))
+            column.addWidget(self._build_bag(self._sorted(contents)))
         column.addStretch(1)
         self._scroll.setWidget(content)  # takes ownership; the old widget is dropped
         self._show_detail(by_path.get(self._selected))
@@ -210,10 +235,11 @@ class InventoryScreen(QWidget):
         slot_name = EQUIP_SLOT_NAMES.get(bit, f"Slot {bit}")
         if item is None:
             return item_cell(slot_name, filled=False, selected=False, tooltip=slot_name)
+        name = self._name(item)
         cell = item_cell(
-            _code(item.name), filled=True,
+            _code(name), filled=True,
             selected=tuple(item.path) == self._selected,
-            tooltip=f"{item.name}\n{slot_name}",
+            tooltip=f"{name}\n{slot_name}",
             icon=self._icon(item),
         )
         cell.mousePressEvent = lambda _e, p=tuple(item.path): self._select(p)
@@ -235,15 +261,23 @@ class InventoryScreen(QWidget):
             grid.addWidget(w.body("Nothing carried.", t.TEXT_3, 12), 0, 0)
             return holder
         for index, item in enumerate(carried):
+            name = self._name(item)
             cell = item_cell(
-                _code(item.name), filled=True,
+                _code(name), filled=True,
                 selected=tuple(item.path) == self._selected,
-                tooltip=item.name, icon=self._icon(item),
+                tooltip=name, icon=self._icon(item),
             )
             cell.mousePressEvent = lambda _e, p=tuple(item.path): self._select(p)
             grid.addWidget(cell, index // columns, index % columns)
         grid.setColumnStretch(columns, 1)
         return holder
+
+    def _name(self, item) -> str:
+        return self._window.item_name(item) if item is not None else ""
+
+    def _sorted(self, items: list) -> list:
+        """Items in a stable, readable order — the GFF order is arbitrary."""
+        return sorted(items, key=lambda i: (self._name(i).lower(), tuple(i.path)))
 
     def _icon(self, item):
         icons = getattr(self._window, "_icons", None)

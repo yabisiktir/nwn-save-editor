@@ -13,7 +13,7 @@ parsing a resource out of the ``.sav``.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -24,12 +24,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.save_area import read_area_contents
+from vaultkeeper.game.save_area import read_area_contents, read_factions
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 from vaultkeeper.ui.save_editor.screens.item_panels import AreaItemPanel
 
 _ROLE = Qt.ItemDataRole.UserRole
+#: Item icons in the tree, matching the Inventory screen's cells.
+_ICON_PX = 32
 
 _TREE_QSS = f"""
 QTreeWidget {{
@@ -56,6 +58,8 @@ class AreaScreen(QWidget):
         self._window = window
         self._area_resref: str | None = None
         self._area = None
+        self._built_for = None  # the save folder the picker/tree were built for
+        self._area_rows: list = []  # the picker's NavRows, kept to re-check them
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
@@ -79,6 +83,7 @@ class AreaScreen(QWidget):
         self._middle.setSpacing(10)
         self._tree = QTreeWidget()
         self._tree.setHeaderHidden(True)
+        self._tree.setIconSize(QSize(_ICON_PX, _ICON_PX))
         self._tree.setStyleSheet(_TREE_QSS + w.SCROLLBAR_QSS)
         w.apply_tree_palette(self._tree)
         self._tree.currentItemChanged.connect(self._on_select)
@@ -114,8 +119,29 @@ class AreaScreen(QWidget):
 
     # -- rebuilding -------------------------------------------------------- #
     def refresh(self) -> None:
-        self._build_area_picker()
-        self._reload_area()
+        """Re-render for the current save and edit gate.
+
+        Only rebuilds the area picker and re-decodes the area when the *save*
+        changes. ``refresh()`` also runs whenever the edit gate moves or a change
+        is staged, and neither affects the area list — rebuilding 65 nav rows and
+        the whole tree each time was both slow and a good way to destroy widgets
+        from inside their own signal handlers.
+        """
+        save = self._window.save
+        key = save.folder if save is not None else None
+        if key != self._built_for:
+            self._built_for = key
+            self._build_area_picker()
+            self._reload_area()
+            return
+        self._sync_gate()
+
+    def _sync_gate(self) -> None:
+        """Update only what the edit gate controls."""
+        current = self._tree.currentItem()
+        role = current.data(0, _ROLE) if current is not None else None
+        self._store_button.setEnabled(bool(role) and role[0] == "store" and self.editing)
+        self._show_detail(role[1] if role and role[0] == "item" else None)
 
     def _areas(self) -> list[tuple[str, str]]:
         save = self._window.save
@@ -146,19 +172,26 @@ class AreaScreen(QWidget):
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(3)
+        self._area_rows = []
         for resref, name in areas:
             row = w.NavRow(resref, name or resref, "AR")
             row.setChecked(resref == self._area_resref)
             row.setToolTip(resref)
             row.clicked.connect(lambda _=False, r=resref: self._choose_area(r))
+            self._area_rows.append(row)
             column.addWidget(row)
         column.addStretch(1)
         scroll = _scroll(holder)
         self._areas_column.addWidget(scroll, 1)
 
     def _choose_area(self, resref: str) -> None:
+        # Re-check the existing rows rather than rebuilding the picker: this runs
+        # from a row's own clicked handler, and rebuilding would destroy the very
+        # widget that is mid-signal.
         self._area_resref = resref
-        self.refresh()
+        for row in self._area_rows:
+            row.setChecked(row.key == resref)
+        self._reload_area()
 
     def _reload_area(self) -> None:
         """Decode the chosen area and rebuild the tree (areas are read on demand)."""
@@ -238,6 +271,34 @@ class AreaScreen(QWidget):
                 for item in container.items:
                     node.addChild(self._item_node(item))
 
+        meta = QTreeWidgetItem(["Area details"])
+        self._tree.addTopLevelItem(meta)
+        for label, value in (
+            ("Tileset", area.tileset),
+            ("Size", area.dimensions),
+            ("Terrain", area.terrain),
+        ):
+            if value:
+                meta.addChild(QTreeWidgetItem([f"{label}: {value}"]))
+        if area.hidden_creatures:
+            meta.addChild(QTreeWidgetItem([
+                f"{area.hidden_creatures} utility creature(s) hidden"
+            ]))
+        for kind, count in sorted(area.counts.items()):
+            meta.addChild(QTreeWidgetItem([f"{kind}: {count}"]))
+
+        save = self._window.save
+        factions = read_factions(save.sav_path) if save and save.sav_path else []
+        if factions:
+            node = QTreeWidgetItem([f"Factions ({len(factions)})"])
+            self._tree.addTopLevelItem(node)
+            for faction in factions:
+                standing = (
+                    f" — PC reputation {faction.reputation_to_pc}"
+                    if faction.reputation_to_pc is not None else ""
+                )
+                node.addChild(QTreeWidgetItem([f"{faction.name}{standing}"]))
+
         if self._tree.topLevelItemCount() == 0:
             self._tree.addTopLevelItem(
                 QTreeWidgetItem(["Nothing here — no stores, creatures or containers."])
@@ -246,11 +307,27 @@ class AreaScreen(QWidget):
     def _item_node(self, item, *, prefix: str = "") -> QTreeWidgetItem:
         node = QTreeWidgetItem([f"{prefix}{item.name}"])
         node.setData(0, _ROLE, ("item", item))
+        # The same icon the Inventory screen uses, so an item looks the same
+        # wherever it is found.
+        icon = self._icon(item)
+        if icon is not None:
+            node.setIcon(0, icon)
         for child in getattr(item, "contents", []) or []:  # container items nest
             node.addChild(self._item_node(child))
         return node
 
     # -- selection --------------------------------------------------------- #
+    def _icon(self, item):
+        icons = getattr(self._window, "_icons", None)
+        if icons is None:
+            return None
+        from vaultkeeper.ui.dialogs.inventory_view import _load_icon
+
+        try:
+            return _load_icon(icons, item)
+        except Exception:
+            return None
+
     def _on_select(self, current: QTreeWidgetItem | None, _previous=None) -> None:
         role = current.data(0, _ROLE) if current is not None else None
         self._store_button.setEnabled(bool(role) and role[0] == "store" and self.editing)
