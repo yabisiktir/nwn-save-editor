@@ -692,6 +692,14 @@ class SaveEditor:
             )
         return fields
 
+    def original_field_value(self, field: str):
+        """What a character field held before any staged edit, or ``None``.
+
+        Lets a UI show the design's ``old → new`` treatment without parsing a
+        :attr:`PendingChange.summary` display string.
+        """
+        return self._char_field_originals.get(field)
+
     def set_character_field(self, field: str, value: int, *, where: str = "") -> None:
         """Stage a change to a scalar character field (both trees), reverting removes it."""
         base = self._player_struct(self._module_tree())

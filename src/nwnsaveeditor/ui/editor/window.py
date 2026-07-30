@@ -78,6 +78,8 @@ class SaveEditorWindow(QMainWindow):
         self._nav_rows: dict[str, w.NavRow] = {}
         self._save_rows: list[_SaveRow] = []
         self._screens: dict[str, QWidget] = {}
+        self._char_cache = None  # CharacterInfo for _char_cache_for
+        self._char_cache_for: Path | None = None
 
         self.setStyleSheet(f"QMainWindow{{background:{t.APP_BG};}}")
         root = QWidget()
@@ -228,7 +230,67 @@ class SaveEditorWindow(QMainWindow):
 
     def _screen_builders(self) -> dict[str, object]:
         """Screens that exist. Sections absent from this map render an empty state."""
-        return {}
+        from vaultkeeper.ui.save_editor.screens.character import CharacterScreen
+
+        return {"character": lambda: CharacterScreen(self)}
+
+    # -- the API screens are built against ------------------------------- #
+    # Screens take the window and use only what follows, so a screen never has to
+    # reach into the shell's widgets.
+    @property
+    def editing(self) -> bool:
+        """Whether the global edit gate is open."""
+        return self._editing
+
+    @property
+    def save(self) -> SaveGame | None:
+        """The selected save."""
+        return self._current
+
+    def session(self):
+        """The :class:`~vaultkeeper.game.save_editor.SaveEditor` for the selection."""
+        return self._ensure_session()
+
+    def rule_mode(self) -> str:
+        """``"strict"`` or ``"free"`` — the toolbar's rule-mode choice."""
+        return self._rule_mode.value()
+
+    def character_info(self):
+        """The selected save's parsed character record, or ``None``.
+
+        Read from ``player.bic``, which the save keeps as a mirror of the
+        authoritative ``module.ifo`` record, and cached per save because parsing
+        walks the whole inventory.
+        """
+        from vaultkeeper.core.formats.bic_reader import BicFileReader
+
+        save = self._current
+        if save is None or save.player_bic is None:
+            return None
+        if self._char_cache_for != save.folder:
+            info = BicFileReader().read_file(save.player_bic)
+            if info is not None:
+                self._resolver().resolve_character(info)
+            self._char_cache = info
+            self._char_cache_for = save.folder
+        return self._char_cache
+
+    def _resolver(self):
+        from vaultkeeper.game.item_names import resolver_for
+
+        game_root = getattr(getattr(self._controller, "ctx", None), "game_root", None)
+        return resolver_for(game_root)
+
+    def notify_changed(self) -> None:
+        """A screen staged an edit: refresh the footer, the dots and every screen."""
+        self._refresh_pending()
+        self._refresh_screens()
+
+    def _refresh_screens(self) -> None:
+        for screen in self._screens.values():
+            refresh = getattr(screen, "refresh", None)
+            if callable(refresh):
+                refresh()
 
     # -- footer ----------------------------------------------------------- #
     def _build_footer(self) -> QWidget:
