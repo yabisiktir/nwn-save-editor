@@ -257,8 +257,10 @@ class SaveEditorWindow(QMainWindow):
     def _screen_builders(self) -> dict[str, object]:
         """Screens that exist. Sections absent from this map render an empty state."""
         from vaultkeeper.ui.save_editor.screens.area import AreaScreen
+        from vaultkeeper.ui.save_editor.screens.backups import BackupsScreen
         from vaultkeeper.ui.save_editor.screens.character import CharacterScreen
         from vaultkeeper.ui.save_editor.screens.inventory import InventoryScreen
+        from vaultkeeper.ui.save_editor.screens.raw import RawScreen
         from vaultkeeper.ui.save_editor.screens.spellbook import SpellbookScreen
 
         return {
@@ -266,6 +268,8 @@ class SaveEditorWindow(QMainWindow):
             "inventory": lambda: InventoryScreen(self),
             "spellbook": lambda: SpellbookScreen(self),
             "area": lambda: AreaScreen(self),
+            "raw": lambda: RawScreen(self),
+            "backups": lambda: BackupsScreen(self),
         }
 
     # -- the API screens are built against ------------------------------- #
@@ -369,12 +373,13 @@ class SaveEditorWindow(QMainWindow):
         return self._footer
 
     # -- save selection --------------------------------------------------- #
-    def _select_save(self, save: SaveGame) -> None:
+    def _select_save(self, save: SaveGame) -> bool:
+        """Make ``save`` current. ``False`` if the user kept their staged edits."""
         if save is self._current:
-            return
+            return True
         if not self._confirm_discard("Switching saves"):
             self._sync_save_rows()
-            return
+            return False
         self._current = save
         self._session = None
         self._save_label.setText(f"{save.name}  —  {save.location or 'no location'}")
@@ -383,6 +388,7 @@ class SaveEditorWindow(QMainWindow):
         # Screens are built once, before any save is selected, so they must be
         # re-rendered here or they keep showing the empty state forever.
         self._refresh_screens()
+        return True
 
     def _sync_save_rows(self) -> None:
         for row in self._save_rows:
@@ -527,13 +533,7 @@ class SaveEditorWindow(QMainWindow):
             f"Saved as “{new_save.name}”.\nYour original save is unchanged.",
         )
         self._session = None
-        self._saves.insert(0, new_save)
-        row = _SaveRow(new_save)
-        row.clicked.connect(lambda _=False, s=new_save: self._select_save(s))
-        self._save_rows.insert(0, row)
-        self._saves_box.insertWidget(0, row)
-        self._current = None  # so _select_save doesn't early-return on identity
-        self._select_save(new_save)
+        self.add_save(new_save)
 
     def _overwrite_current(self) -> None:
         """Replace the selected save, keeping a timestamped backup."""
@@ -562,6 +562,25 @@ class SaveEditorWindow(QMainWindow):
         )
         self._session = None
         self._refresh_pending()
+
+    def add_save(self, save: SaveGame) -> None:
+        """Put a newly written or restored save in the sidebar and select it.
+
+        If the user declines to drop staged edits, the previously selected save
+        stays selected — nulling it first would otherwise strand the window with
+        no current save at all.
+        """
+        self._saves.insert(0, save)
+        row = _SaveRow(save)
+        row.clicked.connect(lambda _=False, s=save: self._select_save(s))
+        self._save_rows.insert(0, row)
+        self._saves_box.insertWidget(0, row)
+
+        previous = self._current
+        self._current = None  # so _select_save does not early-return on identity
+        if not self._select_save(save):
+            self._current = previous
+            self._sync_save_rows()
 
     def _save_dialog(self, mode: str):
         """Build the Save dialog for ``mode``, primed with what will be written."""

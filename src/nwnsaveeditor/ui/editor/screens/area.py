@@ -80,6 +80,7 @@ class AreaScreen(QWidget):
         self._tree = QTreeWidget()
         self._tree.setHeaderHidden(True)
         self._tree.setStyleSheet(_TREE_QSS + w.SCROLLBAR_QSS)
+        w.apply_tree_palette(self._tree)
         self._tree.currentItemChanged.connect(self._on_select)
         self._middle.addWidget(self._tree, 1)
         self._store_button = w.ghost_button("Edit Store…")

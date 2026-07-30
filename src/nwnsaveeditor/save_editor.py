@@ -190,6 +190,23 @@ class ClassSpellbook:
     lists: list[SpellList]
 
 
+def _free_backup(backup_dir: Path, save_name: str) -> Path:
+    """A backup folder that does not exist yet.
+
+    The timestamp is only second-resolution, so two overwrites in the same second
+    would otherwise target the same path — and ``shutil.move`` onto an existing
+    directory moves *into* it, nesting one backup inside another instead of
+    keeping both.
+    """
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    candidate = backup_dir / f"{stamp} - {save_name}"
+    suffix = 2
+    while candidate.exists():
+        candidate = backup_dir / f"{stamp}.{suffix} - {save_name}"
+        suffix += 1
+    return candidate
+
+
 @dataclass
 class _Command:
     """One recorded edit, replayable from a clean state.
@@ -277,6 +294,8 @@ class SaveEditor:
         #: the PendingChanges each undo removed, parallel to ``_undone``.
         self._undone_display: list[list[PendingChange]] = []
         self._recording = True  # False while replaying, so replay doesn't re-log
+        #: original value per raw-edited (target, path).
+        self._raw_originals: dict[tuple, object] = {}
 
     @property
     def has_edits(self) -> bool:
@@ -412,6 +431,7 @@ class SaveEditor:
         self._char_field_originals.clear()
         self._feat_originals = None
         self._spell_originals.clear()
+        self._raw_originals.clear()
 
     # -- store editing ---------------------------------------------------- #
     @_records(lambda area_resref, store_index, **_k: ("store", area_resref, store_index))
@@ -1110,6 +1130,80 @@ class SaveEditor:
                     where=ref.spell_name(sid), summary=f"{verb} spell",
                 )
 
+    # -- raw GFF editing ---------------------------------------------------- #
+    #: which trees the Raw Data screen may browse and edit.
+    RAW_TARGETS = ("module.ifo", "player.bic")
+
+    def raw_tree(self, target: str) -> Gff | None:
+        """The decoded tree for a raw target, or ``None`` if it is unavailable."""
+        if target == "module.ifo":
+            return self._module_tree()
+        if target == "player.bic":
+            return self._bic_tree()
+        return self._area_tree(target)
+
+    @_records(lambda target, path, *_a, **_k: ("raw", target, tuple(path)))
+    def set_raw_field(self, target: str, path: tuple, value, *, where: str = "") -> None:
+        """Set a scalar field directly, bypassing the friendly editors.
+
+        ``path`` is the sequence of ``(label, index_or_None)`` steps produced by the
+        Raw Data screen. Only scalars are settable — a container has no single
+        value — and the field's existing Python type is preserved, so a raw edit
+        cannot change a WORD into a string and corrupt the resource.
+        """
+        tree = self.raw_tree(target)
+        if tree is None:
+            raise SaveEditError(f"{target} is not part of this save")
+        entry = self._raw_entry(tree, path)
+        original = entry.value
+        if isinstance(original, (GffStruct, GffList)):
+            raise SaveEditError("only scalar fields can be edited here")
+        try:
+            entry.value = type(original)(value)
+        except (TypeError, ValueError) as exc:
+            raise SaveEditError(f"{value!r} is not a valid {type(original).__name__}") from exc
+
+        if target in ("module.ifo", "player.bic"):
+            self._char_dirty = True
+        key = ("raw", (target, tuple(path)))
+        label = "/".join(str(step[0]) for step in path)
+        if entry.value != self._raw_original(target, path, original):
+            self._changes[key] = PendingChange(
+                kind="raw", key=(target, tuple(path)),
+                where=where or f"{target}: {label}",
+                summary=f"{self._raw_originals[(target, tuple(path))]}→{entry.value}",
+            )
+        else:
+            self._changes.pop(key, None)
+
+    def _raw_original(self, target: str, path: tuple, current):
+        """Remember a raw field's pre-edit value the first time it is touched."""
+        key = (target, tuple(path))
+        if key not in self._raw_originals:
+            self._raw_originals[key] = current
+        return self._raw_originals[key]
+
+    @staticmethod
+    def _raw_entry(tree: Gff, path: tuple):
+        """Walk ``path`` to the GffField it names."""
+        struct = tree.root
+        for step, (label, index) in enumerate(path):
+            entry = struct.fields.get(label)
+            if entry is None:
+                raise SaveEditError(f"no field {label!r} at that path")
+            if step == len(path) - 1:
+                return entry
+            value = entry.value
+            if isinstance(value, GffList):
+                if index is None or index >= len(value.structs):
+                    raise SaveEditError(f"{label}[{index}] is out of range")
+                struct = value.structs[index]
+            elif isinstance(value, GffStruct):
+                struct = value
+            else:
+                raise SaveEditError(f"{label} is a scalar, not a container")
+        raise SaveEditError("empty path")
+
     # -- write ------------------------------------------------------------ #
     def _dirty_areas(self) -> set[str]:
         """Area resrefs (lower) touched by at least one pending *store* change."""
@@ -1176,8 +1270,7 @@ class SaveEditor:
     def _replace_existing(dest_folder: Path, backup_dir: Path | None) -> None:
         if backup_dir is not None:
             backup_dir.mkdir(parents=True, exist_ok=True)
-            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            shutil.move(str(dest_folder), str(backup_dir / f"{stamp} - {dest_folder.name}"))
+            shutil.move(str(dest_folder), str(_free_backup(backup_dir, dest_folder.name)))
         else:
             shutil.rmtree(dest_folder)
 

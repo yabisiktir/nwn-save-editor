@@ -426,3 +426,18 @@ class TabStrip(QWidget):
             return
         label = button.text().removesuffix(" ●")
         button.setText(f"{label} ●" if dirty else label)
+
+def apply_tree_palette(tree) -> None:
+    """Recolour a tree's selection roles.
+
+    A stylesheet paints ``::item`` and ``::branch``, but the style still fills the
+    branch column with the palette's Highlight when a row is selected — which
+    shows as a stripe of native blue beside our gold row.
+    """
+    from PySide6.QtGui import QColor, QPalette
+
+    palette = tree.palette()
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(58, 43, 13))
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor(t.GOLD))
+    palette.setColor(QPalette.ColorRole.Base, QColor(t.INSET))
+    tree.setPalette(palette)

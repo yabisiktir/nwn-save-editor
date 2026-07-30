@@ -60,6 +60,7 @@ _KIND_SECTIONS: dict[str, str] = {
     "prop-remove": "inventory",
     "add-item": "inventory",
     "store": "area",
+    "raw": "raw",
 }
 
 
