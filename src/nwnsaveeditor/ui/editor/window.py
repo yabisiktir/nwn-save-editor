@@ -17,8 +17,8 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QDialog,
     QHBoxLayout,
-    QInputDialog,
     QLabel,
     QMainWindow,
     QMessageBox,
@@ -388,14 +388,14 @@ class SaveEditorWindow(QMainWindow):
             row.setChecked(row.save is self._current)
 
     def _choose_save(self) -> None:
-        """Placeholder until the designed Open Save dialog lands."""
-        names = [save.name for save in self._saves]
-        if not names:
-            QMessageBox.information(self, "Open Save", "No save games were found.")
+        from vaultkeeper.ui.save_editor.dialogs import OpenSaveDialog
+
+        dialog = OpenSaveDialog(self._saves, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        name, ok = QInputDialog.getItem(self, "Open Save", "Save:", names, editable=False)
-        if ok:
-            self._select_save(next(s for s in self._saves if s.name == name))
+        chosen = dialog.selected_save()
+        if chosen is not None:
+            self._select_save(chosen)
 
     # -- edit mode -------------------------------------------------------- #
     def _set_edit_mode(self, on: bool) -> None:
@@ -506,15 +506,17 @@ class SaveEditorWindow(QMainWindow):
 
         if self._session is None or not self._session.has_edits or self._current is None:
             return
-        name, ok = QInputDialog.getText(
-            self, "Save as New Save", "New save name:",
-            text=f"{_base_name(self._current.name)} (edited)",
-        )
-        if not ok or not name.strip():
+        dialog = self._save_dialog("new")
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            if dialog.review_requested:
+                self._ledger.toggle()
+            return
+        name = dialog.new_name()
+        if not name:
             return
         try:
             new_save = self._session.save_as(
-                _next_save_folder(self._current.folder.parent, name.strip())
+                _next_save_folder(self._current.folder.parent, name)
             )
         except (SaveEditError, OSError) as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
@@ -540,16 +542,16 @@ class SaveEditorWindow(QMainWindow):
             return
         save = self._current
         backup_dir = save.folder.parent.parent / "vaultkeeper_backups"
-        confirm = QMessageBox.warning(
-            self, "Overwrite save",
-            f"Replace “{save.name}” with your changes?\n\n"
-            f"The current version is backed up to:\n{backup_dir}",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if confirm != QMessageBox.StandardButton.Yes:
+        dialog = self._save_dialog("overwrite")
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            if dialog.review_requested:
+                self._ledger.toggle()
             return
         try:
-            self._session.save_as(save.folder, overwrite=True, backup_dir=backup_dir)
+            self._session.save_as(
+                save.folder, overwrite=True,
+                backup_dir=backup_dir if dialog.backup_wanted() else None,
+            )
         except (SaveEditError, OSError) as exc:
             QMessageBox.critical(self, "Overwrite failed", str(exc))
             return
@@ -559,6 +561,23 @@ class SaveEditorWindow(QMainWindow):
         )
         self._session = None
         self._refresh_pending()
+
+    def _save_dialog(self, mode: str):
+        """Build the Save dialog for ``mode``, primed with what will be written."""
+        from vaultkeeper.ui.save_editor.dialogs import SaveDialog
+
+        save = self._current
+        session = self._session
+        return SaveDialog(
+            mode=mode,
+            save_name=save.name,
+            default_name=f"{_base_name(save.name)} (edited)",
+            change_count=len(session.pending_changes()),
+            undone_count=session.undone_count,
+            rule_mode=self._rule_mode.value(),
+            backup_dir=save.folder.parent.parent / "vaultkeeper_backups",
+            parent=self,
+        )
 
     # -- entry point ------------------------------------------------------ #
     @classmethod

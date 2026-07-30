@@ -159,7 +159,7 @@ def test_discarding_drops_the_changes_and_clears_the_dots(window, monkeypatch):
 
 # -- committing ----------------------------------------------------------- #
 def test_save_as_new_writes_a_new_save_and_leaves_the_original(window, monkeypatch, tmp_path):
-    from PySide6.QtWidgets import QInputDialog, QMessageBox
+    from PySide6.QtWidgets import QMessageBox
 
     from tests.test_save_editor import _ifo_char
 
@@ -170,8 +170,8 @@ def test_save_as_new_writes_a_new_save_and_leaves_the_original(window, monkeypat
     window._ensure_session().set_character_field("Gold", 4242)
     window._refresh_pending()
 
-    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("Shell Edit", True))
     monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+    _stub_save_dialog(monkeypatch, name="Shell Edit")
     window._save_as_new()
 
     new_folder = next(p for p in tmp_path.iterdir() if p.name.endswith("Shell Edit"))
@@ -182,3 +182,30 @@ def test_save_as_new_writes_a_new_save_and_leaves_the_original(window, monkeypat
     # the newly selected save. What matters is that nothing is left staged.
     assert not window._session.has_edits
     assert window._pending_caption.text() == "PENDING CHANGES (0)"
+
+
+def _stub_save_dialog(monkeypatch, *, name: str = "Edited", backup: bool = True):
+    """Stand in for the modal Save dialog.
+
+    Any test that reaches a commit path must do this: an unstubbed modal blocks
+    the run forever instead of failing it.
+    """
+    from PySide6.QtWidgets import QDialog
+
+    class _Dialog:
+        review_requested = False
+
+        def __init__(self, *a, **k):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def new_name(self):
+            return name
+
+        def backup_wanted(self):
+            return backup
+
+    monkeypatch.setattr("vaultkeeper.ui.save_editor.dialogs.SaveDialog", _Dialog)
+    return _Dialog

@@ -28,6 +28,18 @@ from PySide6.QtWidgets import (
 from vaultkeeper.ui.save_editor import tokens as t
 
 
+def paints_own_background(widget: QWidget) -> QWidget:
+    """Let a plain ``QWidget`` render a *selector-scoped* stylesheet.
+
+    Unscoped inline QSS ("background:x;border:y") applies to a widget directly, but
+    a rule behind a selector (``Foo{...}`` / ``#foo{...}``) is ignored for
+    background and border on a bare QWidget unless this attribute is set. QFrame
+    subclasses paint either way, which is why ``Panel`` does not need it.
+    """
+    widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+    return widget
+
+
 def _literal(text: str) -> str:
     """Escape ``&`` so Qt draws it instead of eating it as a mnemonic.
 
@@ -155,6 +167,7 @@ class SegmentedControl(QWidget):
     def __init__(self, options: tuple[tuple[str, str], ...], parent: QWidget | None = None) -> None:
         """``options`` is a tuple of ``(key, label)`` in display order."""
         super().__init__(parent)
+        paints_own_background(self)
         self.setStyleSheet(
             f"SegmentedControl{{border:1px solid {t.hairline(0.16)};"
             f"border-radius:{t.RADIUS_BUTTON}px;background:transparent;}}"
@@ -364,6 +377,7 @@ class TabStrip(QWidget):
     def __init__(self, tabs: tuple[tuple[str, str], ...], parent: QWidget | None = None) -> None:
         """``tabs`` is a tuple of ``(key, label)`` in display order."""
         super().__init__(parent)
+        paints_own_background(self)
         self.setStyleSheet(f"TabStrip{{border-bottom:1px solid {t.hairline(0.1)};}}")
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
