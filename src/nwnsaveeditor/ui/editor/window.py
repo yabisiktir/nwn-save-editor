@@ -45,6 +45,8 @@ _SAVES_LIST_MAX_H = 196
 
 #: "not built yet", distinct from a cached ``None`` meaning "tried and unavailable".
 _UNSET = object()
+#: how wide one footer pending-change sample may get before it is elided.
+_CHIP_WIDTH = 300
 
 
 def _save_label_text(save: SaveGame | None) -> str:
@@ -598,12 +600,26 @@ class SaveEditorWindow(QMainWindow):
         changes = self._session.pending_changes() if self._session is not None else []
         self._pending_caption.setText(f"PENDING CHANGES ({len(changes)})")
         while self._pending_samples.count():
-            item = self._pending_samples.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
+            chip = self._pending_samples.takeAt(0).widget()
+            if chip is not None:
+                # Unparent now, not just deleteLater: a widget awaiting deletion is
+                # still a visible child and keeps painting at its old geometry, so
+                # the outgoing chips show through the incoming ones.
+                chip.setParent(None)
+                chip.deleteLater()
         for change in changes[:3]:  # the design shows up to three samples
             chip = w.body(f"●  {change.where}: {change.summary}", t.TEXT, 12)
             chip.setWordWrap(False)
+            # w.body opts into heightForWidth so wrapping copy measures correctly.
+            # A non-wrapping chip sharing a row must not shrink that way, or the
+            # layout squeezes it until its glyphs overlap (a long raw GFF path
+            # does it easily). Take the width back and cut the text short instead.
+            policy = chip.sizePolicy()
+            policy.setHeightForWidth(False)
+            chip.setSizePolicy(policy)
+            chip.setText(chip.fontMetrics().elidedText(
+                chip.text(), Qt.TextElideMode.ElideRight, _CHIP_WIDTH
+            ))
             self._pending_samples.addWidget(chip)
 
         dirty = {section_for_kind(change.kind) for change in changes}

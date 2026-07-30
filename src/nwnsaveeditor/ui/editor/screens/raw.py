@@ -360,7 +360,9 @@ class RawScreen(QWidget):
             siblings = _children(node)
         if node is not None:
             self._tree.setCurrentItem(node)
-            self._tree.scrollToItem(node)
+            # Centred, not merely visible: a new entry lands at the end of a long
+            # list, and the default scroll leaves it clipped against the bottom.
+            self._tree.scrollToItem(node, QTreeWidget.ScrollHint.PositionAtCenter)
 
     def _edit_selected(self) -> None:
         from vaultkeeper.ui.dialogs.property_edit_dialog import PropertyEditDialog
