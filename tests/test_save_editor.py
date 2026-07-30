@@ -526,6 +526,13 @@ def _make_char_save_with_git(tmp_path, name="000000 - test") -> SaveGame:
     """A save whose .sav also holds an area .git with a store item to clone."""
     ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
         "Mod_PlayerList": GffField(GffType.LIST, GffList([_character()])),
+        # The module's area list is how a save says which areas it holds; the Area
+        # Contents screen reads it to build its picker.
+        "Mod_Area_list": GffField(GffType.LIST, GffList([
+            GffStruct(struct_type=6, fields={
+                "Area_Name": GffField(GffType.CRESREF, "area1"),
+            }),
+        ])),
     }))
     # a .git: a store whose single panel holds one item (resref "shopsword").
     store_item = GffStruct(struct_type=0, fields={
@@ -537,6 +544,14 @@ def _make_char_save_with_git(tmp_path, name="000000 - test") -> SaveGame:
     })
     store = GffStruct(struct_type=0, fields={
         "Tag": GffField(GffType.CEXOSTRING, "SHOP"),
+        # A real merchant carries its pricing scalars; without them
+        # set_store_fields rightly refuses to invent the fields.
+        "MarkUp": GffField(GffType.INT, 100),
+        "MarkDown": GffField(GffType.INT, 50),
+        "StoreGold": GffField(GffType.INT, -1),
+        "IdentifyPrice": GffField(GffType.INT, 100),
+        "MaxBuyPrice": GffField(GffType.INT, -1),
+        "BlackMarket": GffField(GffType.BYTE, 0),
         "StoreList": GffField(GffType.LIST, GffList([
             GffStruct(struct_type=0, fields={
                 "ItemList": GffField(GffType.LIST, GffList([store_item])),
