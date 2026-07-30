@@ -63,6 +63,9 @@ EFFECT_VIEWS: tuple[tuple[str, str], ...] = (
 #: A sentinel ``SpellId``/``CreatorId``: the field is a DWORD, so "none" is all-ones.
 _NO_ID = 0xFFFFFFFF
 
+#: Width of the "which item grants this" column in the computed bonuses view.
+_SOURCE_COLUMN = 176
+
 #: Printed under the computed view. It is the point of the view, not a footnote:
 #: a number whose scope is unstated is worse than no number at all.
 _SCOPE_NOTE = (
@@ -1219,7 +1222,9 @@ def _effect_row(effect: dict, repeats: int = 1) -> QWidget:
     line.setContentsMargins(14, 9, 14, 9)
     line.setSpacing(12)
 
-    name = effect["spell"] or effect["tag"] or "Unnamed effect"
+    # With no spell and no tag the type id is genuinely all the save says, so it
+    # names the row rather than leaving a column of identical "unnamed" lines.
+    name = effect["spell"] or effect["tag"] or f"Effect type {effect['type']}"
     if repeats > 1:
         name = f"{repeats}×  {name}"
     title = w.body(name, t.TEXT, 13)
@@ -1276,10 +1281,24 @@ def _bonus_group_row(group) -> QWidget:
         line = QHBoxLayout()
         line.setContentsMargins(10, 0, 0, 0)
         line.setSpacing(8)
-        line.addWidget(w.body(contribution.source, t.TEXT_3, 11.5))
+        # A fixed column keeps the descriptions aligned; item names run from four
+        # characters to thirty, and a ragged left edge makes the list unreadable.
+        source = w.body(contribution.source, t.TEXT_3, 11.5)
+        source.setFixedWidth(_SOURCE_COLUMN)
+        source.setToolTip(contribution.source)
+        line.addWidget(source)
         line.addWidget(w.body(contribution.label, t.TEXT_2, 12), 1)
         if contribution.amount is not None:
-            line.addWidget(w.mono(_signed(contribution.amount), t.TEXT_2, 11.5))
+            amount = w.mono(_signed(contribution.amount), t.TEXT_2, 11.5)
+            if contribution.amount < 0:
+                # NWN names these "Decreased …" and stores the size of the penalty
+                # as a positive CostValue, so the description reads "+10" where the
+                # effect is -10. Say which one this column is.
+                amount.setToolTip(
+                    "A penalty. The property is stored as a positive magnitude on a "
+                    "\"Decreased …\" property, which is why its description reads +."
+                )
+            line.addWidget(amount)
         column.addLayout(line)
     return row
 

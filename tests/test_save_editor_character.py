@@ -204,6 +204,90 @@ def test_effect_types_are_not_named_from_the_script_constants(screen, monkeypatc
         assert wrong not in text
 
 
+def test_identical_effects_collapse_instead_of_repeating(window, screen, monkeypatch):
+    """The owner's save stamps EffectHolyTouch on the character three times."""
+    monkeypatch.setattr(screen, "_read_effects", lambda: [{
+        "tag": "EffectHolyTouch", "type": 13, "subtype": 18,
+        "spell": "", "caster_level": 0, "duration": 0.0,
+    }] * 3)
+    screen.refresh()
+    text = _text_of(_page(screen, "effects"))
+    assert "3×  EffectHolyTouch" in text
+    assert text.count("EffectHolyTouch") == 1
+
+
+def test_an_unset_caster_level_is_not_printed_as_a_caster_level(window, screen):
+    """CasterLevel is a DWORD, so unset arrives as 4294967295, not 0."""
+    from vaultkeeper.ui.save_editor.screens.character import _effect_row
+
+    row = _effect_row({
+        "tag": "", "type": 30, "subtype": 4, "spell": "",
+        "caster_level": 0, "duration": 0.0,
+    })
+    assert "4294967295" not in _text_of(row)
+    assert "caster level" not in _text_of(row)
+
+
+# -- effects: the view switch ----------------------------------------------- #
+def test_the_effects_tab_offers_both_views(window, screen):
+    from vaultkeeper.ui.save_editor.screens.character import EFFECT_VIEWS
+
+    assert [key for key, _label in EFFECT_VIEWS] == ["active", "bonuses"]
+    assert screen._effects_view == "active", "the raw list stays the default"
+
+
+def test_switching_to_bonuses_rebuilds_the_tab_and_sticks(window, screen):
+    screen._tabs.set_value("effects")
+    screen._set_effects_view("bonuses")
+    assert screen._effects_view == "bonuses"
+    assert screen._tabs.value() == "effects", "switching view must not change tab"
+    screen.refresh()  # a later rebuild must not silently drop back to the raw list
+    assert screen._effects_view == "bonuses"
+    assert not window.session().has_edits, "a view is cosmetic — it must not stage an edit"
+
+
+def test_the_bonuses_view_credits_each_bonus_to_the_item_that_grants_it(
+    window, screen, monkeypatch
+):
+    from types import SimpleNamespace
+
+    from vaultkeeper.core.formats.bic_reader import ItemProperty
+    from vaultkeeper.game import active_bonuses
+
+    def _prop(pid, subtype, cost):
+        return ItemProperty(
+            property_name=pid, subtype=subtype, cost_table=0,
+            cost_value=cost, param1=0, param1_value=0,
+        )
+
+    def _item(name, slot, *props):
+        return SimpleNamespace(
+            name=name, slot=slot,
+            properties=[SimpleNamespace(prop=p, index=i) for i, p in enumerate(props)],
+        )
+
+    monkeypatch.setattr(screen, "_active_bonuses", lambda info: active_bonuses.compute(
+        [_item("Belt of the Warrior", 1024, _prop(0, 0, 10)),
+         _item("base_prc_skin", active_bonuses.SKIN_SLOT, _prop(0, 0, 6))],
+        [(1, "Cleave", True)], None,
+    ))
+    screen._set_effects_view("bonuses")
+    text = _text_of(_page(screen, "effects"))
+    assert "Strength" in text
+    assert "Belt of the Warrior" in text
+    assert "Creature skin (PRC)" in text
+    assert "largest +10 · sum +16" in text, "both numbers, neither passed off as the total"
+
+
+def test_the_bonuses_view_says_what_it_cannot_attribute(window, screen):
+    """A number whose scope is unstated is worse than no number at all."""
+    screen._set_effects_view("bonuses")
+    text = _text_of(_page(screen, "effects")).lower()
+    assert "feats" in text
+    assert "running the game's rules" in text, "the feat/class gap must be spelled out"
+    assert "does not stack" in text, "the same-type stacking caveat must be spelled out"
+
+
 # -- biography -------------------------------------------------------------- #
 def test_editing_the_first_name_stages_it(window, screen):
     window._edit_toggle.setChecked(True)
