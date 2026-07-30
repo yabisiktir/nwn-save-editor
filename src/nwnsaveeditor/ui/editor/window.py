@@ -331,6 +331,9 @@ class SaveEditorWindow(QMainWindow):
         from vaultkeeper.ui.save_editor.screens.character import CharacterScreen
         from vaultkeeper.ui.save_editor.screens.inventory import InventoryScreen
         from vaultkeeper.ui.save_editor.screens.party import PartyScreen
+        from vaultkeeper.ui.save_editor.screens.property_reference import (
+            PropertyReferenceScreen,
+        )
         from vaultkeeper.ui.save_editor.screens.quests import QuestsScreen
         from vaultkeeper.ui.save_editor.screens.raw import RawScreen
         from vaultkeeper.ui.save_editor.screens.spellbook import SpellbookScreen
@@ -342,6 +345,7 @@ class SaveEditorWindow(QMainWindow):
             "quests": lambda: QuestsScreen(self),
             "party": lambda: PartyScreen(self),
             "area": lambda: AreaScreen(self),
+            "properties": lambda: PropertyReferenceScreen(self),
             "raw": lambda: RawScreen(self),
             "backups": lambda: BackupsScreen(self),
         }

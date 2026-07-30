@@ -112,6 +112,21 @@ class ItemPropertyTables:
         param_ref = self._def(property_name, "Param1ResRef")
         return self._label_map(param_ref) if param_ref else None
 
+    def property_ids(self) -> list[int]:
+        """Every property type the game defines, in ``itempropdef.2da`` order."""
+        table = self._read("itempropdef")
+        if table is None:
+            return []
+        return [pid for pid in sorted(table) if self.property_name_label(pid)]
+
+    def cost_table_for(self, property_name: int) -> int | None:
+        """The ``CostTable`` id a property's values come from, if it has one."""
+        raw = self._def(property_name, "CostTableResRef")
+        try:
+            return int(raw) if raw is not None else None
+        except ValueError:
+            return None
+
     def property_name_label(self, property_name: int) -> str | None:
         """The property type's own name from ``itempropdef.2da`` (Label column)."""
         label = self._def(property_name, "Label")

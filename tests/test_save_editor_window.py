@@ -48,8 +48,14 @@ def test_every_section_has_a_nav_row_and_a_screen(window):
         assert window._screens[section.key] is not None  # built on demand
 
 
-def test_advanced_sections_are_the_two_designed_ones():
-    assert [s.key for s in sec.SECTIONS if s.advanced] == ["raw", "backups"]
+def test_advanced_sections_are_grouped_last():
+    """The handoff designed two advanced screens; Property Reference was added
+    after it, so the assertion is that they are advanced and come last, not that
+    there are exactly two."""
+    keys = [s.key for s in sec.SECTIONS]
+    advanced = [s.key for s in sec.SECTIONS if s.advanced]
+    assert {"raw", "backups"} <= set(advanced)
+    assert keys[-len(advanced):] == advanced, "advanced sections sit at the end"
 
 
 def test_area_contents_sits_after_party_in_the_sidebar():

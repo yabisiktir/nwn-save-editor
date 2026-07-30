@@ -21,7 +21,7 @@ class Section:
 
 
 #: Sidebar order from the handoff — Area Contents sits after Party & Campaign, and
-#: the two advanced screens are grouped under their own ``ADVANCED`` cap label.
+#: the advanced screens are grouped under their own ``ADVANCED`` cap label.
 SECTIONS: tuple[Section, ...] = (
     Section("character", "Character", "CH"),
     Section("inventory", "Inventory & Equipment", "IN"),
@@ -29,6 +29,7 @@ SECTIONS: tuple[Section, ...] = (
     Section("quests", "Quests & World State", "QW"),
     Section("party", "Party & Campaign", "PC"),
     Section("area", "Area Contents", "AR"),
+    Section("properties", "Property Reference", "PR", advanced=True),
     Section("raw", "Raw Data (GFF)", "RD", advanced=True),
     Section("backups", "Backups & Diff", "BK", advanced=True),
 )
@@ -43,6 +44,8 @@ SECTION_BLURBS: dict[str, str] = {
     "quests": "Journal entries and per-module local/global boolean, number and string variables.",
     "party": "Party-wide gold/XP and campaign-persistent global variables.",
     "area": "Browse an area's stores, creatures and containers — and edit store pricing.",
+    "properties": "Every item property the game defines, its valid values, and\n"
+                  "which of your items carry it.",
     "raw": "Advanced: browse and edit the underlying GFF struct/field tree directly.",
     "backups": "Restore a previous auto-backup, or diff two saves field-by-field.",
 }
