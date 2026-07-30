@@ -67,6 +67,32 @@ Expand the **Player character** node. It has **Details**, **Equipped**, **Carrie
 The **Add a feat / spell** picker is a browsable **ID + Name** table: scroll and
 click, or type in the search box to filter by name **or** the raw id.
 
+### Raw Data (GFF) — the escape hatch
+
+**Raw Data (GFF)** browses every resource in the save as its decoded field tree, and
+edits it directly. It is deliberately unhelpful: it bypasses the friendly editors,
+so its changes are marked **raw** in the ledger. A field's *type* is always
+preserved, so a raw edit can break the game's rules but not the file.
+
+With **Edit** on, select a node and use the buttons under the tree:
+
+- a scalar leaf → **Edit value…**
+- a **list** → **Add blank entry** / **Duplicate entry**
+- one of a list's **entries** → also **Remove entry…** (it confirms first)
+
+Adding is the part worth understanding. **Duplicate entry** copies a sibling, which
+is the reliable route: the copy already carries the fields, types and struct type
+the game expects in that list. **Add blank entry** can only *seed* one — it takes
+the first sibling's field set and types and zeroes the values, so you get the right
+shape but have to fill it in. The line under the buttons says which one you got.
+
+Removing an entry renumbers every entry after it — `[5]` becomes `[4]`, and so on.
+Staged changes follow the entries they were made against, so the ledger keeps
+pointing at what you actually edited.
+
+Raw edits touch **one resource only**: editing `module.ifo` does not mirror into
+`player.bic` the way the friendly editors do.
+
 ## Important: PRC content
 
 If your game uses the **PRC** (Player Resource Consortium), it manages a lot of

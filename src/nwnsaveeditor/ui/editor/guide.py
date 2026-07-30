@@ -65,7 +65,11 @@ explicitly choose <b>Overwrite…</b> — which keeps a timestamped backup first
       editable; the items are not, but any of them can be <b>copied into your own
       inventory</b>.</li>
   <li><b>Raw Data (GFF)</b> — every resource in the save, as its raw field tree.
-      Scalar values can be edited here; a field's type is always preserved.</li>
+      Scalar values can be edited here; a field's type is always preserved. A
+      list of structs can also gain and lose entries: <b>Duplicate entry</b>
+      copies a sibling, which is the reliable way to add one, while <b>Add blank
+      entry</b> only seeds the sibling's fields at zero and leaves filling them
+      in to you. Removing an entry moves every later one up a place.</li>
   <li><b>Backups &amp; Diff</b> — what an overwrite archived, and what differs
       between a backup and the save you have now.</li>
 </ul>
