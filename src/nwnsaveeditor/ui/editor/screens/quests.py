@@ -27,8 +27,9 @@ from vaultkeeper.game.world_state import matches
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 
-#: How many variable rows to build at once. A module can hold hundreds.
-PAGE = 150
+#: How many variable rows to build at once. A module can hold hundreds — the
+#: owner's carries 821 — and building every row costs real time, so the list pages.
+PAGE = 300
 
 
 class QuestsScreen(QWidget):
@@ -63,6 +64,13 @@ class QuestsScreen(QWidget):
         self._pages.addWidget(self._variables_page)
         outer.addWidget(self._pages, 1)
 
+        # One scroll area for the life of the screen: rebuilding it would throw
+        # the view back to the top on every edit and every "Show more".
+        self._list_scroll = QScrollArea()
+        self._list_scroll.setWidgetResizable(True)
+        self._list_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self._list_scroll.setStyleSheet(w.scroll_area_qss())
+
         self.refresh()
 
     # -- data --------------------------------------------------------------- #
@@ -79,6 +87,8 @@ class QuestsScreen(QWidget):
 
     # -- rebuilding --------------------------------------------------------- #
     def refresh(self) -> None:
+        self._variables_layout.removeWidget(self._list_scroll)
+        self._list_scroll.setParent(None)  # kept alive by self, not by the layout
         _clear(self._variables_layout)
         variables = self._variables()
         if not variables:
@@ -117,11 +127,23 @@ class QuestsScreen(QWidget):
         for variable in visible[: self._shown]:
             column.addWidget(self._row(variable, variable.index in pending))
         if len(visible) > self._shown:
+            buttons = QHBoxLayout()
             more = w.ghost_button(f"Show {min(PAGE, len(visible) - self._shown)} more")
             more.clicked.connect(self._show_more)
-            column.addWidget(more)
+            buttons.addWidget(more)
+            total = len(visible)
+            rest = w.ghost_button(f"Show all {total}")
+            rest.setToolTip("Build every remaining row at once")
+            rest.clicked.connect(lambda _=False, n=total: self._show_all(n))
+            buttons.addWidget(rest)
+            buttons.addStretch(1)
+            holder = QWidget()
+            holder.setStyleSheet("background:transparent;")
+            holder.setLayout(buttons)
+            column.addWidget(holder)
         column.addStretch(1)
-        self._variables_layout.addWidget(_scroll(body), 1)
+        w.set_scroll_widget(self._list_scroll, body)
+        self._variables_layout.addWidget(self._list_scroll, 1)
         self._show_tab()
 
     def _row(self, variable, dirty: bool) -> QWidget:
@@ -159,6 +181,10 @@ class QuestsScreen(QWidget):
 
     def _show_more(self) -> None:
         self._shown += PAGE
+        self.refresh()
+
+    def _show_all(self, total: int) -> None:
+        self._shown = total
         self.refresh()
 
     def _edit(self, variable) -> None:

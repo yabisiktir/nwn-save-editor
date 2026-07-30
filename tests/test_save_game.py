@@ -584,7 +584,7 @@ def test_property_editor_dialog_builds_edits(qtbot):
     qtbot.addWidget(dialog)
     dialog._subtype_combo.setCurrentIndex(dialog._subtype_combo.findData(2))  # Con
     dialog._cost_combo.setCurrentIndex(dialog._cost_combo.findData(5))  # +5
-    result = dialog.result()
+    result = dialog.edits()
     assert result == {"subtype": 2, "cost_value": 5}
 
 
@@ -624,7 +624,7 @@ def test_save_viewer_edit_property_full(qtbot, tmp_path, monkeypatch):
 
             return QDialog.DialogCode.Accepted
 
-        def result(self):
+        def edits(self):
             return {"subtype": 2, "cost_value": 7}
 
     monkeypatch.setattr(

@@ -537,11 +537,28 @@ def _drop_retired() -> None:
 
 
 def set_scroll_widget(area, content) -> None:
-    """``QScrollArea.setWidget`` that retires the old widget instead of deleting it.
+    """Swap a scroll area's contents, keeping the scroll position.
 
-    ``setWidget`` destroys whatever was there, with the same mid-event hazard.
+    Two things ``QScrollArea.setWidget`` gets wrong for a rebuild. It destroys the
+    old widget, with the mid-event hazard :func:`retire` exists for. And it resets
+    the scrollbars to the top — so editing a field two thirds down the Details tab
+    threw the view back to the start, every keystroke.
+
+    The position is restored after the event loop has laid the new widget out:
+    setting it immediately does nothing, because the scrollbar's range is still 0
+    until the content is measured.
     """
+    vertical = area.verticalScrollBar().value()
+    horizontal = area.horizontalScrollBar().value()
+
     previous = area.takeWidget()
     if previous is not None:
         retire(previous)
     area.setWidget(content)
+
+    if vertical or horizontal:
+        def _restore() -> None:
+            area.verticalScrollBar().setValue(vertical)
+            area.horizontalScrollBar().setValue(horizontal)
+
+        QTimer.singleShot(0, _restore)

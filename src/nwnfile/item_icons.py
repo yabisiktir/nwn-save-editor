@@ -35,6 +35,8 @@ class ItemIconSource:
         #: base item id -> (ItemClass, DefaultIcon, ModelType)
         self._base_items: dict[int, tuple[str, str, int]] = {}
         self._cache: dict[tuple[int, int], bytes | None] = {}
+        self._image_cache: dict[tuple[int, int], object] = {}
+        self._palette_cache: dict[str, object] | None = None
         #: opt-in hak icon search: resref -> (hak path, resource), built lazily.
         self._hak_dir = hak_dir if hak_dir is not None and hak_dir.is_dir() else None
         self._hak_index: dict[str, tuple[Path, ErfResource]] | None = None
@@ -77,11 +79,8 @@ class ItemIconSource:
                 int(model_type) if model_type.isdigit() else -1,
             )
 
-    #: Item icons the game stores as PLT rather than TGA. PLT is a palettised,
-    #: layered format used for tintable parts (cloaks, and some armour pieces), so
-    #: the icon is not a plain image and needs a decoder plus the palette textures
-    #: to colour it. Until that exists these items fall back to a text cell, which
-    #: is honest — a wrongly tinted icon would be worse than none.
+    #: Tintable parts (cloaks, robes) ship a PLT rather than a TGA: it stores no
+    #: colour, only a palette index per pixel. See core.formats.plt_reader.
     PLT_RES_TYPE = 6
 
     def _candidates(self, base_item: int, model_part: int) -> list[str]:
@@ -125,6 +124,53 @@ class ItemIconSource:
             return self._erf.read_resource_bytes(hak, res)
         except Exception:  # noqa: BLE001
             return None
+
+    def icon_image(self, base_item: int, model_part: int):
+        """An item's icon as a decoded ``TGAImage``, or ``None``.
+
+        Handles both of the formats the game uses: a plain TGA, or a PLT that has
+        to be coloured through the palette textures first.
+        """
+        from vaultkeeper.core.formats.tga_reader import TGAReader
+
+        key = (base_item, model_part)
+        if key not in self._image_cache:
+            image = None
+            data = self.icon_bytes(base_item, model_part)
+            if data is not None:
+                image = TGAReader().read_bytes(data)
+            if image is None:
+                image = self._plt_image(base_item, model_part)
+            self._image_cache[key] = image
+        return self._image_cache[key]
+
+    def _plt_image(self, base_item: int, model_part: int):
+        """Decode and colour the PLT icon for an item, if it has one."""
+        from vaultkeeper.core.formats.plt_reader import (
+            LAYER_PALETTES,
+            colour_plt,
+            read_plt,
+        )
+
+        if self._reader is None:
+            return None
+        for resref in self._candidates(base_item, model_part):
+            raw = self._reader.read(resref, self.PLT_RES_TYPE)
+            plt = read_plt(raw) if raw else None
+            if plt is not None:
+                return colour_plt(plt, self._palettes(LAYER_PALETTES))
+        return None
+
+    def _palettes(self, names) -> dict:
+        """The palette textures a PLT needs, decoded once."""
+        from vaultkeeper.core.formats.tga_reader import TGAReader
+
+        if self._palette_cache is None:
+            self._palette_cache = {}
+            for name in set(names):
+                raw = self._reader.read(name, _TGA_RES_TYPE) if self._reader else None
+                self._palette_cache[name] = TGAReader().read_bytes(raw) if raw else None
+        return self._palette_cache
 
     def icon_bytes(self, base_item: int, model_part: int) -> bytes | None:
         """Raw TGA bytes for an item's icon (cached), or ``None`` if not found.

@@ -113,8 +113,14 @@ class PropertyEditorDialog(QDialog):
             self._subtype_value = dialog.selected_id()
             self._subtype_btn.setText(self._subtype_button_text())
 
-    def result(self) -> dict[str, int]:
-        """Chosen edits as kwargs for :meth:`SaveEditor.set_property`."""
+    def edits(self) -> dict[str, int]:
+        """Chosen edits as kwargs for :meth:`SaveEditor.set_property`.
+
+        Deliberately not called ``result()``: that is ``QDialog``'s own method for
+        the accepted/rejected code, and overriding it to return a dict shadowed
+        what Qt's accept/reject/exec machinery reads — pressing Cancel handed a
+        dict to code expecting an int and took the whole editor down.
+        """
         edits: dict[str, int] = {}
         if self._subtype_combo is not None:
             edits["subtype"] = self._subtype_combo.currentData()

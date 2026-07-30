@@ -183,7 +183,7 @@ class PlayerItemPanel(_PanelBase):
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        edits = dialog.result()
+        edits = dialog.edits()
         if not edits:
             return
         self._screen.session().set_property(
