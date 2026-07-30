@@ -40,6 +40,19 @@ def _item(name: str, strref: int = -1, contents=()) -> InventoryItem:
     )
 
 
+def test_tlk_strings_decode_as_cp1252(tmp_path):
+    """TLK text is Windows-1252, where 0x92 is a curly apostrophe.
+
+    Decoded as latin-1 that byte becomes an unprintable C1 control and renders as
+    a box: "Greater Archer\x92s Belt" is a real item in the owner's save, and it
+    showed as "Greater Archer[]s Belt" everywhere a strref was resolved.
+    """
+    path = tmp_path / "dialog.tlk"
+    path.write_bytes(_make_tlk(["Greater Archer\x92s Belt"]))
+    table = TlkReader().read(path)
+    assert table.get(0) == "Greater Archer\u2019s Belt"
+
+
 def test_tlk_reader_resolves_strrefs(tmp_path):
     path = tmp_path / "dialog.tlk"
     path.write_bytes(_make_tlk(["Bag of Holding", "Ring of Nine Lives"]))

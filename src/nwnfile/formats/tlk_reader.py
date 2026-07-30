@@ -48,7 +48,16 @@ class TlkTable:
             return ""
         offset, size = struct.unpack_from("<II", self._data, base + 28)
         start = self._entries_offset + offset
-        return self._data[start:start + size].decode("latin-1")
+        raw = self._data[start:start + size]
+        # cp1252, not latin-1: the game's English strings use the Windows curly
+        # punctuation in 0x80–0x9f, where latin-1 maps to unprintable C1 controls.
+        # "Greater Archer\x92s Belt" is a real item — decoded as latin-1 the
+        # apostrophe renders as a box. Anything cp1252 leaves undefined falls back
+        # to latin-1 so no byte is ever lost.
+        try:
+            return raw.decode("cp1252")
+        except UnicodeDecodeError:
+            return raw.decode("latin-1")
 
 
 class TlkReader:

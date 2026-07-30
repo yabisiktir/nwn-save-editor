@@ -134,10 +134,20 @@ class CharacterScreen(QWidget):
         info = self._window.character_info()
         self._build_header(info)
         for index, key in enumerate(self._page_keys):
-            body = self._page_bodies[index]
-            _clear(body.layout())
+            # A fresh body per refresh, handed to the page's scroll area. Clearing
+            # and refilling the existing one leaves the QScrollArea sizing its
+            # widget from the *old* content: with widgetResizable it does not
+            # re-measure when its widget's children are swapped, so a page that
+            # grows (the bonuses view runs to ~3800px) gets squeezed into the
+            # viewport and every panel collapses to a sliver.
+            body = QWidget()
+            body.setStyleSheet("background:transparent;")
+            layout = QVBoxLayout(body)
+            layout.setContentsMargins(0, 0, 8, 0)
             builder = getattr(self, f"_build_{key}")
-            builder(body.layout(), info)
+            builder(layout, info)
+            self._pages.widget(index).setWidget(body)  # takes ownership of the old
+            self._page_bodies[index] = body
         self._show_tab()
         self._mark_dirty_tabs()
 
