@@ -115,6 +115,119 @@ def test_a_raw_edit_refuses_a_container(window):
         session.set_raw_field("module.ifo", (("Mod_PlayerList", None),), 1)
 
 
+# -- Raw Data: list structure ----------------------------------------------- #
+def _find_list(raw, label: str):
+    """The list node named ``label`` under the player struct, expanded."""
+    node = _find_scalar(raw, label)
+    raw._tree.expandItem(node)
+    return node
+
+
+def _feat_ids(window):
+    player = window.session().raw_tree("module.ifo").root
+    feats = player.fields["Mod_PlayerList"].value.structs[0].fields["FeatList"]
+    return [s.fields["Feat"].value for s in feats.value.structs]
+
+
+@pytest.fixture
+def yes(monkeypatch):
+    """Answer every confirmation with Yes — an unstubbed modal hangs the run."""
+    from PySide6.QtWidgets import QMessageBox
+
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+
+
+def test_list_buttons_are_gated_on_edit_mode(window, raw):
+    node = _find_list(raw, "FeatList")
+    raw._tree.setCurrentItem(node)
+    assert not raw._buttons["blank"].isEnabled()
+
+    window._edit_toggle.setChecked(True)
+    node = _find_list(raw, "FeatList")
+    raw._tree.setCurrentItem(node)
+    assert raw._buttons["blank"].isEnabled()
+    assert raw._buttons["duplicate"].isEnabled(), "the list has entries to copy"
+    assert not raw._buttons["remove"].isEnabled(), "the list itself is not an entry"
+    assert not raw._buttons["edit"].isEnabled()
+
+    raw._tree.setCurrentItem(node.child(1))  # an entry
+    assert raw._buttons["remove"].isEnabled()
+    assert raw._buttons["duplicate"].isEnabled()
+
+
+def test_a_scalar_offers_no_list_buttons(window, raw):
+    window._edit_toggle.setChecked(True)
+    raw._tree.setCurrentItem(_find_scalar(raw, "Gold"))
+    assert raw._buttons["edit"].isEnabled()
+    assert not any(raw._buttons[k].isEnabled() for k in ("blank", "duplicate", "remove"))
+
+
+def test_adding_a_blank_entry_seeds_it_and_says_so(window, raw):
+    window._edit_toggle.setChecked(True)
+    before = _feat_ids(window)
+    raw._tree.setCurrentItem(_find_list(raw, "FeatList"))
+    raw._add_blank()
+
+    assert _feat_ids(window) == before + [0]  # seeded: the sibling's field, zeroed
+    assert "seeded" in raw._note.text()
+    change = window.session().pending_changes()[-1]
+    assert change.kind == "raw" and "seeded from [0]" in change.summary
+
+
+def test_duplicating_an_entry_copies_it(window, raw):
+    window._edit_toggle.setChecked(True)
+    before = _feat_ids(window)
+    node = _find_list(raw, "FeatList")
+    raw._tree.setCurrentItem(node.child(2))
+    raw._duplicate()
+
+    assert _feat_ids(window) == before + [before[2]]
+    assert "copy of [2]" in raw._note.text()
+
+
+def test_removing_an_entry_confirms_first(window, raw, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    before = _feat_ids(window)
+    asked = []
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        lambda *a, **k: asked.append(a[2]) or QMessageBox.StandardButton.No,
+    )
+    node = _find_list(raw, "FeatList")
+    raw._tree.setCurrentItem(node.child(0))
+    raw._remove_selected()
+
+    assert asked and "moves up one place" in asked[0]
+    assert _feat_ids(window) == before, "declining changes nothing"
+
+
+def test_removing_an_entry_stages_and_reveals_the_list(window, raw, yes):
+    window._edit_toggle.setChecked(True)
+    before = _feat_ids(window)
+    node = _find_list(raw, "FeatList")
+    raw._tree.setCurrentItem(node.child(0))
+    raw._remove_selected()
+
+    assert _feat_ids(window) == before[1:]
+    assert "moved up one" in raw._note.text()
+    # the rebuilt tree is back on the list, expanded — not collapsed to the root
+    current = raw._tree.currentItem()
+    assert current.text(0) == "FeatList" and current.isExpanded()
+    assert current.childCount() == len(before) - 1
+
+
+def test_a_new_entry_is_revealed_in_the_rebuilt_tree(window, raw):
+    window._edit_toggle.setChecked(True)
+    raw._tree.setCurrentItem(_find_list(raw, "FeatList"))
+    raw._duplicate()
+    current = raw._tree.currentItem()
+    assert current.text(0) == "[3]"  # selected, and its parent expanded to show it
+
+
 def test_the_filter_hides_non_matching_top_level_fields(raw):
     raw._apply_filter("Mod_PlayerList")
     visible = [

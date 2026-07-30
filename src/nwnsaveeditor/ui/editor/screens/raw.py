@@ -1,9 +1,10 @@
 """The Raw Data (GFF) screen — the escape hatch.
 
-Browse the decoded struct/field tree of a save's resources directly, and edit
-scalar leaves. This bypasses every friendly editor, so its edits are marked
-``raw`` in the ledger and it refuses anything that would change a field's type —
-a raw edit should be able to break the *rules*, not the *file*.
+Browse the decoded struct/field tree of a save's resources directly, edit scalar
+leaves, and grow or shrink a list of structs. This bypasses every friendly
+editor, so its edits are marked ``raw`` in the ledger and it refuses anything
+that would change a field's type — a raw edit should be able to break the
+*rules*, not the *file*.
 """
 
 from __future__ import annotations
@@ -120,13 +121,28 @@ class RawScreen(QWidget):
         outer.addWidget(self._tree, 1)
 
         row = QHBoxLayout()
+        row.setSpacing(8)
         self._path_label = w.mono("", t.TEXT_3, 11)
         row.addWidget(self._path_label, 1)
-        self._edit_button = w.ghost_button("Edit value…")
-        self._edit_button.setEnabled(False)
-        self._edit_button.clicked.connect(self._edit_selected)
-        row.addWidget(self._edit_button)
+        self._buttons: dict[str, object] = {}
+        for key, text, handler in (
+            ("blank", "Add blank entry", self._add_blank),
+            ("duplicate", "Duplicate entry", self._duplicate),
+            ("remove", "Remove entry…", self._remove_selected),
+            ("edit", "Edit value…", self._edit_selected),
+        ):
+            button = w.ghost_button(text)
+            button.setEnabled(False)
+            button.clicked.connect(handler)
+            row.addWidget(button)
+            self._buttons[key] = button
+        self._edit_button = self._buttons["edit"]  # the value editor, kept by name
         outer.addLayout(row)
+
+        #: what the last structural edit did — a new entry is copied or seeded, and
+        #: which one it was is the difference between valid and useless.
+        self._note = w.body("", t.TEXT_3, 11.5)
+        outer.addWidget(self._note)
 
         self.refresh()
 
@@ -160,7 +176,9 @@ class RawScreen(QWidget):
         self._resource_count.setText(f"{len(targets)} resource(s) in this save")
         self._tree.clear()
         self._path_label.setText("")
-        self._edit_button.setEnabled(False)
+        self._note.setText("")
+        for button in self._buttons.values():
+            button.setEnabled(False)
 
         tree = self._tree_for(self._target)
         if tree is None:
@@ -225,11 +243,124 @@ class RawScreen(QWidget):
         role = current.data(0, _ROLE) if current is not None else None
         if role is None:
             self._path_label.setText("")
-            self._edit_button.setEnabled(False)
+            for button in self._buttons.values():
+                button.setEnabled(False)
             return
         kind, path, _value = role
         self._path_label.setText(_render_path(path))
-        self._edit_button.setEnabled(kind == "scalar" and self._window.editing)
+        editing = self._window.editing
+        context = self._list_context(current)
+        entry = context is not None and context[1] is not None
+        self._buttons["edit"].setEnabled(kind == "scalar" and editing)
+        self._buttons["blank"].setEnabled(editing and context is not None)
+        self._buttons["duplicate"].setEnabled(editing and context is not None and context[2] > 0)
+        self._buttons["remove"].setEnabled(editing and entry)
+
+    @staticmethod
+    def _list_context(item: QTreeWidgetItem | None) -> tuple[tuple, int | None, int] | None:
+        """``(list path, selected entry index or None, entry count)``, or ``None``.
+
+        A list node and one of its entries act on the same list; the entry only
+        adds *which* one Duplicate and Remove mean.
+        """
+        role = item.data(0, _ROLE) if item is not None else None
+        if role is None:
+            return None
+        kind, path, value = role
+        if kind == "list":
+            return path, None, len(value.structs)
+        if kind == "struct" and path and path[-1][1] is not None:
+            # The entry's parent node carries the list itself, so the count and the
+            # list's own path come from there rather than being rebuilt by hand.
+            parent = item.parent()
+            parent_role = parent.data(0, _ROLE) if parent is not None else None
+            if parent_role is not None and parent_role[0] == "list":
+                return parent_role[1], path[-1][1], len(parent_role[2].structs)
+        return None
+
+    def _add_blank(self) -> None:
+        self._add(None)
+
+    def _duplicate(self) -> None:
+        context = self._list_context(self._tree.currentItem())
+        if context is None:
+            return
+        _path, index, count = context
+        # On the list itself, "duplicate" means its last entry — the newest sibling.
+        self._add(index if index is not None else count - 1)
+
+    def _add(self, source_index: int | None) -> None:
+        context = self._list_context(self._tree.currentItem())
+        if context is None:
+            return
+        path, _index, _count = context
+        label = _render_path(path)
+        try:
+            index = self._window.session().add_raw_struct(
+                self._target, path, source_index=source_index,
+                where=f"{self._target}: {label}",
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Raw edit failed", str(exc))
+            return
+        self._window.notify_changed()  # rebuilds the tree: the indices just moved
+        self._reveal(path[:-1] + ((path[-1][0], index),))
+        self._note.setText(
+            f"Added {label}[{index}] as a copy of [{source_index}]."
+            if source_index is not None else
+            f"Added {label}[{index}], seeded with its siblings' fields at zero — "
+            f"fill them in, or duplicate an entry instead."
+        )
+
+    def _remove_selected(self) -> None:
+        context = self._list_context(self._tree.currentItem())
+        if context is None or context[1] is None:
+            return
+        path, index, count = context
+        label = _render_path(path)
+        confirm = QMessageBox.question(
+            self, "Remove entry",
+            f"Remove entry [{index}] of {count} from {label}?\n\n"
+            f"Every entry after it moves up one place. Nothing checks that the "
+            f"game can still read the result.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._window.session().remove_raw_struct(
+                self._target, path, index, where=f"{self._target}: {label}"
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Raw edit failed", str(exc))
+            return
+        self._window.notify_changed()
+        self._reveal(path)
+        self._note.setText(f"Removed {label}[{index}] — the entries after it moved up one.")
+
+    def _reveal(self, path: tuple) -> None:
+        """Expand down to ``path`` and select it, after a rebuild.
+
+        A structural edit renumbers entries, so the tree is rebuilt from scratch
+        rather than patched; without this the user would be dropped back at the
+        root every time they add a row.
+        """
+        node = None
+        siblings = [self._tree.topLevelItem(i) for i in range(self._tree.topLevelItemCount())]
+        for label, index in path:
+            node = _named(siblings, label)
+            if node is None:
+                return
+            self._tree.expandItem(node)
+            if index is not None:
+                node = _named(_children(node), f"[{index}]")
+                if node is None:
+                    return
+                self._tree.expandItem(node)
+            siblings = _children(node)
+        if node is not None:
+            self._tree.setCurrentItem(node)
+            self._tree.scrollToItem(node)
 
     def _edit_selected(self) -> None:
         from vaultkeeper.ui.dialogs.property_edit_dialog import PropertyEditDialog
@@ -273,6 +404,14 @@ class RawScreen(QWidget):
         for index in range(self._tree.topLevelItemCount()):
             node = self._tree.topLevelItem(index)
             node.setHidden(needle not in node.text(0).lower())
+
+
+def _children(node: QTreeWidgetItem) -> list[QTreeWidgetItem]:
+    return [node.child(i) for i in range(node.childCount())]
+
+
+def _named(items: list[QTreeWidgetItem], label: str) -> QTreeWidgetItem | None:
+    return next((item for item in items if item.text(0) == label), None)
 
 
 def _render_path(path: tuple) -> str:
