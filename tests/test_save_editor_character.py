@@ -184,9 +184,24 @@ def test_effect_rows_describe_what_the_save_actually_stores(window, screen, monk
     text = _text_of(screen._pages.widget(3))
     assert "EffectHolyTouch" in text
     assert "permanent" in text
-    # The names live in the game's nwscript.nss, which is not read — say so rather
-    # than invent a mapping.
-    assert "nwscript.nss" in text
+    assert "type 13/18" in text
+
+
+def test_effect_types_are_not_named_from_the_script_constants(screen, monkeypatch):
+    """The serialized Type is a different enum from nwscript's EFFECT_TYPE_*.
+
+    On the owner's save the three EffectHolyTouch effects carry Type 13 and 83,
+    which those constants call DEAF and CUTSCENEGHOST — so naming a row from that
+    table would be confidently wrong. Guard against someone "fixing" this later.
+    """
+    monkeypatch.setattr(screen, "_read_effects", lambda: [{
+        "tag": "EffectHolyTouch", "type": 13, "subtype": 18,
+        "spell": "", "caster_level": 0, "duration": 0.0,
+    }])
+    screen.refresh()
+    text = _text_of(screen._pages.widget(3)).lower()
+    for wrong in ("deaf", "cutsceneghost", "cutscene ghost"):
+        assert wrong not in text
 
 
 # -- biography -------------------------------------------------------------- #

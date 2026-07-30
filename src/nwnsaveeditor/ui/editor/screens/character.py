@@ -539,14 +539,26 @@ class CharacterScreen(QWidget):
         layout.addWidget(w.body(
             "Read-only — the engine derives these from equipped items, active feats "
             "and ongoing spells. To change one, edit the item, feat or spell that "
-            "grants it. Effect type ids are shown raw: the names live in the game's "
-            "nwscript.nss, which Vaultkeeper does not read yet.",
+            "grants it. Effect types are shown as raw ids on purpose: the number a "
+            "save stores is the engine's internal effect type, which is a different "
+            "enum from the EFFECT_TYPE_* constants scripts see, so naming them from "
+            "those would be confidently wrong.",
             t.TEXT_3, 12,
         ))
         layout.addStretch(1)
 
     def _read_effects(self) -> list[dict]:
-        """The player's ``EffectList``, as far as it can be read without guessing."""
+        """The player's ``EffectList``, as far as it can be read without guessing.
+
+        Deliberately does *not* name the effect type. The ``Type`` a save stores is
+        the engine's internal effect enum, which does not share numbering with the
+        ``EFFECT_TYPE_*`` constants in the game's ``nwscript.nss`` — those are what
+        ``GetEffectType()`` hands to scripts. Checked against the owner's save: its
+        three ``EffectHolyTouch`` effects carry ``Type`` 13 and 83, which in
+        ``nwscript.nss`` are ``DEAF`` and ``CUTSCENEGHOST``. Mapping through that
+        table would print confident nonsense, so the raw ids stand until the real
+        serialized enum is sourced.
+        """
         from vaultkeeper.game.character_reference import default_reference
 
         try:
