@@ -17,6 +17,7 @@ Safety model:
 
 from __future__ import annotations
 
+import functools
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
@@ -189,11 +190,53 @@ class ClassSpellbook:
     lists: list[SpellList]
 
 
+@dataclass
+class _Command:
+    """One recorded edit, replayable from a clean state.
+
+    Undo is built by replaying the log rather than by inverting each edit: a
+    per-kind inverse would have to know how to un-remove an item property or
+    un-clone an item, and every new edit type would need one. Replaying the
+    remaining commands is uniformly correct and needs nothing per kind.
+    """
+
+    method: str
+    args: tuple
+    kwargs: dict
+    #: edits sharing a coalesce key collapse into one undo step, so dragging a
+    #: stepper does not become twenty of them.
+    coalesce: tuple | None = None
+
+
+def _records(coalesce=None):
+    """Mark a mutator so its call is appended to the undo log.
+
+    ``coalesce`` maps the call's arguments to a key; consecutive calls with the
+    same key replace the previous log entry instead of appending.
+    """
+
+    def decorate(method):
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            result = method(self, *args, **kwargs)
+            if self._recording:
+                key = coalesce(*args, **kwargs) if coalesce is not None else None
+                self._record(_Command(method.__name__, args, dict(kwargs), key))
+            return result
+
+        return wrapper
+
+    return decorate
+
+
 class SaveEditor:
     """Accumulates edits to a save's resources and writes them to a new save.
 
     Edits are staged in memory (the source is never modified); :meth:`save_as`
     materialises them into a new save folder and verifies the result.
+
+    Every mutator is recorded in an undo log, so :meth:`undo`, :meth:`redo` and
+    :meth:`discard_change` work for all edit kinds without per-kind inverses.
     """
 
     #: editable store field names (the public keyword args of set_store_fields).
@@ -226,6 +269,14 @@ class SaveEditor:
         self._feat_originals: set[int] | None = None
         #: original spell ids per (class_index, list_field), first spell op.
         self._spell_originals: dict[tuple[int, str], set[int]] = {}
+        #: applied edits, in order — the undo log.
+        self._log: list[_Command] = []
+        #: edits taken off the log by undo. The design keeps these visible in the
+        #: ledger, struck through and excluded from the write count.
+        self._undone: list[_Command] = []
+        #: the PendingChanges each undo removed, parallel to ``_undone``.
+        self._undone_display: list[list[PendingChange]] = []
+        self._recording = True  # False while replaying, so replay doesn't re-log
 
     @property
     def has_edits(self) -> bool:
@@ -235,8 +286,118 @@ class SaveEditor:
         """The staged edits, in the order they were first made."""
         return list(self._changes.values())
 
+    # -- undo / redo ------------------------------------------------------- #
+    @property
+    def can_undo(self) -> bool:
+        return bool(self._log)
+
+    @property
+    def can_redo(self) -> bool:
+        return bool(self._undone)
+
+    @property
+    def undone_count(self) -> int:
+        """Edits undone but still shown — never written."""
+        return len(self._undone)
+
+    def _record(self, command: _Command) -> None:
+        """Append ``command``, collapsing a run of edits to the same target."""
+        if (
+            command.coalesce is not None
+            and self._log
+            and self._log[-1].coalesce == command.coalesce
+        ):
+            self._log[-1] = command  # replace: the run is one undo step
+        else:
+            self._log.append(command)
+        self._undone.clear()  # a fresh edit invalidates the redo branch
+        self._undone_display.clear()
+
+    def undone_changes(self) -> list[PendingChange]:
+        """Changes removed by :meth:`undo`, newest last.
+
+        The design keeps these in the ledger, struck through — so what was backed
+        out of stays visible — while excluding them from the write count.
+        """
+        return [change for group in self._undone_display for change in group]
+
+    def undo(self) -> bool:
+        """Take the last edit off the log. ``False`` if there was nothing to undo."""
+        if not self._log:
+            return False
+        before = dict(self._changes)
+        self._undone.append(self._log.pop())
+        self._replay()
+        # Whatever is no longer staged is what this undo backed out of.
+        self._undone_display.append([
+            change for key, change in before.items() if key not in self._changes
+        ])
+        return True
+
+    def redo(self) -> bool:
+        """Re-apply the most recently undone edit."""
+        if not self._undone:
+            return False
+        self._log.append(self._undone.pop())
+        if self._undone_display:
+            self._undone_display.pop()
+        self._replay()
+        return True
+
+    def discard_change(self, key: tuple) -> bool:
+        """Drop the staged change identified by its ``self._changes`` key.
+
+        Implemented by replaying every *other* edit, so nothing has to know how to
+        reverse an edit — dropping the commands that produced it is enough.
+        """
+        culprits = self._commands_touching(key)
+        if not culprits:
+            return False
+        self._log = [c for c in self._log if not any(c is x for x in culprits)]
+        self._undone.clear()
+        self._undone_display.clear()
+        self._replay()
+        return True
+
+    def _commands_touching(self, key: tuple) -> list[_Command]:
+        """Commands that created or altered the staged change at ``key``.
+
+        One incremental replay: apply the log a command at a time and note where
+        the entry at ``key`` appears or changes. Editing a field twice produces two
+        commands but one change, and discarding it has to drop both.
+        """
+        found: list[_Command] = []
+        self._recording = False
+        try:
+            self._reset()
+            for command in self._log:
+                before = self._changes.get(key)
+                getattr(self, command.method)(*command.args, **command.kwargs)
+                if self._changes.get(key) != before:
+                    found.append(command)
+        finally:
+            self._recording = True
+        return found
+
+    def _replay(self) -> None:
+        """Rebuild the staged state from the log, starting clean."""
+        self._recording = False
+        try:
+            self._reset()
+            for command in self._log:
+                getattr(self, command.method)(*command.args, **command.kwargs)
+        finally:
+            self._recording = True
+
     def discard(self) -> None:
         """Drop every staged edit (re-reads happen fresh afterwards)."""
+        self._reset()
+        self._log.clear()
+        self._undone.clear()
+        self._undone_display.clear()
+
+    def _reset(self) -> None:
+        """Clear the staged state, keeping the undo log (see :meth:`_replay`)."""
         self._areas.clear()
         self._store_originals.clear()
         self._changes.clear()
@@ -253,6 +414,7 @@ class SaveEditor:
         self._spell_originals.clear()
 
     # -- store editing ---------------------------------------------------- #
+    @_records(lambda area_resref, store_index, **_k: ("store", area_resref, store_index))
     def set_store_fields(
         self, area_resref: str, store_index: int, *, where: str | None = None, **values
     ) -> None:
@@ -385,6 +547,7 @@ class SaveEditor:
     #: property struct fields the editor may change (all indexes into iprp_* tables).
     _PROP_FIELDS = ("Subtype", "CostValue", "Param1", "Param1Value", "UsesPerDay")
 
+    @_records(lambda item_path, prop_index, **_k: ("property", tuple(item_path), prop_index))
     def set_property(
         self, item_path: tuple, prop_index: int, *,
         subtype: int | None = None, cost_value: int | None = None,
@@ -420,6 +583,7 @@ class SaveEditor:
         self._char_dirty = True
         self._record_property_change(item_path, prop_index, base_ps, where, label)
 
+    @_records(lambda item_path, prop_index, *_a, **_k: ("cost", tuple(item_path), prop_index))
     def set_property_cost(
         self, item_path: tuple, prop_index: int, *,
         cost_value: int | None = None, uses_per_day: int | None = None,
@@ -498,6 +662,7 @@ class SaveEditor:
             raise SaveEditError(f"property {prop_index} out of range")
         return plist.value.structs[prop_index]
 
+    @_records()
     def add_item_property(
         self, item_path: tuple, *, property_name: int, subtype: int, cost_value: int,
         cost_table: int, where: str = "", label: str = "property",
@@ -519,6 +684,7 @@ class SaveEditor:
             where=where or "item", summary=f"add {label}",
         )
 
+    @_records()
     def remove_item_property(
         self, item_path: tuple, prop_index: int, *, where: str = "", label: str = "property",
     ) -> None:
@@ -538,6 +704,7 @@ class SaveEditor:
         )
 
     # -- add items -------------------------------------------------------- #
+    @_records()
     def add_item_copy(self, source_path: tuple, *, where: str = "") -> None:
         """Append a copy of an existing player item to the carried inventory.
 
@@ -548,6 +715,7 @@ class SaveEditor:
         name = where or (source.get("TemplateResRef") or "item")
         self._clone_into_carried(source, where=name, summary="added a copy to inventory")
 
+    @_records()
     def add_item_from_area(self, area_resref: str, resref: str, *, where: str = "") -> None:
         """Clone an item that lives in an area (a store's stock, a creature's or a
         container's item) into the player's carried inventory.
@@ -639,6 +807,7 @@ class SaveEditor:
             for i, struct in enumerate(skills.value.structs)
         ]
 
+    @_records(lambda skill_index, *_a, **_k: ("skill", skill_index))
     def set_skill_rank(self, skill_index: int, rank: int, *, where: str = "") -> None:
         """Stage a change to a skill's rank (reverting to its original removes it)."""
         if skill_index not in self._skill_originals:
@@ -700,6 +869,7 @@ class SaveEditor:
         """
         return self._char_field_originals.get(field)
 
+    @_records(lambda field, *_a, **_k: ("char", field))
     def set_character_field(self, field: str, value: int, *, where: str = "") -> None:
         """Stage a change to a scalar character field (both trees), reverting removes it."""
         base = self._player_struct(self._module_tree())
@@ -712,6 +882,7 @@ class SaveEditor:
         self._char_dirty = True
         self._record_char_field(field, where, f"{self._char_field_originals[field]}→{int(value)}")
 
+    @_records(lambda field, *_a, **_k: ("char", field))
     def set_character_resref(self, field: str, resref: str, *, where: str = "") -> None:
         """Stage a change to a CRESREF character field (e.g. Portrait) in both trees."""
         base = self._player_struct(self._module_tree())
@@ -725,6 +896,7 @@ class SaveEditor:
         was = self._char_field_originals[field]
         self._record_char_field(field, where, f"“{was}”→“{resref}”", changed=str(resref) != was)
 
+    @_records(lambda field, *_a, **_k: ("char", field))
     def set_character_name(self, field: str, text: str, *, where: str = "") -> None:
         """Stage a change to a character name field (CExoLocString) in both trees."""
         base = self._player_struct(self._module_tree())
@@ -775,6 +947,7 @@ class SaveEditor:
         rows.sort(key=lambda r: r[1].lower())
         return rows
 
+    @_records()
     def add_feat(self, feat_id: int) -> None:
         """Stage adding a feat id to the character's FeatList (both trees)."""
         self._ensure_feat_originals()
@@ -789,6 +962,7 @@ class SaveEditor:
         self._char_dirty = True
         self._recompute_feat_changes()
 
+    @_records()
     def remove_feat(self, feat_id: int) -> None:
         """Stage removing a feat id from the character's FeatList (both trees)."""
         self._ensure_feat_originals()
@@ -864,6 +1038,7 @@ class SaveEditor:
                 books.append(ClassSpellbook(ci, cid, class_name(cid), is_base_class(cid), lists))
         return books
 
+    @_records()
     def add_spell(self, class_index: int, list_field: str, spell_id: int) -> None:
         """Stage adding a spell to a class's Known/Memorized list (both trees)."""
         self._ensure_spell_originals()
@@ -874,6 +1049,7 @@ class SaveEditor:
         self._char_dirty = True
         self._recompute_spell_changes(class_index, list_field)
 
+    @_records()
     def remove_spell(self, class_index: int, list_field: str, spell_id: int) -> None:
         """Stage removing a spell from a class's Known/Memorized list (both trees)."""
         self._ensure_spell_originals()

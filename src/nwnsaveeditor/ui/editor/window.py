@@ -117,6 +117,10 @@ class SaveEditorWindow(QMainWindow):
         outer.addLayout(middle, 1)
         outer.addWidget(self._build_footer())
 
+        from vaultkeeper.ui.save_editor.ledger import ChangeLedger
+
+        self._ledger = ChangeLedger(self)
+
         if self._saves:
             self._select_save(self._saves[0])
         self._set_section("character")
@@ -161,8 +165,10 @@ class SaveEditorWindow(QMainWindow):
         self._undo_btn.setToolTip("Undo the last staged change")
         self._redo_btn = w.ghost_button("Redo")
         self._redo_btn.setToolTip("Redo an undone change")
+        self._undo_btn.clicked.connect(self._undo)
+        self._redo_btn.clicked.connect(self._redo)
         for button in (self._undo_btn, self._redo_btn):
-            button.setEnabled(False)  # wired with the change ledger
+            button.setEnabled(False)  # until there is something on the stack
             layout.addWidget(button)
 
         self._edit_toggle = w.pill_toggle("Edit")
@@ -354,7 +360,7 @@ class SaveEditorWindow(QMainWindow):
         layout.addLayout(self._pending_samples)
         layout.addStretch(1)
         self._review_btn = w.ghost_button("Review…")
-        self._review_btn.setEnabled(False)  # wired with the change ledger
+        self._review_btn.clicked.connect(self._toggle_ledger)
         layout.addWidget(self._review_btn)
         self._discard_btn = w.ghost_button("Discard All")
         self._discard_btn.clicked.connect(self._discard_all)
@@ -437,6 +443,22 @@ class SaveEditorWindow(QMainWindow):
         self._refresh_pending()
         return True
 
+    def _undo(self) -> None:
+        if self._session is not None and self._session.undo():
+            self.notify_changed()
+
+    def _redo(self) -> None:
+        if self._session is not None and self._session.redo():
+            self.notify_changed()
+
+    def _toggle_ledger(self) -> None:
+        self._ledger.toggle()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().resizeEvent(event)
+        if getattr(self, "_ledger", None) is not None and self._ledger.isVisible():
+            self._ledger.reposition()
+
     def _discard_all(self) -> None:
         if self._session is None or not self._session.has_edits:
             return
@@ -460,6 +482,14 @@ class SaveEditorWindow(QMainWindow):
         dirty = {section_for_kind(change.kind) for change in changes}
         for key, row in self._nav_rows.items():
             row.set_dirty(key in dirty)
+        session = self._session
+        self._undo_btn.setEnabled(bool(session is not None and session.can_undo))
+        self._redo_btn.setEnabled(bool(session is not None and session.can_redo))
+        self._review_btn.setEnabled(bool(changes) or bool(
+            session is not None and session.undone_changes()
+        ))
+        if self._ledger.isVisible():
+            self._ledger.refresh()
         self._sync_edit_state()
 
     # -- sections --------------------------------------------------------- #
