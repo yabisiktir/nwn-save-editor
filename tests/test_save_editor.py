@@ -20,7 +20,7 @@ from vaultkeeper.core.formats.gff import (
 )
 from vaultkeeper.game.item_properties import editable_magnitude, is_cast_spell
 from vaultkeeper.game.save_area import read_area_contents
-from vaultkeeper.game.save_editor import SaveEditError, SaveEditor
+from vaultkeeper.game.save_editor import SaveEditError, SaveEditor, _render_raw_path
 from vaultkeeper.game.save_game import SaveGame
 
 
@@ -740,3 +740,199 @@ def test_addable_properties_have_valid_shapes():
     assert any(t.label == "Ability Bonus" and t.subtypes for t in templates)  # subtype
     assert any(t.label == "Haste" and t.magnitude is None for t in templates)  # flag
     assert any(t.label == "AC Bonus" and t.magnitude and not t.subtypes for t in templates)
+
+
+# --------------------------------------------------------------------------- #
+# raw list structure — add / duplicate / remove entries
+# --------------------------------------------------------------------------- #
+_FEATS = (("Mod_PlayerList", 0), ("FeatList", None))
+
+
+def _raw_feats(sav_path):
+    return _ifo_char(sav_path).fields["FeatList"].value.structs
+
+
+def test_duplicate_raw_struct_copies_the_sibling_exactly(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    index = editor.add_raw_struct("module.ifo", _FEATS, source_index=0)
+    assert index == 3
+    assert "copy of [0]" in editor.pending_changes()[0].summary
+
+    new_save = editor.save_as(tmp_path / "out")
+    feats = _raw_feats(new_save.sav_path)
+    assert [f.fields["Feat"].value for f in feats] == [1, 2, 9000, 1]
+    assert feats[-1].struct_type == feats[0].struct_type  # tag copied, not invented
+    assert len(_raw_feats(save.sav_path)) == 3  # original untouched
+
+
+def test_a_seeded_raw_struct_gets_the_siblings_fields_and_types(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.add_raw_struct("module.ifo", _FEATS)
+    assert "seeded from [0]" in editor.pending_changes()[0].summary
+
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    added = _raw_feats(new_save.sav_path)[-1]
+    assert set(added.fields) == {"Feat"}  # same field set as its siblings
+    assert added.fields["Feat"].type == GffType.WORD and added.fields["Feat"].value == 0
+
+
+def test_a_seeded_struct_keeps_nested_shapes_and_empties_lists(tmp_path):
+    """A blank item still has to be an item: same fields, zeroed, no invented rows."""
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.add_raw_struct("module.ifo", (("Mod_PlayerList", 0), ("ItemList", None)))
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    added = _ifo_char(new_save.sav_path).fields["ItemList"].value.structs[-1]
+    assert set(added.fields) == {
+        "ObjectId", "LocalizedName", "TemplateResRef", "BaseItem", "ItemList",
+    }
+    assert added.fields["BaseItem"].value == 0
+    assert added.fields["TemplateResRef"].value == ""
+    assert added.fields["LocalizedName"].value.text() == ""
+    assert added.fields["ItemList"].value.structs == []  # a nested list starts empty
+
+
+def _make_numbered_save(tmp_path, name="000000 - numbered"):
+    """A save holding a list of the kind that stores each entry's index as its type."""
+    rows = [
+        GffStruct(struct_type=i, fields={"Rank": GffField(GffType.BYTE, i)}) for i in range(3)
+    ]
+    ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Mod_MapDataList": GffField(GffType.LIST, GffList(rows)),
+    }))
+    folder = tmp_path / name
+    folder.mkdir()
+    (folder / "x.sav").write_bytes(_make_erf([("module", 2014, write_gff(ifo))]))
+    return SaveGame(folder=folder)
+
+
+def _numbered_rows(sav_path):
+    er = ErfReader()
+    res = er.find_resource(sav_path, "module", res_type=2014)
+    ifo = read_gff(er.read_resource_bytes(sav_path, res))
+    return ifo.root.fields["Mod_MapDataList"].value.structs
+
+
+def test_add_to_an_index_numbered_list_continues_the_numbering(tmp_path):
+    editor = SaveEditor(_make_numbered_save(tmp_path))
+    editor.add_raw_struct("module.ifo", (("Mod_MapDataList", None),), source_index=0)
+    new_save = editor.save_as(tmp_path / "out")
+    assert [r.struct_type for r in _numbered_rows(new_save.sav_path)] == [0, 1, 2, 3]
+
+
+def test_a_tagged_list_keeps_its_siblings_struct_type(tmp_path):
+    """Equip_ItemList's struct_type is the slot bit, not a position — never renumber."""
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.add_raw_struct(
+        "module.ifo", (("Mod_PlayerList", 0), ("Equip_ItemList", None)), source_index=0
+    )
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    equipped = _ifo_char(new_save.sav_path).fields["Equip_ItemList"].value.structs
+    assert [e.struct_type for e in equipped] == [1, 1]
+
+
+def test_remove_raw_struct_round_trips(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    editor.remove_raw_struct("module.ifo", _FEATS, 1)
+    assert "remove entry [1] of 3" in editor.pending_changes()[0].summary
+
+    new_save = editor.save_as(tmp_path / "out")
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [1, 9000]
+    assert len(_raw_feats(save.sav_path)) == 3  # original untouched
+
+
+def test_removing_an_entry_reindexes_a_numbered_list(tmp_path):
+    editor = SaveEditor(_make_numbered_save(tmp_path))
+    editor.remove_raw_struct("module.ifo", (("Mod_MapDataList", None),), 0)
+    new_save = editor.save_as(tmp_path / "out")
+    rows = _numbered_rows(new_save.sav_path)
+    assert [r.fields["Rank"].value for r in rows] == [1, 2]
+    assert [r.struct_type for r in rows] == [0, 1]  # renumbered to match
+
+
+def test_raw_struct_ops_refuse_a_non_list(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    with pytest.raises(SaveEditError):
+        editor.add_raw_struct("module.ifo", (("Mod_PlayerList", 0), ("FirstName", None)))
+    with pytest.raises(SaveEditError):
+        editor.remove_raw_struct("module.ifo", _FEATS, 99)
+
+
+# -- index shifting --------------------------------------------------------- #
+def _feat_path(index: int) -> tuple:
+    return ("Mod_PlayerList", 0), ("FeatList", index), ("Feat", None)
+
+
+def test_removal_repoints_a_staged_edit_that_shifted_down(tmp_path):
+    """Deleting [0] renumbers [2] to [1]; the staged edit has to follow it."""
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    where = f"module.ifo: {_render_raw_path(_feat_path(2))}"  # what the screen passes
+    editor.set_raw_field("module.ifo", _feat_path(2), 4242, where=where)
+    editor.remove_raw_struct("module.ifo", _FEATS, 0)
+
+    change = next(c for c in editor.pending_changes() if c.summary == "9000→4242")
+    assert change.key == ("module.ifo", _feat_path(1))
+    assert change.where == f"module.ifo: {_render_raw_path(_feat_path(1))}"
+
+    new_save = editor.save_as(tmp_path / "out")
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [2, 4242]
+
+
+def test_removal_drops_a_staged_edit_to_the_deleted_entry(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.set_raw_field("module.ifo", _feat_path(1), 77)
+    editor.remove_raw_struct("module.ifo", _FEATS, 1)
+    summaries = [c.summary for c in editor.pending_changes()]
+    assert not any("77" in s for s in summaries)  # it edited what is now gone
+    assert any("remove entry [1]" in s for s in summaries)
+
+
+def test_editing_the_same_index_either_side_of_a_removal_stays_separate(tmp_path):
+    """Without the shift both edits would collide on one ledger key."""
+    save = SaveEditor(_make_char_save(tmp_path))
+    save.set_raw_field("module.ifo", _feat_path(2), 111)  # the 9000 feat
+    save.remove_raw_struct("module.ifo", _FEATS, 0)  # 111 is now [1]
+    save.set_raw_field("module.ifo", _feat_path(1), 222)  # …and edited again
+
+    new_save = save.save_as(save._save.folder.parent / "out")
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [2, 222]
+    assert len([c for c in save.pending_changes() if c.kind == "raw"]) == 2
+
+
+def test_undo_of_a_removal_restores_the_entry_and_the_edit(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.set_raw_field("module.ifo", _feat_path(2), 4242)
+    editor.remove_raw_struct("module.ifo", _FEATS, 0)
+    assert editor.undo()
+    change = next(c for c in editor.pending_changes() if c.summary == "9000→4242")
+    assert change.key == ("module.ifo", _feat_path(2))  # back where it was
+
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [1, 2, 4242]
+
+
+def test_discarding_the_add_leaves_the_rest_of_the_resource_alone(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.set_raw_field("module.ifo", _feat_path(0), 55)
+    editor.add_raw_struct("module.ifo", _FEATS, source_index=0)
+    add = next(c for c in editor.pending_changes() if "add entry" in c.summary)
+    assert editor.discard_change(("raw-add", add.key[3]))
+
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [55, 2, 9000]
+
+
+def test_a_raw_edit_to_an_area_git_is_actually_written(tmp_path):
+    """The raw screen browses every resource, so its edits have to reach the file."""
+    save = _make_save(tmp_path, _git_with_store(_store_struct()))
+    editor = SaveEditor(save)
+    path = (("StoreList", None),)
+    editor.add_raw_struct("area1.git", path, source_index=0, where="area1.git: StoreList")
+    new_save = editor.save_as(tmp_path / "out")
+
+    reader = ErfReader()
+    res = reader.find_resource(new_save.sav_path, "area1", res_type=2023)
+    git = read_gff(reader.read_resource_bytes(new_save.sav_path, res))
+    assert len(git.root.fields["StoreList"].value.structs) == 2

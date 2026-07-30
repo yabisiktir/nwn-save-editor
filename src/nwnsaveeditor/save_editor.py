@@ -32,6 +32,7 @@ from vaultkeeper.core.formats.gff import (
     GffList,
     GffStruct,
     GffType,
+    LocString,
     read_gff,
     write_gff,
 )
@@ -158,6 +159,89 @@ def _make_property_struct(
         "Useable": GffField(GffType.BYTE, 1),
         "CustomTag": GffField(GffType.CEXOSTRING, ""),
     })
+
+
+#: the "empty" value for each simple GFF type, used to seed a new list entry.
+#: The mutable types (list, locstring) are absent on purpose — they must be built
+#: fresh per field rather than shared out of a dict.
+_ZERO_VALUE: dict[GffType, object] = {
+    GffType.BYTE: 0, GffType.CHAR: 0, GffType.WORD: 0, GffType.SHORT: 0,
+    GffType.DWORD: 0, GffType.INT: 0, GffType.DWORD64: 0, GffType.INT64: 0,
+    GffType.FLOAT: 0.0, GffType.DOUBLE: 0.0,
+    GffType.CEXOSTRING: "", GffType.CRESREF: "", GffType.VOID: b"",
+}
+
+
+def _zero_like(entry: GffField) -> object:
+    """An empty value of ``entry``'s own type (recursing into a nested struct)."""
+    if entry.type == GffType.STRUCT:
+        return _seeded_from(entry.value)  # a child struct keeps its shape too
+    if entry.type == GffType.LIST:
+        return GffList()  # an empty list is always valid; inventing entries is not
+    if entry.type == GffType.CEXOLOCSTRING:
+        return LocString()
+    return _ZERO_VALUE[entry.type]
+
+
+def _seeded_from(template: GffStruct) -> GffStruct:
+    """A new struct with ``template``'s field set and GFF types, values zeroed.
+
+    A struct with no fields is not a usable game object — the engine reads fields
+    by name — so even a "blank" new list entry has to carry the shape its siblings
+    have. Structs in a GFF list are not required to be homogeneous, so one sibling
+    is the model rather than the union of them all.
+    """
+    seeded = GffStruct(struct_type=template.struct_type)
+    for label, entry in template.fields.items():
+        seeded.fields[label] = GffField(entry.type, _zero_like(entry))
+    return seeded
+
+
+def _numbered_by_index(structs: list[GffStruct]) -> bool:
+    """Whether a list stores each entry's position in its ``struct_type``.
+
+    Some lists do (an item's ``PropertiesList``); in others the struct type is a
+    tag the game reads back — an equipment slot bit, a spell-list id. Renumbering
+    the first kind is required and renumbering the second corrupts it, so only
+    treat a list as numbered when it already unambiguously looks that way. Two
+    entries is the floor: a lone ``struct_type == 0`` entry is equally consistent
+    with a list whose tag just happens to be 0.
+    """
+    return len(structs) >= 2 and all(s.struct_type == i for i, s in enumerate(structs))
+
+
+def _render_raw_path(path: tuple) -> str:
+    """``Mod_Area_list[3]/Tag`` — the Raw Data screen's display form of a GFF path."""
+    return "/".join(label if index is None else f"{label}[{index}]" for label, index in path)
+
+
+def _shift_path(path: tuple, list_path: tuple, removed: int) -> tuple | None:
+    """Re-point ``path`` after entry ``removed`` was deleted from ``list_path``.
+
+    ``None`` means ``path`` pointed *at or into* the deleted entry and no longer
+    names anything.
+    """
+    depth = len(list_path)
+    if len(path) < depth:
+        return path
+    label, index = path[depth - 1]
+    # Everything above the list, and the list's own label, must match — otherwise
+    # this path is somewhere else entirely and the removal cannot have moved it.
+    if path[:depth - 1] != list_path[:depth - 1] or label != list_path[depth - 1][0]:
+        return path
+    if index is None or index < removed:
+        return path
+    if index == removed:
+        return None
+    return path[:depth - 1] + ((label, index - 1),) + path[depth:]
+
+
+def _repointed(change: PendingChange, key: tuple) -> PendingChange:
+    """A copy of ``change`` re-keyed to a shifted path, its label following along."""
+    where, old = change.where, _render_raw_path(change.key[1])
+    if where.endswith(old):  # the raw screen's label ends with the rendered path
+        where = where[: -len(old)] + _render_raw_path(key[1])
+    return PendingChange(kind=change.kind, key=key, where=where, summary=change.summary)
 
 
 #: store edit key -> (GFF label, "int"|"bool", display name, value formatter).
@@ -301,6 +385,13 @@ class SaveEditor:
         self._recording = True  # False while replaying, so replay doesn't re-log
         #: original value per raw-edited (target, path).
         self._raw_originals: dict[tuple, object] = {}
+        #: decoded trees for raw targets that are neither the character nor an area,
+        #: keyed (resref, extension) — cached because a raw edit has to survive
+        #: until :meth:`save_as`, and because the screen re-reads on every refresh.
+        self._raw_trees: dict[tuple[str, str], Gff | None] = {}
+        self._raw_types: dict[tuple[str, str], int] = {}  # …and their ERF res types
+        self._raw_dirty: set[tuple[str, str]] = set()  # of those, the edited ones
+        self._raw_areas: set[str] = set()  # area resrefs raw-edited (their .git)
         #: original value per edited module variable index / module setting.
         self._variable_originals: dict[int, object] = {}
         self._module_field_originals: dict[str, object] = {}
@@ -440,6 +531,10 @@ class SaveEditor:
         self._feat_originals = None
         self._spell_originals.clear()
         self._raw_originals.clear()
+        self._raw_trees.clear()
+        self._raw_types.clear()
+        self._raw_dirty.clear()
+        self._raw_areas.clear()
         self._variable_originals.clear()
         self._module_field_originals.clear()
 
@@ -1249,27 +1344,49 @@ class SaveEditor:
             return self._module_tree()
         if target == "player.bic":
             return self._bic_tree()
-        if "." in target:
-            resref, _dot, ext = target.rpartition(".")
-            if ext == "git":
-                return self._area_tree(resref)
-            return self._read_resource_tree(resref, ext)
-        return self._area_tree(target)
+        resref, extension = self._split_target(target)
+        if extension == "git":
+            return self._area_tree(resref)
+        return self._read_resource_tree(resref, extension)
+
+    @staticmethod
+    def _split_target(target: str) -> tuple[str, str]:
+        """``"foo.are"`` -> ``("foo", "are")``; a bare name is an area's ``.git``."""
+        resref, dot, extension = target.rpartition(".")
+        return (resref.lower(), extension.lower()) if dot else (target.lower(), "git")
 
     def _read_resource_tree(self, resref: str, extension: str) -> Gff | None:
-        """Decode any GFF resource in the ``.sav`` for read-only browsing.
+        """Decode (and keep) any other GFF resource in the ``.sav``.
 
-        Not cached alongside the edit trees: these are not part of the write path,
-        and holding 65 area trees in memory to look at one is not worth it.
+        Cached like the character and area trees: a raw edit has to survive until
+        :meth:`save_as`, and the screen re-reads the tree on every refresh — an
+        uncached tree would take the edit and then be discarded.
         """
+        key = (resref.lower(), extension.lower())
+        if key in self._raw_trees:
+            return self._raw_trees[key]
+        self._raw_trees[key] = None
         try:
             for res in self._reader.list_resources(self._save.sav_path):
-                if res.resref == resref and res.extension == extension:
+                if res.resref == key[0] and res.extension == key[1]:
                     data = self._reader.read_resource_bytes(self._save.sav_path, res)
-                    return read_gff(data)
+                    self._raw_trees[key] = read_gff(data)
+                    self._raw_types[key] = res.res_type
+                    break
         except Exception:
-            return None
-        return None
+            self._raw_trees[key] = None
+        return self._raw_trees[key]
+
+    def _mark_raw_dirty(self, target: str) -> None:
+        """Note which resource a raw edit touched, so :meth:`save_as` writes it back."""
+        if target in self.RAW_TARGETS:
+            self._char_dirty = True
+            return
+        resref, extension = self._split_target(target)
+        if extension == "git":
+            self._raw_areas.add(resref)
+        elif (resref, extension) in self._raw_types:
+            self._raw_dirty.add((resref, extension))
 
     @_records(lambda target, path, *_a, **_k: ("raw", target, tuple(path)))
     def set_raw_field(self, target: str, path: tuple, value, *, where: str = "") -> None:
@@ -1292,10 +1409,9 @@ class SaveEditor:
         except (TypeError, ValueError) as exc:
             raise SaveEditError(f"{value!r} is not a valid {type(original).__name__}") from exc
 
-        if target in ("module.ifo", "player.bic"):
-            self._char_dirty = True
+        self._mark_raw_dirty(target)
         key = ("raw", (target, tuple(path)))
-        label = "/".join(str(step[0]) for step in path)
+        label = _render_raw_path(path)
         if entry.value != self._raw_original(target, path, original):
             self._changes[key] = PendingChange(
                 kind="raw", key=(target, tuple(path)),
@@ -1333,19 +1449,126 @@ class SaveEditor:
                 raise SaveEditError(f"{label} is a scalar, not a container")
         raise SaveEditError("empty path")
 
+    # -- raw list structure (add / duplicate / remove entries) ------------- #
+    @_records()
+    def add_raw_struct(
+        self, target: str, path: tuple, *, source_index: int | None = None, where: str = ""
+    ) -> int:
+        """Append an entry to the GFF list at ``path``, and return its index.
+
+        ``source_index`` **duplicates** that sibling — the reliable route, because
+        the copy is already a valid entry of this list, with the fields, GFF types
+        and ``struct_type`` the game expects there. Without it the new entry is
+        *seeded* instead: the first sibling's field set and types, values zeroed.
+        Either way the caller gets back the index so it can say which it did.
+
+        Like every raw edit this touches one resource only — editing ``module.ifo``
+        does not mirror into ``player.bic``.
+        """
+        import copy
+
+        entries = self._raw_list(target, path).structs
+        numbered = _numbered_by_index(entries)
+        if source_index is None:
+            new = _seeded_from(entries[0]) if entries else GffStruct()
+            how = "seeded from [0]" if entries else "empty (the list had no sibling)"
+        else:
+            if not 0 <= source_index < len(entries):
+                raise SaveEditError(f"entry {source_index} is out of range")
+            new = copy.deepcopy(entries[source_index])
+            how = f"copy of [{source_index}]"
+        index = len(entries)
+        if numbered:  # e.g. PropertiesList — the entry's position is its struct type
+            new.struct_type = index
+        entries.append(new)
+
+        self._mark_raw_dirty(target)
+        self._add_seq += 1
+        self._changes[("raw-add", self._add_seq)] = PendingChange(
+            kind="raw", key=(target, tuple(path), "add", self._add_seq),
+            where=where or f"{target}: {_render_raw_path(path)}",
+            summary=f"add entry [{index}] — {how}",
+        )
+        return index
+
+    @_records()
+    def remove_raw_struct(self, target: str, path: tuple, index: int, *, where: str = "") -> None:
+        """Remove entry ``index`` from the GFF list at ``path``."""
+        entries = self._raw_list(target, path).structs
+        if not 0 <= index < len(entries):
+            raise SaveEditError(f"entry {index} is out of range")
+        numbered = _numbered_by_index(entries)
+        del entries[index]
+        if numbered:
+            for position, struct in enumerate(entries):
+                struct.struct_type = position
+
+        self._shift_raw_paths(target, tuple(path), index)
+        self._mark_raw_dirty(target)
+        self._add_seq += 1
+        self._changes[("raw-remove", self._add_seq)] = PendingChange(
+            kind="raw", key=(target, tuple(path), "remove", self._add_seq),
+            where=where or f"{target}: {_render_raw_path(path)}",
+            summary=f"remove entry [{index}] of {len(entries) + 1}",
+        )
+
+    def _raw_list(self, target: str, path: tuple) -> GffList:
+        """The GFF list ``path`` names, for the structural raw edits."""
+        tree = self.raw_tree(target)
+        if tree is None:
+            raise SaveEditError(f"{target} is not part of this save")
+        entry = self._raw_entry(tree, path)
+        if entry.type != GffType.LIST or not isinstance(entry.value, GffList):
+            raise SaveEditError("only a list can gain or lose entries")
+        return entry.value
+
+    def _shift_raw_paths(self, target: str, list_path: tuple, removed: int) -> None:
+        """Re-point the staged raw bookkeeping after an entry was removed.
+
+        Deleting entry *k* renumbers everything after it, so a change staged
+        against ``…[k+1]/Field`` now names a different struct — and, worse, could
+        collide with a later edit to that same index. Rewriting the staged paths
+        here (and dropping the ones that named the deleted entry) keeps the ledger,
+        the revert-detection originals and the discard keys on the objects the user
+        actually edited. The undo log needs no fixing: it replays in recorded
+        order, so every command still meets the tree its path was captured against.
+        """
+        originals: dict[tuple, object] = {}
+        for (resource, path), value in self._raw_originals.items():
+            shifted = _shift_path(path, list_path, removed) if resource == target else path
+            if shifted is not None:
+                originals[(resource, shifted)] = value
+        self._raw_originals = originals
+
+        changes: dict[tuple[str, tuple], PendingChange] = {}
+        for key, change in self._changes.items():
+            if key[0] not in ("raw", "raw-add", "raw-remove") or change.key[0] != target:
+                changes[key] = change
+                continue
+            shifted = _shift_path(change.key[1], list_path, removed)
+            if shifted is None:
+                continue  # what it named went away with the entry
+            new_key = (target, shifted) + tuple(change.key[2:])
+            changes[("raw", new_key) if key[0] == "raw" else key] = _repointed(change, new_key)
+        self._changes = changes
+
     # -- write ------------------------------------------------------------ #
     def _dirty_areas(self) -> set[str]:
-        """Area resrefs (lower) touched by at least one pending *store* change."""
+        """Area resrefs (lower) whose ``.git`` a pending change touched."""
         return {
             change.key[0].lower()
             for change in self._changes.values()
             if change.kind == "store"
-        }
+        } | self._raw_areas
 
     def _overrides(self) -> dict[tuple[str, int], bytes]:
         out = {(key, _GIT_RESTYPE): write_gff(self._areas[key]) for key in self._dirty_areas()}
         if self._char_dirty and self._module is not None:
             out[("module", _IFO_RESTYPE)] = write_gff(self._module)  # authoritative character
+        for key in self._raw_dirty:  # anything else the raw screen edited
+            tree = self._raw_trees.get(key)
+            if tree is not None:
+                out[(key[0], self._raw_types[key])] = write_gff(tree)
         return out
 
     def _file_overrides(self) -> dict[str, bytes]:
