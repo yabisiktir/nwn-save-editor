@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from vaultkeeper.core.formats.bic_reader import EQUIP_SLOT_NAMES
+from vaultkeeper.game.item_names import base_item_type
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 from vaultkeeper.ui.save_editor.screens.item_panels import PlayerItemPanel, item_cell
@@ -86,6 +87,7 @@ class InventoryScreen(QWidget):
         super().__init__(parent)
         self._window = window
         self._selected: tuple | None = None  # the selected item's GFF path
+        self._sort = "type"  # matches the game's own inventory grouping
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
@@ -173,7 +175,16 @@ class InventoryScreen(QWidget):
             if len(item.path) > 1:
                 inside.setdefault(tuple(item.path[:-1]), []).append(item)
 
-        column.addWidget(w.heading(f"Carried ({len(loose)})"))
+        carried_header = QHBoxLayout()
+        carried_header.addWidget(w.heading(f"Carried ({len(loose)})"))
+        carried_header.addSpacing(16)
+        carried_header.addWidget(w.cap_label("Sort"))
+        order = w.SegmentedControl((("type", "By type"), ("name", "By name")))
+        order.set_value(self._sort)
+        order.changed.connect(lambda _o=order: self._set_sort(order.value()))
+        carried_header.addWidget(order)
+        carried_header.addStretch(1)
+        column.addLayout(carried_header)
         column.addWidget(self._build_bag(self._sorted(loose)))
         # A character can carry several identically-named bags, so number the
         # repeats — "Inside Bag of Holding" seven times tells you nothing.
@@ -274,8 +285,22 @@ class InventoryScreen(QWidget):
         return self._window.item_name(item) if item is not None else ""
 
     def _sorted(self, items: list) -> list:
-        """Items in a stable, readable order — the GFF order is arbitrary."""
+        """Items in a stable, readable order — the GFF order is arbitrary.
+
+        "Type" groups by base item the way the game's own inventory does (all the
+        potions together, all the armour together); "Name" is a flat A–Z.
+        """
+        if self._sort == "type":
+            return sorted(items, key=lambda i: (
+                (base_item_type(i.base_item) or f"#{i.base_item}").lower(),
+                self._name(i).lower(),
+                tuple(i.path),
+            ))
         return sorted(items, key=lambda i: (self._name(i).lower(), tuple(i.path)))
+
+    def _set_sort(self, order: str) -> None:
+        self._sort = order
+        self.refresh()
 
     def _icon(self, item):
         icons = getattr(self._window, "_icons", None)

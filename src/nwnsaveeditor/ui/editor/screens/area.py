@@ -46,10 +46,9 @@ QTreeWidget {{
 QTreeWidget::item {{ padding:5px 4px; border:none; }}
 QTreeWidget::item:selected {{ background:{t.gold_tint(0.22)}; color:{t.GOLD}; }}
 QTreeWidget::item:hover {{ background:{t.hairline(0.05)}; }}
-/* The branch column is painted separately from the item; left unstyled it keeps
-   the platform's blue selection block next to our gold row. */
-QTreeWidget::branch {{ background:transparent; }}
-QTreeWidget::branch:selected {{ background:{t.gold_tint(0.22)}; }}
+/* ::branch is deliberately NOT styled: styling it makes Qt stop drawing the
+   expand/collapse arrow, so a collapsed node looks like a leaf. The blue
+   selection stripe it would otherwise leave is handled by apply_tree_palette. */
 """
 
 

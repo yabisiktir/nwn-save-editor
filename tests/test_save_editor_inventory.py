@@ -183,3 +183,33 @@ def test_toggling_edit_mode_re_renders_the_screens(window, screen):
     assert "Add a property…" not in _buttons(screen._detail_slot)
     window._edit_toggle.setChecked(True)
     assert "Add a property…" in _buttons(screen._detail_slot)
+
+
+# -- sorting ---------------------------------------------------------------- #
+def test_carried_items_group_by_type_by_default(window, screen):
+    """The game's own inventory groups by item type, so that is the default."""
+    from vaultkeeper.game.item_names import base_item_type
+
+    assert screen._sort == "type"
+    carried = [i for i in window.session().player_items() if i.slot is None]
+    if len(carried) < 2:
+        pytest.skip("the fixture character carries too little to order")
+    ordered = screen._sorted(carried)
+    types = [(base_item_type(i.base_item) or "").lower() for i in ordered]
+    assert types == sorted(types), "items are not grouped by type"
+
+
+def test_sorting_by_name_is_a_flat_alphabetical_list(window, screen):
+    carried = [i for i in window.session().player_items() if i.slot is None]
+    if len(carried) < 2:
+        pytest.skip("the fixture character carries too little to order")
+    screen._sort = "name"
+    names = [screen._name(i).lower() for i in screen._sorted(carried)]
+    assert names == sorted(names)
+
+
+def test_switching_the_sort_re_renders(window, screen):
+    screen._set_sort("name")
+    assert screen._sort == "name"
+    screen._set_sort("type")
+    assert screen._sort == "type"

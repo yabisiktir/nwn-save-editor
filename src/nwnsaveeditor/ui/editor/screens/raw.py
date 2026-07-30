@@ -53,8 +53,9 @@ QTreeWidget {{
 QTreeWidget::item {{ padding:3px 4px; border:none; }}
 QTreeWidget::item:selected {{ background:{t.gold_tint(0.22)}; color:{t.GOLD}; }}
 QTreeWidget::item:hover {{ background:{t.hairline(0.05)}; }}
-QTreeWidget::branch {{ background:transparent; }}
-QTreeWidget::branch:selected {{ background:{t.gold_tint(0.22)}; }}
+/* ::branch is deliberately NOT styled: styling it makes Qt stop drawing the
+   expand/collapse arrow, so a collapsed node looks like a leaf. The blue
+   selection stripe it would otherwise leave is handled by apply_tree_palette. */
 QHeaderView::section {{
     background:{t.SURFACE}; color:{t.TEXT_2}; border:none;
     border-bottom:1px solid {t.hairline(0.08)}; padding:6px 8px;

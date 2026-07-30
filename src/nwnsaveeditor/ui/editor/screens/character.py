@@ -468,6 +468,10 @@ class CharacterScreen(QWidget):
                 placed.add(field.field)
             layout.addWidget(panel)
 
+        # The six ability scores live on the sheet in Abilities & Combat, with
+        # their derived modifiers beside them. Repeating them here as bare
+        # steppers gave two editors for one value and no reason to prefer either.
+        placed.update(field for field, _label in ABILITIES)
         rest = [f for f in fields if f.field not in placed]
         if rest:
             layout.addWidget(w.cap_label("Other"))

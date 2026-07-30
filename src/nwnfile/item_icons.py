@@ -77,6 +77,13 @@ class ItemIconSource:
                 int(model_type) if model_type.isdigit() else -1,
             )
 
+    #: Item icons the game stores as PLT rather than TGA. PLT is a palettised,
+    #: layered format used for tintable parts (cloaks, and some armour pieces), so
+    #: the icon is not a plain image and needs a decoder plus the palette textures
+    #: to colour it. Until that exists these items fall back to a text cell, which
+    #: is honest — a wrongly tinted icon would be worse than none.
+    PLT_RES_TYPE = 6
+
     def _candidates(self, base_item: int, model_part: int) -> list[str]:
         row = self._base_items.get(base_item)
         if row is None:

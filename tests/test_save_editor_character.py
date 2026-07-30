@@ -369,21 +369,41 @@ def _page(screen, key):
 
 # -- Details tab ------------------------------------------------------------ #
 def test_every_editable_character_field_is_reachable(window, screen):
-    """The read-only viewer had a Details group; losing it stranded gold, XP,
-    alignment, age, HP and the look with no editor anywhere."""
+    """No stored field may be left without an editor anywhere.
+
+    The read-only viewer had a Details group; losing it stranded gold, XP,
+    alignment, age, HP and the look. The six ability scores are edited on the
+    sheet in Abilities & Combat instead of being repeated here.
+    """
     window._edit_toggle.setChecked(True)
     screen.refresh()
-    text = _text_of(_page(screen, "details"))
+    details = _text_of(_page(screen, "details"))
+    sheet = _text_of(_page(screen, "abilities"))
+    abilities = {field for field, _label in ABILITIES}
     for field in window.session().player_fields():
-        assert field.display in text, f"{field.field} has no row in Details"
+        where = sheet if field.field in abilities else details
+        assert field.display in where, f"{field.field} has no editor"
 
 
 def test_details_offers_an_editor_for_each_numeric_field(window, screen):
+    """Every numeric field except the abilities, which the sheet owns."""
     window._edit_toggle.setChecked(True)
     screen.refresh()
-    numeric = [f for f in window.session().player_fields() if f.kind == "int"]
+    abilities = {field for field, _label in ABILITIES}
+    numeric = [
+        f for f in window.session().player_fields()
+        if f.kind == "int" and f.field not in abilities
+    ]
     boxes = _page(screen, "details").findChildren(QSpinBox)
     assert len(boxes) == len(numeric)
+
+
+def test_details_does_not_repeat_the_sheets_ability_steppers(window, screen):
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    details = _text_of(_page(screen, "details"))
+    for _field, label in ABILITIES:
+        assert label not in details, f"{label} is editable twice"
 
 
 def test_details_is_read_only_until_edit_mode_is_on(window, screen):
