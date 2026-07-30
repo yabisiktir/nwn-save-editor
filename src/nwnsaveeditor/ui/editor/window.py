@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
 )
 
 from vaultkeeper.game.save_game import SaveGame, scan_save_games
-from vaultkeeper.ui.dialogs.character_viewer import tga_to_pixmap
+from vaultkeeper.ui.dialogs.character_viewer import item_icon_source, tga_to_pixmap
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 from vaultkeeper.ui.save_editor.sections import (
@@ -42,6 +42,23 @@ from vaultkeeper.ui.save_editor.sections import (
 
 #: How tall the sidebar's save list may grow before it scrolls (~4 rows).
 _SAVES_LIST_MAX_H = 196
+
+#: "not built yet", distinct from a cached ``None`` meaning "tried and unavailable".
+_UNSET = object()
+
+
+def _icon_source(controller):
+    """The item-icon source, or ``None``.
+
+    Icons are decoration: they need a configured game folder and the controller's
+    settings, and the editor must still work without either.
+    """
+    if controller is None:
+        return None
+    try:
+        return item_icon_source(controller)
+    except Exception:
+        return None
 
 
 def _base_name(name: str) -> str:
@@ -80,6 +97,8 @@ class SaveEditorWindow(QMainWindow):
         self._screens: dict[str, QWidget] = {}
         self._char_cache = None  # CharacterInfo for _char_cache_for
         self._char_cache_for: Path | None = None
+        self._prop_tables = _UNSET  # ItemPropertyTables | None, built lazily
+        self._icons = _icon_source(controller)
 
         self.setStyleSheet(f"QMainWindow{{background:{t.APP_BG};}}")
         root = QWidget()
@@ -231,8 +250,12 @@ class SaveEditorWindow(QMainWindow):
     def _screen_builders(self) -> dict[str, object]:
         """Screens that exist. Sections absent from this map render an empty state."""
         from vaultkeeper.ui.save_editor.screens.character import CharacterScreen
+        from vaultkeeper.ui.save_editor.screens.inventory import InventoryScreen
 
-        return {"character": lambda: CharacterScreen(self)}
+        return {
+            "character": lambda: CharacterScreen(self),
+            "inventory": lambda: InventoryScreen(self),
+        }
 
     # -- the API screens are built against ------------------------------- #
     # Screens take the window and use only what follows, so a screen never has to
@@ -278,8 +301,27 @@ class SaveEditorWindow(QMainWindow):
     def _resolver(self):
         from vaultkeeper.game.item_names import resolver_for
 
-        game_root = getattr(getattr(self._controller, "ctx", None), "game_root", None)
-        return resolver_for(game_root)
+        return resolver_for(self._game_root())
+
+    def _game_root(self):
+        return getattr(getattr(self._controller, "ctx", None), "game_root", None)
+
+    def property_tables(self):
+        """The game's ``iprp_*`` option tables, or ``None`` if they can't be read.
+
+        Every item-property editor is populated from these, so an edit can only
+        produce a value the engine recognises.
+        """
+        from vaultkeeper.game.item_property_tables import ItemPropertyTables
+
+        if self._prop_tables is _UNSET:
+            user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
+            hak_dir = (user / "hak") if user is not None else None
+            try:
+                self._prop_tables = ItemPropertyTables.for_install(self._game_root(), hak_dir)
+            except Exception:
+                self._prop_tables = None
+        return self._prop_tables
 
     def notify_changed(self) -> None:
         """A screen staged an edit: refresh the footer, the dots and every screen."""
@@ -327,6 +369,9 @@ class SaveEditorWindow(QMainWindow):
         self._save_label.setText(f"{save.name}  —  {save.location or 'no location'}")
         self._sync_save_rows()
         self._refresh_pending()
+        # Screens are built once, before any save is selected, so they must be
+        # re-rendered here or they keep showing the empty state forever.
+        self._refresh_screens()
 
     def _sync_save_rows(self) -> None:
         for row in self._save_rows:
@@ -350,6 +395,9 @@ class SaveEditorWindow(QMainWindow):
         self._editing = on
         self._edit_toggle.setText("Editing ✓" if on else "Edit")
         self._sync_edit_state()
+        # The gate decides whether screens draw steppers, × buttons and Add…
+        # actions at all, so they have to be rebuilt when it moves.
+        self._refresh_screens()
 
     def _sync_edit_state(self) -> None:
         """Apply the global edit gate to everything it controls."""

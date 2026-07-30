@@ -177,5 +177,8 @@ def test_save_as_new_writes_a_new_save_and_leaves_the_original(window, monkeypat
     new_folder = next(p for p in tmp_path.iterdir() if p.name.endswith("Shell Edit"))
     assert _ifo_char(next(new_folder.glob("*.sav"))).fields["Gold"].value == 4242
     assert original.sav_path.read_bytes() == original_bytes, "original was modified"
-    assert window._session is None, "the session is cleared after a successful write"
     assert window._current.folder == new_folder, "the new save becomes the selection"
+    # Screens read through session(), so one exists again as soon as they render
+    # the newly selected save. What matters is that nothing is left staged.
+    assert not window._session.has_edits
+    assert window._pending_caption.text() == "PENDING CHANGES (0)"
