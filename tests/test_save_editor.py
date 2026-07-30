@@ -974,3 +974,75 @@ def test_two_removals_walk_an_earlier_edit_all_the_way_down(tmp_path):
 
     new_save = editor.save_as(editor._save.folder.parent / "out")
     assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [9000]
+
+
+# --------------------------------------------------------------------------- #
+# discarding an additive edit from the ledger — the (kind, key) contract
+# --------------------------------------------------------------------------- #
+# The Review panel discards by (change.kind, change.key), so every staging site
+# has to file its entry under exactly that pair. These pin the three additive
+# kinds — a mismatch is silent: the button does nothing and the row stays.
+
+
+def test_a_staged_added_property_can_be_discarded_from_the_ledger(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    helm = next(it for it in editor.player_items() if it.slot == 1)
+    before = len(helm.properties)
+    editor.set_skill_rank(3, 44, where="Discipline")  # survives, so there is a save to write
+    editor.add_item_property(
+        helm.path, property_name=1, subtype=0, cost_value=5, cost_table=2,
+        where="Helm", label="AC Bonus +5",
+    )
+    change = next(c for c in editor.pending_changes() if c.kind == "prop-add")
+    # the item panel marks the new row by this key, so the shape is a contract too
+    assert change.key == (tuple(helm.path), before)
+    assert editor.discard_change((change.kind, change.key)), "the ledger's own key"
+    assert [c.kind for c in editor.pending_changes()] == ["skill"]
+
+    new_save = editor.save_as(tmp_path / "out")
+    assert len(_helm_props(_ifo_char(new_save.sav_path))) == before
+    bic = read_gff((new_save.folder / "player.bic").read_bytes())
+    assert len(_helm_props(bic.root)) == before  # mirror rebuilt without it too
+
+
+def test_a_staged_property_removal_can_be_discarded_from_the_ledger(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    helm = next(it for it in editor.player_items() if it.slot == 1)
+    editor.set_skill_rank(3, 44, where="Discipline")
+    editor.remove_item_property(helm.path, 0, where="Helm", label="Ability Bonus")
+    change = next(c for c in editor.pending_changes() if c.kind == "prop-remove")
+    assert editor.discard_change((change.kind, change.key)), "the ledger's own key"
+    assert [c.kind for c in editor.pending_changes()] == ["skill"]
+
+    new_save = editor.save_as(tmp_path / "out")
+    props = _helm_props(_ifo_char(new_save.sav_path))
+    assert [p.fields["PropertyName"].value for p in props] == [0, 15]  # both back
+
+
+def test_a_staged_added_item_can_be_discarded_from_the_ledger(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    bag = next(it for it in editor.player_items() if it.name == "Bag")
+    editor.set_skill_rank(3, 44, where="Discipline")
+    editor.add_item_copy(bag.path, where="Bag")
+    change = next(c for c in editor.pending_changes() if c.kind == "add-item")
+    assert editor.discard_change((change.kind, change.key)), "the ledger's own key"
+    assert [c.kind for c in editor.pending_changes()] == ["skill"]
+
+    new_save = editor.save_as(tmp_path / "out")
+    carried = _ifo_char(new_save.sav_path).fields["ItemList"].value.structs
+    assert [i.fields["TemplateResRef"].value for i in carried] == ["bag"]  # no clone
+
+
+def test_discarding_one_of_two_added_items_keeps_the_other(tmp_path):
+    """Each add is its own ledger row: keys must not collide across adds."""
+    editor = SaveEditor(_make_char_save(tmp_path))
+    bag = next(it for it in editor.player_items() if it.name == "Bag")
+    editor.add_item_copy(bag.path, where="first copy")
+    editor.add_item_copy(bag.path, where="second copy")
+    first = next(c for c in editor.pending_changes() if c.where == "first copy")
+    assert editor.discard_change((first.kind, first.key))
+    assert [c.where for c in editor.pending_changes()] == ["second copy"]
+
+    new_save = editor.save_as(tmp_path / "out")
+    carried = _ifo_char(new_save.sav_path).fields["ItemList"].value.structs
+    assert len(carried) == 2  # the original bag + one clone

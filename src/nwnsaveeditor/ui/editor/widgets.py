@@ -16,7 +16,7 @@ toggle swaps :mod:`~vaultkeeper.ui.save_editor.tokens` live.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
@@ -503,3 +503,45 @@ def style_dialog(dialog):
     """Give a reused app dialog the editor's current styling, then return it."""
     dialog.setStyleSheet(dialog_qss() + scrollbar_qss())
     return dialog
+
+
+#: Widgets taken out of the UI but not yet destroyed. See :func:`retire`.
+_RETIRED: list = []
+
+
+def retire(widget) -> None:
+    """Remove a widget from the UI without destroying it mid-event.
+
+    Two Qt facts collide here. ``QLayout.takeAt()`` does not unparent, so a removed
+    widget keeps painting at its old geometry — but ``setParent(None)`` hands
+    ownership back to Python, and the object is destroyed as soon as the last
+    reference goes, which is *immediately*, not at ``deleteLater()`` time.
+
+    A screen rebuild is almost always triggered by one of the widgets it is about
+    to tear down (a spin box's ``valueChanged``, an item cell's
+    ``mousePressEvent``), so destroying synchronously deletes the widget Qt is
+    still delivering an event to and the application crashes. Holding a reference
+    until the next turn of the event loop makes ``deleteLater()`` mean what it says.
+    """
+    widget.hide()
+    widget.setParent(None)
+    _RETIRED.append(widget)
+    if len(_RETIRED) == 1:
+        QTimer.singleShot(0, _drop_retired)
+
+
+def _drop_retired() -> None:
+    for widget in _RETIRED:
+        widget.deleteLater()
+    _RETIRED.clear()
+
+
+def set_scroll_widget(area, content) -> None:
+    """``QScrollArea.setWidget`` that retires the old widget instead of deleting it.
+
+    ``setWidget`` destroys whatever was there, with the same mid-event hazard.
+    """
+    previous = area.takeWidget()
+    if previous is not None:
+        retire(previous)
+    area.setWidget(content)

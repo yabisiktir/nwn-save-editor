@@ -200,7 +200,6 @@ def _clear(layout) -> None:
         item = layout.takeAt(0)
         widget = item.widget()
         if widget is not None:
-            widget.setParent(None)
-            widget.deleteLater()
+            w.retire(widget)
         elif item.layout() is not None:
             _clear(item.layout())

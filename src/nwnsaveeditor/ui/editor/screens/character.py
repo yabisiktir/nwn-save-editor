@@ -146,7 +146,7 @@ class CharacterScreen(QWidget):
             layout.setContentsMargins(0, 0, 8, 0)
             builder = getattr(self, f"_build_{key}")
             builder(layout, info)
-            self._pages.widget(index).setWidget(body)  # takes ownership of the old
+            w.set_scroll_widget(self._pages.widget(index), body)  # takes ownership of the old
             self._page_bodies[index] = body
         self._show_tab()
         self._mark_dirty_tabs()
@@ -1053,8 +1053,7 @@ def _clear(layout) -> None:
             # Taking the item out of the layout does not unparent the widget, so
             # without this it keeps painting at its old geometry until the deferred
             # delete runs — the rebuilt content draws on top of the old.
-            widget.setParent(None)
-            widget.deleteLater()
+            w.retire(widget)
         elif item.layout() is not None:
             _clear(item.layout())
 

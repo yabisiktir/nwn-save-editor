@@ -126,7 +126,7 @@ class ChangeLedger(QFrame):
         for change in undone:
             column.addWidget(self._row(change, undone=True))
         column.addStretch(1)
-        self._scroll.setWidget(body)
+        w.set_scroll_widget(self._scroll, body)
 
     def _row(self, change, *, undone: bool) -> QWidget:
         row = QFrame()

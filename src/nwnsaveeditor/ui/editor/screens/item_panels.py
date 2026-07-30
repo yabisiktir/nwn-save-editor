@@ -263,8 +263,7 @@ class AreaItemPanel(_PanelBase):
         while layout.count():
             widget = layout.takeAt(0).widget()
             if widget is not None:
-                widget.setParent(None)
-                widget.deleteLater()
+                w.retire(widget)
         if copied:
             done = QLabel("●  Copy added to inventory")
             done.setStyleSheet(

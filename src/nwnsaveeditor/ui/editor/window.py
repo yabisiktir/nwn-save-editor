@@ -37,6 +37,7 @@ from vaultkeeper.ui.save_editor.sections import (
     SECTION_BLURBS,
     SECTIONS,
     Section,
+    by_key,
     section_for_kind,
 )
 
@@ -53,6 +54,25 @@ def _save_label_text(save: SaveGame | None) -> str:
     if save is None:
         return "No save open"
     return f"{save.name}  —  {save.location or 'no location'}"
+
+
+class _LazyScreens(dict):
+    """Section screens, built the first time they are asked for.
+
+    Building all nine up front cost ~2.4s on the owner's save — every one re-reads
+    the character, and Raw Data enumerates all 134 resources — so opening the
+    editor stalled before showing anything. ``dict.get`` deliberately does *not*
+    build, so a refresh only touches screens that already exist.
+    """
+
+    def __init__(self, build) -> None:
+        super().__init__()
+        self._build = build
+
+    def __missing__(self, key: str):
+        screen = self._build(key)
+        self[key] = screen
+        return screen  # freshly built, so already current
 
 
 def _saved_theme(controller) -> str:
@@ -115,6 +135,7 @@ class SaveEditorWindow(QMainWindow):
         self._char_cache_for: Path | None = None
         self._prop_tables = _UNSET  # ItemPropertyTables | None, built lazily
         self._look_tables = _UNSET  # LookTables | None, built lazily
+        self._rebuilding = False
         self._icons = _icon_source(controller)
         # Set the theme first: everything below reads token colours as it builds.
         t.set_theme(_saved_theme(controller))
@@ -157,8 +178,7 @@ class SaveEditorWindow(QMainWindow):
 
         ledger = getattr(self, "_ledger", None)
         if ledger is not None:
-            ledger.setParent(None)
-            ledger.deleteLater()
+            w.retire(ledger)
         self._ledger = ChangeLedger(self)
 
     # -- toolbar ---------------------------------------------------------- #
@@ -286,11 +306,16 @@ class SaveEditorWindow(QMainWindow):
     def _build_content(self) -> QWidget:
         self._stack = QStackedWidget()
         self._stack.setStyleSheet(f"background:{t.APP_BG};")
-        for section in SECTIONS:
-            screen = self._build_screen(section)
-            self._screens[section.key] = screen
-            self._stack.addWidget(screen)
+        # Screens are built on first display — see _LazyScreens.
+        self._screens = _LazyScreens(self._make_screen)
         return self._stack
+
+    def _make_screen(self, key: str) -> QWidget:
+        """Build one section's screen and put it in the stack."""
+        section = by_key(key)
+        screen = self._build_screen(section) if section else QWidget()
+        self._stack.addWidget(screen)
+        return screen
 
     def _build_screen(self, section: Section) -> QWidget:
         """A section's screen, or the design's empty-state card if it has none yet."""
@@ -419,15 +444,43 @@ class SaveEditorWindow(QMainWindow):
         return self._prop_tables
 
     def notify_changed(self) -> None:
-        """A screen staged an edit: refresh the footer, the dots and every screen."""
+        """A screen staged an edit: refresh the footer, the dots and the screens."""
         self._refresh_pending()
         self._refresh_screens()
 
     def _refresh_screens(self) -> None:
-        for screen in self._screens.values():
+        """Re-render every screen that has been built.
+
+        Only screens the user has actually visited exist (see _LazyScreens), so
+        this is a handful at most — iterating the dict never builds a new one.
+        """
+        for screen in list(self.values_of_built_screens()):
             refresh = getattr(screen, "refresh", None)
             if callable(refresh):
-                refresh()
+                self._safely(refresh)
+
+    def values_of_built_screens(self):
+        """The screens constructed so far, without building any more."""
+        return list(dict.values(self._screens))
+
+    def _safely(self, rebuild) -> None:
+        """Run a rebuild without deleting the widget Qt is dispatching to.
+
+        A refresh tears down and recreates a screen's widgets, and it is almost
+        always triggered *by* one of them — a spin box's valueChanged, an item
+        cell's mousePressEvent. Tearing down synchronously destroys the widget the
+        event is still being delivered to, which crashes: PySide hands ownership
+        back to Python on setParent(None), so the object dies immediately rather
+        than at deleteLater() time. Deferring to the next turn of the event loop
+        lets the current event finish first.
+        """
+        if self._rebuilding:
+            return  # already inside a rebuild; do not re-enter
+        self._rebuilding = True
+        try:
+            rebuild()
+        finally:
+            self._rebuilding = False
 
     # -- footer ----------------------------------------------------------- #
     def _build_footer(self) -> QWidget:
@@ -605,8 +658,7 @@ class SaveEditorWindow(QMainWindow):
                 # Unparent now, not just deleteLater: a widget awaiting deletion is
                 # still a visible child and keeps painting at its old geometry, so
                 # the outgoing chips show through the incoming ones.
-                chip.setParent(None)
-                chip.deleteLater()
+                w.retire(chip)
         for change in changes[:3]:  # the design shows up to three samples
             chip = w.body(f"●  {change.where}: {change.summary}", t.TEXT, 12)
             chip.setWordWrap(False)
@@ -639,9 +691,8 @@ class SaveEditorWindow(QMainWindow):
     def _set_section(self, key: str) -> None:
         for nav_key, row in self._nav_rows.items():
             row.setChecked(nav_key == key)
-        screen = self._screens.get(key)
-        if screen is not None:
-            self._stack.setCurrentWidget(screen)
+        screen = self._screens[key]  # builds on first display
+        self._stack.setCurrentWidget(screen)
 
     # -- committing ------------------------------------------------------- #
     def _save_as_new(self) -> None:
@@ -794,6 +845,21 @@ class _SaveRow(QPushButton):
         )
 
 
+#: Decoded save thumbnails, keyed by path. A TGA decode costs ~33ms and the
+#: sidebar rebuilds whole (on every theme switch), so 15 saves cost half a second
+#: each time for images that never change.
+_THUMBNAILS: dict[Path, object] = {}
+
+
+def _thumbnail_pixmap(save: SaveGame):
+    shot = save.screenshot
+    if shot is None:
+        return None
+    if shot not in _THUMBNAILS:
+        _THUMBNAILS[shot] = tga_to_pixmap(shot, box=t.SAVE_THUMB)
+    return _THUMBNAILS[shot]
+
+
 def _save_thumbnail(save: SaveGame) -> QLabel:
     """The save's in-game screenshot at thumbnail size, or a placeholder chip."""
     thumb = QLabel()
@@ -803,7 +869,7 @@ def _save_thumbnail(save: SaveGame) -> QLabel:
         f"background:{t.ICON_CHIP};border-radius:{t.RADIUS_CHIP}px;"
         f"color:{t.TEXT_3};font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;"
     )
-    pixmap = tga_to_pixmap(save.screenshot, box=t.SAVE_THUMB) if save.screenshot else None
+    pixmap = _thumbnail_pixmap(save)
     if pixmap is None:
         thumb.setText("SV")
     else:

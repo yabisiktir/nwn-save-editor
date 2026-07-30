@@ -159,7 +159,7 @@ class OpenSaveDialog(QDialog):
             ))
             column.addWidget(row)
         column.addStretch(1)
-        self._scroll.setWidget(body)
+        w.set_scroll_widget(self._scroll, body)
 
     def _row(self, state: SaveState) -> QWidget:
         row = _SaveCard()

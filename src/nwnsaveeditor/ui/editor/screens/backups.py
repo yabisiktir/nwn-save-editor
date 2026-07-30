@@ -133,7 +133,7 @@ class BackupsScreen(QWidget):
         column.addWidget(name)
         taken = backup.taken.strftime("%Y-%m-%d %H:%M:%S") if backup.taken else "unknown time"
         column.addWidget(w.body(f"{taken}  ·  {backup.size / (1 << 20):.0f} MB", t.TEXT_3, 11))
-        row.mousePressEvent = lambda _e, b=backup: self._choose(b)
+        row.mousePressEvent = _left_click(lambda b=backup: self._choose(b))
         return row
 
     def _build_diff_panel(self) -> None:
@@ -260,7 +260,20 @@ def _clear(layout) -> None:
         item = layout.takeAt(0)
         widget = item.widget()
         if widget is not None:
-            widget.setParent(None)
-            widget.deleteLater()
+            w.retire(widget)
         elif item.layout() is not None:
             _clear(item.layout())
+
+def _left_click(action):
+    """A mousePressEvent handler that fires only on the left button.
+
+    Right-clicking a cell used to select it, which was never intended — these are
+    click targets, not context menus.
+    """
+    from PySide6.QtCore import Qt
+
+    def handler(event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            action()
+
+    return handler

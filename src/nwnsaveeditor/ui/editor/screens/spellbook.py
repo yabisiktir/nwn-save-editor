@@ -86,7 +86,7 @@ class SpellbookScreen(QWidget):
                 "This character has no caster class with a spellbook.", t.TEXT_2, 13
             ))
             column.addStretch(1)
-            self._scroll.setWidget(content)
+            w.set_scroll_widget(self._scroll, content)
             return
 
         chosen = next(
@@ -107,7 +107,7 @@ class SpellbookScreen(QWidget):
         if not lists:
             column.addWidget(w.body("Nothing at this level.", t.TEXT_3, 12.5))
         column.addStretch(1)
-        self._scroll.setWidget(content)
+        w.set_scroll_widget(self._scroll, content)
 
     def _class_row(self, book: list, chosen) -> QWidget:
         holder = QWidget()

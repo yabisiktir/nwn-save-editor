@@ -44,9 +44,16 @@ def parse_2da(text: str) -> tuple[list[str], dict[int, dict[str, str]]]:
     for line in lines[i + 1:]:
         if not line.strip():
             continue
-        try:
-            parts = shlex.split(line)
-        except ValueError:
+        # shlex is a full lexer and costs ~230µs a line; str.split is orders of
+        # magnitude faster and gives the same answer unless the row quotes a value
+        # containing spaces. appearance.2da is 15,000 rows, so paying shlex only
+        # for the rows that need it takes reading it from ~3.5s to ~0.1s.
+        if '"' in line:
+            try:
+                parts = shlex.split(line)
+            except ValueError:
+                parts = line.split()
+        else:
             parts = line.split()
         if not parts or not parts[0].isdigit():
             continue

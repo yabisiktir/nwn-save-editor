@@ -193,7 +193,7 @@ class InventoryScreen(QWidget):
             column.addWidget(w.cap_label(f"Inside {label} ({len(contents)})"))
             column.addWidget(self._build_bag(self._sorted(contents)))
         column.addStretch(1)
-        self._scroll.setWidget(content)  # takes ownership; the old widget is dropped
+        w.set_scroll_widget(self._scroll, content)  # takes ownership; the old widget is dropped
         self._show_detail(by_path.get(self._selected))
 
     def _build_paperdoll(self, equipped: dict) -> QWidget:
@@ -240,7 +240,7 @@ class InventoryScreen(QWidget):
             tooltip=f"{name}\n{slot_name}",
             icon=self._icon(item),
         )
-        cell.mousePressEvent = lambda _e, p=tuple(item.path): self._select(p)
+        cell.mousePressEvent = _left_click(lambda p=tuple(item.path): self._select(p))
         return cell
 
     def _build_bag(self, carried: list) -> QWidget:
@@ -265,7 +265,7 @@ class InventoryScreen(QWidget):
                 selected=tuple(item.path) == self._selected,
                 tooltip=name, icon=self._icon(item),
             )
-            cell.mousePressEvent = lambda _e, p=tuple(item.path): self._select(p)
+            cell.mousePressEvent = _left_click(lambda p=tuple(item.path): self._select(p))
             grid.addWidget(cell, index // columns, index % columns)
         grid.setColumnStretch(columns, 1)
         return holder
@@ -296,8 +296,7 @@ class InventoryScreen(QWidget):
         while layout.count():
             widget = layout.takeAt(0).widget()
             if widget is not None:
-                widget.setParent(None)
-                widget.deleteLater()
+                w.retire(widget)
         layout.addWidget(PlayerItemPanel(self, item))
 
 
@@ -306,3 +305,16 @@ def _code(name: str) -> str:
     letters = "".join(ch for ch in name if ch.isalpha())
     return letters[:3].upper() or "??"
 
+def _left_click(action):
+    """A mousePressEvent handler that fires only on the left button.
+
+    Right-clicking a cell used to select it, which was never intended — these are
+    click targets, not context menus.
+    """
+    from PySide6.QtCore import Qt
+
+    def handler(event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            action()
+
+    return handler

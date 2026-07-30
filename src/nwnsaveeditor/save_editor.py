@@ -402,7 +402,7 @@ class SaveEditor:
         #: original editable-field values per (item_path, prop_index), first touch.
         self._prop_originals: dict[tuple[tuple, int], dict[str, object]] = {}
         self._max_obj_id: int | None = None  # for handing out fresh item ObjectIds
-        self._add_seq = 0  # distinguishes each "add item" pending entry
+        self._add_seq = 0  # tells apart staged changes whose object no longer exists
         #: original skill rank per skill index, captured on first touch.
         self._skill_originals: dict[int, int] = {}
         #: original value per touched top-level character field.
@@ -497,6 +497,18 @@ class SaveEditor:
             self._undone_display.pop()
         self._replay()
         return True
+
+    def _stage(self, kind: str, key, where: str, summary: str) -> None:
+        """File a staged change under the ledger's ``(kind, key)`` key.
+
+        The ledger's Discard button asks for ``(change.kind, change.key)``, so a
+        staging site that files the entry anywhere else stages a change nobody can
+        drop. ``key`` alone identifies the edited object; this pairs it with the
+        kind. Every additive edit goes through here so the two cannot drift apart.
+        """
+        self._changes[(kind, key)] = PendingChange(
+            kind=kind, key=key, where=where, summary=summary,
+        )
 
     def discard_change(self, key: tuple) -> bool:
         """Drop the staged change identified by its ``self._changes`` key.
@@ -856,6 +868,7 @@ class SaveEditor:
     ) -> None:
         """Stage adding a new magical property to a player item (both trees)."""
         self._char_dirty = True
+        module, index = self._module_tree(), 0
         for tree in self._targets():
             item = self._item_struct(tree, item_path)
             plist = item.fields.get("PropertiesList")
@@ -865,11 +878,11 @@ class SaveEditor:
             struct = _make_property_struct(property_name, subtype, cost_table, cost_value)
             struct.struct_type = len(plist.value.structs)  # struct_type == list index
             plist.value.structs.append(struct)
-        self._add_seq += 1
-        self._changes[("prop-add", self._add_seq)] = PendingChange(
-            kind="prop-add", key=("prop-add", self._add_seq),
-            where=where or "item", summary=f"add {label}",
-        )
+            if tree is module:  # the authoritative tree names the property
+                index = struct.struct_type
+        # Keyed on where the property landed — the same (item path, index) pair the
+        # inventory screen marks a property with, and edits to it are staged under.
+        self._stage("prop-add", (tuple(item_path), index), where or "item", f"add {label}")
 
     @_records()
     def remove_item_property(
@@ -885,9 +898,11 @@ class SaveEditor:
                 for i, struct in enumerate(plist.value.structs):  # keep struct_type == index
                     struct.struct_type = i
         self._add_seq += 1
-        self._changes[("prop-remove", self._add_seq)] = PendingChange(
-            kind="prop-remove", key=("prop-remove", self._add_seq),
-            where=where or "item", summary=f"remove {label}",
+        # What it named is gone, so the sequence number keeps successive removals
+        # from the same slot distinct — as it does for a raw list removal.
+        self._stage(
+            "prop-remove", (tuple(item_path), prop_index, self._add_seq),
+            where or "item", f"remove {label}",
         )
 
     # -- add items -------------------------------------------------------- #
@@ -932,10 +947,9 @@ class SaveEditor:
             if carried is not None and carried.type == GffType.LIST:
                 carried.value.structs.append(copy.deepcopy(clone))
         self._char_dirty = True
-        self._add_seq += 1
-        self._changes[("add-item", self._add_seq)] = PendingChange(
-            kind="add-item", key=("add-item", self._add_seq), where=where, summary=summary,
-        )
+        # The fresh ObjectId names the new item: unique per add, and minted in the
+        # same order on every replay, so the ledger's discard key stays put.
+        self._stage("add-item", (new_id,), where, summary)
 
     def _find_area_item(self, struct: GffStruct, resref: str) -> GffStruct | None:
         """First item struct (has ``BaseItem``) with this ``TemplateResRef``, DFS.
@@ -1577,10 +1591,7 @@ class SaveEditor:
 
     def _stage_raw(self, key: tuple, where: str, summary: str) -> None:
         """Stage a structural raw change under the ledger's ``(kind, key)`` key."""
-        self._changes[("raw", key)] = PendingChange(
-            kind="raw", key=key,
-            where=where or f"{key[0]}: {_render_raw_path(key[1])}", summary=summary,
-        )
+        self._stage("raw", key, where or f"{key[0]}: {_render_raw_path(key[1])}", summary)
 
     def _raw_list(self, target: str, path: tuple) -> GffList:
         """The GFF list ``path`` names, for the structural raw edits."""

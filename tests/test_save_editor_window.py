@@ -45,7 +45,7 @@ def test_next_save_folder_picks_the_first_free_number(tmp_path):
 def test_every_section_has_a_nav_row_and_a_screen(window):
     for section in sec.SECTIONS:
         assert section.key in window._nav_rows
-        assert section.key in window._screens
+        assert window._screens[section.key] is not None  # built on demand
 
 
 def test_advanced_sections_are_the_two_designed_ones():

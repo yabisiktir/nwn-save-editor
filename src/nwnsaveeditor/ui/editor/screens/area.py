@@ -159,8 +159,7 @@ class AreaScreen(QWidget):
             # asking it for widget() a second time yields None.
             widget = self._areas_column.takeAt(0).widget()
             if widget is not None:
-                widget.setParent(None)
-                widget.deleteLater()
+                w.retire(widget)
         areas = self._areas()
         self._areas_column.addWidget(w.cap_label(f"Areas ({len(areas)})"))
         if not areas:
@@ -344,8 +343,7 @@ class AreaScreen(QWidget):
         while layout.count():
             widget = layout.takeAt(0).widget()
             if widget is not None:
-                widget.setParent(None)
-                widget.deleteLater()
+                w.retire(widget)
         layout.addWidget(AreaItemPanel(self, item, self._area_resref or ""))
 
     # -- store editing ------------------------------------------------------ #
