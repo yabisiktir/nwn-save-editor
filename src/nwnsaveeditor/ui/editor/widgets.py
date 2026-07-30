@@ -1,0 +1,390 @@
+"""The Save Game Editor's shared widget vocabulary.
+
+Every screen is built from these, so the design stays consistent and each screen
+file stays about *its* content rather than about styling. The handoff asks for
+high fidelity but says to "prefer the native control that carries the same meaning
+over a pixel-exact reproduction" — so these are ordinary Qt widgets wearing the
+design's colours, not custom-painted lookalikes.
+
+Qt stylesheets have no ``opacity``, so the design's "disabled = opacity .45" is
+expressed as explicitly dimmed colours in a ``:disabled`` rule.
+"""
+
+from __future__ import annotations
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QAbstractButton,
+    QButtonGroup,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
+
+from vaultkeeper.ui.save_editor import tokens as t
+
+
+def _literal(text: str) -> str:
+    """Escape ``&`` so Qt draws it instead of eating it as a mnemonic.
+
+    Several labels in the design contain a literal ampersand ("Abilities & Combat",
+    "Inventory & Equipment", "Quests & World State"), which a button would
+    otherwise turn into an access key and render as an underline.
+    """
+    return text.replace("&", "&&")
+
+
+# -- Text ----------------------------------------------------------------- #
+def cap_label(text: str) -> QLabel:
+    """A small uppercase section caption (``SECTIONS``, ``PENDING CHANGES``)."""
+    label = QLabel(text.upper())
+    label.setStyleSheet(
+        f"font-family:{t.UI_FAMILY};font-size:11px;font-weight:600;"
+        f"letter-spacing:0.04em;color:{t.TEXT_2};background:transparent;"
+    )
+    return label
+
+
+def heading(text: str, size: int = 16) -> QLabel:
+    """A Cinzel-style display heading (screen and section titles)."""
+    label = QLabel(text)
+    label.setStyleSheet(
+        f"font-family:{t.DISPLAY_FAMILY};font-size:{size}px;font-weight:600;"
+        f"color:{t.TEXT_HEADING};background:transparent;"
+    )
+    return label
+
+
+def body(text: str, color: str | None = None, size: float = 12.5) -> QLabel:
+    """Ordinary UI copy. Wraps, because most body text in the design does."""
+    label = QLabel(text)
+    label.setWordWrap(True)
+    label.setStyleSheet(
+        f"font-family:{t.UI_FAMILY};font-size:{size}px;"
+        f"color:{color or t.TEXT};background:transparent;"
+    )
+    return label
+
+
+def mono(text: str, color: str | None = None, size: float = 11.5) -> QLabel:
+    """Ids, codes, paths and filenames — the design sets these in a mono face."""
+    label = QLabel(text)
+    label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+    label.setStyleSheet(
+        f"font-family:{t.MONO_FAMILY};font-size:{size}px;"
+        f"color:{color or t.TEXT_2};background:transparent;"
+    )
+    return label
+
+
+# -- Buttons -------------------------------------------------------------- #
+_BTN_BASE = (
+    f"font-family:{t.UI_FAMILY};font-size:12.5px;font-weight:600;"
+    f"border-radius:{t.RADIUS_BUTTON}px;padding:6px 14px;"
+)
+
+
+def gold_button(text: str) -> QPushButton:
+    """The primary action (Save as New…, Overwrite save, Write new file)."""
+    button = QPushButton(_literal(text))
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.setStyleSheet(
+        f"QPushButton{{{_BTN_BASE}border:none;background:{t.GOLD};color:{t.GOLD_ON};}}"
+        f"QPushButton:hover{{background:#e8bd6d;}}"
+        f"QPushButton:disabled{{background:#6b552c;color:#3a3020;}}"
+    )
+    return button
+
+
+def ghost_button(text: str) -> QPushButton:
+    """A secondary action — outlined, transparent fill."""
+    button = QPushButton(_literal(text))
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.setStyleSheet(
+        f"QPushButton{{{_BTN_BASE}font-weight:500;border:1px solid {t.hairline(0.16)};"
+        f"background:transparent;color:{t.TEXT};}}"
+        f"QPushButton:hover{{background:{t.hairline(0.06)};}}"
+        f"QPushButton:disabled{{color:{t.TEXT_3};border-color:{t.hairline(0.08)};}}"
+    )
+    return button
+
+
+def small_ghost(text: str) -> QPushButton:
+    """The compact row-level action (``Edit…``, ``×``, ``Add a feat…``)."""
+    button = QPushButton(_literal(text))
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.setStyleSheet(
+        f"QPushButton{{font-family:{t.UI_FAMILY};font-size:11px;font-weight:600;"
+        f"border-radius:{t.RADIUS_CHIP}px;padding:3px 9px;"
+        f"border:1px solid {t.hairline(0.16)};background:transparent;color:{t.TEXT_2};}}"
+        f"QPushButton:hover{{color:{t.TEXT};background:{t.hairline(0.06)};}}"
+        f"QPushButton:disabled{{color:{t.TEXT_3};border-color:{t.hairline(0.08)};}}"
+    )
+    return button
+
+
+def pill_toggle(text: str) -> QPushButton:
+    """The checkable ``Edit`` pill — turns gold when on."""
+    button = QPushButton(_literal(text))
+    button.setCheckable(True)
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.setStyleSheet(
+        f"QPushButton{{{_BTN_BASE}border:1px solid {t.hairline(0.16)};"
+        f"background:transparent;color:{t.TEXT};}}"
+        f"QPushButton:hover{{background:{t.hairline(0.06)};}}"
+        f"QPushButton:checked{{border-color:{t.gold_border(0.5)};"
+        f"background:{t.gold_tint(0.2)};color:{t.GOLD};}}"
+        f"QPushButton:disabled{{color:{t.TEXT_3};border-color:{t.hairline(0.08)};}}"
+    )
+    return button
+
+
+class SegmentedControl(QWidget):
+    """A two-or-more-way exclusive choice (the design's ``Strict`` / ``Free``)."""
+
+    def __init__(self, options: tuple[tuple[str, str], ...], parent: QWidget | None = None) -> None:
+        """``options`` is a tuple of ``(key, label)`` in display order."""
+        super().__init__(parent)
+        self.setStyleSheet(
+            f"SegmentedControl{{border:1px solid {t.hairline(0.16)};"
+            f"border-radius:{t.RADIUS_BUTTON}px;background:transparent;}}"
+        )
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(1, 1, 1, 1)
+        layout.setSpacing(0)
+        self._group = QButtonGroup(self)
+        self._group.setExclusive(True)
+        self._keys: dict[QAbstractButton, str] = {}
+        for key, label in options:
+            button = QPushButton(_literal(label))
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setStyleSheet(
+                f"QPushButton{{font-family:{t.UI_FAMILY};font-size:11.5px;font-weight:600;"
+                f"border:none;border-radius:{t.RADIUS_CHIP}px;padding:6px 14px;"
+                f"background:transparent;color:{t.TEXT_2};}}"
+                f"QPushButton:checked{{background:{t.gold_tint(0.25)};color:{t.GOLD};}}"
+            )
+            self._group.addButton(button)
+            self._keys[button] = key
+            layout.addWidget(button)
+        first = self._group.buttons()[0]
+        first.setChecked(True)
+
+    @property
+    def changed(self):
+        """Signal emitting the newly checked button (connect and call :meth:`value`)."""
+        return self._group.buttonClicked
+
+    def value(self) -> str:
+        """The checked option's key."""
+        return self._keys[self._group.checkedButton()]
+
+    def set_value(self, key: str) -> None:
+        for button, option in self._keys.items():
+            if option == key:
+                button.setChecked(True)
+                return
+
+
+# -- Surfaces ------------------------------------------------------------- #
+class Panel(QFrame):
+    """An inset panel — the design's ``oklch(0.185 0.014 55)`` block."""
+
+    def __init__(
+        self, parent: QWidget | None = None, *, radius: int = t.RADIUS_PANEL, padding: int = 14
+    ) -> None:
+        super().__init__(parent)
+        self.setStyleSheet(
+            f"Panel{{background:{t.INSET};border:1px solid {t.hairline(0.06)};"
+            f"border-radius:{radius}px;}}"
+        )
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(padding, padding, padding, padding)
+        self._layout.setSpacing(10)
+
+    def body_layout(self) -> QVBoxLayout:
+        """The panel's content layout — add rows to this."""
+        return self._layout
+
+
+class WarningPanel(QFrame):
+    """The red-tinted warning block (Free mode, no-backup overwrite).
+
+    A named subclass rather than a plain ``QFrame`` so the stylesheet can be scoped
+    to it: ``QLabel`` derives from ``QFrame``, so a ``QFrame{...}`` rule set on the
+    frame would also paint the danger border around the child text.
+    """
+
+
+def warning_panel(text: str) -> WarningPanel:
+    """Build a :class:`WarningPanel` carrying ``text``."""
+    frame = WarningPanel()
+    frame.setStyleSheet(
+        f"WarningPanel{{background:{t.DANGER_BG};border:1px solid {t.DANGER_BORDER};"
+        f"border-radius:9px;}}"
+    )
+    layout = QVBoxLayout(frame)
+    layout.setContentsMargins(12, 10, 12, 10)
+    layout.addWidget(body(text, t.DANGER, 12))
+    return frame
+
+
+def hline() -> QFrame:
+    """A 1px hairline separator."""
+    line = QFrame()
+    line.setFixedHeight(1)
+    line.setStyleSheet(f"background:{t.hairline(0.08)};border:none;")
+    return line
+
+
+def vline() -> QFrame:
+    """A 1px vertical divider (used in the toolbar)."""
+    line = QFrame()
+    line.setFixedWidth(1)
+    line.setStyleSheet(f"background:{t.hairline(0.08)};border:none;")
+    return line
+
+
+# -- Small indicators ----------------------------------------------------- #
+def icon_chip(code: str, *, size: int = t.NAV_CHIP) -> QLabel:
+    """The 2-letter gold code chip used as a nav/section icon."""
+    chip = QLabel(code)
+    chip.setFixedSize(size, size)
+    chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    chip.setStyleSheet(
+        f"background:{t.ICON_CHIP};color:{t.GOLD};border-radius:{t.RADIUS_CHIP}px;"
+        f"font-family:{t.UI_FAMILY};font-size:9.5px;font-weight:700;"
+    )
+    return chip
+
+
+def status_dot(color: str | None = None) -> QLabel:
+    """The 6px dot marking a section with unsaved changes."""
+    dot = QLabel()
+    dot.setFixedSize(t.STATUS_DOT, t.STATUS_DOT)
+    dot.setStyleSheet(
+        f"background:{color or t.GOLD};border-radius:{t.STATUS_DOT // 2}px;"
+    )
+    return dot
+
+
+def prc_badge() -> QLabel:
+    """The ``(PRC)`` badge — content PRC regenerates, so an edit may not stick."""
+    badge = QLabel("PRC")
+    badge.setStyleSheet(
+        f"color:{t.PRC_AMBER};border:1px solid rgba(240, 166, 70, 0.5);"
+        f"border-radius:{t.RADIUS_BADGE}px;padding:1px 4px;"
+        f"font-family:{t.UI_FAMILY};font-size:8.5px;font-weight:700;"
+    )
+    badge.setToolTip(
+        "PRC manages this from its own data and regenerates it on rest, level-up "
+        "or area load — an edit here may not stick in-game."
+    )
+    return badge
+
+
+class NavRow(QPushButton):
+    """A sidebar navigation row: icon chip, label, and a dirty dot."""
+
+    def __init__(self, key: str, label: str, code: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.key = key
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        # A button laid out with child widgets has no useful text sizeHint of its
+        # own, so without this the rows collapse and overlap.
+        self.setMinimumHeight(t.NAV_CHIP + 16)
+        self.setStyleSheet(
+            f"NavRow{{text-align:left;padding:0;border-radius:{t.RADIUS_ROW}px;"
+            f"border:1px solid transparent;background:transparent;}}"
+            f"NavRow:hover{{background:{t.hairline(0.05)};}}"
+            f"NavRow:checked{{border-color:{t.gold_border(0.4)};background:{t.gold_tint(0.18)};}}"
+        )
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(10)
+        layout.addWidget(icon_chip(code))
+        self._label = QLabel(label)
+        self._label.setStyleSheet(
+            f"font-family:{t.UI_FAMILY};font-size:12.5px;font-weight:500;"
+            f"color:{t.TEXT_2};background:transparent;"
+        )
+        layout.addWidget(self._label, 1)
+        self._dot = status_dot()
+        self._dot.setVisible(False)
+        layout.addWidget(self._dot)
+
+    def set_dirty(self, dirty: bool) -> None:
+        """Show or hide the gold dot marking staged changes in this section."""
+        self._dot.setVisible(dirty)
+
+    def setChecked(self, checked: bool) -> None:  # noqa: N802 - Qt override
+        super().setChecked(checked)
+        # The label is a child widget, so ``NavRow:checked`` can't recolour it.
+        self._label.setStyleSheet(
+            f"font-family:{t.UI_FAMILY};font-size:12.5px;"
+            f"font-weight:{'600' if checked else '500'};"
+            f"color:{t.GOLD if checked else t.TEXT_2};background:transparent;"
+        )
+
+
+class TabStrip(QWidget):
+    """The per-screen tab strip — 2px gold underline on the active tab."""
+
+    def __init__(self, tabs: tuple[tuple[str, str], ...], parent: QWidget | None = None) -> None:
+        """``tabs`` is a tuple of ``(key, label)`` in display order."""
+        super().__init__(parent)
+        self.setStyleSheet(f"TabStrip{{border-bottom:1px solid {t.hairline(0.1)};}}")
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        self._group = QButtonGroup(self)
+        self._group.setExclusive(True)
+        self._keys: dict[QAbstractButton, str] = {}
+        self._dots: dict[str, QPushButton] = {}
+        for key, label in tabs:
+            button = QPushButton(_literal(label))
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setStyleSheet(
+                f"QPushButton{{font-family:{t.UI_FAMILY};font-size:12.5px;font-weight:500;"
+                f"border:none;border-bottom:2px solid transparent;background:transparent;"
+                f"color:{t.TEXT_2};padding:11px 16px;}}"
+                f"QPushButton:hover{{color:{t.TEXT};}}"
+                f"QPushButton:checked{{border-bottom-color:{t.GOLD};color:{t.GOLD};"
+                f"font-weight:600;}}"
+            )
+            self._group.addButton(button)
+            self._keys[button] = key
+            self._dots[key] = button
+            layout.addWidget(button)
+        layout.addStretch(1)
+        self._group.buttons()[0].setChecked(True)
+
+    @property
+    def changed(self):
+        """Signal emitting the clicked tab button (connect and call :meth:`value`)."""
+        return self._group.buttonClicked
+
+    def value(self) -> str:
+        return self._keys[self._group.checkedButton()]
+
+    def set_value(self, key: str) -> None:
+        for button, option in self._keys.items():
+            if option == key:
+                button.setChecked(True)
+                return
+
+    def set_dirty(self, key: str, dirty: bool) -> None:
+        """Append the design's ``●`` marker to a tab holding staged changes."""
+        button = self._dots.get(key)
+        if button is None:
+            return
+        label = button.text().removesuffix(" ●")
+        button.setText(f"{label} ●" if dirty else label)

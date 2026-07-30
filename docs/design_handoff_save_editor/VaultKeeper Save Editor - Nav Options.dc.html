@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0c0b0a;font-family:Inter,sans-serif}
+a{color:oklch(0.78 0.12 82)}
+a:hover{color:oklch(0.85 0.1 82)}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:oklch(0.35 0.02 55);border-radius:4px}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(255,255,255,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:oklch(0.78 0.12 82);color:#1a1408;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 14px/1.2 Inter,sans-serif;color:#f2ede4}
+.dv-intro{font:14px/1.6 Inter,sans-serif;color:oklch(0.68 0.012 60);max-width:960px;margin:0 0 26px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(255,255,255,.1);color:#f2ede4;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:13px/1.3 Inter,sans-serif;color:oklch(0.68 0.012 60)}
+.dv-card{background:oklch(0.14 0.012 55);border:1px solid rgba(255,255,255,.1);border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+.dv-parked{background:oklch(0.16 0.012 55);border:1px dashed rgba(255,255,255,.16);border-radius:10px;padding:16px 20px;font:13px/1.6 Inter,sans-serif;color:oklch(0.55 0.012 60);max-width:280px}
+.dv-next{margin:20px 0 0;font:12px/1.6 Inter,sans-serif;color:oklch(0.5 0.012 60);max-width:960px}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">1a, detailed — sidebar shell, NWN:EE-style character sheet, area contents</span></div>
+<p class="dv-intro">Latest pass addresses your review comments: Area Contents moved after Party & Campaign in the sidebar; the paperdoll is now a real humanoid layout (head circle + torso outline behind the slots, weapon/shield/rings mirrored left-right) instead of a flat grid; Skills rows are now editable (Rank input in edit mode) and show the full breakdown — rank + ability mod + other (item/feat/spell) bonus = total; "+ Add Feat" only appears while editing; the Effects list clarifies that active spell effects can only be cleared here, not cast — adding one is a scripted engine action left to an Advanced tool; AC components are read-only with a source tooltip in Strict mode (edit the item/ability instead) and become raw-override inputs only in Free mode, with a warning either way. Also built out the Spellbook screen: per-level tabs, slot-usage counter, prepared-spell list with remove, and the same search-to-add picker pattern as Feats.</p>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Sidebar + tabs — full detail pass</div>
+<div class="dv-card" style="width:1400px">
+
+<div style="position:relative;display:flex;flex-direction:column;height:900px;background:oklch(0.14 0.012 55);color:oklch(0.94 0.006 60)">
+  <div style="display:flex;align-items:center;gap:16px;padding:0 20px;height:52px;flex:none;background:oklch(0.16 0.012 55);border-bottom:1px solid rgba(255,255,255,.08)">
+    <div style="font:700 15px Cinzel,serif;color:oklch(0.78 0.12 82);letter-spacing:.04em">VAULTKEEPER</div>
+    <div style="width:1px;height:20px;background:rgba(255,255,255,.12)"></div>
+    <div style="font:500 13px Inter,sans-serif;color:oklch(0.68 0.012 60)">Kaelen_Autosave002 <span style="color:oklch(0.5 0.012 60)">— Chapter 4</span></div>
+    <div style="flex:1"></div>
+    <button style="{{ openBtnA }}" onClick="{{ openDialogA }}">Open Save…</button>
+    <div style="width:1px;height:20px;background:rgba(255,255,255,.12)"></div>
+    <div style="display:flex;gap:4px">
+      <button style="{{ undoBtnA }}" onClick="{{ doUndoA }}" disabled="{{ undoDisabledA }}" title="Undo last change">↶</button>
+      <button style="{{ redoBtnA }}" onClick="{{ doRedoA }}" disabled="{{ redoDisabledA }}" title="Redo">↷</button>
+    </div>
+    <div style="display:flex;border:1px solid rgba(255,255,255,.14);border-radius:7px;overflow:hidden">
+      <button style="{{ segA.strict }}" onClick="{{ setStrictA }}">Strict</button>
+      <button style="{{ segA.free }}" onClick="{{ setFreeA }}">Free</button>
+    </div>
+    <button style="{{ editBtnA }}" onClick="{{ toggleEditA }}">{{ editLabelA }}</button>
+    <button style="{{ saveAsBtnA }}" onClick="{{ openSaveNewA }}">Save as New…</button>
+    <button style="{{ overwriteBtnA }}" onClick="{{ openOverwriteA }}">Overwrite…</button>
+  </div>
+
+  <div style="display:flex;flex:1;min-height:0">
+    <div style="width:236px;flex:none;background:oklch(0.155 0.012 55);border-right:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;padding:14px 12px;gap:14px;overflow:auto">
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 6px 8px">
+          <span style="font:600 10px Inter,sans-serif;letter-spacing:.08em;color:oklch(0.5 0.012 60)">SAVES</span>
+          <button style="background:none;border:none;color:oklch(0.6 0.012 60);cursor:pointer;font:13px Inter,sans-serif;padding:0;line-height:1" title="Refresh saves list">⟳</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:oklch(0.3 0.05 82 / 0.15);border:1px solid oklch(0.6 0.09 82 / 0.4)">
+          <div style="width:30px;height:30px;border-radius:6px;background:repeating-linear-gradient(135deg,oklch(0.3 0.02 55),oklch(0.3 0.02 55) 3px,oklch(0.26 0.02 55) 3px,oklch(0.26 0.02 55) 6px);flex:none"></div>
+          <div style="min-width:0">
+            <div style="font:600 12.5px Inter,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kaelen_Autosave002</div>
+            <div style="font:11px Inter,sans-serif;color:oklch(0.6 0.012 60)">Lv.14 Paladin · Ch.4</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;opacity:.55">
+          <div style="width:30px;height:30px;border-radius:6px;background:repeating-linear-gradient(135deg,oklch(0.3 0.02 55),oklch(0.3 0.02 55) 3px,oklch(0.26 0.02 55) 3px,oklch(0.26 0.02 55) 6px);flex:none"></div>
+          <div style="min-width:0">
+            <div style="font:600 12.5px Inter,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kaelen_QuickSave</div>
+            <div style="font:11px Inter,sans-serif;color:oklch(0.6 0.012 60)">Lv.13 Paladin · Ch.3</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font:600 10px Inter,sans-serif;letter-spacing:.08em;color:oklch(0.5 0.012 60);padding:0 6px 8px">SECTIONS</div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <sc-for list="{{ navItemsA }}" as="item" hint-placeholder-count="7">
+            <button style="{{ item.style }}" onClick="{{ item.onClick }}">
+              <span style="width:24px;height:24px;border-radius:6px;background:oklch(0.28 0.02 55);color:oklch(0.78 0.12 82);font:700 9.5px Inter,sans-serif;display:flex;align-items:center;justify-content:center;flex:none">{{ item.icon }}</span>
+              <span style="font:500 12.5px Inter,sans-serif;flex:1">{{ item.label }}</span>
+              <sc-if value="{{ item.dot }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.78 0.12 82);flex:none"></span></sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <div style="font:600 10px Inter,sans-serif;letter-spacing:.08em;color:oklch(0.5 0.012 60);padding:0 6px 8px">ADVANCED</div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <sc-for list="{{ advItemsA }}" as="item" hint-placeholder-count="2">
+            <button style="{{ item.style }}" onClick="{{ item.onClick }}">
+              <span style="width:24px;height:24px;border-radius:6px;background:oklch(0.28 0.02 55);color:oklch(0.78 0.12 82);font:700 9.5px Inter,sans-serif;display:flex;align-items:center;justify-content:center;flex:none">{{ item.icon }}</span>
+              <span style="font:500 12.5px Inter,sans-serif;flex:1">{{ item.label }}</span>
+              <sc-if value="{{ item.dot }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.78 0.12 82);flex:none"></span></sc-if>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:auto">
+      <sc-if value="{{ aSectionIsCharacter }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:22px 26px;display:flex;flex-direction:column;gap:20px">
+          {{ characterHeader }}
+          <div style="display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,.1)">
+            <sc-for list="{{ charTabItemsA }}" as="item" hint-placeholder-count="5">
+              <button style="{{ item.style }}" onClick="{{ item.onClick }}">{{ item.label }}<sc-if value="{{ item.dot }}" hint-placeholder-val="{{ false }}"><span style="color:oklch(0.78 0.12 82)"> ●</span></sc-if></button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ aTabIsAbilities }}" hint-placeholder-val="{{ true }}">{{ abilitiesCombatBlock }}</sc-if>
+          <sc-if value="{{ aTabIsSkills }}" hint-placeholder-val="{{ false }}">{{ skillsBlock }}</sc-if>
+          <sc-if value="{{ aTabIsFeats }}" hint-placeholder-val="{{ false }}">{{ featsBlock }}</sc-if>
+          <sc-if value="{{ aTabIsEffects }}" hint-placeholder-val="{{ false }}">{{ effectsBlock }}</sc-if>
+          <sc-if value="{{ aTabIsBio }}" hint-placeholder-val="{{ false }}">{{ bioBlock }}</sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsInventory }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px 26px">{{ inventoryPanelMain }}</div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsSpellbook }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px 26px">{{ spellbookBlock }}</div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsArea }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;height:100%">
+          <div style="display:flex;gap:8px;padding:16px 22px 0">
+            <sc-for list="{{ areaTabs }}" as="at" hint-placeholder-count="2">
+              <button style="{{ at.style }}" onClick="{{ at.onClick }}">{{ at.label }}</button>
+            </sc-for>
+          </div>
+          <div style="display:flex;flex:1;min-height:0">
+            <div style="width:220px;flex:none;border-right:1px solid rgba(255,255,255,.08);padding:16px 14px;display:flex;flex-direction:column;gap:16px;overflow:auto">
+              <sc-for list="{{ areaNavGroups }}" as="grp" hint-placeholder-count="3">
+                <div>
+                  <div style="font:600 10px Inter,sans-serif;letter-spacing:.08em;color:oklch(0.5 0.012 60);padding:0 6px 8px">{{ grp.g }}</div>
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <sc-for list="{{ grp.items }}" as="item" hint-placeholder-count="1">
+                      <button style="{{ item.style }}" onClick="{{ item.onClick }}">{{ item.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="flex:1;min-width:0;padding:22px 26px;overflow:auto">{{ areaDetailPanel }}</div>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsCompanions }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px 26px">{{ companionsBlock }}</div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsQuests }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px 26px">{{ questsBlock }}</div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsParty }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px 26px">{{ partyBlock }}</div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsRaw }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px 26px">{{ rawBlock }}</div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsBackups }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px 26px">{{ backupsBlock }}</div>
+      </sc-if>
+      <sc-if value="{{ aSectionIsOther }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:40px">
+          <div style="max-width:420px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
+            <div style="width:48px;height:48px;border-radius:10px;border:1px solid oklch(0.6 0.09 82 / 0.4);background:oklch(0.3 0.05 82 / 0.12);color:oklch(0.78 0.12 82);font:700 15px Inter,sans-serif;display:flex;align-items:center;justify-content:center">{{ aSectionInfo.icon }}</div>
+            <div style="font:600 16px Cinzel,serif;color:#f2ede4">{{ aSectionInfo.t }}</div>
+            <div style="font:13px/1.6 Inter,sans-serif;color:oklch(0.6 0.012 60)">{{ aSectionInfo.d }}</div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ editA }}" hint-placeholder-val="{{ false }}">
+    <div style="flex:none;border-top:1px solid rgba(255,255,255,.1);background:oklch(0.16 0.012 55);padding:10px 20px;display:flex;align-items:center;gap:16px">
+      <div style="font:600 11px Inter,sans-serif;color:oklch(0.68 0.012 60);letter-spacing:.04em">PENDING CHANGES ({{ pendingCount }})</div>
+      <sc-for list="{{ pendingSample }}" as="p" hint-placeholder-count="3">
+        <div style="display:flex;align-items:center;gap:6px;font:12px Inter,sans-serif;color:oklch(0.85 0.01 60)"><span style="color:oklch(0.78 0.12 82)">●</span>{{ p.label }}</div>
+      </sc-for>
+      <sc-if value="{{ hasUndone }}" hint-placeholder-val="{{ false }}">
+        <div style="font:12px Inter,sans-serif;color:oklch(0.5 0.012 60)">{{ undoneLabel }}</div>
+      </sc-if>
+      <div style="flex:1"></div>
+      <button style="{{ reviewBtnA }}" onClick="{{ openReviewA }}">Review…</button>
+      <button style="background:none;border:1px solid rgba(255,255,255,.14);color:oklch(0.68 0.012 60);border-radius:6px;padding:6px 12px;font:500 12px Inter,sans-serif;cursor:pointer" onClick="{{ discardAllA }}">Discard All</button>
+    </div>
+  </sc-if>
+  <sc-if value="{{ reviewOpen }}" hint-placeholder-val="{{ false }}">{{ reviewSheet }}</sc-if>
+  <sc-if value="{{ dialogIsOpen }}" hint-placeholder-val="{{ false }}">{{ openDialogEl }}</sc-if>
+  <sc-if value="{{ dialogIsSave }}" hint-placeholder-val="{{ false }}">{{ saveDialogEl }}</sc-if>
+</div>
+
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Tabbed single window — parked</div>
+<div class="dv-parked">Not being iterated further per your call — 1a won. Say the word if you want this resumed later.</div>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Guided wizard — parked</div>
+<div class="dv-parked">Not being iterated further per your call — 1a won. Say the word if you want this resumed later.</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "wire the Add Feat picker to real PRC/base feat lists" · "same searchable pattern for Skills and Spells" · "start the Spellbook and Companions screens for real"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    aSection: 'character', aTab: 'abilities', editA: false, strictA: true,
+    aAreaKey: 'area1', aAreaNode: 'a1-store', sheetSkin: 'leather',
+    classes: [{ name: 'Paladin', level: 14 }],
+    lawChaos: 78, goodEvil: 82,
+    featSearch: '', featPickerOpen: false, pendingNewFeat: null, selectedFeatCode: 1023,
+    spellLevel: 1, spellSearch: '', spellPickerOpen: false, removedSpellIds: [], pendingNewSpells: [],
+    selectedItemKeys: { player: 'weapon' }, itemPropPickerOpen: false,
+    compKey: 'sharwyn', questTab: 'journal', varSearch: '', varScope: 'module', gffNode: 'ClassList', backupKey: 'bk2',
+    dialog: null, saveMode: 'overwrite', reviewOpen: false, discardedIds: [], undoCount: 0,
+    backupOnWrite: true, newSaveName: 'Kaelen_Autosave002_edited', openSelected: 'auto2', openSearch: '', itemPropSearch: '', pendingNewProps: {}, removedPropIds: [], copiedItemKeys: [],
+  };
+
+  renderVals() {
+    const gold = 'oklch(0.78 0.12 82)';
+    const text = 'oklch(0.94 0.006 60)';
+    const text2 = 'oklch(0.68 0.012 60)';
+    const text3 = 'oklch(0.5 0.012 60)';
+    const green = 'oklch(0.75 0.16 150)';
+
+    const navBtn = (active) => `display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;border:1px solid ${active ? 'oklch(0.6 0.09 82 / 0.4)' : 'transparent'};background:${active ? 'oklch(0.3 0.05 82 / 0.15)' : 'transparent'};color:${active ? text : text2};cursor:pointer;text-align:left;font:inherit;`;
+    const tabBtn = (active) => `padding:11px 16px;border:none;border-bottom:2px solid ${active ? gold : 'transparent'};background:transparent;color:${active ? gold : text2};font:${active ? '600' : '500'} 12.5px Inter,sans-serif;cursor:pointer;white-space:nowrap;flex:none;`;
+    const pillTab = (active) => `padding:7px 14px;border-radius:7px 7px 0 0;border:1px solid ${active ? 'rgba(255,255,255,.1)' : 'transparent'};border-bottom:${active ? '1px solid oklch(0.185 0.014 55)' : '1px solid transparent'};background:${active ? 'oklch(0.185 0.014 55)' : 'transparent'};color:${active ? text : text2};font:600 12px Inter,sans-serif;cursor:pointer;margin-bottom:-1px;`;
+    const seg = (active) => `padding:6px 14px;border:none;background:${active ? 'oklch(0.3 0.05 82 / 0.25)' : 'transparent'};color:${active ? gold : text2};font:600 11.5px Inter,sans-serif;cursor:pointer;`;
+    const pillBtn = (on) => `border:1px solid ${on ? 'oklch(0.6 0.09 82 / 0.5)' : 'rgba(255,255,255,.16)'};background:${on ? 'oklch(0.3 0.05 82 / 0.2)' : 'none'};color:${on ? gold : text};border-radius:7px;padding:6px 14px;font:600 12.5px Inter,sans-serif;cursor:pointer;`;
+    const ghostBtn = (enabled) => `border:1px solid rgba(255,255,255,.16);background:none;color:${enabled ? text : text3};border-radius:7px;padding:6px 14px;font:500 12.5px Inter,sans-serif;cursor:pointer;opacity:${enabled ? 1 : 0.45};`;
+    const goldBtn = (enabled) => `border:none;background:${gold};color:#1a1408;border-radius:7px;padding:6px 14px;font:600 12.5px Inter,sans-serif;cursor:pointer;opacity:${enabled ? 1 : 0.45};`;
+    const smallGhost = () => `border:1px solid rgba(255,255,255,.16);background:none;color:${text2};border-radius:6px;padding:3px 8px;font:600 11px Inter,sans-serif;cursor:pointer;`;
+    const smallGhostGated = (on) => `border:1px solid rgba(255,255,255,${on ? '.16' : '.08'});background:none;color:${on ? text2 : text3};border-radius:6px;padding:3px 9px;font:600 12px Inter,sans-serif;cursor:${on ? 'pointer' : 'not-allowed'};opacity:${on ? 1 : 0.45};`;
+    const smallGhostObj = () => ({ border: '1px solid rgba(255,255,255,.16)', background: 'none', color: text2, borderRadius: 6, padding: '3px 8px', font: '600 11px Inter,sans-serif', cursor: 'pointer' });
+    const ghostBtnObj = (enabled) => ({ border: '1px solid rgba(255,255,255,.16)', background: 'none', color: enabled ? text : text3, borderRadius: 7, padding: '6px 14px', font: '500 12.5px Inter,sans-serif', cursor: 'pointer', opacity: enabled ? 1 : 0.45 });
+    const goldBtnObj = (enabled) => ({ border: 'none', background: gold, color: '#1a1408', borderRadius: 7, padding: '6px 14px', font: '600 12.5px Inter,sans-serif', cursor: 'pointer', opacity: enabled ? 1 : 0.45 });
+    const navBtnObj = (active) => ({ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${active ? 'oklch(0.6 0.09 82 / 0.4)' : 'transparent'}`, background: active ? 'oklch(0.3 0.05 82 / 0.18)' : 'transparent', color: active ? gold : text2, font: `${active ? '600' : '500'} 12.5px Inter,sans-serif`, cursor: 'pointer', textAlign: 'left' });
+    const segObj = (active) => ({ padding: '6px 14px', border: 'none', background: active ? 'oklch(0.3 0.05 82 / 0.25)' : 'transparent', color: active ? gold : text2, font: '600 11.5px Inter,sans-serif', cursor: 'pointer' });
+    const pillTabObj = (active) => ({ padding: '7px 14px', borderRadius: '7px 7px 0 0', border: `1px solid ${active ? 'rgba(255,255,255,.1)' : 'transparent'}`, borderBottom: active ? '1px solid oklch(0.185 0.014 55)' : '1px solid transparent', background: active ? 'oklch(0.185 0.014 55)' : 'transparent', color: active ? gold : text2, font: `${active ? '600' : '500'} 12.5px Inter,sans-serif`, cursor: 'pointer', marginBottom: -1 });
+    const swatchObj = (k, activeKey, bg) => ({ width: 22, height: 22, borderRadius: '50%', padding: 0, cursor: 'pointer', background: bg, border: `2px solid ${k === activeKey ? gold : 'rgba(255,255,255,.25)'}` });
+
+    const sections = [
+      { key: 'character', label: 'Character', icon: 'CH' },
+      { key: 'inventory', label: 'Inventory & Equipment', icon: 'IN' },
+      { key: 'spellbook', label: 'Spellbook', icon: 'SP' },
+      { key: 'companions', label: 'Companions', icon: 'CO' },
+      { key: 'quests', label: 'Quests & World State', icon: 'QW' },
+      { key: 'party', label: 'Party & Campaign', icon: 'PC' },
+      { key: 'area', label: 'Area Contents', icon: 'AR' },
+    ];
+    const advSections = [
+      { key: 'raw', label: 'Raw Data (GFF)', icon: 'RD' },
+      { key: 'backups', label: 'Backups & Diff', icon: 'BK' },
+    ];
+    const sectionInfo = {
+      spellbook: { icon: 'SP', t: 'Spellbook', d: 'Known & memorized spells per caster class and level, with PRC prestige spellbooks flagged.' },
+      companions: { icon: 'CO', t: 'Companions', d: 'Edit henchmen and summon/familiar state alongside the player character.' },
+      quests: { icon: 'QW', t: 'Quests & World State', d: 'Journal entries and per-module local/global boolean, number and string variables.' },
+      party: { icon: 'PC', t: 'Party & Campaign', d: 'Party-wide gold/XP and campaign-persistent global variables.' },
+      raw: { icon: 'RD', t: 'Raw Data (GFF)', d: 'Advanced: browse and edit the underlying GFF struct/field tree directly.' },
+      backups: { icon: 'BK', t: 'Backups & Diff', d: 'Restore a previous auto-backup, or diff two saves field-by-field.' },
+    };
+    const charTabs = [
+      { key: 'abilities', label: 'Abilities & Combat' },
+      { key: 'skills', label: 'Skills' },
+      { key: 'feats', label: 'Feats' },
+      { key: 'effects', label: 'Effects' },
+      { key: 'biography', label: 'Biography' },
+    ];
+    const mapNav = (list, activeKey, setFn) => list.map(s => ({ ...s, style: navBtn(s.key === activeKey), onClick: () => setFn(s.key) }));
+    const mapTabs = (list, activeKey, setFn) => list.map(s => ({ ...s, style: tabBtn(s.key === activeKey), onClick: () => setFn(s.key) }));
+
+    // ---------- character sheet (skinnable) ----------
+    const skins = {
+      leather: { name: 'Leather (NWN default)', bg: 'linear-gradient(160deg, oklch(0.26 0.045 75), oklch(0.15 0.03 65))', border: '1px solid oklch(0.58 0.09 75 / 0.55)', accentText: '#ddd0b8' },
+      crimson: { name: 'Crimson (mod skin)', bg: 'linear-gradient(160deg, oklch(0.22 0.06 25), oklch(0.13 0.03 20))', border: '1px solid oklch(0.55 0.13 25 / 0.55)', accentText: '#e3c8ba' },
+      steel: { name: 'Steel', bg: 'linear-gradient(160deg, oklch(0.24 0.02 250), oklch(0.14 0.02 250))', border: '1px solid oklch(0.6 0.05 250 / 0.55)', accentText: '#c9d3de' },
+      verdant: { name: 'Verdant', bg: 'linear-gradient(160deg, oklch(0.24 0.05 150), oklch(0.14 0.03 150))', border: '1px solid oklch(0.6 0.1 150 / 0.55)', accentText: '#cfe0cf' },
+    };
+    const skinKey = skins[this.state.sheetSkin] ? this.state.sheetSkin : 'leather';
+    const skin = skins[skinKey];
+    const skinSwatches = Object.keys(skins).map(k => ({
+      key: k, name: skins[k].name, active: k === skinKey,
+      style: swatchObj(k, skinKey, skins[k].bg),
+      onClick: () => this.setState({ sheetSkin: k }),
+    }));
+
+    const lcWord = (v) => v < 31 ? 'Chaotic' : v < 70 ? 'Neutral' : 'Lawful';
+    const geWord = (v) => v < 31 ? 'Evil' : v < 70 ? 'Neutral' : 'Good';
+    const classesLine = this.state.classes.map(c => `${c.name} (${c.level})`).join(', ');
+    const bumpLevel = (idx, d) => this.setState(s => ({ classes: s.classes.map((c, i) => i === idx ? { ...c, level: Math.max(1, c.level + d) } : c) }));
+    const addClass = () => this.setState(s => s.classes.length >= 3 ? s : { classes: [...s.classes, { name: 'Fighter', level: 1 }] });
+
+    const abilityRow2 = (a) => React.createElement('div', {
+      key: a.k, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.08)' },
+    }, [
+      React.createElement('div', { key: 'ic', style: { width: 22, height: 22, borderRadius: '50%', border: `1px solid ${gold}`, color: gold, font: '700 9px Inter,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, a.k[0]),
+      React.createElement('div', { key: 'l', style: { flex: 1, font: '13.5px Inter,sans-serif', color: '#f1e6d8' } }, a.name),
+      React.createElement('div', { key: 'score', style: { width: 30, textAlign: 'right', font: '700 15px Inter,sans-serif', color: '#f1e6d8' } }, a.score),
+      React.createElement('div', { key: 'mod', style: { width: 34, textAlign: 'right', font: '700 13px Inter,sans-serif', color: a.mod >= 0 ? green : 'oklch(0.65 0.16 25)' } }, a.mod >= 0 ? `+${a.mod}` : a.mod),
+    ]);
+
+    const buildCharacterPanel = (editOn) => {
+      const strPending = editOn ? { from: 20, to: 24 } : null;
+      const abilityData = [
+        { k: 'STR', name: 'Strength', score: strPending ? strPending.to : 20, mod: 5, pending: strPending },
+        { k: 'DEX', name: 'Dexterity', score: 16, mod: 3 }, { k: 'CON', name: 'Constitution', score: 18, mod: 4 },
+        { k: 'INT', name: 'Intelligence', score: 10, mod: 0 }, { k: 'WIS', name: 'Wisdom', score: 14, mod: 2 },
+        { k: 'CHA', name: 'Charisma', score: 16, mod: 3 },
+      ];
+      const rows = abilityData.map((a) => {
+        if (!a.pending) return abilityRow2(a);
+        return React.createElement('div', { key: a.k + '-w', style: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', margin: '0 -10px', borderRadius: 6, background: 'oklch(0.3 0.05 82 / 0.12)' } }, [
+          React.createElement('span', { key: 'dot', style: { width: 6, height: 6, borderRadius: '50%', background: gold, flex: 'none' } }),
+          React.createElement('div', { key: 'ic', style: { width: 22, height: 22, borderRadius: '50%', border: `1px solid ${gold}`, color: gold, font: '700 9px Inter,sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' } }, a.k[0]),
+          React.createElement('div', { key: 'l', style: { flex: 1, font: '13.5px Inter,sans-serif', color: '#f1e6d8' } }, a.name),
+          React.createElement('div', { key: 'from', style: { font: '13px Inter,sans-serif', color: 'oklch(0.55 0.01 60)', textDecoration: 'line-through' } }, a.pending.from),
+          React.createElement('div', { key: 'to', style: { width: 30, textAlign: 'right', font: '700 15px Inter,sans-serif', color: gold } }, a.pending.to),
+          React.createElement('div', { key: 'mod', style: { width: 34, textAlign: 'right', font: '700 13px Inter,sans-serif', color: green } }, `+${a.mod}`),
+        ]);
+      });
+
+      const hpEl = editOn
+        ? React.createElement('div', { key: 'hp', style: { display: 'flex', alignItems: 'center', gap: 8 } }, [
+            React.createElement('span', { key: 'l', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.05em', color: text3 } }, 'HP'),
+            React.createElement('input', { key: 'cur', defaultValue: 142, style: { width: 52, background: 'oklch(0.2 0.014 55)', border: '1px solid rgba(255,255,255,.18)', borderRadius: 5, color: text, font: '700 12px Inter,sans-serif', padding: '4px 6px', textAlign: 'center' } }),
+            React.createElement('span', { key: 's', style: { color: text3 } }, '/'),
+            React.createElement('input', { key: 'max', defaultValue: 156, style: { width: 52, background: 'oklch(0.2 0.014 55)', border: '1px solid rgba(255,255,255,.18)', borderRadius: 5, color: text, font: '700 12px Inter,sans-serif', padding: '4px 6px', textAlign: 'center' } }),
+          ])
+        : React.createElement('span', { key: 'hp' }, ['HP: ', React.createElement('b', { key: 'b', style: { color: '#f1e6d8' } }, '142 / 156')]);
+
+      const acParts = [
+        { l: 'Base', v: 10, source: null },
+        { l: 'Armor', v: 8, source: 'Item' },
+        { l: 'Shield', v: 2, source: 'Item' },
+        { l: 'Dex', v: 3, source: 'Ability' },
+        { l: 'Natural', v: 2, source: 'Item' },
+        { l: 'Deflect', v: 2, source: 'Item/Spell' },
+      ];
+      const acTotal = acParts.reduce((s, p) => s + p.v, 0);
+      const acFreeEdit = editOn && !this.state.strictA;
+      const acPart = (p) => acFreeEdit
+        ? React.createElement('div', { key: p.l, style: { display: 'flex', alignItems: 'center', gap: 3 } }, [
+            React.createElement('span', { key: 'l', style: { font: '10.5px Inter,sans-serif', color: text3 } }, p.l),
+            React.createElement('input', { key: 'v', defaultValue: p.v, style: { width: 30, background: 'oklch(0.2 0.014 55)', border: '1px solid rgba(255,255,255,.18)', borderRadius: 4, color: text, font: '700 11px Inter,sans-serif', padding: '2px 3px', textAlign: 'center' } }),
+          ])
+        : React.createElement('span', { key: p.l, title: p.source ? `From: ${p.source} — edit that source, not this total` : undefined, style: { font: '11px Inter,sans-serif', color: text3 } }, [p.l, ' ', React.createElement('b', { key: 'b', style: { color: '#f1e6d8' } }, `+${p.v}`)]);
+      const acNote = editOn
+        ? (this.state.strictA
+            ? 'Strict mode: AC components are read-only, sourced from equipment/abilities — edit the item or ability instead. Switch to Free mode to override raw values.'
+            : 'Free mode: raw AC overrides. The engine may recompute these from equipment on load, so verify in-game.')
+        : null;
+
+      const sheet = React.createElement('div', { style: { display: 'flex', gap: 20, background: skin.bg, border: skin.border, borderRadius: 12, padding: 18 } }, [
+        React.createElement('div', { key: 'art', style: { width: 180, height: 240, flex: 'none', borderRadius: 8, background: 'repeating-linear-gradient(135deg, oklch(0.3 0.06 55), oklch(0.3 0.06 55) 4px, oklch(0.22 0.04 50) 4px, oklch(0.22 0.04 50) 8px)', border: skin.border, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '600 9px ui-monospace,monospace', color: 'oklch(0.7 0.02 60)', textAlign: 'center' } }, 'CHARACTER ART'),
+        React.createElement('div', { key: 'stats', style: { flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 } }, [
+          React.createElement('div', { key: 'race', style: { font: '13px Inter,sans-serif', color: skin.accentText } }, `Human, ${lcWord(this.state.lawChaos)} ${geWord(this.state.goodEvil)}`),
+          React.createElement('div', { key: 'class', style: { font: '600 14px Inter,sans-serif', color: '#f1e6d8' } }, classesLine),
+          React.createElement('div', { key: 'divider1', style: { height: 1, background: 'rgba(255,255,255,.12)', margin: '2px 0' } }),
+          React.createElement('div', { key: 'rows' }, rows),
+          React.createElement('div', { key: 'divider2', style: { height: 1, background: 'rgba(255,255,255,.12)', margin: '2px 0' } }),
+          React.createElement('div', { key: 'acRow', style: { display: 'flex', flexDirection: 'column', gap: 6 } }, [
+            React.createElement('div', { key: 'acHp', style: { display: 'flex', gap: 20, font: '13px Inter,sans-serif', color: skin.accentText, alignItems: 'center' } }, [
+              React.createElement('span', { key: 'ac' }, ['AC: ', React.createElement('b', { key: 'b', style: { color: '#f1e6d8' } }, acTotal)]),
+              hpEl,
+            ]),
+            React.createElement('div', { key: 'breakdown', style: { display: 'flex', gap: 10, flexWrap: 'wrap' } }, acParts.map(acPart)),
+            acNote ? React.createElement('div', { key: 'acnote', style: { font: '10.5px/1.5 Inter,sans-serif', color: text3, fontStyle: 'italic', maxWidth: 380 } }, acNote) : null,
+          ]),
+          React.createElement('div', { key: 'divider3', style: { height: 1, background: 'rgba(255,255,255,.12)', margin: '2px 0' } }),
+          React.createElement('div', { key: 'weapon', style: { display: 'flex', flexDirection: 'column', gap: 3, font: '13px Inter,sans-serif', color: skin.accentText } }, [
+            React.createElement('div', { key: 'w' }, ['Main Weapon: ', React.createElement('b', { key: 'b', style: { color: '#f1e6d8' } }, 'Longsword +3')]),
+            React.createElement('div', { key: 'a' }, ['Attack Bonus: ', React.createElement('b', { key: 'b', style: { color: '#f1e6d8' } }, '+14/+9/+4')]),
+            React.createElement('div', { key: 'd' }, ['Damage: ', React.createElement('b', { key: 'b', style: { color: '#f1e6d8' } }, '1d8+9'), ' (Critical: 19-20/x2)']),
+            React.createElement('div', { key: 'e', style: { color: 'oklch(0.72 0.13 220)' } }, '+2d6 Divine Damage'),
+          ]),
+        ]),
+      ]);
+
+      const combatStat = (label, val, breakdown) => React.createElement('div', { key: label, style: { display: 'flex', flexDirection: 'column', gap: 2, minWidth: 120 } }, [
+        React.createElement('div', { style: { font: '600 10px Inter,sans-serif', letterSpacing: '.05em', color: text3 } }, label),
+        React.createElement('div', { style: { font: '700 17px Inter,sans-serif', color: text } }, val),
+        React.createElement('div', { style: { font: '10.5px Inter,sans-serif', color: text3 } }, breakdown),
+      ]);
+      const combatNote = React.createElement('div', { key: 'note', style: { font: '11.5px Inter,sans-serif', color: text3, fontStyle: 'italic' } }, 'Computed from abilities, feats & gear — see the Effects tab; edit the sources, not these totals.');
+      const combat = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } }, [
+        combatNote,
+        React.createElement('div', { key: 'row', style: { display: 'flex', gap: 24, alignItems: 'flex-start', background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: '14px 20px', flexWrap: 'wrap' } }, [
+          combatStat('BASE ATTACK', '+14/+9/+4', 'BAB 14 (Paladin)'),
+          combatStat('INITIATIVE', '+3', '+3 Dex'),
+          combatStat('FORTITUDE', '+14', '10 base + 4 Con'),
+          combatStat('REFLEX', '+9', '5 base + 3 Dex + 1 item'),
+          combatStat('WILL', '+11', '9 base + 2 Cha'),
+        ]),
+      ]);
+
+      return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } }, [sheet, combat]);
+    };
+    const abilitiesCombatBlock = buildCharacterPanel(this.state.editA);
+
+    // ---------- effects (read-only, drives the computed numbers) ----------
+    const effectsData = [
+      { src: 'EQ', name: 'Gauntlets of Ogre Power', effect: '+4 Strength' },
+      { src: 'EQ', name: 'Full Plate +3', effect: '+11 Armor Class' },
+      { src: 'EQ', name: 'Cloak of Resistance +1', effect: '+1 all saving throws' },
+      { src: 'FT', name: 'Divine Might', effect: '+3 damage (active this round)' },
+      { src: 'FT', name: 'Great Fortitude', effect: '+2 Fortitude save' },
+      { src: 'SP', name: 'Shield of Faith (active)', effect: '+3 Deflection AC, 4 rounds left', duration: true },
+    ];
+    const srcColor = { EQ: 'oklch(0.72 0.13 220)', FT: gold, SP: 'oklch(0.75 0.14 300)' };
+    const srcLabel = { EQ: 'Equipment', FT: 'Feat', SP: 'Spell' };
+    const effectRow = (e) => React.createElement('div', { key: e.name, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+      React.createElement('span', { key: 's', style: { font: '700 9px Inter,sans-serif', color: srcColor[e.src], border: `1px solid ${srcColor[e.src]}`, borderRadius: 4, padding: '2px 5px', flex: 'none' } }, srcLabel[e.src]),
+      React.createElement('span', { key: 'n', style: { flex: 1, font: '13px Inter,sans-serif', color: text } }, e.name),
+      React.createElement('span', { key: 'e', style: { font: '600 12.5px Inter,sans-serif', color: text2 } }, e.effect),
+      e.duration ? React.createElement('span', { key: 'clr', title: 'Clear this active effect', style: { font: '11px Inter,sans-serif', color: text3, cursor: 'pointer', flex: 'none' } }, '✕') : null,
+    ]);
+    const effectsBlock = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 720 } }, [
+      React.createElement('div', { key: 'list', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden' } }, effectsData.map(effectRow)),
+      React.createElement('div', { key: 'note', style: { font: '12px/1.6 Inter,sans-serif', color: text3 } }, 'Read-only — the engine derives these from equipped items, active feats and ongoing spells. To change one, edit the item/feat/spell that grants it. Timed spell effects (✕ above) can only be cleared here, not added — casting a new one is a scripted engine action, so it stays out of scope for this basic view and would live under an Advanced "Add Active Effect" tool for power users.'),
+    ]);
+
+    // ---------- inventory / paperdoll / item properties ----------
+    const itemsData = {
+      weapon: { name: 'Longsword +3', slot: 'Weapon', properties: [{ id: 'ip1', label: '+3 Enhancement Bonus' }, { id: 'ip2', label: '+2d6 Divine Damage (vs Undead)' }] },
+      fullplate: { name: 'Full Plate +3', slot: 'Chest', properties: [{ id: 'ip3', label: '+11 Armor Class' }, { id: 'ip4', label: 'Damage Reduction 5/+2' }] },
+      gauntlets: { name: 'Gauntlets of Ogre Power', slot: 'Arms', properties: [{ id: 'ip5', label: '+4 Strength (Ability Bonus)' }] },
+      ringprotect: { name: 'Ring of Protection +2', slot: 'Ring', properties: [{ id: 'ip6', label: '+2 Deflection AC' }] },
+      bracers: { name: 'Bracers of Health +2', slot: 'Hands', properties: [{ id: 'ip7', label: '+2 Constitution (Ability Bonus)' }] },
+      bootselven: { name: 'Boots of Elvenkind', slot: 'Boots', properties: [{ id: 'ip8', label: '+10 Move Silently (Skill Bonus)' }] },
+      potionCSW: { name: 'Potion of Cure Serious Wounds', slot: 'Carried', properties: [{ id: 'ip9', label: 'Cast Spell: Cure Serious Wounds (1 charge/use)' }] },
+      scrollFireball: { name: 'Scroll of Fireball', slot: 'Carried', properties: [{ id: 'ip10', label: 'Cast Spell: Fireball (1 charge/use)' }] },
+      gemTopaz: { name: 'Flawless Topaz', slot: 'Carried', properties: [] },
+      wandMM: { name: 'Wand of Magic Missile', slot: 'Carried', properties: [{ id: 'ip11', label: 'Cast Spell: Magic Missile (20 charges/use)' }] },
+      potionHeal: { name: 'Potion of Cure Light Wounds', slot: 'Carried', properties: [{ id: 'ip12', label: 'Cast Spell: Cure Light Wounds (1 charge/use)' }] },
+    };
+    const codeFor = (key) => (itemsData[key] ? itemsData[key].name : key).replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase();
+
+    const propertyCatalog = [
+      { id: 'np1', label: 'Ability Bonus' }, { id: 'np2', label: 'AC Bonus' }, { id: 'np3', label: 'Attack Bonus' },
+      { id: 'np4', label: 'Enhancement Bonus' }, { id: 'np5', label: 'Skill Bonus' }, { id: 'np6', label: 'Saving Throw Bonus' },
+      { id: 'np7', label: 'Regeneration' }, { id: 'np8', label: 'Haste' }, { id: 'np9', label: 'Keen' },
+      { id: 'np10', label: 'True Seeing' }, { id: 'np11', label: 'Freedom of Movement' }, { id: 'np12', label: 'Improved Evasion' }, { id: 'np13', label: 'Darkvision' },
+    ];
+
+    const slotBox = (label, itemKey, key, opts) => {
+      const filled = itemKey && itemsData[itemKey];
+      const active = opts && opts.selected;
+      return React.createElement('div', {
+        key, onClick: opts && opts.onClick,
+        title: filled ? itemsData[itemKey].name : undefined,
+        style: { width: 62, height: 62, borderRadius: 8, cursor: (opts && opts.onClick) ? 'pointer' : 'default', border: `1px ${active ? `solid ${gold}` : filled ? 'solid oklch(0.6 0.09 82 / 0.5)' : 'dashed rgba(255,255,255,.18)'}`, boxShadow: active ? `0 0 0 2px oklch(0.3 0.05 82 / 0.3)` : 'none', background: filled ? 'oklch(0.28 0.05 82 / 0.25)' : 'oklch(0.16 0.012 55)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: filled ? '700 11px Inter,sans-serif' : '9px Inter,sans-serif', color: filled ? gold : text3, textAlign: 'center', padding: 4 },
+      }, filled ? codeFor(itemKey) : label);
+    };
+
+    const equipSlotsDef = [
+      { area: 'head', label: 'Head' },
+      { area: 'cloak', label: 'Cloak' }, { area: 'neck', label: 'Neck' }, { area: 'shield', label: 'Shield' },
+      { area: 'arms', label: 'Arms', itemKey: 'gauntlets' }, { area: 'chest', label: 'Chest', itemKey: 'fullplate' }, { area: 'ring1', label: 'Ring' },
+      { area: 'weapon', label: 'Weapon', itemKey: 'weapon' }, { area: 'belt', label: 'Belt' }, { area: 'ring2', label: 'Ring', itemKey: 'ringprotect' },
+      { area: 'gloves', label: 'Hands', itemKey: 'bracers' }, { area: 'boots', label: 'Boots', itemKey: 'bootselven' }, { area: 'ammo', label: 'Ammo' },
+    ];
+    const paperdoll = (selectedKey, onSelect) => React.createElement('div', {
+      style: {
+        position: 'relative', display: 'grid',
+        gridTemplateAreas: '". head ." "cloak neck shield" "arms chest ring1" "weapon belt ring2" "gloves boots ammo"',
+        gridTemplateColumns: 'repeat(3, 68px)', gridTemplateRows: 'repeat(5, 68px)', gap: 8, width: 'fit-content',
+      },
+    }, [
+      React.createElement('div', { key: 'headSil', style: { gridArea: 'head', width: 44, height: 44, margin: 'auto', borderRadius: '50%', background: 'rgba(255,255,255,.04)', border: '1px dashed rgba(255,255,255,.1)', zIndex: 0 } }),
+      React.createElement('div', { key: 'torsoSil', style: { gridColumn: '2', gridRow: '2 / span 3', borderRadius: 16, background: 'rgba(255,255,255,.04)', border: '1px dashed rgba(255,255,255,.1)', zIndex: 0 } }),
+      ...equipSlotsDef.map(s => React.createElement('div', { key: s.area, style: { gridArea: s.area, zIndex: 1 } }, slotBox(s.label, s.itemKey, s.area, { selected: s.itemKey && s.itemKey === selectedKey, onClick: s.itemKey ? () => onSelect(s.itemKey) : undefined }))),
+    ]);
+
+    const carriedSlots = Array.from({ length: 20 }, (_, i) => ({ i }));
+    const carriedFilled = { 0: 'potionCSW', 2: 'scrollFireball', 5: 'gemTopaz', 9: 'wandMM', 11: 'potionHeal' };
+
+    // item detail: properties list, add/remove (own inventory) or "add a copy" (store/loot)
+    const buildItemDetail = (itemKey, ctx) => {
+      const item = itemsData[itemKey];
+      if (!item) return React.createElement('div', { style: { font: '13px Inter,sans-serif', color: text3, padding: 20 } }, 'Select an item to view its properties.');
+      const pendingProps = (this.state.pendingNewProps[itemKey] || []);
+      const removedIds = this.state.removedPropIds;
+      const visibleProps = item.properties.filter(p => !removedIds.includes(p.id));
+      const isOwned = ctx === 'player';
+      const propRow = (p, pending) => React.createElement('div', { key: p.id, style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.06)', background: pending ? 'oklch(0.3 0.05 82 / 0.1)' : 'transparent' } }, [
+        pending ? React.createElement('span', { key: 'dot', style: { width: 6, height: 6, borderRadius: '50%', background: gold, flex: 'none' } }) : null,
+        React.createElement('span', { key: 'l', style: { flex: 1, font: '13px Inter,sans-serif', color: pending ? gold : text2 } }, p.label),
+        (this.state.editA && isOwned) ? React.createElement('button', {
+          key: 'x', style: smallGhostObj(),
+          onClick: pending
+            ? () => this.setState(s => ({ pendingNewProps: { ...s.pendingNewProps, [itemKey]: (s.pendingNewProps[itemKey] || []).filter(x => x.id !== p.id) } }))
+            : () => this.setState(s => ({ removedPropIds: [...s.removedPropIds, p.id] })),
+        }, '×') : null,
+      ]);
+      const propList = React.createElement('div', { key: 'props', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden' } }, [
+        ...visibleProps.map(p => propRow(p, false)),
+        ...pendingProps.map(p => propRow(p, true)),
+        (visibleProps.length + pendingProps.length === 0) ? React.createElement('div', { key: 'empty', style: { padding: '14px 12px', font: '13px Inter,sans-serif', color: text3 } }, 'No properties on this item.') : null,
+      ]);
+      const pickerOpen = this.state.itemPropPickerOpen === itemKey;
+      const needlep = this.state.itemPropSearch.trim().toLowerCase();
+      const catalogVisible = propertyCatalog.filter(p => !needlep || p.label.toLowerCase().includes(needlep));
+      const picker = pickerOpen ? React.createElement('div', { key: 'picker', style: { display: 'flex', flexDirection: 'column', gap: 8 } }, [
+        React.createElement('input', {
+          key: 'i', value: this.state.itemPropSearch, placeholder: 'Search property types…', autoFocus: true,
+          onChange: (e) => this.setState({ itemPropSearch: e.target.value }),
+          style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 7, color: text, font: '12.5px Inter,sans-serif', padding: '7px 10px' },
+        }),
+        React.createElement('div', { key: 'list', style: { display: 'flex', flexDirection: 'column', gap: 2, background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', maxHeight: 200, overflowY: 'auto', padding: 4 } },
+          catalogVisible.map(p => React.createElement('div', { key: p.id, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px' } }, [
+            React.createElement('span', { key: 'l', style: { flex: 1, font: '13px Inter,sans-serif', color: text2 } }, p.label),
+            React.createElement('button', { key: 'add', style: goldBtnObj(true), onClick: () => this.setState(s => ({ pendingNewProps: { ...s.pendingNewProps, [itemKey]: [...(s.pendingNewProps[itemKey] || []), { id: p.id + '-' + Date.now(), label: p.label + ' (set value)' }] }, itemPropPickerOpen: false, itemPropSearch: '' })) }, 'Add'),
+          ]))),
+      ]) : null;
+
+      const copied = this.state.copiedItemKeys.includes(itemKey);
+      const footer = this.state.editA
+        ? (isOwned
+            ? [
+                pickerOpen
+                  ? React.createElement('button', { key: 'cancel', style: ghostBtnObj(true), onClick: () => this.setState({ itemPropPickerOpen: false, itemPropSearch: '' }) }, 'Cancel')
+                  : React.createElement('button', { key: 'add', style: goldBtnObj(true), onClick: () => this.setState({ itemPropPickerOpen: itemKey, itemPropSearch: '' }) }, '+ Add Property…'),
+              ]
+            : [
+                copied
+                  ? React.createElement('span', { key: 'done', style: { display: 'inline-flex', alignItems: 'center', gap: 6, font: '600 12px Inter,sans-serif', color: gold } }, ['●', ' Copy added to my inventory — pending'])
+                  : React.createElement('button', { key: 'copy', style: goldBtnObj(true), onClick: () => this.setState(s => ({ copiedItemKeys: [...s.copiedItemKeys, itemKey] })) }, 'Add a copy to my inventory'),
+              ])
+        : [];
+
+      return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 12 } }, [
+        React.createElement('div', { key: 'h', style: { font: '600 16px Cinzel,serif', color: '#f2ede4' } }, item.name),
+        React.createElement('div', { key: 's', style: { font: '11px Inter,sans-serif', color: text3 } }, `Slot: ${item.slot}`),
+        React.createElement('div', { key: 'label', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3, marginTop: 4 } }, 'PROPERTIES'),
+        propList, picker,
+        ...footer,
+        (!isOwned && this.state.editA) ? React.createElement('div', { key: 'note', style: { font: '11px/1.6 Inter,sans-serif', color: text3, fontStyle: 'italic' } }, 'Copies an editable duplicate into your own inventory; the original here is unaffected.') : null,
+      ]);
+    };
+
+    const buildInventoryPanel = (title, subtitle, carriedOnly, ctx, ctxId) => {
+      const context = ctx || 'player';
+      const scope = ctxId || context;
+      const selectedKey = this.state.selectedItemKeys[scope] || null;
+      const onSelect = (k) => this.setState(s => ({ selectedItemKeys: { ...s.selectedItemKeys, [scope]: k }, itemPropPickerOpen: false, itemPropSearch: '' }));
+      const left = React.createElement('div', { key: 'left', style: { display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minWidth: 0 } }, [
+        React.createElement('div', { key: 'h', style: { display: 'flex', alignItems: 'center', gap: 12 } }, [
+          React.createElement('div', { key: 't', style: { font: '600 16px Cinzel,serif', color: '#f2ede4' } }, title),
+          subtitle ? React.createElement('div', { key: 's', style: { font: '12.5px Inter,sans-serif', color: text2 } }, subtitle) : null,
+          React.createElement('div', { key: 'sp', style: { flex: 1 } }),
+          carriedOnly ? null : React.createElement('div', { key: 'ac', style: { font: '600 12px Inter,sans-serif', color: gold, border: '1px solid oklch(0.6 0.09 82 / 0.4)', borderRadius: 6, padding: '4px 10px' } }, 'AC 27'),
+        ]),
+        carriedOnly ? null : React.createElement('div', { key: 'eq', style: { display: 'flex', flexDirection: 'column', gap: 8 } }, [
+          React.createElement('div', { key: 'l', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3 } }, 'EQUIPPED'),
+          paperdoll(selectedKey, onSelect),
+        ]),
+        React.createElement('div', { key: 'car', style: { display: 'flex', flexDirection: 'column', gap: 8 } }, [
+          React.createElement('div', { key: 'l', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3 } }, carriedOnly ? 'CONTENTS' : 'CARRIED'),
+          React.createElement('div', { key: 'g', style: { display: 'flex', flexWrap: 'wrap', gap: 8, maxWidth: 560 } }, carriedSlots.map(s => slotBox('', carriedFilled[s.i], 'c' + s.i, { selected: carriedFilled[s.i] && carriedFilled[s.i] === selectedKey, onClick: carriedFilled[s.i] ? () => onSelect(carriedFilled[s.i]) : undefined }))),
+        ]),
+      ]);
+      const right = React.createElement('div', { key: 'right', style: { width: 300, flex: 'none', background: 'oklch(0.16 0.012 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 18 } }, buildItemDetail(selectedKey, context));
+      return React.createElement('div', { style: { display: 'flex', gap: 20, alignItems: 'flex-start' } }, [left, right]);
+    };
+    const inventoryPanelMain = buildInventoryPanel('Inventory & Equipment', null, false, 'player', 'player');
+
+    // ---------- spellbook: per-level slots, prepared list, add/remove ----------
+    const spellData = {
+      0: { slots: 99, spells: [{ id: 's0-1', name: 'Resistance', school: 'Abjuration' }, { id: 's0-2', name: 'Virtue', school: 'Transmutation' }] },
+      1: { slots: 4, spells: [{ id: 's1-1', name: 'Bless', school: 'Enchantment' }, { id: 's1-2', name: 'Cure Light Wounds', school: 'Conjuration' }, { id: 's1-3', name: 'Divine Favor', school: 'Evocation' }] },
+      2: { slots: 3, spells: [{ id: 's2-1', name: 'Aid', school: 'Enchantment' }, { id: 's2-2', name: 'Remove Paralysis', school: 'Conjuration' }] },
+      3: { slots: 2, spells: [{ id: 's3-1', name: 'Cure Serious Wounds', school: 'Conjuration' }] },
+      4: { slots: 1, spells: [] },
+    };
+    const spellCatalog = {
+      0: [{ id: 'c0-1', name: 'Light', school: 'Evocation' }],
+      1: [{ id: 'c1-1', name: 'Command', school: 'Enchantment' }, { id: 'c1-2', name: 'Doom', school: 'Necromancy' }],
+      2: [{ id: 'c2-1', name: 'Sound Burst', school: 'Evocation' }, { id: 'c2-2', name: 'Silence', school: 'Illusion' }],
+      3: [{ id: 'c3-1', name: 'Prayer', school: 'Conjuration' }],
+      4: [{ id: 'c4-1', name: 'Death Ward', school: 'Necromancy' }, { id: 'c4-2', name: 'Freedom of Movement', school: 'Abjuration' }],
+    };
+    const spellLevelTabs = [0, 1, 2, 3, 4].map(lv => ({
+      lv, label: lv === 0 ? 'Cantrips' : `Level ${lv}`,
+      style: pillTabObj(lv === this.state.spellLevel),
+      onClick: () => this.setState({ spellLevel: lv, spellPickerOpen: false, spellSearch: '' }),
+    }));
+    const curLevel = this.state.spellLevel;
+    const basePrepared = spellData[curLevel] ? spellData[curLevel].spells : [];
+    const preparedVisible = basePrepared.filter(s => !this.state.removedSpellIds.includes(s.id));
+    const pendingForLevel = this.state.pendingNewSpells.filter(s => s.lv === curLevel);
+    const totalPrepared = preparedVisible.length + pendingForLevel.length;
+    const slotTotal = spellData[curLevel] ? spellData[curLevel].slots : 0;
+    const spNeedle = this.state.spellSearch.trim().toLowerCase();
+    const spMatches = (s) => !spNeedle || s.name.toLowerCase().includes(spNeedle);
+    const catalogVisible = (spellCatalog[curLevel] || []).filter(s => !this.state.pendingNewSpells.some(p => p.id === s.id)).filter(spMatches);
+
+    const spellRow = (s, opts) => React.createElement('div', { key: s.id, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 7, background: opts.pending ? 'oklch(0.3 0.05 82 / 0.1)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+      opts.pending ? React.createElement('span', { key: 'dot', style: { width: 6, height: 6, borderRadius: '50%', background: gold, flex: 'none' } }) : null,
+      React.createElement('div', { key: 'n', style: { flex: 1, font: '13px Inter,sans-serif', color: opts.pending ? gold : text } }, s.name),
+      React.createElement('div', { key: 'sc', style: { font: '11px Inter,sans-serif', color: text3, width: 100 } }, s.school),
+      this.state.editA ? React.createElement('button', { key: 'x', onClick: opts.onRemove, style: smallGhostObj() }, '×') : null,
+    ]);
+    const preparedList = React.createElement('div', { key: 'list', style: { display: 'flex', flexDirection: 'column', gap: 2, background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', padding: 4 } }, [
+      ...preparedVisible.map(s => spellRow(s, { onRemove: () => this.setState(st => ({ removedSpellIds: [...st.removedSpellIds, s.id] })) })),
+      ...pendingForLevel.map(s => spellRow(s, { pending: true, onRemove: () => this.setState(st => ({ pendingNewSpells: st.pendingNewSpells.filter(p => p.id !== s.id) })) })),
+      (preparedVisible.length + pendingForLevel.length === 0) ? React.createElement('div', { key: 'empty', style: { padding: '14px 12px', font: '13px Inter,sans-serif', color: text3 } }, 'No spells prepared at this level.') : null,
+    ]);
+    const catalogList = React.createElement('div', { key: 'list', style: { display: 'flex', flexDirection: 'column', gap: 2, background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', padding: 4, maxHeight: 260, overflowY: 'auto' } },
+      catalogVisible.map(s => React.createElement('div', { key: s.id, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px' } }, [
+        React.createElement('div', { key: 'n', style: { flex: 1, font: '13px Inter,sans-serif', color: text2 } }, s.name),
+        React.createElement('div', { key: 'sc', style: { font: '11px Inter,sans-serif', color: text3, width: 100 } }, s.school),
+        React.createElement('button', { key: 'add', onClick: () => this.setState(st => ({ pendingNewSpells: [...st.pendingNewSpells, { ...s, lv: curLevel }], spellPickerOpen: false, spellSearch: '' })), style: goldBtnObj(true) }, 'Add'),
+      ])));
+
+    const buildSpellbookBlock = () => React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, [
+      React.createElement('div', { key: 'h', style: { display: 'flex', alignItems: 'center', gap: 12 } }, [
+        React.createElement('div', { key: 't', style: { font: '600 16px Cinzel,serif', color: '#f2ede4' } }, 'Paladin Spellbook'),
+        React.createElement('div', { key: 'sub', style: { font: '12.5px Inter,sans-serif', color: text2 } }, 'Prepared caster — spells are readied per level, not freely known'),
+      ]),
+      React.createElement('div', { key: 'tabs', style: { display: 'flex', gap: 6, borderBottom: '1px solid rgba(255,255,255,.1)' } }, spellLevelTabs.map(t => React.createElement('button', { key: t.lv, style: t.style, onClick: t.onClick }, t.label))),
+      React.createElement('div', { key: 'slots', style: { display: 'flex', alignItems: 'center', gap: 10 } }, [
+        React.createElement('span', { key: 'l', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3 } }, 'SLOTS PREPARED'),
+        React.createElement('span', { key: 'v', style: { font: '700 13px Inter,sans-serif', color: totalPrepared > slotTotal ? 'oklch(0.65 0.16 25)' : text } }, `${totalPrepared} / ${slotTotal}`),
+        totalPrepared > slotTotal ? React.createElement('span', { key: 'w', style: { font: '11px Inter,sans-serif', color: 'oklch(0.65 0.16 25)' } }, 'Over slot limit for this level') : null,
+      ]),
+      this.state.editA ? React.createElement('div', { key: 'search', style: { display: 'flex', gap: 8 } }, [
+        React.createElement('input', {
+          key: 'i', value: this.state.spellSearch, placeholder: 'Search this level\u2019s spell list…',
+          onFocus: () => this.setState({ spellPickerOpen: true }),
+          onChange: (e) => this.setState({ spellSearch: e.target.value, spellPickerOpen: true }),
+          style: { flex: 1, maxWidth: 320, background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 7, color: text, font: '12.5px Inter,sans-serif', padding: '7px 10px' },
+        }),
+        this.state.spellPickerOpen ? React.createElement('button', { key: 'close', onClick: () => this.setState({ spellPickerOpen: false, spellSearch: '' }), style: ghostBtnObj(true) }, 'Done') : null,
+      ]) : null,
+      (this.state.editA && this.state.spellPickerOpen) ? catalogList : null,
+      React.createElement('div', { key: 'label', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3 } }, 'PREPARED'),
+      preparedList,
+    ]);
+    const spellbookBlock = buildSpellbookBlock();
+
+    // ---------- area contents (stores / creatures / containers, multi-area) ----------
+    const storePrices = { potionCSW: '25g', scrollFireball: '120g', wandMM: '890g', gemTopaz: '340g', potionHeal: '15g' };
+    const buildStorePanel = (label, fields, itemKeys, scope) => {
+      const selectedKey = this.state.selectedItemKeys[scope] || null;
+      const onSelect = (k) => this.setState(s => ({ selectedItemKeys: { ...s.selectedItemKeys, [scope]: k }, itemPropPickerOpen: false, itemPropSearch: '' }));
+      const left = React.createElement('div', { key: 'left', style: { display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minWidth: 0 } }, [
+        React.createElement('div', { key: 'h', style: { font: '600 16px Cinzel,serif', color: '#f2ede4' } }, label),
+        React.createElement('div', { key: 'fields', style: { display: 'flex', flexDirection: 'column', gap: 1, background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden' } },
+          fields.map(f => React.createElement('div', { key: f.l, style: { display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+            React.createElement('span', { key: 'l', style: { font: '13px Inter,sans-serif', color: text2 } }, f.l),
+            React.createElement('span', { key: 'v', style: { font: '700 13px Inter,sans-serif', color: text } }, f.v),
+          ]))),
+        React.createElement('div', { key: 'inv', style: { display: 'flex', flexDirection: 'column', gap: 8 } }, [
+          React.createElement('div', { key: 'l', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3 } }, 'STORE INVENTORY (modifiable)'),
+          React.createElement('div', { key: 'g', style: { display: 'flex', flexWrap: 'wrap', gap: 12 } }, itemKeys.map(k => React.createElement('div', { key: k, style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 } }, [
+            slotBox('', k, k + '-box', { selected: k === selectedKey, onClick: () => onSelect(k) }),
+            React.createElement('span', { key: 'p', style: { font: '600 10.5px Inter,sans-serif', color: gold } }, storePrices[k] || ''),
+          ]))),
+        ]),
+      ]);
+      const right = React.createElement('div', { key: 'right', style: { width: 300, flex: 'none', background: 'oklch(0.16 0.012 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 18 } }, buildItemDetail(selectedKey, 'store'));
+      return React.createElement('div', { style: { display: 'flex', gap: 20, alignItems: 'flex-start' } }, [left, right]);
+    };
+
+    const areasData = [
+      { key: 'area1', name: "Beggar's Nest", store: { key: 'a1-store', label: 'Black Market Fence', fields: [{ l: 'Buy Markup', v: '+15%' }, { l: 'Sell Markdown', v: '-40%' }, { l: 'Store Gold', v: '2,400' }, { l: 'Identify Price', v: '50' }, { l: 'Max Buy Price', v: '10,000' }, { l: 'Black Market', v: 'Yes' }], items: ['potionCSW', 'scrollFireball', 'wandMM', 'gemTopaz'] }, creature: { key: 'a1-creature', label: 'Guard Captain' }, container: { key: 'a1-container', label: 'Locked Chest' } },
+      { key: 'area2', name: 'Temple District', store: { key: 'a2-store', label: "Cleric's Alcove", fields: [{ l: 'Buy Markup', v: '+5%' }, { l: 'Sell Markdown', v: '-20%' }, { l: 'Store Gold', v: '900' }, { l: 'Identify Price', v: '25' }, { l: 'Max Buy Price', v: '5,000' }, { l: 'Black Market', v: 'No' }], items: ['potionHeal', 'scrollFireball'] }, creature: { key: 'a2-creature', label: 'Temple Acolyte' }, container: { key: 'a2-container', label: 'Offering Box' } },
+    ];
+    const currentArea = areasData.find(a => a.key === this.state.aAreaKey) || areasData[0];
+    const areaTabs = areasData.map(a => ({ key: a.key, label: a.name, style: pillTab(a.key === this.state.aAreaKey), onClick: () => this.setState({ aAreaKey: a.key, aAreaNode: a.store.key }) }));
+    const areaNavGroups = [
+      { g: 'STORES', items: [{ key: currentArea.store.key, label: currentArea.store.label }] },
+      { g: 'CREATURES', items: [{ key: currentArea.creature.key, label: currentArea.creature.label }] },
+      { g: 'CONTAINERS', items: [{ key: currentArea.container.key, label: currentArea.container.label }] },
+    ].map(gr => ({ g: gr.g, items: gr.items.map(it => ({ ...it, style: navBtn(this.state.aAreaNode === it.key), onClick: () => this.setState({ aAreaNode: it.key }) })) }));
+    const activeNodeKey = this.state.aAreaNode;
+    const areaDetailPanel = activeNodeKey === currentArea.store.key
+      ? buildStorePanel(currentArea.store.label, currentArea.store.fields, currentArea.store.items, currentArea.store.key)
+      : activeNodeKey === currentArea.creature.key
+      ? buildInventoryPanel(currentArea.creature.label, 'Creature inventory', false, 'loot', currentArea.creature.key)
+      : buildInventoryPanel(currentArea.container.label, 'Container contents — no equip slots', true, 'loot', currentArea.container.key);
+
+    // ---------- skills: rank editable, ability/other mod shown, live total ----------
+    const skills = [
+      { name: 'Discipline', ability: 'CON', rank: 22, abilityMod: 4, otherMod: 0, cls: true },
+      { name: 'Heal', ability: 'WIS', rank: 12, abilityMod: 2, otherMod: 0, cls: true },
+      { name: 'Concentration', ability: 'CON', rank: 18, abilityMod: 4, otherMod: 0, cls: true },
+      { name: 'Persuade', ability: 'CHA', rank: 10, abilityMod: 3, otherMod: 0, cls: true },
+      { name: 'Parry', ability: 'DEX', rank: 14, abilityMod: 3, otherMod: 0, cls: true },
+      { name: 'Lore', ability: 'INT', rank: 6, abilityMod: 0, otherMod: 0, cls: false },
+      { name: 'Spellcraft', ability: 'INT', rank: 0, abilityMod: 0, otherMod: 2, cls: false },
+    ];
+    const skillRow = (s, editOn) => {
+      const total = s.rank + s.abilityMod + s.otherMod;
+      return React.createElement('div', { key: s.name, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+        React.createElement('div', { key: 'star', style: { width: 14, color: s.cls ? gold : 'transparent', font: '700 13px serif', flex: 'none' } }, '★'),
+        React.createElement('div', { key: 'n', style: { flex: 1, font: '500 13px Inter,sans-serif', color: text } }, s.name),
+        editOn
+          ? React.createElement('div', { key: 'rankEdit', style: { display: 'flex', alignItems: 'center', gap: 4 } }, [
+              React.createElement('span', { key: 'l', style: { font: '10px Inter,sans-serif', color: text3 } }, 'Rank'),
+              React.createElement('input', { key: 'i', defaultValue: s.rank, style: { width: 34, background: 'oklch(0.2 0.014 55)', border: '1px solid rgba(255,255,255,.18)', borderRadius: 4, color: text, font: '700 11px Inter,sans-serif', padding: '2px 3px', textAlign: 'center' } }),
+            ])
+          : React.createElement('div', { key: 'rank', style: { font: '600 12px Inter,sans-serif', color: text2 } }, `Rank ${s.rank}`),
+        React.createElement('div', { key: 'abil', title: `${s.ability} modifier — from Abilities & Combat`, style: { font: '11px Inter,sans-serif', color: text3, width: 46, textAlign: 'right' } }, `${s.ability} ${s.abilityMod >= 0 ? '+' : ''}${s.abilityMod}`),
+        React.createElement('div', { key: 'other', title: 'Item/feat/spell bonus — from Effects', style: { font: '11px Inter,sans-serif', color: text3, width: 40, textAlign: 'right' } }, s.otherMod ? `oth +${s.otherMod}` : ''),
+        React.createElement('div', { key: 'm', style: { font: '700 13px Inter,sans-serif', color: gold, width: 44, textAlign: 'right' } }, `= ${total >= 0 ? '+' : ''}${total}`),
+      ]);
+    };
+    const buildSkillsBlock = (editOn) => React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } }, [
+      React.createElement('div', { key: 'h', style: { font: '600 12px Inter,sans-serif', letterSpacing: '.05em', color: text3 } }, '★ = class skill · total = rank + ability mod + other (item/feat/spell) bonus'),
+      React.createElement('div', { key: 'list', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden' } }, skills.map(s => skillRow(s, editOn))),
+    ]);
+    const skillsBlock = buildSkillsBlock(this.state.editA);
+
+    // ---------- feats: searchable list + description + add picker ----------
+    const ownedFeats = [
+      { code: 1023, name: 'Weapon Focus: Longsword', desc: '+1 attack bonus with the longsword.' },
+      { code: 1088, name: 'Cleave', desc: 'If you deal a killing blow, gain one extra attack this round.' },
+      { code: 1089, name: 'Great Cleave', desc: 'As Cleave, with no limit on extra attacks per round.' },
+      { code: 1024, name: 'Improved Critical: Longsword', desc: 'Doubles the threat range of the longsword.' },
+      { code: 1207, name: 'Extra Turning', desc: '+2 uses of Turn Undead per day.' },
+      { code: 2168, name: 'Divine Might', prc: true, desc: 'Spend a Turn Undead use to add your Charisma bonus to damage.' },
+      { code: 2170, name: 'Force of Personality', prc: true, desc: 'Use your Charisma modifier instead of Wisdom for Will saves.' },
+    ];
+    const catalogFeats = [
+      { code: 1042, name: 'Toughness', desc: '+3 hit points.' },
+      { code: 1052, name: 'Dodge', desc: '+1 dodge bonus to AC against one chosen target.' },
+      { code: 1217, name: 'Blind-Fight', desc: 'Reroll a miss chance from concealment once per attack.' },
+      { code: 1091, name: 'Power Attack', desc: 'Trade attack bonus for bonus damage on melee attacks.' },
+      { code: 2003, name: 'Epic Toughness', desc: '+30 hit points. (Epic)' },
+    ];
+    const ownedPlusPending = [...ownedFeats, ...(this.state.pendingNewFeat ? [{ ...this.state.pendingNewFeat, pending: true }] : [])];
+    const needle = this.state.featSearch.trim().toLowerCase();
+    const matches = (f) => !needle || f.name.toLowerCase().includes(needle) || String(f.code).includes(needle);
+    const visibleOwned = ownedPlusPending.filter(matches);
+    const notOwnedCatalog = catalogFeats.filter(f => !ownedFeats.some(o => o.code === f.code) && (!this.state.pendingNewFeat || this.state.pendingNewFeat.code !== f.code));
+    const visibleCatalog = notOwnedCatalog.filter(matches);
+    const selectedFeat = this.state.featPickerOpen ? null : (ownedPlusPending.find(f => f.code === this.state.selectedFeatCode) || ownedPlusPending[0]);
+
+    const featListRow = (f, opts) => React.createElement('div', {
+      key: f.code,
+      onClick: opts.onClick,
+      style: { display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', cursor: 'pointer', borderRadius: 7, background: opts.active ? 'oklch(0.3 0.05 82 / 0.15)' : (f.pending ? 'oklch(0.3 0.05 82 / 0.08)' : 'transparent'), border: opts.active ? '1px solid oklch(0.6 0.09 82 / 0.4)' : '1px solid transparent' },
+    }, [
+      f.pending ? React.createElement('span', { key: 'dot', style: { width: 6, height: 6, borderRadius: '50%', background: gold, flex: 'none' } }) : null,
+      React.createElement('span', { key: 'code', style: { font: '10.5px ui-monospace,monospace', color: text3, width: 42, flex: 'none' } }, f.code),
+      React.createElement('span', { key: 'n', style: { flex: 1, font: '13px Inter,sans-serif', color: opts.active ? text : (f.pending ? gold : text2), whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, f.name),
+      f.prc ? React.createElement('span', { key: 'p', style: { font: '700 8.5px Inter,sans-serif', color: 'oklch(0.78 0.14 70)', border: '1px solid oklch(0.78 0.14 70 / 0.5)', borderRadius: 4, padding: '1px 4px', flex: 'none' } }, 'PRC') : null,
+      opts.action,
+    ]);
+
+    const ownedListPane = React.createElement('div', { key: 'list', style: { display: 'flex', flexDirection: 'column', gap: 2, overflow: 'auto', flex: 1 } },
+      visibleOwned.map(f => featListRow(f, {
+        active: f.code === this.state.selectedFeatCode,
+        onClick: () => this.setState({ selectedFeatCode: f.code }),
+        action: f.pending ? React.createElement('button', { key: 'x', onClick: (e) => { e.stopPropagation(); this.setState({ pendingNewFeat: null }); }, style: smallGhostObj() }, '×') : null,
+      })));
+    const catalogListPane = React.createElement('div', { key: 'list', style: { display: 'flex', flexDirection: 'column', gap: 2, overflow: 'auto', flex: 1 } },
+      visibleCatalog.map(f => featListRow(f, {
+        active: false,
+        onClick: () => {},
+        action: React.createElement('button', { key: 'add', onClick: (e) => { e.stopPropagation(); this.setState({ pendingNewFeat: { code: f.code, name: f.name, desc: f.desc }, featPickerOpen: false, featSearch: '', selectedFeatCode: f.code }); }, style: goldBtnObj(true) }, 'Add'),
+      })));
+
+    const featsLeft = React.createElement('div', { key: 'left', style: { width: 300, flex: 'none', display: 'flex', flexDirection: 'column', gap: 8 } }, [
+      React.createElement('div', { key: 'search', style: { display: 'flex', gap: 6 } }, [
+        React.createElement('input', {
+          key: 'i', value: this.state.featSearch, placeholder: 'Search by name or code…',
+          onChange: (e) => this.setState({ featSearch: e.target.value }),
+          style: { flex: 1, background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 7, color: text, font: '12.5px Inter,sans-serif', padding: '7px 10px' },
+        }),
+      ]),
+      this.state.editA
+        ? (this.state.featPickerOpen
+            ? React.createElement('button', { key: 'back', onClick: () => this.setState({ featPickerOpen: false, featSearch: '' }), style: ghostBtnObj(true) }, '← Back to my feats')
+            : React.createElement('button', { key: 'add', onClick: () => this.setState({ featPickerOpen: true, featSearch: '' }), style: goldBtnObj(true) }, '+ Add Feat…'))
+        : null,
+      React.createElement('div', { key: 'label', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3 } }, (this.state.editA && this.state.featPickerOpen) ? 'ALL FEATS (type code or name)' : 'MY FEATS'),
+      (this.state.editA && this.state.featPickerOpen) ? catalogListPane : ownedListPane,
+    ]);
+
+    const featsRight = React.createElement('div', { key: 'right', style: { flex: 1, minWidth: 0, background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 20 } },
+      (this.state.editA && this.state.featPickerOpen)
+        ? [React.createElement('div', { key: 't', style: { font: '13px Inter,sans-serif', color: text3 } }, 'Pick a feat on the left to add it — shown here as an unsaved, pending addition until you save.')]
+        : selectedFeat ? [
+            selectedFeat.pending ? React.createElement('div', { key: 'tag', style: { display: 'inline-block', font: '700 10px Inter,sans-serif', color: gold, border: `1px solid ${gold}`, borderRadius: 5, padding: '2px 8px', marginBottom: 10 } }, 'NEW — UNSAVED') : null,
+            React.createElement('div', { key: 'h', style: { font: '600 17px Cinzel,serif', color: '#f2ede4', marginBottom: 6 } }, selectedFeat.name),
+            React.createElement('div', { key: 'c', style: { font: '11px ui-monospace,monospace', color: text3, marginBottom: 12 } }, `Feat code ${selectedFeat.code}`),
+            React.createElement('div', { key: 'd', style: { font: '13.5px/1.6 Inter,sans-serif', color: text2 } }, selectedFeat.desc),
+            selectedFeat.prc ? React.createElement('div', { key: 'w', style: { marginTop: 14, font: '12px/1.6 Inter,sans-serif', color: 'oklch(0.78 0.14 70)', background: 'oklch(0.3 0.1 70 / 0.1)', border: '1px solid oklch(0.78 0.14 70 / 0.4)', borderRadius: 8, padding: '10px 12px' } }, 'PRC regenerates this from its own data on rest/level-up/area-load — this edit may not stick in-game.') : null,
+          ] : []);
+    const featsBlock = React.createElement('div', { style: { display: 'flex', gap: 16, minHeight: 360 } }, [featsLeft, featsRight]);
+
+    const bioBlock = React.createElement('div', { style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: '18px 20px', font: '13.5px/1.7 Inter,sans-serif', color: text2, maxWidth: 720 } }, 'Raised among the temple guard of Tyr, Kaelen took up the sword after a border raid left his village in ruins — sworn since to keep faith and steel in equal measure.');
+
+    // ---------- header: portrait, classes+level, alignment axes, gold/xp ----------
+    const alignmentEl = this.state.editA
+      ? React.createElement('div', { key: 'align', style: { display: 'flex', gap: 16 } }, [
+          React.createElement('div', { key: 'lc', style: { display: 'flex', flexDirection: 'column', gap: 2, width: 150 } }, [
+            React.createElement('div', { style: { font: '10.5px Inter,sans-serif', color: text3 } }, `Law–Chaos: ${lcWord(this.state.lawChaos)} (${this.state.lawChaos})`),
+            React.createElement('input', { type: 'range', min: 0, max: 100, value: this.state.lawChaos, onChange: (e) => this.setState({ lawChaos: +e.target.value }) }),
+          ]),
+          React.createElement('div', { key: 'ge', style: { display: 'flex', flexDirection: 'column', gap: 2, width: 150 } }, [
+            React.createElement('div', { style: { font: '10.5px Inter,sans-serif', color: text3 } }, `Good–Evil: ${geWord(this.state.goodEvil)} (${this.state.goodEvil})`),
+            React.createElement('input', { type: 'range', min: 0, max: 100, value: this.state.goodEvil, onChange: (e) => this.setState({ goodEvil: +e.target.value }) }),
+          ]),
+        ])
+      : React.createElement('span', { key: 'align', style: { font: '600 11px Inter,sans-serif', color: gold, border: '1px solid oklch(0.6 0.09 82 / 0.4)', borderRadius: 5, padding: '2px 8px' } }, `${lcWord(this.state.lawChaos)} ${geWord(this.state.goodEvil)}`);
+
+    const classesEl = React.createElement('div', { key: 'classes', style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } }, [
+      React.createElement('span', { key: 'race', style: { font: '13px Inter,sans-serif', color: text2 } }, 'Human ·'),
+      ...this.state.classes.map((c, i) => React.createElement('span', { key: 'c' + i, style: { display: 'inline-flex', alignItems: 'center', gap: 4, font: '13px Inter,sans-serif', color: text2 } }, [
+        `${c.name} ${c.level}`,
+        this.state.editA ? React.createElement('span', { key: 'stepper', style: { display: 'inline-flex', gap: 2 } }, [
+          React.createElement('button', { key: 'd', onClick: () => bumpLevel(i, -1), style: smallGhostObj() }, '−'),
+          React.createElement('button', { key: 'u', onClick: () => bumpLevel(i, 1), style: smallGhostObj() }, '+'),
+        ]) : null,
+      ])),
+      this.state.editA && this.state.classes.length < 3 ? React.createElement('button', { key: 'add', onClick: addClass, style: smallGhostObj() }, '+ Add class') : null,
+    ]);
+
+    const characterHeader = React.createElement('div', { style: { display: 'flex', gap: 18, alignItems: 'center' } }, [
+      React.createElement('div', { key: 'p', style: { width: 76, height: 76, borderRadius: 10, flex: 'none', background: 'repeating-linear-gradient(135deg,oklch(0.3 0.02 55),oklch(0.3 0.02 55) 4px,oklch(0.24 0.02 55) 4px,oklch(0.24 0.02 55) 8px)', border: '1px solid oklch(0.6 0.09 82 / 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '600 8px ui-monospace,monospace', color: text3, textAlign: 'center' } }, 'PORTRAIT'),
+      React.createElement('div', { key: 'i', style: { display: 'flex', flexDirection: 'column', gap: 10 } }, [
+        React.createElement('div', { key: 'n', style: { font: '700 22px Cinzel,serif', color: text } }, 'Kaelen Duskwalker'),
+        React.createElement('div', { key: 's', style: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', rowGap: 8 } }, [
+          classesEl, alignmentEl,
+          React.createElement('span', { key: 'c', style: { font: '13px Inter,sans-serif', color: text2 } }, 'Deity: Tyr'),
+          React.createElement('span', { key: 'd', style: { font: '13px Inter,sans-serif', color: text2 } }, 'Gold: 48,230'),
+        ]),
+        React.createElement('div', { key: 'xp', style: { display: 'flex', alignItems: 'center', gap: 8, width: 320 } }, [
+          React.createElement('div', { key: 'bar', style: { flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,.08)', overflow: 'hidden' } }, React.createElement('div', { style: { width: '58%', height: '100%', background: gold } })),
+          React.createElement('div', { key: 'l', style: { font: '11px Inter,sans-serif', color: text3, whiteSpace: 'nowrap' } }, 'XP 210,400 / 250,000'),
+        ]),
+        React.createElement('div', { key: 'skin', style: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 } }, [
+          React.createElement('span', { key: 'l', style: { font: '10px Inter,sans-serif', color: text3, letterSpacing: '.05em' } }, 'SHEET SKIN'),
+          ...skinSwatches.map(s => React.createElement('button', { key: s.key, title: s.name, onClick: s.onClick, style: s.style })),
+        ]),
+      ]),
+    ]);
+
+    const navItemsA = mapNav(sections, this.state.aSection, k => this.setState({ aSection: k }));
+    const advItemsA = mapNav(advSections, this.state.aSection, k => this.setState({ aSection: k }));
+    const charTabItemsA = mapTabs(charTabs, this.state.aTab, k => this.setState({ aTab: k }));
+    const charNavA = navItemsA.find(i => i.key === 'character'); if (charNavA) charNavA.dot = this.state.editA;
+    const abilitiesTabA = charTabItemsA.find(i => i.key === 'abilities'); if (abilitiesTabA) abilitiesTabA.dot = this.state.editA;
+    const featsTabA = charTabItemsA.find(i => i.key === 'feats'); if (featsTabA) featsTabA.dot = !!this.state.pendingNewFeat;
+
+
+    const kvList = (rows, opts) => React.createElement('div', { key: (opts && opts.key) || 'kv', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', maxWidth: (opts && opts.maxWidth) || 520 } },
+      rows.map(r => React.createElement('div', { key: r.l, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+        React.createElement('span', { key: 'l', style: { flex: 1, font: '13px Inter,sans-serif', color: text2 } }, r.l),
+        React.createElement('span', { key: 'v', style: { font: `700 13px ${r.mono ? 'ui-monospace,monospace' : 'Inter,sans-serif'}`, color: r.dim ? text3 : text } }, r.v),
+        r.action || null,
+      ])));
+
+    const sectionTitle = (t, sub) => React.createElement('div', { key: 'h', style: { display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' } }, [
+      React.createElement('div', { key: 't', style: { font: '600 16px Cinzel,serif', color: '#f2ede4' } }, t),
+      sub ? React.createElement('div', { key: 's', style: { font: '12.5px Inter,sans-serif', color: text2 } }, sub) : null,
+    ]);
+    const capLabel = (t) => React.createElement('div', { key: 'lb' + t, style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3 } }, t);
+    const noteLine = (t) => React.createElement('div', { key: 'note' + t.slice(0, 8), style: { font: '11.5px/1.6 Inter,sans-serif', color: text3, fontStyle: 'italic', maxWidth: 520 } }, t);
+
+    // ---------- change ledger, undo/redo, review sheet ----------
+    const allChanges = [
+      { id: 'ch-str', sec: 'Abilities', path: 'Creature/Str', from: '18', to: '20' },
+      { id: 'ch-heal', sec: 'Skills', path: 'SkillList[Heal].Rank', from: '10', to: '12' },
+      ...(this.state.pendingNewFeat ? [{ id: 'ch-feat', sec: 'Feats', path: 'FeatList (append)', from: '—', to: this.state.pendingNewFeat.name, add: true, clear: { pendingNewFeat: null } }] : []),
+      ...this.state.pendingNewSpells.map(s => ({ id: 'ch-sp-' + s.id, sec: 'Spellbook', path: `KnownList${s.lv} (append)`, from: '—', to: s.name, add: true, dropSpell: s.id })),
+      ...this.state.copiedItemKeys.map(k => ({ id: 'ch-cp-' + k, sec: 'Inventory', path: 'ItemList (append)', from: '—', to: `Copy of ${itemsData[k] ? itemsData[k].name : k}`, add: true, dropCopy: k })),
+      ...Object.keys(this.state.pendingNewProps).reduce((acc, k) => acc.concat((this.state.pendingNewProps[k] || []).map(p => ({ id: 'ch-pp-' + p.id, sec: 'Inventory', path: `${itemsData[k] ? itemsData[k].name : k} · properties`, from: '—', to: p.label, add: true, dropProp: { k, id: p.id } }))), []),
+      ...this.state.removedPropIds.map(pid => {
+        const owner = Object.keys(itemsData).find(k => itemsData[k].properties.some(p => p.id === pid));
+        const prop = owner ? itemsData[owner].properties.find(p => p.id === pid) : null;
+        return { id: 'ch-rp-' + pid, sec: 'Inventory', path: `${owner ? itemsData[owner].name : 'Item'} · properties`, from: prop ? prop.label : pid, to: 'removed', del: true, restoreProp: pid };
+      }),
+      ...this.state.removedSpellIds.map(sid => ({ id: 'ch-rs-' + sid, sec: 'Spellbook', path: 'Prepared spell', from: sid, to: 'removed', del: true, restoreSpell: sid })),
+    ];
+    const liveChanges = allChanges.filter(c => !this.state.discardedIds.includes(c.id));
+    const undoCount = Math.min(this.state.undoCount, liveChanges.length);
+    const activeCount = liveChanges.length - undoCount;
+    const discardChange = (c) => this.setState(s => {
+      const next = { discardedIds: [...s.discardedIds, c.id], undoCount: Math.max(0, Math.min(s.undoCount, liveChanges.length - 1)) };
+      if (c.clear) Object.assign(next, c.clear);
+      if (c.dropSpell) next.pendingNewSpells = s.pendingNewSpells.filter(x => x.id !== c.dropSpell);
+      if (c.dropCopy) next.copiedItemKeys = s.copiedItemKeys.filter(x => x !== c.dropCopy);
+      if (c.dropProp) next.pendingNewProps = { ...s.pendingNewProps, [c.dropProp.k]: (s.pendingNewProps[c.dropProp.k] || []).filter(x => x.id !== c.dropProp.id) };
+      if (c.restoreProp) next.removedPropIds = s.removedPropIds.filter(x => x !== c.restoreProp);
+      if (c.restoreSpell) next.removedSpellIds = s.removedSpellIds.filter(x => x !== c.restoreSpell);
+      return next;
+    });
+    const discardAll = () => this.setState({ discardedIds: allChanges.map(c => c.id), undoCount: 0, pendingNewFeat: null, pendingNewSpells: [], removedSpellIds: [], copiedItemKeys: [], pendingNewProps: {}, removedPropIds: [], reviewOpen: false });
+
+    const changeRow = (c, undone) => React.createElement('div', { key: c.id, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', opacity: undone ? 0.42 : 1 } }, [
+      React.createElement('span', { key: 'd', style: { width: 6, height: 6, borderRadius: '50%', flex: 'none', background: undone ? text3 : c.del ? 'oklch(0.68 0.13 25)' : c.add ? 'oklch(0.75 0.13 150)' : gold } }),
+      React.createElement('span', { key: 'p', style: { flex: 1, minWidth: 0, font: '12px ui-monospace,monospace', color: text2, textDecoration: undone ? 'line-through' : 'none' } }, c.path),
+      React.createElement('span', { key: 'f', style: { font: '12px ui-monospace,monospace', color: 'oklch(0.68 0.13 25)', width: 118, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, c.from),
+      React.createElement('span', { key: 'a', style: { font: '11px Inter,sans-serif', color: text3 } }, '\u2192'),
+      React.createElement('span', { key: 't', style: { font: '700 12px ui-monospace,monospace', color: 'oklch(0.75 0.13 150)', width: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, c.to),
+      React.createElement('button', { key: 'x', style: smallGhostObj(), onClick: () => discardChange(c) }, 'Discard'),
+    ]);
+
+    const reviewSections = liveChanges.reduce((acc, c, i) => {
+      const undone = i >= activeCount;
+      (acc[c.sec] = acc[c.sec] || []).push(changeRow(c, undone));
+      return acc;
+    }, {});
+
+    const reviewSheet = React.createElement('div', {
+      style: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', justifyContent: 'flex-end', zIndex: 40 },
+      onClick: () => this.setState({ reviewOpen: false }),
+    }, React.createElement('div', {
+      onClick: (e) => e.stopPropagation(),
+      style: { width: 620, maxWidth: '90%', height: '100%', background: 'oklch(0.16 0.012 55)', borderLeft: '1px solid rgba(255,255,255,.12)', display: 'flex', flexDirection: 'column' },
+    }, [
+      React.createElement('div', { key: 'h', style: { flex: 'none', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', gap: 12 } }, [
+        React.createElement('span', { key: 't', style: { font: '600 15px Cinzel,serif', color: '#f2ede4', flex: 1 } }, 'Review pending changes'),
+        React.createElement('span', { key: 'c', style: { font: '600 11.5px Inter,sans-serif', color: gold } }, `${activeCount} to write${undoCount ? ` · ${undoCount} undone` : ''}`),
+        React.createElement('button', { key: 'x', style: smallGhostObj(), onClick: () => this.setState({ reviewOpen: false }) }, 'Close'),
+      ]),
+      React.createElement('div', { key: 'b', style: { flex: 1, minHeight: 0, overflow: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 } },
+        liveChanges.length === 0
+          ? [React.createElement('div', { key: 'e', style: { font: '13px Inter,sans-serif', color: text3 } }, 'Nothing pending — the working save matches the file on disk.')]
+          : Object.keys(reviewSections).map(sec => React.createElement('div', { key: sec, style: { display: 'flex', flexDirection: 'column', gap: 8 } }, [
+              React.createElement('div', { key: 'l', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.06em', color: text3 } }, sec.toUpperCase()),
+              React.createElement('div', { key: 'r', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden' } }, reviewSections[sec]),
+            ]))),
+      React.createElement('div', { key: 'f', style: { flex: 'none', padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', gap: 10 } }, [
+        React.createElement('button', { key: 'u', style: ghostBtnObj(activeCount > 0), disabled: activeCount === 0, onClick: () => this.setState(s => ({ undoCount: s.undoCount + 1 })) }, 'Undo last'),
+        React.createElement('button', { key: 'r', style: ghostBtnObj(undoCount > 0), disabled: undoCount === 0, onClick: () => this.setState(s => ({ undoCount: Math.max(0, s.undoCount - 1) })) }, 'Redo'),
+        React.createElement('div', { key: 'sp', style: { flex: 1 } }),
+        React.createElement('button', { key: 'd', style: ghostBtnObj(liveChanges.length > 0), disabled: liveChanges.length === 0, onClick: discardAll }, 'Discard all'),
+        React.createElement('button', { key: 's', style: goldBtnObj(activeCount > 0), disabled: activeCount === 0, onClick: () => this.setState({ reviewOpen: false, dialog: 'save', saveMode: 'overwrite' }) }, `Save ${activeCount} change${activeCount === 1 ? '' : 's'}…`),
+      ]),
+    ]));
+
+    // ---------- open-save dialog ----------
+    const saveFiles = [
+      { k: 'auto2', name: 'Kaelen_Autosave002', who: 'Kaelen Duskwalker', meta: 'Paladin 14 · Chapter 4', when: 'Today 18:40', size: '1.4 MB', state: 'ok' },
+      { k: 'quick', name: 'Kaelen_QuickSave', who: 'Kaelen Duskwalker', meta: 'Paladin 13 · Chapter 3', when: 'Yesterday 21:58', size: '1.3 MB', state: 'ok' },
+      { k: 'ro', name: 'Kaelen_Chapter3_End', who: 'Kaelen Duskwalker', meta: 'Paladin 13 · Chapter 3', when: '3 days ago', size: '1.3 MB', state: 'readonly' },
+      { k: 'bad', name: 'Torvin_Autosave001', who: 'unreadable', meta: 'GFF header not recognised', when: '2 weeks ago', size: '0.4 MB', state: 'corrupt' },
+    ];
+    const openNeedle = this.state.openSearch.trim().toLowerCase();
+    const filesVisible = saveFiles.filter(f => !openNeedle || f.name.toLowerCase().includes(openNeedle) || f.who.toLowerCase().includes(openNeedle));
+    const selectedFile = saveFiles.find(f => f.k === this.state.openSelected) || saveFiles[0];
+    const stateBadge = (st) => st === 'ok' ? null : React.createElement('span', {
+      key: 'b', style: { font: '700 9px Inter,sans-serif', letterSpacing: '.06em', borderRadius: 4, padding: '2px 6px', flex: 'none', color: st === 'corrupt' ? 'oklch(0.7 0.15 25)' : 'oklch(0.75 0.1 82)', border: `1px solid ${st === 'corrupt' ? 'oklch(0.7 0.15 25)' : 'oklch(0.75 0.1 82)'}` },
+    }, st === 'corrupt' ? 'UNREADABLE' : 'READ-ONLY');
+
+    const modalShell = (title, sub, bodyChildren, footerChildren, width) => React.createElement('div', {
+      style: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
+      onClick: () => this.setState({ dialog: null }),
+    }, React.createElement('div', {
+      onClick: (e) => e.stopPropagation(),
+      style: { width: width || 620, maxWidth: '92%', maxHeight: '86%', background: 'oklch(0.17 0.012 55)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 12, boxShadow: '0 24px 60px rgba(0,0,0,.5)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+    }, [
+      React.createElement('div', { key: 'h', style: { flex: 'none', padding: '16px 20px 12px', display: 'flex', flexDirection: 'column', gap: 4 } }, [
+        React.createElement('div', { key: 't', style: { font: '600 15px Cinzel,serif', color: '#f2ede4' } }, title),
+        sub ? React.createElement('div', { key: 's', style: { font: '12px Inter,sans-serif', color: text2 } }, sub) : null,
+      ]),
+      React.createElement('div', { key: 'b', style: { flex: 1, minHeight: 0, overflow: 'auto', padding: '4px 20px 16px', display: 'flex', flexDirection: 'column', gap: 12 } }, bodyChildren),
+      React.createElement('div', { key: 'f', style: { flex: 'none', padding: '13px 20px', borderTop: '1px solid rgba(255,255,255,.1)', background: 'oklch(0.16 0.012 55)', display: 'flex', alignItems: 'center', gap: 10 } }, footerChildren),
+    ]));
+
+    const openDialog = modalShell('Open a save', 'Documents / Neverwinter Nights / saves', [
+      React.createElement('input', {
+        key: 'srch', value: this.state.openSearch, placeholder: 'Filter by save or character name…',
+        onChange: (e) => this.setState({ openSearch: e.target.value }),
+        style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 7, color: text, font: '12.5px Inter,sans-serif', padding: '8px 11px' },
+      }),
+      React.createElement('div', { key: 'l', style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+        filesVisible.map(f => React.createElement('button', {
+          key: f.k, disabled: f.state === 'corrupt', onClick: () => this.setState({ openSelected: f.k }),
+          style: { textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, border: `1px solid ${f.k === selectedFile.k ? 'oklch(0.6 0.09 82 / 0.45)' : 'rgba(255,255,255,.08)'}`, background: f.k === selectedFile.k ? 'oklch(0.3 0.05 82 / 0.14)' : 'oklch(0.185 0.014 55)', borderRadius: 9, padding: '10px 12px', cursor: f.state === 'corrupt' ? 'not-allowed' : 'pointer', opacity: f.state === 'corrupt' ? 0.5 : 1 },
+        }, [
+          React.createElement('div', { key: 'p', style: { width: 34, height: 34, borderRadius: 6, flex: 'none', background: 'repeating-linear-gradient(135deg,oklch(0.3 0.02 55),oklch(0.3 0.02 55) 3px,oklch(0.26 0.02 55) 3px,oklch(0.26 0.02 55) 6px)' } }),
+          React.createElement('div', { key: 'n', style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } }, [
+            React.createElement('span', { key: 'a', style: { font: '600 12.5px Inter,sans-serif', color: f.k === selectedFile.k ? gold : text } }, f.name),
+            React.createElement('span', { key: 'b', style: { font: '11px Inter,sans-serif', color: text3 } }, `${f.who} · ${f.meta}`),
+          ]),
+          stateBadge(f.state),
+          React.createElement('span', { key: 'w', style: { font: '11px Inter,sans-serif', color: text3, textAlign: 'right', flex: 'none' } }, `${f.when}\u2003${f.size}`),
+        ]))),
+      filesVisible.length === 0 ? React.createElement('div', { key: 'e', style: { font: '13px Inter,sans-serif', color: text3, padding: '8px 2px' } }, 'No saves match that filter.') : null,
+      noteLine('Unreadable saves are listed but cannot be opened — VaultKeeper never rewrites a file it could not fully parse.'),
+    ], [
+      React.createElement('span', { key: 'i', style: { flex: 1, font: '11.5px Inter,sans-serif', color: text3 } }, activeCount > 0 ? `${activeCount} unsaved change${activeCount === 1 ? '' : 's'} will be discarded` : 'No unsaved changes'),
+      React.createElement('button', { key: 'c', style: ghostBtnObj(true), onClick: () => this.setState({ dialog: null }) }, 'Cancel'),
+      React.createElement('button', { key: 'o', style: goldBtnObj(selectedFile.state !== 'corrupt'), disabled: selectedFile.state === 'corrupt', onClick: () => this.setState({ dialog: null }) }, selectedFile.state === 'readonly' ? 'Open read-only' : 'Open'),
+    ], 680);
+
+    const isNewSave = this.state.saveMode === 'new';
+    const saveDialog = modalShell(isNewSave ? 'Save as a new file' : 'Overwrite this save', isNewSave ? 'The original file is left untouched.' : 'Kaelen_Autosave002.sav will be rewritten in place.', [
+      capLabel('WRITING'),
+      kvList([
+        { l: 'Changes to write', v: `${activeCount}` },
+        { l: 'Undone (not written)', v: `${undoCount}`, dim: undoCount === 0 },
+        { l: 'Rule mode', v: this.state.strictA ? 'Strict — derived values recomputed' : 'Free — raw values written as entered' },
+        { l: 'Target', v: isNewSave ? `${this.state.newSaveName}.sav` : 'Kaelen_Autosave002.sav', mono: true },
+      ], { key: 'skv', maxWidth: 9999 }),
+      isNewSave ? React.createElement('div', { key: 'nm', style: { display: 'flex', flexDirection: 'column', gap: 6 } }, [
+        capLabel('NEW FILE NAME'),
+        React.createElement('input', {
+          key: 'i', value: this.state.newSaveName, onChange: (e) => this.setState({ newSaveName: e.target.value }),
+          style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 7, color: text, font: '12.5px ui-monospace,monospace', padding: '8px 11px' },
+        }),
+      ]) : null,
+      React.createElement('label', { key: 'bk', style: { display: 'flex', alignItems: 'center', gap: 9, font: '12.5px Inter,sans-serif', color: text2, cursor: 'pointer' } }, [
+        React.createElement('input', { key: 'c', type: 'checkbox', checked: this.state.backupOnWrite, onChange: (e) => this.setState({ backupOnWrite: e.target.checked }), style: { accentColor: gold, width: 15, height: 15 } }),
+        'Back up the current file first (recommended)',
+      ]),
+      (this.state.backupOnWrite && !isNewSave) ? React.createElement('div', { key: 'bkp', style: { display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 24 } }, [
+        React.createElement('span', { key: 'p', style: { font: '11px ui-monospace,monospace', color: text3, wordBreak: 'break-all' } }, '…/Neverwinter Nights/vaultkeeper_backups/2026-07-30_1412/Kaelen_Autosave002.sav'),
+        React.createElement('span', { key: 'n', style: { font: '11.5px/1.55 Inter,sans-serif', color: text3 } }, 'The edited save is written and byte-verified in a staging folder before the old one is moved here — a failed write never touches the original.'),
+      ]) : null,
+      (!this.state.strictA) ? React.createElement('div', { key: 'w', style: { display: 'flex', gap: 10, alignItems: 'flex-start', background: 'oklch(0.28 0.06 25 / 0.18)', border: '1px solid oklch(0.6 0.14 25 / 0.45)', borderRadius: 9, padding: '10px 13px' } }, [
+        React.createElement('span', { key: 'i', style: { font: '700 12px Inter,sans-serif', color: 'oklch(0.72 0.15 25)' } }, '!'),
+        React.createElement('span', { key: 't', style: { font: '12px/1.6 Inter,sans-serif', color: text2 } }, 'Free mode is on: values that break D&D rules will be written exactly as entered. The game may clamp or reject them on load.'),
+      ]) : null,
+      (!this.state.backupOnWrite && !isNewSave) ? noteLine('Without a backup this overwrite cannot be undone from inside VaultKeeper.') : null,
+    ], [
+      React.createElement('div', { key: 'sp', style: { flex: 1 } }),
+      React.createElement('button', { key: 'r', style: ghostBtnObj(true), onClick: () => this.setState({ dialog: null, reviewOpen: true }) }, 'Review changes'),
+      React.createElement('button', { key: 'c', style: ghostBtnObj(true), onClick: () => this.setState({ dialog: null }) }, 'Cancel'),
+      React.createElement('button', { key: 's', style: goldBtnObj(activeCount > 0), disabled: activeCount === 0, onClick: () => this.setState({ dialog: null }) }, isNewSave ? 'Write new file' : 'Overwrite save'),
+    ], 560);
+
+    // ---------- companions ----------
+    const companions = [
+      { key: 'sharwyn', name: 'Sharwyn', kind: 'Henchman', cls: 'Bard 14', hp: '68 / 68', xp: '210,400', faction: 'Commoner', tag: 'x0_hen_sha', notes: 'Hired in the Peninsula District. Carries her own inventory and spellbook.' },
+      { key: 'tomi', name: 'Tomi Undergallows', kind: 'Henchman', cls: 'Rogue 14', hp: '54 / 61', xp: '210,400', faction: 'Commoner', tag: 'x0_hen_tom', notes: 'Trap-disarm specialist. Injured — HP below max in this save.' },
+      { key: 'familiar', name: 'Pseudodragon', kind: 'Familiar', cls: 'Familiar (lvl 14)', hp: '24 / 24', xp: '—', faction: 'Defender', tag: 'nw_fm_pseudo', notes: 'Summoned familiar. Editing is possible but the engine may respawn it on rest.' },
+      { key: 'summon', name: 'Celestial Avenger', kind: 'Summon', cls: 'Outsider 9', hp: '81 / 81', xp: '—', faction: 'Defender', tag: 'nw_s_celestial', notes: 'Temporary summon — will not persist past the current effect duration.' },
+    ];
+    const curComp = companions.find(c => c.key === this.state.compKey) || companions[0];
+    const compNavGroups = [{ k: 'Henchman', g: 'HENCHMEN' }, { k: 'Familiar', g: 'FAMILIARS' }, { k: 'Summon', g: 'SUMMONS' }].map(grp => ({
+      g: grp.g,
+      items: companions.filter(c => c.kind === grp.k).map(c => ({
+        key: c.key, label: c.name, style: navBtn(c.key === curComp.key),
+        onClick: () => this.setState({ compKey: c.key }),
+      })),
+    })).filter(gr => gr.items.length);
+
+    const companionsBlock = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, [
+      sectionTitle('Companions', `${companions.filter(c => c.kind === 'Henchman').length} henchmen · familiar · active summon`),
+      React.createElement('div', { key: 'body', style: { display: 'flex', gap: 20, alignItems: 'flex-start' } }, [
+        React.createElement('div', { key: 'nav', style: { width: 200, flex: 'none', display: 'flex', flexDirection: 'column', gap: 14 } },
+          compNavGroups.map(gr => React.createElement('div', { key: gr.g }, [
+            React.createElement('div', { key: 'g', style: { font: '600 10px Inter,sans-serif', letterSpacing: '.08em', color: text3, padding: '0 6px 8px' } }, gr.g),
+            React.createElement('div', { key: 'i', style: { display: 'flex', flexDirection: 'column', gap: 3 } },
+              gr.items.map(it => React.createElement('button', { key: it.key, onClick: it.onClick, style: navBtnObj(it.key === curComp.key) }, it.label))),
+          ]))),
+        React.createElement('div', { key: 'detail', style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 } }, [
+          React.createElement('div', { key: 'n', style: { display: 'flex', alignItems: 'center', gap: 10 } }, [
+            React.createElement('span', { key: 'nm', style: { font: '600 15px Cinzel,serif', color: '#f2ede4' } }, curComp.name),
+            React.createElement('span', { key: 'k', style: { font: '700 9px Inter,sans-serif', letterSpacing: '.06em', color: gold, border: `1px solid ${gold}`, borderRadius: 4, padding: '2px 6px' } }, curComp.kind.toUpperCase()),
+          ]),
+          capLabel('SUMMARY'),
+          kvList([
+            { l: 'Class & Level', v: curComp.cls },
+            { l: 'Hit Points', v: curComp.hp },
+            { l: 'Experience', v: curComp.xp },
+            { l: 'Faction', v: curComp.faction },
+            { l: 'Resource Tag', v: curComp.tag, mono: true, dim: true },
+          ], { key: 'ckv' }),
+          noteLine(curComp.notes),
+          React.createElement('div', { key: 'acts', style: { display: 'flex', gap: 8 } }, [
+            React.createElement('button', { key: 'sheet', style: ghostBtnObj(true), onClick: () => this.setState({ aSection: 'character', aTab: 'abilities' }) }, 'Open full character sheet'),
+            React.createElement('button', { key: 'inv', style: ghostBtnObj(true), onClick: () => this.setState({ aSection: 'inventory' }) }, 'Open inventory'),
+          ]),
+        ]),
+      ]),
+    ]);
+
+    // ---------- quests & world state ----------
+    const journalEntries = [
+      { id: 'q1', name: 'The Waterdhavian Creatures', state: 12, total: 18, done: false, cat: 'nw_journal_main' },
+      { id: 'q2', name: "Rescue at Beggar's Nest", state: 6, total: 6, done: true, cat: 'nw_q_beggars' },
+      { id: 'q3', name: 'The Missing Shipment', state: 2, total: 9, done: false, cat: 'nw_q_shipment' },
+      { id: 'q4', name: "Fenthick's Trial", state: 1, total: 4, done: false, cat: 'nw_q_trial' },
+    ];
+    const variables = [
+      { n: 'nPlotStage', t: 'Int', v: '31', scope: 'module' },
+      { n: 'bMetAribeth', t: 'Int', v: '1', scope: 'module' },
+      { n: 'fReputationMod', t: 'Float', v: '0.75', scope: 'module' },
+      { n: 'sLastArea', t: 'String', v: 'nw_city_core', scope: 'module' },
+      { n: 'oQuestGiver', t: 'Object', v: '0x8000021f', scope: 'module' },
+      { n: 'nChapter', t: 'Int', v: '4', scope: 'campaign' },
+      { n: 'bImportedPC', t: 'Int', v: '1', scope: 'campaign' },
+      { n: 'sCampaignName', t: 'String', v: 'Neverwinter OC', scope: 'campaign' },
+    ];
+    const varTypeColor = { Int: 'oklch(0.72 0.13 220)', Float: 'oklch(0.75 0.14 300)', String: 'oklch(0.75 0.13 150)', Object: 'oklch(0.7 0.13 25)' };
+    const questTabs = [{ k: 'journal', l: 'Journal' }, { k: 'variables', l: 'Variables' }].map(t => ({
+      ...t, style: pillTabObj(this.state.questTab === t.k), onClick: () => this.setState({ questTab: t.k }),
+    }));
+    const varScopeSegs = [{ k: 'module', l: 'Module (local)' }, { k: 'campaign', l: 'Campaign (global)' }].map(s => ({
+      ...s, style: segObj(this.state.varScope === s.k), onClick: () => this.setState({ varScope: s.k }),
+    }));
+    const varNeedle = this.state.varSearch.trim().toLowerCase();
+    const varsVisible = variables.filter(v => v.scope === this.state.varScope).filter(v => !varNeedle || v.n.toLowerCase().includes(varNeedle));
+
+    const journalPane = React.createElement('div', { key: 'jp', style: { display: 'flex', flexDirection: 'column', gap: 10 } }, [
+      capLabel('QUEST ENTRIES'),
+      React.createElement('div', { key: 'l', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', maxWidth: 680 } },
+        journalEntries.map(q => React.createElement('div', { key: q.id, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+          React.createElement('div', { key: 'n', style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 } }, [
+            React.createElement('span', { key: 'nm', style: { font: '13px Inter,sans-serif', color: q.done ? text3 : text } }, q.name),
+            React.createElement('span', { key: 'c', style: { font: '10.5px ui-monospace,monospace', color: text3 } }, q.cat),
+          ]),
+          q.done ? React.createElement('span', { key: 'd', style: { font: '700 9px Inter,sans-serif', letterSpacing: '.06em', color: 'oklch(0.75 0.13 150)', border: '1px solid oklch(0.75 0.13 150)', borderRadius: 4, padding: '2px 6px' } }, 'COMPLETE') : null,
+          React.createElement('span', { key: 's', style: { font: '700 13px Inter,sans-serif', color: text, width: 62, textAlign: 'right' } }, `${q.state} / ${q.total}`),
+          this.state.editA ? React.createElement('span', { key: 'st', style: { display: 'inline-flex', gap: 2 } }, [
+            React.createElement('button', { key: 'd', style: smallGhostObj() }, '\u2212'),
+            React.createElement('button', { key: 'u', style: smallGhostObj() }, '+'),
+          ]) : null,
+        ]))),
+      noteLine('State numbers map to journal.jrl entries — setting a state past the final one marks the quest complete in-game.'),
+    ]);
+
+    const variablesPane = React.createElement('div', { key: 'vp', style: { display: 'flex', flexDirection: 'column', gap: 10 } }, [
+      React.createElement('div', { key: 'ctl', style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' } }, [
+        React.createElement('div', { key: 'seg', style: { display: 'inline-flex', border: '1px solid rgba(255,255,255,.16)', borderRadius: 7, overflow: 'hidden' } },
+          varScopeSegs.map(s => React.createElement('button', { key: s.k, style: s.style, onClick: s.onClick }, s.l))),
+        React.createElement('input', {
+          key: 'srch', value: this.state.varSearch, placeholder: 'Filter variable names…',
+          onChange: (e) => this.setState({ varSearch: e.target.value }),
+          style: { width: 220, background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.14)', borderRadius: 7, color: text, font: '12.5px Inter,sans-serif', padding: '7px 10px' },
+        }),
+      ]),
+      React.createElement('div', { key: 'l', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', maxWidth: 680 } }, [
+        ...varsVisible.map(v => React.createElement('div', { key: v.n, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+          React.createElement('span', { key: 'n', style: { flex: 1, font: '12.5px ui-monospace,monospace', color: text } }, v.n),
+          React.createElement('span', { key: 't', style: { font: '700 9px Inter,sans-serif', color: varTypeColor[v.t], border: `1px solid ${varTypeColor[v.t]}`, borderRadius: 4, padding: '2px 5px' } }, v.t.toUpperCase()),
+          React.createElement('span', { key: 'v', style: { font: '700 12.5px ui-monospace,monospace', color: text, width: 130, textAlign: 'right' } }, v.v),
+          this.state.editA ? React.createElement('button', { key: 'e', style: smallGhostObj() }, 'Edit') : null,
+        ])),
+        varsVisible.length === 0 ? React.createElement('div', { key: 'empty', style: { padding: '14px', font: '13px Inter,sans-serif', color: text3 } }, 'No variables match this filter.') : null,
+      ]),
+      this.state.editA ? React.createElement('button', { key: 'add', style: goldBtnObj(true) }, '+ Add variable…') : null,
+      noteLine('Object-typed variables reference in-save object IDs; changing one can break scripts that expect a valid target.'),
+    ]);
+
+    const questsBlock = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, [
+      sectionTitle('Quests & World State', 'Journal progress and per-module / per-campaign variables'),
+      React.createElement('div', { key: 'tabs', style: { display: 'flex', gap: 6, borderBottom: '1px solid rgba(255,255,255,.1)' } },
+        questTabs.map(t => React.createElement('button', { key: t.k, style: t.style, onClick: t.onClick }, t.l))),
+      this.state.questTab === 'journal' ? journalPane : variablesPane,
+    ]);
+
+    // ---------- party & campaign ----------
+    const partyMembers = [
+      { n: 'Kaelen Duskwalker', r: 'Player Character', xp: '210,400', lvl: 14 },
+      { n: 'Sharwyn', r: 'Henchman', xp: '210,400', lvl: 14 },
+      { n: 'Tomi Undergallows', r: 'Henchman', xp: '210,400', lvl: 14 },
+    ];
+    const partyBlock = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } }, [
+      sectionTitle('Party & Campaign', 'Shared resources and campaign-persistent state'),
+      capLabel('PARTY RESOURCES'),
+      kvList([
+        { l: 'Party Gold', v: '48,230', action: this.state.editA ? React.createElement('button', { style: smallGhostObj() }, 'Edit') : null },
+        { l: 'Party Reputation (Commoner)', v: 'Friendly (78)' },
+        { l: 'Difficulty', v: 'Core Rules (D&D)' },
+        { l: 'Play Time', v: '63h 48m' },
+      ], { key: 'pkv' }),
+      capLabel('MEMBERS'),
+      React.createElement('div', { key: 'pm', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden', maxWidth: 520 } },
+        partyMembers.map(m => React.createElement('div', { key: m.n, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+          React.createElement('span', { key: 'n', style: { flex: 1, font: '13px Inter,sans-serif', color: text } }, m.n),
+          React.createElement('span', { key: 'r', style: { font: '11px Inter,sans-serif', color: text3, width: 120 } }, m.r),
+          React.createElement('span', { key: 'l', style: { font: '700 12.5px Inter,sans-serif', color: text } }, `Lvl ${m.lvl}`),
+          React.createElement('span', { key: 'x', style: { font: '11.5px Inter,sans-serif', color: text2, width: 72, textAlign: 'right' } }, m.xp),
+        ]))),
+      capLabel('CAMPAIGN'),
+      kvList([
+        { l: 'Campaign', v: 'Neverwinter Nights — Original Campaign' },
+        { l: 'Current Module', v: 'nw_city_core', mono: true },
+        { l: 'Chapter', v: '4' },
+        { l: 'Campaign Globals', v: '3 variables', action: React.createElement('button', { style: smallGhostObj(), onClick: () => this.setState({ aSection: 'quests', questTab: 'variables', varScope: 'campaign' }) }, 'View') },
+      ], { key: 'ckv2' }),
+      noteLine('Campaign globals live outside the save file and affect every module in the campaign.'),
+    ]);
+
+    // ---------- raw GFF ----------
+    const gffTree = [
+      { k: 'Creature', label: 'Creature (top-level struct)', depth: 0 },
+      { k: 'ClassList', label: 'ClassList [1]', depth: 1 },
+      { k: 'SkillList', label: 'SkillList [28]', depth: 1 },
+      { k: 'FeatList', label: 'FeatList [34]', depth: 1 },
+      { k: 'ItemList', label: 'ItemList [17]', depth: 1 },
+      { k: 'Equip_ItemList', label: 'Equip_ItemList [6]', depth: 1 },
+      { k: 'VarTable', label: 'VarTable [5]', depth: 1 },
+    ];
+    const gffFields = {
+      Creature: [{ n: 'FirstName', t: 'CExoLocString', v: 'Kaelen' }, { n: 'LastName', t: 'CExoLocString', v: 'Duskwalker' }, { n: 'Gold', t: 'DWORD', v: '48230' }, { n: 'CurrentHitPoints', t: 'SHORT', v: '142' }, { n: 'MaxHitPoints', t: 'SHORT', v: '156' }, { n: 'Str', t: 'BYTE', v: '20' }, { n: 'Experience', t: 'DWORD', v: '210400' }],
+      ClassList: [{ n: '[0].Class', t: 'INT', v: '6 (Paladin)' }, { n: '[0].ClassLevel', t: 'SHORT', v: '14' }],
+      SkillList: [{ n: '[0].Rank', t: 'BYTE', v: '12' }, { n: '[1].Rank', t: 'BYTE', v: '0' }, { n: '[2].Rank', t: 'BYTE', v: '15' }],
+      FeatList: [{ n: '[0].Feat', t: 'WORD', v: '1023' }, { n: '[1].Feat', t: 'WORD', v: '41' }, { n: '[2].Feat', t: 'WORD', v: '224' }],
+      ItemList: [{ n: '[0].TemplateResRef', t: 'CResRef', v: 'nw_it_mpotion001' }, { n: '[0].StackSize', t: 'WORD', v: '3' }],
+      Equip_ItemList: [{ n: '[0].TemplateResRef', t: 'CResRef', v: 'nw_wswls003' }, { n: '[0].__struct_id', t: 'STRUCT', v: '16' }],
+      VarTable: [{ n: '[0].Name', t: 'CExoString', v: 'nPlotStage' }, { n: '[0].Type', t: 'DWORD', v: '1' }, { n: '[0].Value', t: 'INT', v: '31' }],
+    };
+    const rawBlock = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } }, [
+      sectionTitle('Raw Data (GFF)', 'Direct struct & field access — no validation applied'),
+      React.createElement('div', { key: 'warn', style: { display: 'flex', gap: 10, alignItems: 'flex-start', maxWidth: 680, background: 'oklch(0.28 0.06 25 / 0.18)', border: '1px solid oklch(0.6 0.14 25 / 0.45)', borderRadius: 9, padding: '10px 14px' } }, [
+        React.createElement('span', { key: 'i', style: { font: '700 12px Inter,sans-serif', color: 'oklch(0.72 0.15 25)' } }, '!'),
+        React.createElement('span', { key: 't', style: { font: '12px/1.6 Inter,sans-serif', color: text2 } }, 'Writes here bypass every rule check in the editor. A malformed field type will make the save unloadable — a backup is taken automatically before any raw write.'),
+      ]),
+      React.createElement('div', { key: 'body', style: { display: 'flex', gap: 20, alignItems: 'flex-start' } }, [
+        React.createElement('div', { key: 'tree', style: { width: 230, flex: 'none', background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, padding: 6, display: 'flex', flexDirection: 'column', gap: 2 } },
+          gffTree.map(n => React.createElement('button', {
+            key: n.k, onClick: () => this.setState({ gffNode: n.k }),
+            style: { textAlign: 'left', border: 'none', background: this.state.gffNode === n.k ? 'oklch(0.3 0.05 82 / 0.22)' : 'transparent', color: this.state.gffNode === n.k ? gold : text2, font: '12px ui-monospace,monospace', padding: `6px 8px 6px ${8 + n.depth * 14}px`, borderRadius: 6, cursor: 'pointer' },
+          }, n.label))),
+        React.createElement('div', { key: 'fields', style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 } }, [
+          capLabel('FIELDS'),
+          React.createElement('div', { key: 'l', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden' } },
+            (gffFields[this.state.gffNode] || []).map(f => React.createElement('div', { key: f.n, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+              React.createElement('span', { key: 'n', style: { flex: 1, font: '12.5px ui-monospace,monospace', color: text } }, f.n),
+              React.createElement('span', { key: 't', style: { font: '10.5px ui-monospace,monospace', color: text3, width: 108 } }, f.t),
+              React.createElement('span', { key: 'v', style: { font: '700 12.5px ui-monospace,monospace', color: text, width: 150, textAlign: 'right' } }, f.v),
+              this.state.editA ? React.createElement('button', { key: 'e', style: smallGhostObj() }, 'Edit') : null,
+            ]))),
+        ]),
+      ]),
+    ]);
+
+    // ---------- backups & diff ----------
+    const backups = [
+      { k: 'bk1', when: 'Today 18:42', label: 'Before raw VarTable edit', size: '1.4 MB', auto: true },
+      { k: 'bk2', when: 'Today 17:05', label: 'Before feat & ability changes', size: '1.4 MB', auto: true },
+      { k: 'bk3', when: 'Yesterday 22:10', label: 'Manual snapshot', size: '1.3 MB', auto: false },
+    ];
+    const diffRows = {
+      bk1: [{ p: 'Creature/VarTable[0].Value', a: '28', b: '31' }],
+      bk2: [
+        { p: 'Creature/Str', a: '18', b: '20' },
+        { p: 'Creature/FeatList[34].Feat', a: '—', b: '1023 (Great Cleave)', add: true },
+        { p: 'Creature/SkillList[3].Rank', a: '8', b: '12' },
+        { p: 'Creature/Gold', a: '41,120', b: '48,230' },
+      ],
+      bk3: [{ p: 'Creature/CurrentHitPoints', a: '118', b: '142' }, { p: 'Creature/Experience', a: '196,000', b: '210,400' }],
+    };
+    const curBackup = backups.find(b => b.k === this.state.backupKey) || backups[0];
+    const backupsBlock = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 14 } }, [
+      sectionTitle('Backups & Diff', 'Every write is preceded by an automatic snapshot'),
+      React.createElement('div', { key: 'body', style: { display: 'flex', gap: 20, alignItems: 'flex-start' } }, [
+        React.createElement('div', { key: 'list', style: { width: 280, flex: 'none', display: 'flex', flexDirection: 'column', gap: 8 } }, [
+          capLabel('SNAPSHOTS'),
+          React.createElement('div', { key: 'l', style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+            backups.map(b => React.createElement('button', {
+              key: b.k, onClick: () => this.setState({ backupKey: b.k }),
+              style: { textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 3, border: `1px solid ${b.k === curBackup.k ? 'oklch(0.6 0.09 82 / 0.45)' : 'rgba(255,255,255,.08)'}`, background: b.k === curBackup.k ? 'oklch(0.3 0.05 82 / 0.14)' : 'oklch(0.185 0.014 55)', borderRadius: 9, padding: '9px 12px', cursor: 'pointer' },
+            }, [
+              React.createElement('span', { key: 'w', style: { font: '600 12.5px Inter,sans-serif', color: b.k === curBackup.k ? gold : text } }, b.when),
+              React.createElement('span', { key: 'l2', style: { font: '11.5px Inter,sans-serif', color: text2 } }, b.label),
+              React.createElement('span', { key: 's', style: { font: '10.5px Inter,sans-serif', color: text3 } }, `${b.auto ? 'Automatic' : 'Manual'} · ${b.size}`),
+            ]))),
+        ]),
+        React.createElement('div', { key: 'diff', style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 } }, [
+          capLabel(`CHANGES SINCE ${curBackup.when.toUpperCase()}`),
+          React.createElement('div', { key: 'l', style: { background: 'oklch(0.185 0.014 55)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, overflow: 'hidden' } },
+            (diffRows[curBackup.k] || []).map(r => React.createElement('div', { key: r.p, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,.06)' } }, [
+              React.createElement('span', { key: 'p', style: { flex: 1, font: '12px ui-monospace,monospace', color: text2 } }, r.p),
+              React.createElement('span', { key: 'a', style: { font: '12px ui-monospace,monospace', color: 'oklch(0.68 0.13 25)', width: 130, textAlign: 'right', textDecoration: r.add ? 'none' : 'line-through' } }, r.a),
+              React.createElement('span', { key: 'ar', style: { font: '11px Inter,sans-serif', color: text3 } }, '\u2192'),
+              React.createElement('span', { key: 'b', style: { font: '700 12px ui-monospace,monospace', color: 'oklch(0.75 0.13 150)', width: 160 } }, r.b),
+            ]))),
+          React.createElement('div', { key: 'acts', style: { display: 'flex', gap: 8 } }, [
+            React.createElement('button', { key: 'r', style: goldBtnObj(true) }, 'Restore this snapshot'),
+            React.createElement('button', { key: 'e', style: ghostBtnObj(true) }, 'Export diff as text'),
+          ]),
+          noteLine('Restoring replaces the working save in memory; the file on disk is only touched when you save.'),
+        ]),
+      ]),
+    ]);
+
+    return {
+      navItemsA, advItemsA, charTabItemsA, pendingCount: activeCount,
+      pendingSample: liveChanges.slice(0, Math.min(activeCount, 3)).map(c => ({ label: c.del ? `${c.path}: removed` : c.add ? `${c.path}: + ${c.to}` : `${c.path} ${c.from} → ${c.to}` })),
+      reviewSheet, openDialogEl: openDialog, saveDialogEl: saveDialog,
+      reviewOpen: this.state.reviewOpen && this.state.editA,
+      dialogIsOpen: this.state.dialog === 'open', dialogIsSave: this.state.dialog === 'save',
+      hasUndone: undoCount > 0, undoneLabel: `${undoCount} undone`,
+      openBtnA: ghostBtn(true), reviewBtnA: pillBtn(true),
+      undoBtnA: smallGhostGated(activeCount > 0), redoBtnA: smallGhostGated(undoCount > 0),
+      undoDisabledA: activeCount === 0, redoDisabledA: undoCount === 0,
+      setStrictA: () => this.setState({ strictA: true }),
+      setFreeA: () => this.setState({ strictA: false }),
+      openDialogA: () => this.setState({ dialog: 'open', openSearch: '' }),
+      openSaveNewA: () => { if (this.state.editA) this.setState({ dialog: 'save', saveMode: 'new' }); },
+      openOverwriteA: () => { if (this.state.editA) this.setState({ dialog: 'save', saveMode: 'overwrite' }); },
+      openReviewA: () => this.setState({ reviewOpen: true }),
+      discardAllA: discardAll,
+      doUndoA: () => { if (activeCount > 0) this.setState(s => ({ undoCount: s.undoCount + 1 })); },
+      doRedoA: () => { if (undoCount > 0) this.setState(s => ({ undoCount: Math.max(0, s.undoCount - 1) })); },
+      characterHeader, abilitiesCombatBlock, skillsBlock, featsBlock, effectsBlock, bioBlock,
+      inventoryPanelMain, areaTabs, areaNavGroups, areaDetailPanel, spellbookBlock,
+      companionsBlock, questsBlock, partyBlock, rawBlock, backupsBlock,
+      aSectionIsCompanions: this.state.aSection === 'companions',
+      aSectionIsQuests: this.state.aSection === 'quests',
+      aSectionIsParty: this.state.aSection === 'party',
+      aSectionIsRaw: this.state.aSection === 'raw',
+      aSectionIsBackups: this.state.aSection === 'backups',
+
+      aSectionIsCharacter: this.state.aSection === 'character',
+      aSectionIsArea: this.state.aSection === 'area',
+      aSectionIsInventory: this.state.aSection === 'inventory',
+      aSectionIsSpellbook: this.state.aSection === 'spellbook',
+      aSectionIsOther: !['character', 'area', 'inventory', 'spellbook', 'companions', 'quests', 'party', 'raw', 'backups'].includes(this.state.aSection),
+      aSectionInfo: sectionInfo[this.state.aSection] || sectionInfo.spellbook,
+      aTabIsAbilities: this.state.aTab === 'abilities',
+      aTabIsSkills: this.state.aTab === 'skills',
+      aTabIsFeats: this.state.aTab === 'feats',
+      aTabIsEffects: this.state.aTab === 'effects',
+      aTabIsBio: this.state.aTab === 'biography',
+      editA: this.state.editA,
+      toggleEditA: () => this.setState({ editA: !this.state.editA }),
+      editBtnA: pillBtn(this.state.editA), editLabelA: this.state.editA ? 'Editing ✓' : 'Edit',
+      saveAsBtnA: goldBtn(this.state.editA), overwriteBtnA: ghostBtn(this.state.editA),
+      segA: { strict: seg(this.state.strictA), free: seg(!this.state.strictA) },
+    };
+  }
+}
+
+</script>
+</body>
+</html>
