@@ -32,13 +32,15 @@ from vaultkeeper.ui.save_editor import widgets as w
 OPEN_DIALOG_W = 680
 SAVE_DIALOG_W = 560
 
-_INPUT_QSS = (
-    f"QLineEdit{{background:#1e1713;border:1px solid {t.hairline(0.18)};"
-    f"border-radius:5px;color:{t.TEXT};font-family:{t.MONO_FAMILY};font-size:12px;"
-    f"padding:7px 9px;}}"
-    f"QLineEdit:focus{{border-color:{t.gold_border(0.5)};}}"
-)
-_SEARCH_QSS = _INPUT_QSS.replace(t.MONO_FAMILY, t.UI_FAMILY)
+
+def _input_qss(family: str | None = None) -> str:
+    """A line edit in the editor's chrome; ``family`` defaults to the mono face."""
+    return (
+        f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
+        f"border-radius:5px;color:{t.TEXT};font-family:{family or t.MONO_FAMILY};"
+        f"font-size:12px;padding:7px 9px;}}"
+        f"QLineEdit:focus{{border-color:{t.gold_border(0.5)};}}"
+    )
 
 
 @dataclass
@@ -116,16 +118,14 @@ class OpenSaveDialog(QDialog):
 
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search by name or module…")
-        self._search.setStyleSheet(_SEARCH_QSS)
+        self._search.setStyleSheet(_input_qss(t.UI_FAMILY))
         self._search.textChanged.connect(self._apply_filter)
         outer.addWidget(self._search)
 
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        self._scroll.setStyleSheet(
-            "QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS
-        )
+        self._scroll.setStyleSheet(w.scroll_area_qss())
         outer.addWidget(self._scroll, 1)
 
         footer = QHBoxLayout()
@@ -310,7 +310,7 @@ class SaveDialog(QDialog):
         if mode == "new":
             outer.addWidget(w.cap_label("New file name"))
             self._name_edit = QLineEdit(default_name)
-            self._name_edit.setStyleSheet(_INPUT_QSS)
+            self._name_edit.setStyleSheet(_input_qss())
             self._name_edit.textChanged.connect(self._sync)
             outer.addWidget(self._name_edit)
 

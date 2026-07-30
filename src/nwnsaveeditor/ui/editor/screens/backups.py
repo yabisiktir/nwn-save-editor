@@ -250,7 +250,7 @@ def _scroll(body: QWidget) -> QScrollArea:
     area = QScrollArea()
     area.setWidgetResizable(True)
     area.setFrameShape(QScrollArea.Shape.NoFrame)
-    area.setStyleSheet("QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS)
+    area.setStyleSheet(w.scroll_area_qss())
     area.setWidget(body)
     return area
 

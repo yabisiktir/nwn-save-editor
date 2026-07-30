@@ -8,6 +8,10 @@ design's colours, not custom-painted lookalikes.
 
 Qt stylesheets have no ``opacity``, so the design's "disabled = opacity .45" is
 expressed as explicitly dimmed colours in a ``:disabled`` rule.
+
+Every stylesheet here is built inside a function. A module-level f-string would
+bake whichever theme happened to be active at import time, and the editor's theme
+toggle swaps :mod:`~vaultkeeper.ui.save_editor.tokens` live.
 """
 
 from __future__ import annotations
@@ -100,10 +104,12 @@ def mono(text: str, color: str | None = None, size: float = 11.5) -> QLabel:
 
 
 # -- Buttons -------------------------------------------------------------- #
-_BTN_BASE = (
-    f"font-family:{t.UI_FAMILY};font-size:12.5px;font-weight:600;"
-    f"border-radius:{t.RADIUS_BUTTON}px;padding:6px 14px;"
-)
+def _btn_base() -> str:
+    """Metrics shared by every full-size button."""
+    return (
+        f"font-family:{t.UI_FAMILY};font-size:12.5px;font-weight:600;"
+        f"border-radius:{t.RADIUS_BUTTON}px;padding:6px 14px;"
+    )
 
 
 def gold_button(text: str) -> QPushButton:
@@ -111,9 +117,9 @@ def gold_button(text: str) -> QPushButton:
     button = QPushButton(_literal(text))
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     button.setStyleSheet(
-        f"QPushButton{{{_BTN_BASE}border:none;background:{t.GOLD};color:{t.GOLD_ON};}}"
-        f"QPushButton:hover{{background:#e8bd6d;}}"
-        f"QPushButton:disabled{{background:#6b552c;color:#3a3020;}}"
+        f"QPushButton{{{_btn_base()}border:none;background:{t.GOLD};color:{t.GOLD_ON};}}"
+        f"QPushButton:hover{{background:{t.GOLD_HOVER};}}"
+        f"QPushButton:disabled{{background:{t.GOLD_OFF};color:{t.GOLD_OFF_ON};}}"
     )
     return button
 
@@ -123,7 +129,7 @@ def ghost_button(text: str) -> QPushButton:
     button = QPushButton(_literal(text))
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     button.setStyleSheet(
-        f"QPushButton{{{_BTN_BASE}font-weight:500;border:1px solid {t.hairline(0.16)};"
+        f"QPushButton{{{_btn_base()}font-weight:500;border:1px solid {t.hairline(0.16)};"
         f"background:transparent;color:{t.TEXT};}}"
         f"QPushButton:hover{{background:{t.hairline(0.06)};}}"
         f"QPushButton:disabled{{color:{t.TEXT_3};border-color:{t.hairline(0.08)};}}"
@@ -151,7 +157,7 @@ def pill_toggle(text: str) -> QPushButton:
     button.setCheckable(True)
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     button.setStyleSheet(
-        f"QPushButton{{{_BTN_BASE}border:1px solid {t.hairline(0.16)};"
+        f"QPushButton{{{_btn_base()}border:1px solid {t.hairline(0.16)};"
         f"background:transparent;color:{t.TEXT};}}"
         f"QPushButton:hover{{background:{t.hairline(0.06)};}}"
         f"QPushButton:checked{{border-color:{t.gold_border(0.5)};"
@@ -269,22 +275,32 @@ def vline() -> QFrame:
     return line
 
 
-#: Scrollbar styling for the editor's scroll areas. Qt's default chrome is a bright
-#: native bar that reads as a bug against this dark surface.
-SCROLLBAR_QSS = (
-    f"QScrollBar:vertical{{background:transparent;width:9px;margin:0;}}"
-    f"QScrollBar::handle:vertical{{background:{t.hairline(0.14)};border-radius:4px;"
-    f"min-height:28px;}}"
-    f"QScrollBar::handle:vertical:hover{{background:{t.hairline(0.24)};}}"
-    f"QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;}}"
-    f"QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{{background:transparent;}}"
-    f"QScrollBar:horizontal{{background:transparent;height:9px;margin:0;}}"
-    f"QScrollBar::handle:horizontal{{background:{t.hairline(0.14)};border-radius:4px;"
-    f"min-width:28px;}}"
-    f"QScrollBar::handle:horizontal:hover{{background:{t.hairline(0.24)};}}"
-    f"QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{{width:0;}}"
-    f"QScrollBar::add-page:horizontal,QScrollBar::sub-page:horizontal{{background:transparent;}}"
-)
+def scrollbar_qss() -> str:
+    """Scrollbar styling for the editor's scroll areas.
+
+    Qt's default chrome is a bright native bar that reads as a bug against the
+    editor's own surfaces, in either theme.
+    """
+    return (
+        f"QScrollBar:vertical{{background:transparent;width:9px;margin:0;}}"
+        f"QScrollBar::handle:vertical{{background:{t.hairline(0.14)};border-radius:4px;"
+        f"min-height:28px;}}"
+        f"QScrollBar::handle:vertical:hover{{background:{t.hairline(0.24)};}}"
+        f"QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;}}"
+        f"QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{{background:transparent;}}"
+        f"QScrollBar:horizontal{{background:transparent;height:9px;margin:0;}}"
+        f"QScrollBar::handle:horizontal{{background:{t.hairline(0.14)};border-radius:4px;"
+        f"min-width:28px;}}"
+        f"QScrollBar::handle:horizontal:hover{{background:{t.hairline(0.24)};}}"
+        f"QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{{width:0;}}"
+        f"QScrollBar::add-page:horizontal,"
+        f"QScrollBar::sub-page:horizontal{{background:transparent;}}"
+    )
+
+
+def scroll_area_qss(background: str = "transparent") -> str:
+    """A frameless scroll area with the editor's scrollbars — every screen's pairing."""
+    return f"QScrollArea{{background:{background};border:none;}}" + scrollbar_qss()
 
 
 # -- Small indicators ----------------------------------------------------- #
@@ -314,7 +330,7 @@ def prc_badge() -> QLabel:
     """The ``(PRC)`` badge — content PRC regenerates, so an edit may not stick."""
     badge = QLabel("PRC")
     badge.setStyleSheet(
-        f"color:{t.PRC_AMBER};border:1px solid rgba(240, 166, 70, 0.5);"
+        f"color:{t.PRC_AMBER};border:1px solid {t.PRC_BORDER};"
         f"border-radius:{t.RADIUS_BADGE}px;padding:1px 4px;"
         f"font-family:{t.UI_FAMILY};font-size:8.5px;font-weight:700;"
     )
@@ -428,7 +444,7 @@ class TabStrip(QWidget):
         button.setText(f"{label} ●" if dirty else label)
 
 def apply_tree_palette(tree) -> None:
-    """Recolour a tree's selection roles.
+    """Recolour a tree's selection roles for the active theme.
 
     A stylesheet paints ``::item`` and ``::branch``, but the style still fills the
     branch column with the palette's Highlight when a row is selected — which
@@ -437,31 +453,35 @@ def apply_tree_palette(tree) -> None:
     from PySide6.QtGui import QColor, QPalette
 
     palette = tree.palette()
-    palette.setColor(QPalette.ColorRole.Highlight, QColor(58, 43, 13))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(t.TREE_HIGHLIGHT))
     palette.setColor(QPalette.ColorRole.HighlightedText, QColor(t.GOLD))
     palette.setColor(QPalette.ColorRole.Base, QColor(t.INSET))
     tree.setPalette(palette)
 
 
-#: Styling for the plain Qt dialogs the editor reuses (store editor, id picker,
-#: property editors). They were written for the app's own palette, so inside this
-#: deliberately dark window their inputs and tables rendered dark-on-dark.
-DIALOG_QSS = f"""
+def dialog_qss() -> str:
+    """Styling for the plain Qt dialogs the editor reuses.
+
+    The store editor, id picker and property editors were written for the app's
+    own palette, so inside this self-themed window their inputs and tables
+    rendered dark-on-dark (and, in light mode, would render light-on-light).
+    """
+    return f"""
 QDialog {{ background:{t.APP_BG}; }}
 QLabel, QCheckBox, QRadioButton, QGroupBox {{ color:{t.TEXT}; }}
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit, QTextEdit {{
-    background:#1e1713; color:{t.TEXT};
+    background:{t.INPUT_BG}; color:{t.TEXT};
     border:1px solid {t.hairline(0.22)}; border-radius:5px; padding:4px 6px;
     selection-background-color:{t.gold_tint(0.5)}; selection-color:{t.GOLD};
 }}
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{ border-color:{t.gold_border(0.6)}; }}
 QComboBox QAbstractItemView {{
-    background:#1e1713; color:{t.TEXT};
+    background:{t.INPUT_BG}; color:{t.TEXT};
     selection-background-color:{t.gold_tint(0.5)}; selection-color:{t.GOLD};
     border:1px solid {t.hairline(0.22)};
 }}
 QAbstractItemView, QTableView, QTreeView, QListView {{
-    background:{t.INSET}; color:{t.TEXT}; alternate-background-color:#191310;
+    background:{t.INSET}; color:{t.TEXT}; alternate-background-color:{t.ALT_ROW};
     selection-background-color:{t.gold_tint(0.5)}; selection-color:{t.GOLD};
     border:1px solid {t.hairline(0.12)}; border-radius:6px;
 }}
@@ -480,6 +500,6 @@ QPushButton:disabled {{ color:{t.TEXT_3}; border-color:{t.hairline(0.1)}; }}
 
 
 def style_dialog(dialog):
-    """Give a reused app dialog the editor's dark styling, then return it."""
-    dialog.setStyleSheet(DIALOG_QSS + SCROLLBAR_QSS)
+    """Give a reused app dialog the editor's current styling, then return it."""
+    dialog.setStyleSheet(dialog_qss() + scrollbar_qss())
     return dialog

@@ -11,8 +11,12 @@ from __future__ import annotations
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QTextBrowser, QVBoxLayout, QWidget
 
 from vaultkeeper.ui.save_editor import tokens as t
+from vaultkeeper.ui.save_editor import widgets as w
 
-_HELP = f"""
+
+def _help_html() -> str:
+    """The guide's copy, built per call so its colours follow the theme."""
+    return f"""
 <style>
   body {{ color:{t.TEXT}; font-size:13px; line-height:1.55; }}
   h2 {{ color:{t.GOLD}; font-size:17px; margin:0 0 6px 0; }}
@@ -100,10 +104,12 @@ class EditorGuideDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Save Game Editor — Guide")
         self.resize(620, 700)
-        self.setStyleSheet(f"QDialog{{background:{t.APP_BG};}}")
+        # dialog_qss carries the QDialog background plus the Close button's colours,
+        # which would otherwise come from the application palette.
+        self.setStyleSheet(w.dialog_qss())
         layout = QVBoxLayout(self)
         browser = QTextBrowser()
-        browser.setHtml(_HELP)
+        browser.setHtml(_help_html())
         browser.setOpenExternalLinks(False)
         browser.setStyleSheet(
             f"QTextBrowser{{background:{t.INSET};border:1px solid "

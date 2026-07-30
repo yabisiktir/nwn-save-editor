@@ -29,15 +29,21 @@ _ROLE = Qt.ItemDataRole.UserRole
 #: Nodes are built lazily; a save's tree is far too large to expand eagerly.
 _LAZY = "…"
 
-_COMBO_QSS = (
-    f"QComboBox{{background:#1e1713;border:1px solid {t.hairline(0.22)};"
-    f"border-radius:5px;color:{t.TEXT};font-family:{t.MONO_FAMILY};"
-    f"font-size:12px;padding:5px 8px;}}"
-    f"QComboBox QAbstractItemView{{background:#1e1713;color:{t.TEXT};"
-    f"selection-background-color:{t.gold_tint(0.5)};selection-color:{t.GOLD};}}"
-)
 
-_TREE_QSS = f"""
+def _combo_qss() -> str:
+    """The resource picker's chrome, rebuilt per call so it follows the theme."""
+    return (
+        f"QComboBox{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.22)};"
+        f"border-radius:5px;color:{t.TEXT};font-family:{t.MONO_FAMILY};"
+        f"font-size:12px;padding:5px 8px;}}"
+        f"QComboBox QAbstractItemView{{background:{t.INPUT_BG};color:{t.TEXT};"
+        f"selection-background-color:{t.gold_tint(0.5)};selection-color:{t.GOLD};}}"
+    )
+
+
+def _tree_qss() -> str:
+    """The GFF tree's chrome, rebuilt per call so it follows the theme."""
+    return f"""
 QTreeWidget {{
     background:{t.INSET}; border:1px solid {t.hairline(0.06)};
     border-radius:{t.RADIUS_PANEL}px; color:{t.TEXT};
@@ -81,7 +87,7 @@ class RawScreen(QWidget):
         picker.setSpacing(8)
         picker.addWidget(w.cap_label("Resource"))
         self._target_box = QComboBox()
-        self._target_box.setStyleSheet(_COMBO_QSS)
+        self._target_box.setStyleSheet(_combo_qss())
         self._target_box.setMinimumWidth(260)
         for target in self._targets():
             self._target_box.addItem(target)
@@ -95,7 +101,7 @@ class RawScreen(QWidget):
         self._filter = QLineEdit()
         self._filter.setPlaceholderText("Filter top-level fields by name…")
         self._filter.setStyleSheet(
-            f"QLineEdit{{background:#1e1713;border:1px solid {t.hairline(0.18)};"
+            f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
             f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};"
             f"font-size:12px;padding:6px 9px;}}"
         )
@@ -105,7 +111,7 @@ class RawScreen(QWidget):
         self._tree = QTreeWidget()
         self._tree.setColumnCount(3)
         self._tree.setHeaderLabels(["Field", "Type", "Value"])
-        self._tree.setStyleSheet(_TREE_QSS + w.SCROLLBAR_QSS)
+        self._tree.setStyleSheet(_tree_qss() + w.scrollbar_qss())
         w.apply_tree_palette(self._tree)
         self._tree.itemExpanded.connect(self._on_expand)
         self._tree.currentItemChanged.connect(self._on_select)

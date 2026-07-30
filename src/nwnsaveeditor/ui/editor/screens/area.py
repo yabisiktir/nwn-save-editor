@@ -33,7 +33,10 @@ _ROLE = Qt.ItemDataRole.UserRole
 #: Item icons in the tree, matching the Inventory screen's cells.
 _ICON_PX = 32
 
-_TREE_QSS = f"""
+
+def _tree_qss() -> str:
+    """The contents tree's chrome, rebuilt per call so it follows the theme."""
+    return f"""
 QTreeWidget {{
     background:{t.INSET}; border:1px solid {t.hairline(0.06)};
     border-radius:{t.RADIUS_PANEL}px; color:{t.TEXT};
@@ -84,7 +87,7 @@ class AreaScreen(QWidget):
         self._tree = QTreeWidget()
         self._tree.setHeaderHidden(True)
         self._tree.setIconSize(QSize(_ICON_PX, _ICON_PX))
-        self._tree.setStyleSheet(_TREE_QSS + w.SCROLLBAR_QSS)
+        self._tree.setStyleSheet(_tree_qss() + w.scrollbar_qss())
         w.apply_tree_palette(self._tree)
         self._tree.currentItemChanged.connect(self._on_select)
         self._middle.addWidget(self._tree, 1)
@@ -373,6 +376,6 @@ def _scroll(body: QWidget):
     area = QScrollArea()
     area.setWidgetResizable(True)
     area.setFrameShape(QScrollArea.Shape.NoFrame)
-    area.setStyleSheet("QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS)
+    area.setStyleSheet(w.scroll_area_qss())
     area.setWidget(body)
     return area

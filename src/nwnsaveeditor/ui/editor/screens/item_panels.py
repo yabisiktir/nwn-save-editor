@@ -45,9 +45,7 @@ class _PanelBase(QWidget):
         area = QScrollArea()
         area.setWidgetResizable(True)
         area.setFrameShape(QScrollArea.Shape.NoFrame)
-        area.setStyleSheet(
-            "QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS
-        )
+        area.setStyleSheet(w.scroll_area_qss())
         body = QWidget()
         body.setStyleSheet("background:transparent;")
         self._body = QVBoxLayout(body)

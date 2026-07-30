@@ -66,9 +66,7 @@ class ChangeLedger(QFrame):
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        self._scroll.setStyleSheet(
-            "QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS
-        )
+        self._scroll.setStyleSheet(w.scroll_area_qss())
         outer.addWidget(self._scroll, 1)
 
         footer = QHBoxLayout()

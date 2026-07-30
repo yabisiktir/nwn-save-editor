@@ -101,7 +101,7 @@ class QuestsScreen(QWidget):
         search.setPlaceholderText("Search by name or value…")
         search.setText(self._filter)
         search.setStyleSheet(
-            f"QLineEdit{{background:#1e1713;border:1px solid {t.hairline(0.18)};"
+            f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
             f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};"
             f"font-size:12px;padding:6px 9px;}}"
         )
@@ -196,7 +196,7 @@ def _scroll(body: QWidget) -> QScrollArea:
     area = QScrollArea()
     area.setWidgetResizable(True)
     area.setFrameShape(QScrollArea.Shape.NoFrame)
-    area.setStyleSheet("QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS)
+    area.setStyleSheet(w.scroll_area_qss())
     area.setWidget(body)
     return area
 

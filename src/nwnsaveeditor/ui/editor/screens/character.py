@@ -239,7 +239,7 @@ class CharacterScreen(QWidget):
             button.setFixedSize(22, 22)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.setToolTip(f"{key.title()} sheet skin (appearance only)")
-            border = t.GOLD if key == self._skin else "rgba(255,255,255,0.25)"
+            border = t.GOLD if key == self._skin else t.hairline(0.25)
             button.setStyleSheet(
                 f"background:{swatch};border:2px solid {border};border-radius:11px;"
             )
@@ -296,7 +296,7 @@ class CharacterScreen(QWidget):
             f"{race_name(info.race_id)}, {_lawful_chaotic_word(law)} {_good_evil_word(good)}",
             accent, 13,
         ))
-        classes = w.body(_classes_line(info), "#f1e6d8", 14)
+        classes = w.body(_classes_line(info), t.SHEET_TEXT, 14)
         classes.setStyleSheet(classes.styleSheet() + "font-weight:600;")
         stats.addWidget(classes)
         stats.addWidget(_sheet_divider())
@@ -475,7 +475,7 @@ class CharacterScreen(QWidget):
 
         if field.kind == "name":
             edit = QLineEdit(str(field.value))
-            edit.setStyleSheet(_INPUT_QSS)
+            edit.setStyleSheet(_input_qss())
             edit.setFixedWidth(220)
             edit.editingFinished.connect(
                 lambda e=edit, f=field.field: self._set_name(f, e.text())
@@ -494,7 +494,7 @@ class CharacterScreen(QWidget):
             box.setToolTip(limits.reason)
             box.setValue(int(field.value))
             box.setFixedWidth(120)
-            box.setStyleSheet(_INPUT_QSS)
+            box.setStyleSheet(_input_qss())
             box.valueChanged.connect(
                 lambda v, f=field.field: self._set_detail(f, v)
             )
@@ -550,7 +550,7 @@ class CharacterScreen(QWidget):
 
         self._skill_filter = QLineEdit()
         self._skill_filter.setPlaceholderText("Filter skills…")
-        self._skill_filter.setStyleSheet(_INPUT_QSS)
+        self._skill_filter.setStyleSheet(_input_qss())
         self._skill_filter.textChanged.connect(self._apply_skill_filter)
         layout.addWidget(self._skill_filter)
 
@@ -627,7 +627,7 @@ class CharacterScreen(QWidget):
             box.setToolTip(limits.reason)
             box.setValue(min(skill.rank, limits.maximum))
             box.setFixedWidth(64)
-            box.setStyleSheet(_INPUT_QSS)
+            box.setStyleSheet(_input_qss())
             box.valueChanged.connect(lambda v, s=skill: self._set_skill(s, v))
             line.addWidget(box)
         else:
@@ -664,7 +664,7 @@ class CharacterScreen(QWidget):
 
         self._feat_filter = QLineEdit()
         self._feat_filter.setPlaceholderText("Filter feats by name or id…")
-        self._feat_filter.setStyleSheet(_INPUT_QSS)
+        self._feat_filter.setStyleSheet(_input_qss())
         self._feat_filter.textChanged.connect(self._apply_feat_filter)
         layout.addWidget(self._feat_filter)
 
@@ -836,7 +836,7 @@ class CharacterScreen(QWidget):
             current = ""
         if self._window.editing:
             edit = QLineEdit(str(current))
-            edit.setStyleSheet(_INPUT_QSS)
+            edit.setStyleSheet(_input_qss())
             edit.setFixedWidth(220)
             edit.editingFinished.connect(lambda e=edit, f=field: self._set_name(f, e.text()))
             line.addWidget(edit)
@@ -852,12 +852,14 @@ class CharacterScreen(QWidget):
 # --------------------------------------------------------------------------- #
 # small builders
 # --------------------------------------------------------------------------- #
-_INPUT_QSS = (
-    f"QLineEdit,QSpinBox{{background:#1e1713;border:1px solid {t.hairline(0.18)};"
-    f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:12px;"
-    f"padding:5px 8px;}}"
-    f"QLineEdit:focus,QSpinBox:focus{{border-color:{t.gold_border(0.5)};}}"
-)
+def _input_qss() -> str:
+    """A field or stepper's chrome, rebuilt per call so it follows the theme."""
+    return (
+        f"QLineEdit,QSpinBox{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
+        f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:12px;"
+        f"padding:5px 8px;}}"
+        f"QLineEdit:focus,QSpinBox:focus{{border-color:{t.gold_border(0.5)};}}"
+    )
 
 
 class _SheetCard(QFrame):
@@ -869,7 +871,7 @@ def _scroll(body: QWidget) -> QScrollArea:
     area = QScrollArea()
     area.setWidgetResizable(True)
     area.setFrameShape(QScrollArea.Shape.NoFrame)
-    area.setStyleSheet("QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS)
+    area.setStyleSheet(w.scroll_area_qss())
     area.setWidget(body)
     return area
 
@@ -973,7 +975,7 @@ def _ability_row(
         f"font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;"
     )
     line.addWidget(chip)
-    line.addWidget(w.body(label, "#f1e6d8", 13.5), 1)
+    line.addWidget(w.body(label, t.SHEET_TEXT, 13.5), 1)
 
     if dirty:
         old = w.body(str(was), t.TEXT_3, 13)
@@ -990,11 +992,11 @@ def _ability_row(
             stepper.setRange(1, 255)
         stepper.setValue(min(score, stepper.maximum()))
         stepper.setFixedWidth(62)
-        stepper.setStyleSheet(_INPUT_QSS)
+        stepper.setStyleSheet(_input_qss())
         stepper.valueChanged.connect(lambda v, f=field: on_change(f, v))
         line.addWidget(stepper)
     else:
-        value = w.body(str(score), t.GOLD if dirty else "#f1e6d8", 15)
+        value = w.body(str(score), t.GOLD if dirty else t.SHEET_TEXT, 15)
         value.setStyleSheet(value.styleSheet() + "font-weight:700;")
         value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         value.setFixedWidth(34)
@@ -1017,7 +1019,7 @@ def _fact(label: str, value: str, accent: str) -> QWidget:
     row.setContentsMargins(0, 0, 0, 0)
     row.setSpacing(5)
     row.addWidget(w.body(label, accent, 13))
-    strong = w.body(value, "#f1e6d8", 13)
+    strong = w.body(value, t.SHEET_TEXT, 13)
     strong.setStyleSheet(strong.styleSheet() + "font-weight:700;")
     row.addWidget(strong)
     return holder

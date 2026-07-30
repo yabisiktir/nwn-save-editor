@@ -43,9 +43,7 @@ class SpellbookScreen(QWidget):
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QScrollArea.Shape.NoFrame)
-        self._scroll.setStyleSheet(
-            "QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS
-        )
+        self._scroll.setStyleSheet(w.scroll_area_qss())
         outer.addWidget(self._scroll, 1)
         self.refresh()
 
@@ -187,7 +185,7 @@ class SpellbookScreen(QWidget):
         search = QLineEdit()
         search.setPlaceholderText("Filter by name or id…")
         search.setText(self._filter)
-        search.setStyleSheet(_INPUT_QSS)
+        search.setStyleSheet(_input_qss())
         rows: list[tuple[str, QWidget]] = []
         search.textChanged.connect(
             lambda text, r=rows: self._apply_filter(text, r)
@@ -273,12 +271,14 @@ class SpellbookScreen(QWidget):
         self._window.notify_changed()
 
 
-_INPUT_QSS = (
-    f"QLineEdit{{background:#1e1713;border:1px solid {t.hairline(0.18)};"
-    f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:12px;"
-    f"padding:5px 8px;}}"
-    f"QLineEdit:focus{{border-color:{t.gold_border(0.5)};}}"
-)
+def _input_qss() -> str:
+    """The search field's chrome, rebuilt per call so it follows the theme."""
+    return (
+        f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
+        f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:12px;"
+        f"padding:5px 8px;}}"
+        f"QLineEdit:focus{{border-color:{t.gold_border(0.5)};}}"
+    )
 
 
 def _confirm_prc(parent, class_name: str) -> bool:

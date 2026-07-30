@@ -47,6 +47,20 @@ _SAVES_LIST_MAX_H = 196
 _UNSET = object()
 
 
+def _save_label_text(save: SaveGame | None) -> str:
+    if save is None:
+        return "No save open"
+    return f"{save.name}  —  {save.location or 'no location'}"
+
+
+def _saved_theme(controller) -> str:
+    """The editor's remembered light/dark choice, defaulting to dark."""
+    try:
+        return controller._settings().save_editor_theme
+    except Exception:
+        return "dark"
+
+
 def _icon_source(controller):
     """The item-icon source, or ``None``.
 
@@ -100,11 +114,30 @@ class SaveEditorWindow(QMainWindow):
         self._prop_tables = _UNSET  # ItemPropertyTables | None, built lazily
         self._look_tables = _UNSET  # LookTables | None, built lazily
         self._icons = _icon_source(controller)
+        # Set the theme first: everything below reads token colours as it builds.
+        t.set_theme(_saved_theme(controller))
+
+        self._build_ui()
+        if self._saves:
+            self._select_save(self._saves[0])
+        self._set_section("character")
+        self._sync_edit_state()
+
+    def _build_ui(self) -> None:
+        """Build the whole window from the current palette.
+
+        Called again when the theme changes: every widget bakes its token colours
+        into a stylesheet as it is constructed, so re-setting a few stylesheets
+        would leave buttons and labels wearing the old palette.
+        """
+        self._nav_rows.clear()
+        self._save_rows.clear()
+        self._screens.clear()
 
         self.setStyleSheet(f"QMainWindow{{background:{t.APP_BG};}}")
         root = QWidget()
         root.setStyleSheet(f"background:{t.APP_BG};")
-        self.setCentralWidget(root)
+        self.setCentralWidget(root)  # replaces and deletes any previous central widget
         outer = QVBoxLayout(root)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
@@ -120,16 +153,15 @@ class SaveEditorWindow(QMainWindow):
 
         from vaultkeeper.ui.save_editor.ledger import ChangeLedger
 
+        ledger = getattr(self, "_ledger", None)
+        if ledger is not None:
+            ledger.setParent(None)
+            ledger.deleteLater()
         self._ledger = ChangeLedger(self)
-
-        if self._saves:
-            self._select_save(self._saves[0])
-        self._set_section("character")
-        self._sync_edit_state()
 
     # -- toolbar ---------------------------------------------------------- #
     def _build_toolbar(self) -> QWidget:
-        bar = QWidget()
+        bar = self._toolbar = QWidget()
         bar.setFixedHeight(t.TOOLBAR_H)
         bar.setStyleSheet(
             f"background:{t.SURFACE};border-bottom:1px solid {t.hairline(0.08)};"
@@ -138,7 +170,7 @@ class SaveEditorWindow(QMainWindow):
         layout.setContentsMargins(20, 0, 20, 0)
         layout.setSpacing(12)
 
-        wordmark = QLabel("VAULTKEEPER")
+        wordmark = self._wordmark = QLabel("VAULTKEEPER")
         wordmark.setStyleSheet(
             f"font-family:{t.DISPLAY_FAMILY};font-size:15px;font-weight:700;"
             f"letter-spacing:0.04em;color:{t.GOLD};background:transparent;"
@@ -146,7 +178,9 @@ class SaveEditorWindow(QMainWindow):
         layout.addWidget(wordmark)
         layout.addWidget(w.vline())
 
-        self._save_label = w.body("No save open", t.TEXT_2, 12.5)
+        # Built fresh on every theme rebuild, so seed it from the current save
+        # rather than leaving a rebuilt toolbar claiming nothing is open.
+        self._save_label = w.body(_save_label_text(self._current), t.TEXT_2, 12.5)
         self._save_label.setWordWrap(False)
         layout.addWidget(self._save_label)
         layout.addStretch(1)
@@ -171,6 +205,12 @@ class SaveEditorWindow(QMainWindow):
         self._undo_btn.setToolTip("Undo the last staged change")
         self._redo_btn = w.ghost_button("Redo")
         self._redo_btn.setToolTip("Redo an undone change")
+        self._theme_toggle = w.SegmentedControl((("dark", "Dark"), ("light", "Light")))
+        self._theme_toggle.set_value(t.active_theme())
+        self._theme_toggle.setToolTip("The editor's colour theme")
+        self._theme_toggle.changed.connect(lambda _: self._set_theme(self._theme_toggle.value()))
+        layout.addWidget(self._theme_toggle)
+
         self._undo_btn.clicked.connect(self._undo)
         self._redo_btn.clicked.connect(self._redo)
         for button in (self._undo_btn, self._redo_btn):
@@ -191,7 +231,7 @@ class SaveEditorWindow(QMainWindow):
 
     # -- sidebar ---------------------------------------------------------- #
     def _build_sidebar(self) -> QWidget:
-        side = QWidget()
+        side = self._sidebar = QWidget()
         side.setFixedWidth(t.SIDEBAR_W)
         side.setStyleSheet(
             f"background:{t.SIDEBAR_BG};border-right:1px solid {t.hairline(0.08)};"
@@ -214,9 +254,7 @@ class SaveEditorWindow(QMainWindow):
         saves_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         saves_scroll.setMaximumHeight(_SAVES_LIST_MAX_H)
         saves_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        saves_scroll.setStyleSheet(
-            "QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS
-        )
+        saves_scroll.setStyleSheet(w.scroll_area_qss())
         saves_scroll.setWidget(saves_holder)
         layout.addWidget(saves_scroll)
         for save in self._saves:
@@ -422,7 +460,7 @@ class SaveEditorWindow(QMainWindow):
             return False
         self._current = save
         self._session = None
-        self._save_label.setText(f"{save.name}  —  {save.location or 'no location'}")
+        self._save_label.setText(_save_label_text(save))
         self._sync_save_rows()
         self._refresh_pending()
         # Screens are built once, before any save is selected, so they must be
@@ -502,6 +540,43 @@ class SaveEditorWindow(QMainWindow):
         from vaultkeeper.ui.save_editor.guide import EditorGuideDialog
 
         EditorGuideDialog(self).exec()
+
+    def _set_theme(self, name: str) -> None:
+        """Switch the editor's palette and rebuild the window in it.
+
+        Widgets bake token colours into their stylesheets when they are built, so
+        the whole shell is reconstructed rather than restyled. Per-screen selection
+        is not preserved — a theme change is rare, and rebuilding is far safer than
+        chasing every baked-in colour.
+        """
+        if name == t.active_theme():
+            return
+        t.set_theme(name)
+        if self._controller is not None and hasattr(self._controller, "set_save_editor_theme"):
+            self._controller.set_save_editor_theme(name)
+
+        section = next(
+            (key for key, row in self._nav_rows.items() if row.isChecked()), "character"
+        )
+        rule_mode = self._rule_mode.value()
+        editing = self._editing
+
+        self._build_ui()
+
+        self._rule_mode.set_value(rule_mode)
+        self._theme_toggle.set_value(name)
+        # Restore the gate without re-running _set_edit_mode, which would offer to
+        # discard the very changes the user is still working on.
+        self._edit_toggle.blockSignals(True)
+        self._edit_toggle.setChecked(editing)
+        self._edit_toggle.setText("Editing ✓" if editing else "Edit")
+        self._edit_toggle.blockSignals(False)
+        self._editing = editing
+
+        self._sync_save_rows()
+        self._set_section(section)
+        self._refresh_pending()
+        self._refresh_screens()
 
     def _toggle_ledger(self) -> None:
         self._ledger.toggle()
@@ -771,6 +846,6 @@ def scrollable(inner: QWidget) -> QScrollArea:
     area = QScrollArea()
     area.setWidgetResizable(True)
     area.setFrameShape(QScrollArea.Shape.NoFrame)
-    area.setStyleSheet(f"QScrollArea{{background:{t.APP_BG};border:none;}}" + w.SCROLLBAR_QSS)
+    area.setStyleSheet(w.scroll_area_qss(t.APP_BG))
     area.setWidget(inner)
     return area
