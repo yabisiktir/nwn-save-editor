@@ -961,3 +961,16 @@ def test_discarding_the_removal_puts_the_entry_back_under_an_earlier_edit(tmp_pa
 
     new_save = editor.save_as(editor._save.folder.parent / "out")
     assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [1, 2, 4242]
+
+
+def test_two_removals_walk_an_earlier_edit_all_the_way_down(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.set_raw_field("module.ifo", _feat_path(2), 4242)
+    editor.remove_raw_struct("module.ifo", _FEATS, 0)  # 4242 -> [1]
+    editor.remove_raw_struct("module.ifo", _FEATS, 0)  # 4242 -> [0]
+    change = next(c for c in editor.pending_changes() if c.summary == "9000→4242")
+    assert change.key == ("module.ifo", _feat_path(0))
+    assert editor.discard_change((change.kind, change.key)), "still reachable two hops on"
+
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [9000]
