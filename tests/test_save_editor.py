@@ -913,17 +913,6 @@ def test_undo_of_a_removal_restores_the_entry_and_the_edit(tmp_path):
     assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [1, 2, 4242]
 
 
-def test_discarding_the_add_leaves_the_rest_of_the_resource_alone(tmp_path):
-    editor = SaveEditor(_make_char_save(tmp_path))
-    editor.set_raw_field("module.ifo", _feat_path(0), 55)
-    editor.add_raw_struct("module.ifo", _FEATS, source_index=0)
-    add = next(c for c in editor.pending_changes() if "add entry" in c.summary)
-    assert editor.discard_change(("raw-add", add.key[3]))
-
-    new_save = editor.save_as(editor._save.folder.parent / "out")
-    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [55, 2, 9000]
-
-
 def test_a_raw_edit_to_an_area_git_is_actually_written(tmp_path):
     """The raw screen browses every resource, so its edits have to reach the file."""
     save = _make_save(tmp_path, _git_with_store(_store_struct()))
@@ -936,3 +925,39 @@ def test_a_raw_edit_to_an_area_git_is_actually_written(tmp_path):
     res = reader.find_resource(new_save.sav_path, "area1", res_type=2023)
     git = read_gff(reader.read_resource_bytes(new_save.sav_path, res))
     assert len(git.root.fields["StoreList"].value.structs) == 2
+
+
+def test_discarding_an_edit_staged_before_a_removal_drops_only_that_edit(tmp_path):
+    """The removal moved the edit's ledger key; discarding must still find it."""
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.set_raw_field("module.ifo", _feat_path(2), 4242)
+    editor.remove_raw_struct("module.ifo", _FEATS, 0)
+    change = next(c for c in editor.pending_changes() if c.summary == "9000→4242")
+    assert editor.discard_change((change.kind, change.key))
+
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    # the field edit is gone; the removal it was staged before is not
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [2, 9000]
+
+
+def test_a_staged_add_can_be_discarded_from_the_ledger(tmp_path):
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.set_raw_field("module.ifo", _feat_path(0), 55)
+    editor.add_raw_struct("module.ifo", _FEATS, source_index=0)
+    add = next(c for c in editor.pending_changes() if "add entry" in c.summary)
+    assert editor.discard_change((add.kind, add.key)), "the ledger's own key"
+
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [55, 2, 9000]
+
+
+def test_discarding_the_removal_puts_the_entry_back_under_an_earlier_edit(tmp_path):
+    """The other direction: drop the removal, and the edit lands where it was made."""
+    editor = SaveEditor(_make_char_save(tmp_path))
+    editor.set_raw_field("module.ifo", _feat_path(2), 4242)
+    editor.remove_raw_struct("module.ifo", _FEATS, 0)
+    removal = next(c for c in editor.pending_changes() if "remove entry" in c.summary)
+    assert editor.discard_change((removal.kind, removal.key))
+
+    new_save = editor.save_as(editor._save.folder.parent / "out")
+    assert [f.fields["Feat"].value for f in _raw_feats(new_save.sav_path)] == [1, 2, 4242]

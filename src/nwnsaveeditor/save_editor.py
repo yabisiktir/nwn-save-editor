@@ -236,6 +236,30 @@ def _shift_path(path: tuple, list_path: tuple, removed: int) -> tuple | None:
     return path[:depth - 1] + ((label, index - 1),) + path[depth:]
 
 
+def _unshift_path(path: tuple, list_path: tuple, removed: int) -> tuple:
+    """:func:`_shift_path` backwards — the path this one was renumbered *from*."""
+    depth = len(list_path)
+    if len(path) < depth:
+        return path
+    label, index = path[depth - 1]
+    if path[:depth - 1] != list_path[:depth - 1] or label != list_path[depth - 1][0]:
+        return path
+    if index is None or index < removed:
+        return path
+    return path[:depth - 1] + ((label, index + 1),) + path[depth:]
+
+
+def _identity(change: PendingChange | None) -> tuple | None:
+    """What makes a staged change *the same* change across a replay.
+
+    Its key and label move when a list removal renumbers entries (see
+    :meth:`SaveEditor._shift_raw_paths`), and that move must not read as "this
+    command altered the change" — otherwise discarding a field edit would discard
+    the removal that shifted it too.
+    """
+    return None if change is None else (change.kind, change.summary)
+
+
 def _repointed(change: PendingChange, key: tuple) -> PendingChange:
     """A copy of ``change`` re-keyed to a shifted path, its label following along."""
     where, old = change.where, _render_raw_path(change.key[1])
@@ -312,6 +336,18 @@ class _Command:
     #: edits sharing a coalesce key collapse into one undo step, so dragging a
     #: stepper does not become twenty of them.
     coalesce: tuple | None = None
+
+
+def _removal(command: _Command) -> tuple[str, tuple, int] | None:
+    """``(target, list path, index)`` if ``command`` is a raw list removal.
+
+    Read off the recorded call: ``remove_raw_struct`` takes those three
+    positional-only, so a recorded removal is always in exactly this shape.
+    """
+    if command.method != "remove_raw_struct":
+        return None
+    target, path, index = command.args
+    return target, tuple(path), index
 
 
 def _records(coalesce=None):
@@ -483,19 +519,45 @@ class SaveEditor:
         One incremental replay: apply the log a command at a time and note where
         the entry at ``key`` appears or changes. Editing a field twice produces two
         commands but one change, and discarding it has to drop both.
+
+        A raw list removal renumbers entries, so the change's key *moves* partway
+        through the log — hence the per-step key from :meth:`_watched_keys`, and
+        comparing identities rather than whole entries. Without either, an edit
+        staged before a removal would look untouched and the removal would be
+        dropped in its place.
         """
+        watched = self._watched_keys(key)
         found: list[_Command] = []
         self._recording = False
         try:
             self._reset()
-            for command in self._log:
-                before = self._changes.get(key)
+            for step, command in enumerate(self._log):
+                before = _identity(self._changes.get(watched[step]))
                 getattr(self, command.method)(*command.args, **command.kwargs)
-                if self._changes.get(key) != before:
+                if _identity(self._changes.get(watched[step + 1])) != before:
                     found.append(command)
         finally:
             self._recording = True
         return found
+
+    def _watched_keys(self, key: tuple) -> list[tuple]:
+        """The key the change now at ``key`` was filed under before each command.
+
+        Read straight off the log: a removal command carries the list and index it
+        deleted, which is all :func:`_unshift_path` needs to walk a key backwards.
+        """
+        keys = [key]
+        for command in reversed(self._log):
+            current = keys[-1]
+            removal = _removal(command)
+            if removal is not None and current[0] == "raw" and current[1][0] == removal[0]:
+                change_key = current[1]
+                current = ("raw", (
+                    change_key[0], _unshift_path(change_key[1], removal[1], removal[2]),
+                ) + tuple(change_key[2:]))
+            keys.append(current)
+        keys.reverse()
+        return keys
 
     def _replay(self) -> None:
         """Rebuild the staged state from the log, starting clean."""
@@ -1484,15 +1546,17 @@ class SaveEditor:
 
         self._mark_raw_dirty(target)
         self._add_seq += 1
-        self._changes[("raw-add", self._add_seq)] = PendingChange(
-            kind="raw", key=(target, tuple(path), "add", self._add_seq),
-            where=where or f"{target}: {_render_raw_path(path)}",
-            summary=f"add entry [{index}] — {how}",
+        self._stage_raw(
+            (target, tuple(path), "add", self._add_seq), where, f"add entry [{index}] — {how}"
         )
         return index
 
+    # ``target``/``path``/``index`` are positional-only so the recorded command is
+    # always in that shape — :meth:`_watched_keys` reads the removal back off it.
     @_records()
-    def remove_raw_struct(self, target: str, path: tuple, index: int, *, where: str = "") -> None:
+    def remove_raw_struct(
+        self, target: str, path: tuple, index: int, /, *, where: str = ""
+    ) -> None:
         """Remove entry ``index`` from the GFF list at ``path``."""
         entries = self._raw_list(target, path).structs
         if not 0 <= index < len(entries):
@@ -1506,10 +1570,16 @@ class SaveEditor:
         self._shift_raw_paths(target, tuple(path), index)
         self._mark_raw_dirty(target)
         self._add_seq += 1
-        self._changes[("raw-remove", self._add_seq)] = PendingChange(
-            kind="raw", key=(target, tuple(path), "remove", self._add_seq),
-            where=where or f"{target}: {_render_raw_path(path)}",
-            summary=f"remove entry [{index}] of {len(entries) + 1}",
+        self._stage_raw(
+            (target, tuple(path), "remove", self._add_seq), where,
+            f"remove entry [{index}] of {len(entries) + 1}",
+        )
+
+    def _stage_raw(self, key: tuple, where: str, summary: str) -> None:
+        """Stage a structural raw change under the ledger's ``(kind, key)`` key."""
+        self._changes[("raw", key)] = PendingChange(
+            kind="raw", key=key,
+            where=where or f"{key[0]}: {_render_raw_path(key[1])}", summary=summary,
         )
 
     def _raw_list(self, target: str, path: tuple) -> GffList:
@@ -1542,14 +1612,14 @@ class SaveEditor:
 
         changes: dict[tuple[str, tuple], PendingChange] = {}
         for key, change in self._changes.items():
-            if key[0] not in ("raw", "raw-add", "raw-remove") or change.key[0] != target:
+            if key[0] != "raw" or change.key[0] != target:
                 changes[key] = change
                 continue
             shifted = _shift_path(change.key[1], list_path, removed)
             if shifted is None:
                 continue  # what it named went away with the entry
             new_key = (target, shifted) + tuple(change.key[2:])
-            changes[("raw", new_key) if key[0] == "raw" else key] = _repointed(change, new_key)
+            changes[("raw", new_key)] = _repointed(change, new_key)
         self._changes = changes
 
     # -- write ------------------------------------------------------------ #
