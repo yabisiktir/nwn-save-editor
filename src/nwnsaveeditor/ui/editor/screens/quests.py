@@ -46,9 +46,12 @@ class QuestsScreen(QWidget):
         outer.setSpacing(14)
         outer.addWidget(w.heading("Quests & World State"))
 
-        self._tabs = w.TabStrip((("variables", "Variables"), ("journal", "Journal")))
-        self._tabs.changed.connect(lambda _: self._show_tab())
-        outer.addWidget(self._tabs)
+        outer.addWidget(w.body(
+            "A save carries the module's persistent script state but not the quest "
+            "journal — there is no .jrl resource in a .sav, so journal entries can "
+            "only be read in-game.",
+            t.TEXT_3, 11.5,
+        ))
 
         self._pages = QStackedWidget()
         self._pages.setStyleSheet("background:transparent;")
@@ -58,7 +61,6 @@ class QuestsScreen(QWidget):
         self._variables_layout.setContentsMargins(0, 0, 0, 0)
         self._variables_layout.setSpacing(10)
         self._pages.addWidget(self._variables_page)
-        self._pages.addWidget(self._journal_page())
         outer.addWidget(self._pages, 1)
 
         self.refresh()
@@ -146,29 +148,9 @@ class QuestsScreen(QWidget):
             line.addWidget(edit)
         return row
 
-    def _journal_page(self) -> QWidget:
-        page = QWidget()
-        page.setStyleSheet("background:transparent;")
-        column = QVBoxLayout(page)
-        column.setContentsMargins(0, 10, 0, 0)
-        column.setSpacing(10)
-        column.addWidget(w.body(
-            "A save game does not carry the quest journal.", t.TEXT, 13
-        ))
-        column.addWidget(w.body(
-            "A .sav holds the areas (are/git), the faction table, module.ifo and an "
-            "embedded database — there is no .jrl resource in any save examined for "
-            "this project, so there are no journal entries here to show or edit. "
-            "Quest progress that a module tracks itself appears under Variables; "
-            "the journal text lives in the module or campaign, not in the save.",
-            t.TEXT_2, 12.5,
-        ))
-        column.addStretch(1)
-        return page
-
     # -- actions ------------------------------------------------------------ #
     def _show_tab(self) -> None:
-        self._pages.setCurrentIndex(0 if self._tabs.value() == "variables" else 1)
+        self._pages.setCurrentIndex(0)
 
     def _set_filter(self, text: str) -> None:
         self._filter = text

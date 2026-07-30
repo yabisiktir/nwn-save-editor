@@ -250,10 +250,10 @@ class SpellbookScreen(QWidget):
 
         if not chosen.is_base and not _confirm_prc(self, chosen.class_name):
             return
-        dialog = IdPickerDialog(
+        dialog = w.style_dialog(IdPickerDialog(
             f"Add a Spell — {chosen.class_name} level {spell_list.level}",
             default_reference().all_spell_ids(), value_header="Spell", parent=self,
-        )
+        ))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         spell_id = dialog.selected_id()

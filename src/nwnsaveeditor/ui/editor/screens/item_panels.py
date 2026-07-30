@@ -104,14 +104,29 @@ class PlayerItemPanel(_PanelBase):
             self._body.addWidget(w.body("This item has no magical properties.", t.TEXT_3, 12))
         pending = screen.pending_property_keys()
         added = screen.pending_added_property_keys()
+        # PRC stacks identical properties (a skin can carry the same immunity a
+        # dozen times). Showing "14x" reads as deliberate; fourteen identical rows
+        # read as a decoding bug.
+        seen: dict[str, int] = {}
         for prop in item.properties:
+            label = describe_property(prop.prop, None)
+            seen[label] = seen.get(label, 0) + 1
+        shown: set[str] = set()
+        for prop in item.properties:
+            label = describe_property(prop.prop, None)
             key = (tuple(item.path), prop.index)
-            self._body.addWidget(
-                self._property_row(prop, dirty=key in pending, is_new=key in added)
-            )
+            dirty, is_new = key in pending, key in added
+            if seen[label] > 1 and not screen.editing and not (dirty or is_new):
+                if label in shown:
+                    continue  # already represented by its "Nx" row
+                shown.add(label)
+            self._body.addWidget(self._property_row(
+                prop, dirty=dirty, is_new=is_new,
+                repeats=seen[label] if not (dirty or is_new) else 1,
+            ))
         self._body.addStretch(1)
 
-    def _property_row(self, prop, *, dirty: bool, is_new: bool) -> QWidget:
+    def _property_row(self, prop, *, dirty: bool, is_new: bool, repeats: int = 1) -> QWidget:
         row = QWidget()
         row.setStyleSheet(
             f"background:{t.gold_tint(0.12) if (dirty or is_new) else 'transparent'};"
@@ -125,10 +140,16 @@ class PlayerItemPanel(_PanelBase):
         line.setSpacing(8)
         if dirty or is_new:
             line.addWidget(w.status_dot())
-        text = w.body(
-            describe_property(prop.prop, None),
-            t.GOLD if (dirty or is_new) else t.TEXT, 12.5,
-        )
+        label = describe_property(prop.prop, None)
+        if repeats > 1:
+            label = f"{repeats}×  {label}"
+        text = w.body(label, t.GOLD if (dirty or is_new) else t.TEXT, 12.5)
+        if repeats > 1:
+            text.setToolTip(
+                f"This item carries {repeats} identical copies of this property. "
+                "Edit or remove one by turning on Edit — each copy is listed "
+                "separately then."
+            )
         line.addWidget(text, 1)
         column.addLayout(line)
 
@@ -159,7 +180,9 @@ class PlayerItemPanel(_PanelBase):
                 "reopen the editor.",
             )
             return
-        dialog = PropertyEditorDialog(prop.prop, tables, prop.prop.param1, parent=self)
+        dialog = w.style_dialog(
+            PropertyEditorDialog(prop.prop, tables, prop.prop.param1, parent=self)
+        )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         edits = dialog.result()
@@ -186,7 +209,7 @@ class PlayerItemPanel(_PanelBase):
     def _add_property(self) -> None:
         from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
 
-        dialog = AddPropertyDialog(parent=self)
+        dialog = w.style_dialog(AddPropertyDialog(parent=self))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         values = dialog.values()

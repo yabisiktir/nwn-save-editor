@@ -354,7 +354,7 @@ class AreaScreen(QWidget):
         if not role or role[0] != "store":
             return
         _kind, index, store = role
-        dialog = StoreEditDialog(store, self)
+        dialog = w.style_dialog(StoreEditDialog(store, self))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         try:

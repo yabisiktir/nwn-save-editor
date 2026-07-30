@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QHBoxLayout,
     QLineEdit,
@@ -27,6 +28,14 @@ from vaultkeeper.ui.save_editor import widgets as w
 _ROLE = Qt.ItemDataRole.UserRole
 #: Nodes are built lazily; a save's tree is far too large to expand eagerly.
 _LAZY = "…"
+
+_COMBO_QSS = (
+    f"QComboBox{{background:#1e1713;border:1px solid {t.hairline(0.22)};"
+    f"border-radius:5px;color:{t.TEXT};font-family:{t.MONO_FAMILY};"
+    f"font-size:12px;padding:5px 8px;}}"
+    f"QComboBox QAbstractItemView{{background:#1e1713;color:{t.TEXT};"
+    f"selection-background-color:{t.gold_tint(0.5)};selection-color:{t.GOLD};}}"
+)
 
 _TREE_QSS = f"""
 QTreeWidget {{
@@ -71,13 +80,15 @@ class RawScreen(QWidget):
         picker = QHBoxLayout()
         picker.setSpacing(8)
         picker.addWidget(w.cap_label("Resource"))
-        self._target_buttons = []
+        self._target_box = QComboBox()
+        self._target_box.setStyleSheet(_COMBO_QSS)
+        self._target_box.setMinimumWidth(260)
         for target in self._targets():
-            button = w.pill_toggle(target)
-            button.setChecked(target == self._target)
-            button.clicked.connect(lambda _=False, x=target: self._choose_target(x))
-            self._target_buttons.append((target, button))
-            picker.addWidget(button)
+            self._target_box.addItem(target)
+        self._target_box.currentTextChanged.connect(self._choose_target)
+        picker.addWidget(self._target_box)
+        self._resource_count = w.body("", t.TEXT_3, 11.5)
+        picker.addWidget(self._resource_count)
         picker.addStretch(1)
         outer.addLayout(picker)
 
@@ -114,14 +125,33 @@ class RawScreen(QWidget):
         self.refresh()
 
     def _targets(self) -> list[str]:
-        from vaultkeeper.game.save_editor import SaveEditor
+        session = self._window._session
+        if session is None:
+            try:
+                session = self._window.session()
+            except Exception:
+                from vaultkeeper.game.save_editor import SaveEditor
 
-        return list(SaveEditor.RAW_TARGETS)
+                return list(SaveEditor.RAW_TARGETS)
+        try:
+            return session.raw_targets()
+        except Exception:
+            return []
 
     # -- rebuilding -------------------------------------------------------- #
     def refresh(self) -> None:
-        for target, button in self._target_buttons:
-            button.setChecked(target == self._target)
+        targets = self._targets()
+        if [self._target_box.itemText(i) for i in range(self._target_box.count())] != targets:
+            self._target_box.blockSignals(True)
+            self._target_box.clear()
+            self._target_box.addItems(targets)
+            self._target_box.blockSignals(False)
+        if self._target not in targets and targets:
+            self._target = targets[0]
+        self._target_box.blockSignals(True)
+        self._target_box.setCurrentText(self._target)
+        self._target_box.blockSignals(False)
+        self._resource_count.setText(f"{len(targets)} resource(s) in this save")
         self._tree.clear()
         self._path_label.setText("")
         self._edit_button.setEnabled(False)

@@ -441,3 +441,45 @@ def apply_tree_palette(tree) -> None:
     palette.setColor(QPalette.ColorRole.HighlightedText, QColor(t.GOLD))
     palette.setColor(QPalette.ColorRole.Base, QColor(t.INSET))
     tree.setPalette(palette)
+
+
+#: Styling for the plain Qt dialogs the editor reuses (store editor, id picker,
+#: property editors). They were written for the app's own palette, so inside this
+#: deliberately dark window their inputs and tables rendered dark-on-dark.
+DIALOG_QSS = f"""
+QDialog {{ background:{t.APP_BG}; }}
+QLabel, QCheckBox, QRadioButton, QGroupBox {{ color:{t.TEXT}; }}
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit, QTextEdit {{
+    background:#1e1713; color:{t.TEXT};
+    border:1px solid {t.hairline(0.22)}; border-radius:5px; padding:4px 6px;
+    selection-background-color:{t.gold_tint(0.5)}; selection-color:{t.GOLD};
+}}
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{ border-color:{t.gold_border(0.6)}; }}
+QComboBox QAbstractItemView {{
+    background:#1e1713; color:{t.TEXT};
+    selection-background-color:{t.gold_tint(0.5)}; selection-color:{t.GOLD};
+    border:1px solid {t.hairline(0.22)};
+}}
+QAbstractItemView, QTableView, QTreeView, QListView {{
+    background:{t.INSET}; color:{t.TEXT}; alternate-background-color:#191310;
+    selection-background-color:{t.gold_tint(0.5)}; selection-color:{t.GOLD};
+    border:1px solid {t.hairline(0.12)}; border-radius:6px;
+}}
+QHeaderView::section {{
+    background:{t.SURFACE}; color:{t.TEXT_2}; border:none;
+    border-bottom:1px solid {t.hairline(0.12)}; padding:5px 8px; font-weight:600;
+}}
+QPushButton {{
+    background:transparent; color:{t.TEXT};
+    border:1px solid {t.hairline(0.22)}; border-radius:6px; padding:5px 14px;
+}}
+QPushButton:hover {{ background:{t.hairline(0.08)}; }}
+QPushButton:default {{ background:{t.GOLD}; color:{t.GOLD_ON}; border:none; }}
+QPushButton:disabled {{ color:{t.TEXT_3}; border-color:{t.hairline(0.1)}; }}
+"""
+
+
+def style_dialog(dialog):
+    """Give a reused app dialog the editor's dark styling, then return it."""
+    dialog.setStyleSheet(DIALOG_QSS + SCROLLBAR_QSS)
+    return dialog

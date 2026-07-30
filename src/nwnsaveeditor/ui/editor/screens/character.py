@@ -41,6 +41,7 @@ from vaultkeeper.ui.save_editor import widgets as w
 #: The character screen's tabs, in the prototype's order.
 TABS: tuple[tuple[str, str], ...] = (
     ("abilities", "Abilities & Combat"),
+    ("details", "Details"),
     ("skills", "Skills"),
     ("feats", "Feats"),
     ("effects", "Effects"),
@@ -395,6 +396,147 @@ class CharacterScreen(QWidget):
         return holder
 
     # -- Skills ------------------------------------------------------------ #
+    def _build_details(self, layout: QVBoxLayout, info) -> None:
+        """Every editable field on the character record.
+
+        The sheet card carries the ability scores; everything else the record
+        stores — gold, XP, alignment, age, current HP, the base saves, the name and
+        the character's look — lives here, so no editable field is unreachable.
+        """
+        layout.setSpacing(12)
+        try:
+            fields = self._window.session().player_fields()
+        except Exception:
+            fields = []
+        if not fields:
+            layout.addWidget(w.body("This save has no readable character record.", t.TEXT_2))
+            layout.addStretch(1)
+            return
+
+        pending = self._pending_char_fields()
+        groups: list[tuple[str, tuple[str, ...]]] = [
+            ("Progress", ("Gold", "Experience")),
+            ("Alignment & age", ("GoodEvil", "LawfulChaotic", "Age")),
+            ("Health & saves", (
+                "CurrentHitPoints", "FortSaveThrow", "RefSaveThrow", "WillSaveThrow",
+            )),
+            ("Identity", ("FirstName", "LastName", "Appearance_Type", "Portrait")),
+        ]
+        by_name = {f.field: f for f in fields}
+        placed: set[str] = set()
+        for title, names in groups:
+            present = [by_name[n] for n in names if n in by_name]
+            if not present:
+                continue
+            layout.addWidget(w.cap_label(title))
+            panel = w.Panel(padding=0)
+            panel.body_layout().setSpacing(0)
+            for field in present:
+                panel.body_layout().addWidget(self._detail_row(field, field.field in pending))
+                placed.add(field.field)
+            layout.addWidget(panel)
+
+        rest = [f for f in fields if f.field not in placed]
+        if rest:
+            layout.addWidget(w.cap_label("Other"))
+            panel = w.Panel(padding=0)
+            panel.body_layout().setSpacing(0)
+            for field in rest:
+                panel.body_layout().addWidget(self._detail_row(field, field.field in pending))
+            layout.addWidget(panel)
+
+        layout.addWidget(w.body(
+            "These are the values the save stores. The engine recomputes what it "
+            "derives from them — armour class, attack bonus, maximum hit points and "
+            "the final saving throws — when the save is loaded.",
+            t.TEXT_3, 11.5,
+        ))
+        layout.addStretch(1)
+
+    def _detail_row(self, field, dirty: bool) -> QWidget:
+        row = QWidget()
+        row.setStyleSheet(
+            f"background:{t.gold_tint(0.12) if dirty else 'transparent'};"
+            f"border-bottom:1px solid {t.hairline(0.06)};"
+        )
+        line = QHBoxLayout(row)
+        line.setContentsMargins(14, 8, 14, 8)
+        line.setSpacing(12)
+        if dirty:
+            line.addWidget(w.status_dot())
+        line.addWidget(w.body(field.display, t.GOLD if dirty else t.TEXT, 13), 1)
+
+        if not self._window.editing:
+            shown = self._shown_value(field)
+            label = w.body(str(shown), t.TEXT_2, 13)
+            label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            line.addWidget(label)
+            return row
+
+        if field.kind == "name":
+            edit = QLineEdit(str(field.value))
+            edit.setStyleSheet(_INPUT_QSS)
+            edit.setFixedWidth(220)
+            edit.editingFinished.connect(
+                lambda e=edit, f=field.field: self._set_name(f, e.text())
+            )
+            line.addWidget(edit)
+        elif field.kind in ("appearance", "resref"):
+            button = w.small_ghost(str(self._shown_value(field)))
+            button.clicked.connect(lambda _=False, f=field: self._pick_look(f))
+            line.addWidget(button)
+        else:
+            limits = self._limits(field.field, self._window.character_info())
+            box = QSpinBox()
+            box.setRange(
+                max(limits.minimum, field.minimum), min(limits.maximum, field.maximum)
+            )
+            box.setToolTip(limits.reason)
+            box.setValue(int(field.value))
+            box.setFixedWidth(120)
+            box.setStyleSheet(_INPUT_QSS)
+            box.valueChanged.connect(
+                lambda v, f=field.field: self._set_detail(f, v)
+            )
+            line.addWidget(box)
+        return row
+
+    def _shown_value(self, field):
+        if field.kind == "appearance":
+            return self._window.look_tables().appearance_name(int(field.value))
+        return field.value
+
+    def _set_detail(self, field: str, value: int) -> None:
+        self._window.session().set_character_field(field, value, where=field)
+        self._window.notify_changed()
+
+    def _pick_look(self, field) -> None:
+        from PySide6.QtWidgets import QDialog
+
+        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+
+        looks = self._window.look_tables()
+        if field.kind == "appearance":
+            options = looks.appearance_options()
+        else:
+            options = dict(enumerate(looks.portrait_resrefs()))
+        dialog = w.style_dialog(
+            IdPickerDialog(field.display, options, value_header=field.display, parent=self)
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        chosen = dialog.selected_id()
+        if chosen is None:
+            return
+        session = self._window.session()
+        if field.kind == "appearance":
+            session.set_character_field(field.field, int(chosen), where=field.display)
+        else:
+            session.set_character_resref(
+                field.field, looks.portrait_resrefs()[int(chosen)], where=field.display
+            )
+        self._window.notify_changed()
+
     def _build_skills(self, layout: QVBoxLayout, info) -> None:
         layout.setSpacing(10)
         try:
@@ -412,17 +554,47 @@ class CharacterScreen(QWidget):
         self._skill_filter.textChanged.connect(self._apply_skill_filter)
         layout.addWidget(self._skill_filter)
 
+        totals = {x.index: x for x in self._skill_totals(skills, info)}
+        header = QHBoxLayout()
+        header.setContentsMargins(14, 0, 14, 0)
+        header.addWidget(w.cap_label("Skill"), 1)
+        header.addWidget(w.cap_label("Breakdown"))
+        header.addSpacing(12)
+        header.addWidget(w.cap_label("Total"))
+        header.addSpacing(12)
+        header.addWidget(w.cap_label("Rank"))
+        layout.addLayout(header)
+
         panel = w.Panel(padding=0)
         panel.body_layout().setSpacing(0)
         self._skill_rows: list[tuple[str, QWidget]] = []
-        for skill in skills:
-            row = self._skill_row(skill)
+        # Skill order in the record is by id, which reads as random; sort by name.
+        for skill in sorted(skills, key=lambda s: s.name.lower()):
+            row = self._skill_row(skill, totals.get(skill.index))
             self._skill_rows.append((skill.name.lower(), row))
             panel.body_layout().addWidget(row)
         layout.addWidget(panel)
+        layout.addWidget(w.body(
+            "Total is rank + the skill's key ability modifier + bonuses from "
+            "equipped gear. Feat and spell effects are not included — the save "
+            "stores only ranks, and the rest is the engine's to recompute.",
+            t.TEXT_3, 11.5,
+        ))
         layout.addStretch(1)
 
-    def _skill_row(self, skill) -> QWidget:
+    def _skill_totals(self, skills, info) -> list:
+        from vaultkeeper.game import skill_totals
+
+        abilities = dict(getattr(info, "abilities", {}) or {})
+        try:
+            items = self._window.session().player_items()
+        except Exception:
+            items = []
+        return skill_totals.compute(
+            skills, abilities, items, self._window.game_root()
+        )
+
+    def _skill_row(self, skill, total=None) -> QWidget:
         pending = {c.key for c in self._pending() if c.kind == "skill"}
         row = QWidget()
         row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
@@ -432,6 +604,17 @@ class CharacterScreen(QWidget):
         if skill.index in pending:
             line.addWidget(w.status_dot())
         line.addWidget(w.body(skill.name, t.TEXT, 13), 1)
+        if total is not None:
+            breakdown = w.mono(total.breakdown, t.TEXT_3, 11)
+            line.addWidget(breakdown)
+            line.addSpacing(12)
+            shown = w.body(str(total.total), t.TEXT, 13)
+            shown.setFixedWidth(46)
+            shown.setStyleSheet(shown.styleSheet() + "font-weight:700;")
+            shown.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            shown.setToolTip("rank + key ability + gear")
+            line.addWidget(shown)
+            line.addSpacing(12)
 
         if self._window.editing:
             info = self._window.character_info()

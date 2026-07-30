@@ -90,6 +90,11 @@ _CHARACTER_FIELDS: tuple[tuple[str, str, int, int], ...] = (
     ("LawfulChaotic", "Lawful–Chaotic (100 = Lawful)", 0, 100),
     ("Age", "Age", 0, 100_000),
     ("CurrentHitPoints", "Current HP", 0, 32_000),
+    # The stored *base* saves. The engine adds ability modifiers and gear on top,
+    # so these are the sources, not the totals shown on the character sheet.
+    ("FortSaveThrow", "Base Fortitude save", -128, 127),
+    ("RefSaveThrow", "Base Reflex save", -128, 127),
+    ("WillSaveThrow", "Base Will save", -128, 127),
 )
 #: editable name fields (CExoLocString).
 _CHARACTER_NAMES: tuple[tuple[str, str], ...] = (
@@ -1218,8 +1223,25 @@ class SaveEditor:
             self._changes.pop(key, None)
 
     # -- raw GFF editing ---------------------------------------------------- #
-    #: which trees the Raw Data screen may browse and edit.
+    #: The two trees the friendly editors write. Everything else in the .sav is
+    #: browsable too (see :meth:`raw_targets`) but is not part of the edit path.
     RAW_TARGETS = ("module.ifo", "player.bic")
+
+    def raw_targets(self) -> list[str]:
+        """Every resource a save carries, as ``"name.ext"``, browsable raw.
+
+        Leto could open any component of a ``.sav``; so can this. The character's
+        own two trees come first because they are what almost every edit touches.
+        """
+        names = list(self.RAW_TARGETS)
+        try:
+            for res in self._reader.list_resources(self._save.sav_path):
+                name = f"{res.resref}.{res.extension}"
+                if name not in names:
+                    names.append(name)
+        except Exception:
+            pass
+        return names
 
     def raw_tree(self, target: str) -> Gff | None:
         """The decoded tree for a raw target, or ``None`` if it is unavailable."""
@@ -1227,7 +1249,27 @@ class SaveEditor:
             return self._module_tree()
         if target == "player.bic":
             return self._bic_tree()
+        if "." in target:
+            resref, _dot, ext = target.rpartition(".")
+            if ext == "git":
+                return self._area_tree(resref)
+            return self._read_resource_tree(resref, ext)
         return self._area_tree(target)
+
+    def _read_resource_tree(self, resref: str, extension: str) -> Gff | None:
+        """Decode any GFF resource in the ``.sav`` for read-only browsing.
+
+        Not cached alongside the edit trees: these are not part of the write path,
+        and holding 65 area trees in memory to look at one is not worth it.
+        """
+        try:
+            for res in self._reader.list_resources(self._save.sav_path):
+                if res.resref == resref and res.extension == extension:
+                    data = self._reader.read_resource_bytes(self._save.sav_path, res)
+                    return read_gff(data)
+        except Exception:
+            return None
+        return None
 
     @_records(lambda target, path, *_a, **_k: ("raw", target, tuple(path)))
     def set_raw_field(self, target: str, path: tuple, value, *, where: str = "") -> None:

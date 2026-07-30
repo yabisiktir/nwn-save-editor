@@ -108,6 +108,9 @@ def test_editing_a_store_stages_it_against_the_chosen_area(window, screen, monke
         def __init__(self, *a, **k):
             pass
 
+        def setStyleSheet(self, _qss):  # noqa: N802 - the editor themes its dialogs
+            pass
+
         def exec(self):
             return QDialog.DialogCode.Accepted
 
@@ -139,6 +142,9 @@ def test_a_store_that_cannot_be_edited_reports_instead_of_staging(
 
     class _Dialog:
         def __init__(self, *a, **k):
+            pass
+
+        def setStyleSheet(self, _qss):  # noqa: N802 - the editor themes its dialogs
             pass
 
         def exec(self):

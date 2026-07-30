@@ -45,9 +45,9 @@ def test_ability_modifier_matches_the_d_and_d_table(score, modifier):
 
 
 # -- structure ------------------------------------------------------------- #
-def test_the_screen_has_the_prototypes_five_tabs(screen):
+def test_the_screen_has_the_prototypes_tabs(screen):
     assert [key for key, _label in TABS] == [
-        "abilities", "skills", "feats", "effects", "biography",
+        "abilities", "details", "skills", "feats", "effects", "biography",
     ]
     assert len(screen._page_bodies) == len(TABS)
 
@@ -70,7 +70,7 @@ def test_tab_pages_scroll_rather_than_stretching_the_window(screen):
 
 # -- the edit gate --------------------------------------------------------- #
 def _ability_steppers(screen) -> list[QSpinBox]:
-    return screen._pages.widget(0).findChildren(QSpinBox)
+    return _page(screen, "abilities").findChildren(QSpinBox)
 
 
 def test_abilities_are_read_only_until_edit_mode_is_on(window, screen):
@@ -181,7 +181,7 @@ def test_effect_rows_describe_what_the_save_actually_stores(window, screen, monk
     }])
     screen.refresh()
     screen._tabs.set_value("effects")
-    text = _text_of(screen._pages.widget(3))
+    text = _text_of(_page(screen, "effects"))
     assert "EffectHolyTouch" in text
     assert "permanent" in text
     assert "type 13/18" in text
@@ -199,7 +199,7 @@ def test_effect_types_are_not_named_from_the_script_constants(screen, monkeypatc
         "spell": "", "caster_level": 0, "duration": 0.0,
     }])
     screen.refresh()
-    text = _text_of(screen._pages.widget(3)).lower()
+    text = _text_of(_page(screen, "effects")).lower()
     for wrong in ("deaf", "cutsceneghost", "cutscene ghost"):
         assert wrong not in text
 
@@ -240,7 +240,7 @@ def test_strict_mode_caps_the_skill_stepper_at_the_rank_limit(window, screen):
 
     info = window.character_info()
     cap = skill_rank_limit(getattr(info, "level", 0) or 0)
-    steppers = screen._pages.widget(1).findChildren(QSpinBox)
+    steppers = _page(screen, "skills").findChildren(QSpinBox)
     assert steppers, "edit mode should give skills steppers"
     assert all(box.maximum() == cap for box in steppers)
 
@@ -249,7 +249,7 @@ def test_free_mode_lifts_the_skill_cap(window, screen):
     window._edit_toggle.setChecked(True)
     window._rule_mode.set_value("free")
     screen.refresh()
-    steppers = screen._pages.widget(1).findChildren(QSpinBox)
+    steppers = _page(screen, "skills").findChildren(QSpinBox)
     assert steppers
     assert all(box.maximum() == 255 for box in steppers)
 
@@ -259,11 +259,11 @@ def test_switching_rule_mode_re_renders_the_screens(window, screen):
     window._edit_toggle.setChecked(True)
     window._rule_mode.set_value("strict")
     window._refresh_screens()
-    strict_max = [b.maximum() for b in screen._pages.widget(1).findChildren(QSpinBox)]
+    strict_max = [b.maximum() for b in _page(screen, "skills").findChildren(QSpinBox)]
 
     window._rule_mode.set_value("free")
     window._refresh_screens()
-    free_max = [b.maximum() for b in screen._pages.widget(1).findChildren(QSpinBox)]
+    free_max = [b.maximum() for b in _page(screen, "skills").findChildren(QSpinBox)]
     assert free_max != strict_max
 
 
@@ -276,3 +276,66 @@ def test_neither_mode_lets_an_ability_exceed_what_a_byte_holds(window, screen):
         steppers = _ability_steppers(screen)
         assert steppers
         assert all(box.maximum() <= 255 for box in steppers), mode
+
+
+def _page(screen, key):
+    """A tab's page by key — positional indices shift when a tab is added."""
+    return screen._pages.widget(screen._page_keys.index(key))
+
+
+# -- Details tab ------------------------------------------------------------ #
+def test_every_editable_character_field_is_reachable(window, screen):
+    """The read-only viewer had a Details group; losing it stranded gold, XP,
+    alignment, age, HP and the look with no editor anywhere."""
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    text = _text_of(_page(screen, "details"))
+    for field in window.session().player_fields():
+        assert field.display in text, f"{field.field} has no row in Details"
+
+
+def test_details_offers_an_editor_for_each_numeric_field(window, screen):
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    numeric = [f for f in window.session().player_fields() if f.kind == "int"]
+    boxes = _page(screen, "details").findChildren(QSpinBox)
+    assert len(boxes) == len(numeric)
+
+
+def test_details_is_read_only_until_edit_mode_is_on(window, screen):
+    assert not _page(screen, "details").findChildren(QSpinBox)
+
+
+def test_editing_a_numeric_detail_stages_it(window, screen):
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    field = next(f for f in window.session().player_fields() if f.kind == "int")
+    screen._set_detail(field.field, int(field.value) + 7)
+    changes = window.session().pending_changes()
+    assert [c.key for c in changes] == [field.field]
+
+
+def test_base_saves_are_editable_when_the_record_carries_them(window, screen):
+    """Leto exposes these; they are stored fields, not derived totals."""
+    fields = {f.field for f in window.session().player_fields()}
+    stored = {"FortSaveThrow", "RefSaveThrow", "WillSaveThrow"} & fields
+    if not stored:
+        pytest.skip("the fixture character stores no base saves")
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    text = _text_of(_page(screen, "details"))
+    assert "Base Fortitude save" in text
+
+
+# -- skills ------------------------------------------------------------------ #
+def test_skills_are_listed_alphabetically(window, screen):
+    screen.refresh()
+    names = [name for name, _row in screen._skill_rows]
+    assert names == sorted(names), "skill-id order reads as random"
+
+
+def test_skill_rows_show_a_total_not_just_a_rank(window, screen):
+    screen.refresh()
+    text = _text_of(_page(screen, "skills"))
+    assert "rank" in text.lower()
+    assert "key ability" in text.lower(), "the total's makeup must be stated"

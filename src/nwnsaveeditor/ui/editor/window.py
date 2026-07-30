@@ -98,6 +98,7 @@ class SaveEditorWindow(QMainWindow):
         self._char_cache = None  # CharacterInfo for _char_cache_for
         self._char_cache_for: Path | None = None
         self._prop_tables = _UNSET  # ItemPropertyTables | None, built lazily
+        self._look_tables = _UNSET  # LookTables | None, built lazily
         self._icons = _icon_source(controller)
 
         self.setStyleSheet(f"QMainWindow{{background:{t.APP_BG};}}")
@@ -340,6 +341,23 @@ class SaveEditorWindow(QMainWindow):
                 return resolved
         return name
 
+    def game_root(self):
+        """The configured game folder, or ``None`` — screens need it for 2DAs."""
+        return self._game_root()
+
+    def look_tables(self):
+        """appearance.2da / portraits.2da options, built once."""
+        from vaultkeeper.game.look_tables import LookTables
+
+        if self._look_tables is _UNSET:
+            user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
+            hak_dir = (user / "hak") if user is not None else None
+            try:
+                self._look_tables = LookTables.for_install(self._game_root(), hak_dir)
+            except Exception:
+                self._look_tables = None
+        return self._look_tables
+
     def _game_root(self):
         return getattr(getattr(self._controller, "ctx", None), "game_root", None)
 
@@ -481,9 +499,9 @@ class SaveEditorWindow(QMainWindow):
             self.notify_changed()
 
     def _show_guide(self) -> None:
-        from vaultkeeper.ui.dialogs.save_editor_help import SaveEditorHelpDialog
+        from vaultkeeper.ui.save_editor.guide import EditorGuideDialog
 
-        SaveEditorHelpDialog(self).exec()
+        EditorGuideDialog(self).exec()
 
     def _toggle_ledger(self) -> None:
         self._ledger.toggle()
