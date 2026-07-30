@@ -63,6 +63,12 @@ def body(text: str, color: str | None = None, size: float = 12.5) -> QLabel:
     """Ordinary UI copy. Wraps, because most body text in the design does."""
     label = QLabel(text)
     label.setWordWrap(True)
+    # A wrapping QLabel still reports a single-line sizeHint, so in a vertical
+    # layout it is given one line's height and paints over its neighbour. Layouts
+    # only consult heightForWidth when the size policy opts in.
+    policy = label.sizePolicy()
+    policy.setHeightForWidth(True)
+    label.setSizePolicy(policy)
     label.setStyleSheet(
         f"font-family:{t.UI_FAMILY};font-size:{size}px;"
         f"color:{color or t.TEXT};background:transparent;"
@@ -248,6 +254,24 @@ def vline() -> QFrame:
     line.setFixedWidth(1)
     line.setStyleSheet(f"background:{t.hairline(0.08)};border:none;")
     return line
+
+
+#: Scrollbar styling for the editor's scroll areas. Qt's default chrome is a bright
+#: native bar that reads as a bug against this dark surface.
+SCROLLBAR_QSS = (
+    f"QScrollBar:vertical{{background:transparent;width:9px;margin:0;}}"
+    f"QScrollBar::handle:vertical{{background:{t.hairline(0.14)};border-radius:4px;"
+    f"min-height:28px;}}"
+    f"QScrollBar::handle:vertical:hover{{background:{t.hairline(0.24)};}}"
+    f"QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{{height:0;}}"
+    f"QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{{background:transparent;}}"
+    f"QScrollBar:horizontal{{background:transparent;height:9px;margin:0;}}"
+    f"QScrollBar::handle:horizontal{{background:{t.hairline(0.14)};border-radius:4px;"
+    f"min-width:28px;}}"
+    f"QScrollBar::handle:horizontal:hover{{background:{t.hairline(0.24)};}}"
+    f"QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal{{width:0;}}"
+    f"QScrollBar::add-page:horizontal,QScrollBar::sub-page:horizontal{{background:transparent;}}"
+)
 
 
 # -- Small indicators ----------------------------------------------------- #

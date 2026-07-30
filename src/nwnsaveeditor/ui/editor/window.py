@@ -1,0 +1,548 @@
+"""The Save Game Editor's global shell — toolbar, sidebar, content, pending footer.
+
+This is the frame from ``docs/design_handoff_save_editor``; the screens that fill
+it live in :mod:`vaultkeeper.ui.save_editor.screens` and are added one at a time.
+Sections with no screen yet render the design's centred empty-state card.
+
+Editing is a *global gate*: with Edit off the window is a viewer — the pending
+footer is hidden and Save/Overwrite are inert. Nothing is written until the user
+commits, and committing goes through the same
+:class:`~vaultkeeper.game.save_editor.SaveEditor` the read-only viewer uses, so the
+staging, byte-verification and backup guarantees are unchanged.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QScrollArea,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
+
+from vaultkeeper.game.save_game import SaveGame, scan_save_games
+from vaultkeeper.ui.dialogs.character_viewer import tga_to_pixmap
+from vaultkeeper.ui.save_editor import tokens as t
+from vaultkeeper.ui.save_editor import widgets as w
+from vaultkeeper.ui.save_editor.sections import (
+    SECTION_BLURBS,
+    SECTIONS,
+    Section,
+    section_for_kind,
+)
+
+#: How tall the sidebar's save list may grow before it scrolls (~4 rows).
+_SAVES_LIST_MAX_H = 196
+
+
+def _base_name(name: str) -> str:
+    """``"000012 - Kaelen"`` -> ``"Kaelen"`` (drop the game's numeric prefix)."""
+    _, sep, rest = name.partition(" - ")
+    return rest if sep else name
+
+
+def _next_save_folder(saves_dir: Path, name: str) -> Path:
+    """The next free ``NNNNNN - name`` folder, matching how the game numbers saves."""
+    used = set()
+    for folder in saves_dir.glob("* - *"):
+        prefix = folder.name.split(" - ", 1)[0]
+        if prefix.isdigit():
+            used.add(int(prefix))
+    number = next(n for n in range(1, 1_000_000) if n not in used)
+    return saves_dir / f"{number:06d} - {name}"
+
+
+class SaveEditorWindow(QMainWindow):
+    """The full-window save editor."""
+
+    def __init__(
+        self, saves: list[SaveGame], controller=None, parent: QWidget | None = None
+    ) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Save Game Editor")
+        self.resize(t.WINDOW_W, t.WINDOW_H)
+        self._controller = controller
+        self._saves = list(saves)
+        self._current: SaveGame | None = None
+        self._session = None  # SaveEditor, built on the first edit
+        self._editing = False
+        self._nav_rows: dict[str, w.NavRow] = {}
+        self._save_rows: list[_SaveRow] = []
+        self._screens: dict[str, QWidget] = {}
+
+        self.setStyleSheet(f"QMainWindow{{background:{t.APP_BG};}}")
+        root = QWidget()
+        root.setStyleSheet(f"background:{t.APP_BG};")
+        self.setCentralWidget(root)
+        outer = QVBoxLayout(root)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        outer.addWidget(self._build_toolbar())
+        middle = QHBoxLayout()
+        middle.setContentsMargins(0, 0, 0, 0)
+        middle.setSpacing(0)
+        middle.addWidget(self._build_sidebar())
+        middle.addWidget(self._build_content(), 1)
+        outer.addLayout(middle, 1)
+        outer.addWidget(self._build_footer())
+
+        if self._saves:
+            self._select_save(self._saves[0])
+        self._set_section("character")
+        self._sync_edit_state()
+
+    # -- toolbar ---------------------------------------------------------- #
+    def _build_toolbar(self) -> QWidget:
+        bar = QWidget()
+        bar.setFixedHeight(t.TOOLBAR_H)
+        bar.setStyleSheet(
+            f"background:{t.SURFACE};border-bottom:1px solid {t.hairline(0.08)};"
+        )
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(20, 0, 20, 0)
+        layout.setSpacing(12)
+
+        wordmark = QLabel("VAULTKEEPER")
+        wordmark.setStyleSheet(
+            f"font-family:{t.DISPLAY_FAMILY};font-size:15px;font-weight:700;"
+            f"letter-spacing:0.04em;color:{t.GOLD};background:transparent;"
+        )
+        layout.addWidget(wordmark)
+        layout.addWidget(w.vline())
+
+        self._save_label = w.body("No save open", t.TEXT_2, 12.5)
+        self._save_label.setWordWrap(False)
+        layout.addWidget(self._save_label)
+        layout.addStretch(1)
+
+        self._open_btn = w.ghost_button("Open Save…")
+        self._open_btn.clicked.connect(self._choose_save)
+        layout.addWidget(self._open_btn)
+
+        self._rule_mode = w.SegmentedControl((("strict", "Strict"), ("free", "Free")))
+        self._rule_mode.setToolTip(
+            "Strict blocks values that break the game's rules. Free writes them as "
+            "entered — the game may clamp or reject them on load."
+        )
+        layout.addWidget(self._rule_mode)
+
+        self._undo_btn = w.ghost_button("Undo")
+        self._undo_btn.setToolTip("Undo the last staged change")
+        self._redo_btn = w.ghost_button("Redo")
+        self._redo_btn.setToolTip("Redo an undone change")
+        for button in (self._undo_btn, self._redo_btn):
+            button.setEnabled(False)  # wired with the change ledger
+            layout.addWidget(button)
+
+        self._edit_toggle = w.pill_toggle("Edit")
+        self._edit_toggle.toggled.connect(self._set_edit_mode)
+        layout.addWidget(self._edit_toggle)
+
+        self._save_new_btn = w.gold_button("Save as New…")
+        self._save_new_btn.clicked.connect(self._save_as_new)
+        layout.addWidget(self._save_new_btn)
+        self._overwrite_btn = w.ghost_button("Overwrite…")
+        self._overwrite_btn.clicked.connect(self._overwrite_current)
+        layout.addWidget(self._overwrite_btn)
+        return bar
+
+    # -- sidebar ---------------------------------------------------------- #
+    def _build_sidebar(self) -> QWidget:
+        side = QWidget()
+        side.setFixedWidth(t.SIDEBAR_W)
+        side.setStyleSheet(
+            f"background:{t.SIDEBAR_BG};border-right:1px solid {t.hairline(0.08)};"
+        )
+        layout = QVBoxLayout(side)
+        layout.setContentsMargins(12, 14, 12, 14)
+        layout.setSpacing(14)
+
+        layout.addWidget(w.cap_label("Open saves"))
+        # The design shows a couple of saves; a real install has dozens, so the
+        # list scrolls within a capped height rather than pushing SECTIONS off the
+        # bottom of the sidebar.
+        saves_holder = QWidget()
+        saves_holder.setStyleSheet("background:transparent;")
+        self._saves_box = QVBoxLayout(saves_holder)
+        self._saves_box.setContentsMargins(0, 0, 0, 0)
+        self._saves_box.setSpacing(4)
+        saves_scroll = QScrollArea()
+        saves_scroll.setWidgetResizable(True)
+        saves_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        saves_scroll.setMaximumHeight(_SAVES_LIST_MAX_H)
+        saves_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        saves_scroll.setStyleSheet(
+            "QScrollArea{background:transparent;border:none;}" + w.SCROLLBAR_QSS
+        )
+        saves_scroll.setWidget(saves_holder)
+        layout.addWidget(saves_scroll)
+        for save in self._saves:
+            row = _SaveRow(save)
+            row.clicked.connect(lambda _=False, s=save: self._select_save(s))
+            self._save_rows.append(row)
+            self._saves_box.addWidget(row)
+        self._saves_box.addStretch(1)
+
+        layout.addWidget(w.cap_label("Sections"))
+        nav = QVBoxLayout()
+        nav.setSpacing(3)
+        layout.addLayout(nav)
+        advanced = QVBoxLayout()
+        advanced.setSpacing(3)
+        for section in SECTIONS:
+            row = w.NavRow(section.key, section.label, section.code)
+            row.clicked.connect(lambda _=False, k=section.key: self._set_section(k))
+            self._nav_rows[section.key] = row
+            (advanced if section.advanced else nav).addWidget(row)
+        layout.addWidget(w.cap_label("Advanced"))
+        layout.addLayout(advanced)
+        layout.addStretch(1)
+        return side
+
+    # -- content ---------------------------------------------------------- #
+    def _build_content(self) -> QWidget:
+        self._stack = QStackedWidget()
+        self._stack.setStyleSheet(f"background:{t.APP_BG};")
+        for section in SECTIONS:
+            screen = self._build_screen(section)
+            self._screens[section.key] = screen
+            self._stack.addWidget(screen)
+        return self._stack
+
+    def _build_screen(self, section: Section) -> QWidget:
+        """A section's screen, or the design's empty-state card if it has none yet."""
+        builder = self._screen_builders().get(section.key)
+        if builder is not None:
+            return builder()
+        return _empty_state(section, SECTION_BLURBS.get(section.key, ""))
+
+    def _screen_builders(self) -> dict[str, object]:
+        """Screens that exist. Sections absent from this map render an empty state."""
+        return {}
+
+    # -- footer ----------------------------------------------------------- #
+    def _build_footer(self) -> QWidget:
+        self._footer = QWidget()
+        self._footer.setStyleSheet(
+            f"background:{t.SURFACE};border-top:1px solid {t.hairline(0.1)};"
+        )
+        layout = QHBoxLayout(self._footer)
+        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setSpacing(16)
+        self._pending_caption = w.cap_label("Pending changes (0)")
+        layout.addWidget(self._pending_caption)
+        self._pending_samples = QHBoxLayout()
+        self._pending_samples.setSpacing(16)
+        layout.addLayout(self._pending_samples)
+        layout.addStretch(1)
+        self._review_btn = w.ghost_button("Review…")
+        self._review_btn.setEnabled(False)  # wired with the change ledger
+        layout.addWidget(self._review_btn)
+        self._discard_btn = w.ghost_button("Discard All")
+        self._discard_btn.clicked.connect(self._discard_all)
+        layout.addWidget(self._discard_btn)
+        return self._footer
+
+    # -- save selection --------------------------------------------------- #
+    def _select_save(self, save: SaveGame) -> None:
+        if save is self._current:
+            return
+        if not self._confirm_discard("Switching saves"):
+            self._sync_save_rows()
+            return
+        self._current = save
+        self._session = None
+        self._save_label.setText(f"{save.name}  —  {save.location or 'no location'}")
+        self._sync_save_rows()
+        self._refresh_pending()
+
+    def _sync_save_rows(self) -> None:
+        for row in self._save_rows:
+            row.setChecked(row.save is self._current)
+
+    def _choose_save(self) -> None:
+        """Placeholder until the designed Open Save dialog lands."""
+        names = [save.name for save in self._saves]
+        if not names:
+            QMessageBox.information(self, "Open Save", "No save games were found.")
+            return
+        name, ok = QInputDialog.getItem(self, "Open Save", "Save:", names, editable=False)
+        if ok:
+            self._select_save(next(s for s in self._saves if s.name == name))
+
+    # -- edit mode -------------------------------------------------------- #
+    def _set_edit_mode(self, on: bool) -> None:
+        if not on and not self._confirm_discard("Leaving edit mode"):
+            self._edit_toggle.setChecked(True)  # user kept their changes
+            return
+        self._editing = on
+        self._edit_toggle.setText("Editing ✓" if on else "Edit")
+        self._sync_edit_state()
+
+    def _sync_edit_state(self) -> None:
+        """Apply the global edit gate to everything it controls."""
+        self._footer.setVisible(self._editing)
+        has_edits = self._session is not None and self._session.has_edits
+        for button in (self._save_new_btn, self._overwrite_btn):
+            button.setEnabled(self._editing and has_edits)
+        self._discard_btn.setEnabled(has_edits)
+
+    def _ensure_session(self):
+        """The edit session for the selected save, created on first use."""
+        from vaultkeeper.game.save_editor import SaveEditor
+
+        if self._session is None:
+            if self._current is None:
+                raise RuntimeError("no save selected")
+            self._session = SaveEditor(self._current)
+        return self._session
+
+    def _confirm_discard(self, what: str) -> bool:
+        """Ask before dropping staged changes. ``True`` means "go ahead"."""
+        if self._session is None or not self._session.has_edits:
+            return True
+        answer = QMessageBox.question(
+            self, "Discard changes?",
+            f"{what} discards {len(self._session.pending_changes())} staged change(s).\n\n"
+            "Discard them?",
+            QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+        )
+        if answer != QMessageBox.StandardButton.Discard:
+            return False
+        self._session.discard()
+        self._refresh_pending()
+        return True
+
+    def _discard_all(self) -> None:
+        if self._session is None or not self._session.has_edits:
+            return
+        if self._confirm_discard("Discard All"):
+            self._refresh_pending()
+
+    # -- pending changes -------------------------------------------------- #
+    def _refresh_pending(self) -> None:
+        """Update the footer caption, its sample chips, and the sidebar dirty dots."""
+        changes = self._session.pending_changes() if self._session is not None else []
+        self._pending_caption.setText(f"PENDING CHANGES ({len(changes)})")
+        while self._pending_samples.count():
+            item = self._pending_samples.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        for change in changes[:3]:  # the design shows up to three samples
+            chip = w.body(f"●  {change.where}: {change.summary}", t.TEXT, 12)
+            chip.setWordWrap(False)
+            self._pending_samples.addWidget(chip)
+
+        dirty = {section_for_kind(change.kind) for change in changes}
+        for key, row in self._nav_rows.items():
+            row.set_dirty(key in dirty)
+        self._sync_edit_state()
+
+    # -- sections --------------------------------------------------------- #
+    def _set_section(self, key: str) -> None:
+        for nav_key, row in self._nav_rows.items():
+            row.setChecked(nav_key == key)
+        screen = self._screens.get(key)
+        if screen is not None:
+            self._stack.setCurrentWidget(screen)
+
+    # -- committing ------------------------------------------------------- #
+    def _save_as_new(self) -> None:
+        from vaultkeeper.game.save_editor import SaveEditError
+
+        if self._session is None or not self._session.has_edits or self._current is None:
+            return
+        name, ok = QInputDialog.getText(
+            self, "Save as New Save", "New save name:",
+            text=f"{_base_name(self._current.name)} (edited)",
+        )
+        if not ok or not name.strip():
+            return
+        try:
+            new_save = self._session.save_as(
+                _next_save_folder(self._current.folder.parent, name.strip())
+            )
+        except (SaveEditError, OSError) as exc:
+            QMessageBox.critical(self, "Save failed", str(exc))
+            return
+        QMessageBox.information(
+            self, "Saved",
+            f"Saved as “{new_save.name}”.\nYour original save is unchanged.",
+        )
+        self._session = None
+        self._saves.insert(0, new_save)
+        row = _SaveRow(new_save)
+        row.clicked.connect(lambda _=False, s=new_save: self._select_save(s))
+        self._save_rows.insert(0, row)
+        self._saves_box.insertWidget(0, row)
+        self._current = None  # so _select_save doesn't early-return on identity
+        self._select_save(new_save)
+
+    def _overwrite_current(self) -> None:
+        """Replace the selected save, keeping a timestamped backup."""
+        from vaultkeeper.game.save_editor import SaveEditError
+
+        if self._session is None or not self._session.has_edits or self._current is None:
+            return
+        save = self._current
+        backup_dir = save.folder.parent.parent / "vaultkeeper_backups"
+        confirm = QMessageBox.warning(
+            self, "Overwrite save",
+            f"Replace “{save.name}” with your changes?\n\n"
+            f"The current version is backed up to:\n{backup_dir}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self._session.save_as(save.folder, overwrite=True, backup_dir=backup_dir)
+        except (SaveEditError, OSError) as exc:
+            QMessageBox.critical(self, "Overwrite failed", str(exc))
+            return
+        QMessageBox.information(
+            self, "Saved",
+            f"“{save.name}” was replaced.\nThe previous version is in:\n{backup_dir}",
+        )
+        self._session = None
+        self._refresh_pending()
+
+    # -- entry point ------------------------------------------------------ #
+    @classmethod
+    def show_for(cls, controller, parent: QWidget | None = None) -> SaveEditorWindow:
+        """Open the editor over the install's ``saves`` folder."""
+        user = getattr(controller.ctx, "game_user_dir", None)
+        saves = scan_save_games(user / "saves" if user is not None else None)
+        window = cls(saves, controller, parent)
+        window.show()
+        return window
+
+
+class _SaveRow(QPushButton):
+    """A row in the sidebar's ``OPEN SAVES`` list: thumbnail, name and meta line."""
+
+    def __init__(self, save: SaveGame, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.save = save
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip(str(save.folder))
+        self.setMinimumHeight(t.SAVE_THUMB + 16)
+        self.setStyleSheet(
+            f"_SaveRow{{text-align:left;padding:0;border-radius:{t.RADIUS_ROW}px;"
+            f"border:1px solid transparent;background:transparent;}}"
+            f"_SaveRow:hover{{background:{t.hairline(0.05)};}}"
+            f"_SaveRow:checked{{border-color:{t.gold_border(0.4)};"
+            f"background:{t.gold_tint(0.15)};}}"
+        )
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(9)
+        layout.addWidget(_save_thumbnail(save))
+
+        text = QVBoxLayout()
+        text.setContentsMargins(0, 0, 0, 0)
+        text.setSpacing(1)
+        self._name = QLabel(_base_name(save.name))
+        self._name.setStyleSheet(
+            f"font-family:{t.UI_FAMILY};font-size:12px;font-weight:600;"
+            f"color:{t.TEXT};background:transparent;"
+        )
+        text.addWidget(self._name)
+        meta = QLabel(save.location or "—")
+        meta.setStyleSheet(
+            f"font-family:{t.UI_FAMILY};font-size:10.5px;color:{t.TEXT_3};"
+            f"background:transparent;"
+        )
+        text.addWidget(meta)
+        layout.addLayout(text, 1)
+
+    def setChecked(self, checked: bool) -> None:  # noqa: N802 - Qt override
+        super().setChecked(checked)
+        # A child QLabel can't be recoloured by the ``:checked`` rule above.
+        self._name.setStyleSheet(
+            f"font-family:{t.UI_FAMILY};font-size:12px;font-weight:600;"
+            f"color:{t.GOLD if checked else t.TEXT};background:transparent;"
+        )
+
+
+def _save_thumbnail(save: SaveGame) -> QLabel:
+    """The save's in-game screenshot at thumbnail size, or a placeholder chip."""
+    thumb = QLabel()
+    thumb.setFixedSize(t.SAVE_THUMB, t.SAVE_THUMB)
+    thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    thumb.setStyleSheet(
+        f"background:{t.ICON_CHIP};border-radius:{t.RADIUS_CHIP}px;"
+        f"color:{t.TEXT_3};font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;"
+    )
+    pixmap = tga_to_pixmap(save.screenshot, box=t.SAVE_THUMB) if save.screenshot else None
+    if pixmap is None:
+        thumb.setText("SV")
+    else:
+        thumb.setPixmap(pixmap)
+    return thumb
+
+
+def _empty_state(section: Section, blurb: str) -> QWidget:
+    """The centred card shown for a section whose screen isn't built yet."""
+    page = QWidget()
+    page.setStyleSheet(f"background:{t.APP_BG};")
+
+    # The card is a fixed-width container centred by the surrounding stretches.
+    # Centring the *labels* individually with an alignment flag would make the
+    # layout use each one's sizeHint, and a wrapping label's sizeHint is one line.
+    card = QWidget()
+    card.setFixedWidth(420)
+    card.setStyleSheet("background:transparent;")
+    inner = QVBoxLayout(card)
+    inner.setContentsMargins(0, 0, 0, 0)
+    inner.setSpacing(10)
+
+    chip = QLabel(section.code)
+    chip.setFixedSize(48, 48)
+    chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    chip.setStyleSheet(
+        f"border:1px solid {t.gold_border(0.4)};background:{t.gold_tint(0.12)};"
+        f"color:{t.GOLD};border-radius:{t.RADIUS_PANEL}px;"
+        f"font-family:{t.UI_FAMILY};font-size:15px;font-weight:700;"
+    )
+    inner.addWidget(chip, 0, Qt.AlignmentFlag.AlignHCenter)
+
+    title = w.heading(section.label)
+    title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    inner.addWidget(title)
+
+    text = w.body(blurb, t.TEXT_2, 13)
+    text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    inner.addWidget(text)
+
+    row = QHBoxLayout()
+    row.addStretch(1)
+    row.addWidget(card)
+    row.addStretch(1)
+
+    layout = QVBoxLayout(page)
+    layout.setContentsMargins(40, 40, 40, 40)
+    layout.addStretch(1)
+    layout.addLayout(row)
+    layout.addStretch(1)
+    return page
+
+
+def scrollable(inner: QWidget) -> QScrollArea:
+    """Wrap a screen so its content scrolls, as the design's content area does."""
+    area = QScrollArea()
+    area.setWidgetResizable(True)
+    area.setFrameShape(QScrollArea.Shape.NoFrame)
+    area.setStyleSheet(f"QScrollArea{{background:{t.APP_BG};border:none;}}" + w.SCROLLBAR_QSS)
+    area.setWidget(inner)
+    return area
