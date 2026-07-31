@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLineEdit,
+    QMessageBox,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -35,6 +36,7 @@ class SpellbookScreen(QWidget):
         self._class_index: int | None = None
         self._level: int | None = None
         self._filter = ""
+        self._levels = None
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
@@ -53,6 +55,18 @@ class SpellbookScreen(QWidget):
             return self._window.session().player_spellbook()
         except Exception:
             return []
+
+    def _spell_levels(self):
+        """``spells.2da`` as a class/level lookup, built once per screen."""
+        from vaultkeeper.game.spell_levels import SpellLevels
+
+        if self._levels is None:
+            user = getattr(getattr(self._window._controller, "ctx", None),
+                           "game_user_dir", None)
+            self._levels = SpellLevels.for_install(
+                self._window.game_root(), (user / "hak") if user else None
+            )
+        return self._levels
 
     def _pending_spell_keys(self) -> set:
         """Staged spell changes as ``(class_index, list_field, spell_id)``.
@@ -248,9 +262,34 @@ class SpellbookScreen(QWidget):
 
         if not chosen.is_base and not _confirm_prc(self, chosen.class_name):
             return
+
+        # Offer only what this class casts at this level. The save stores a spell
+        # id in a level-numbered list and nothing else, so an unfiltered picker
+        # let a level-6 wizard spell be written into a bard's level-0 list — the
+        # engine will not cast it and it reads as corruption.
+        everything = default_reference().all_spell_ids()
+        levels = self._spell_levels()
+        strict = self._window.rule_mode() == "strict"
+        if strict and levels.describes(chosen.class_id):
+            allowed = levels.spells_at(chosen.class_id, spell_list.level)
+            options = [(sid, name) for sid, name in everything if sid in allowed]
+            note = ""
+        elif not strict:
+            options = everything
+            note = " — Free mode: every spell, including ones this class cannot cast"
+        else:
+            options = everything
+            note = " — every spell (this class is not in spells.2da)"
+        if not options:
+            QMessageBox.information(
+                self, "No spells to add",
+                f"{chosen.class_name} casts nothing at level {spell_list.level}.",
+            )
+            return
+
         dialog = w.style_dialog(IdPickerDialog(
-            f"Add a Spell — {chosen.class_name} level {spell_list.level}",
-            default_reference().all_spell_ids(), value_header="Spell", parent=self,
+            f"Add a Spell — {chosen.class_name} level {spell_list.level}{note}",
+            options, value_header="Spell", parent=self,
         ))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
