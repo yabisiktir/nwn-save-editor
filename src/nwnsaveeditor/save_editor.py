@@ -433,6 +433,7 @@ class SaveEditor:
         self._raw_types: dict[tuple[str, str], int] = {}  # …and their ERF res types
         self._raw_dirty: set[tuple[str, str]] = set()  # of those, the edited ones
         self._raw_areas: set[str] = set()  # area resrefs raw-edited (their .git)
+        self._edited_areas: set[str] = set()  # area resrefs whose items were edited
         #: original value per edited module variable index / module setting.
         self._variable_originals: dict[int, object] = {}
         self._module_field_originals: dict[str, object] = {}
@@ -614,6 +615,7 @@ class SaveEditor:
         self._raw_types.clear()
         self._raw_dirty.clear()
         self._raw_areas.clear()
+        self._edited_areas.clear()
         self._variable_originals.clear()
         self._module_field_originals.clear()
 
@@ -668,6 +670,98 @@ class SaveEditor:
             )
         else:  # reverted to original -> no longer a pending change
             self._changes.pop(change_key, None)
+
+    # -- items that live in an area's .git ----------------------------------- #
+    # A store's stock could be browsed and a container's loot could be looked at,
+    # but only a store's *settings* could be changed — so a chest and a guard's
+    # sword were readable and untouchable for no reason the user could see.
+    # These edit them in place. An area's .git has no player.bic mirror, so there
+    # is one tree to write, not two.
+    def _area_item_struct(self, area_resref: str, git_path: tuple) -> GffStruct:
+        struct = self._area_tree(area_resref).root
+        for label, index in git_path:
+            entry = struct.fields.get(label)
+            if entry is None or entry.type != GffType.LIST:
+                raise SaveEditError(f"item path {git_path} does not resolve")
+            if not 0 <= index < len(entry.value.structs):
+                raise SaveEditError(f"item path {git_path} does not resolve")
+            struct = entry.value.structs[index]
+        return struct
+
+    def _area_property_list(self, area_resref: str, git_path: tuple) -> GffField:
+        item = self._area_item_struct(area_resref, git_path)
+        plist = item.fields.get("PropertiesList")
+        if plist is None or plist.type != GffType.LIST:
+            plist = GffField(GffType.LIST, GffList([]))
+            item.fields["PropertiesList"] = plist
+        return plist
+
+    def _area_dirty(self, area_resref: str) -> None:
+        self._edited_areas.add(area_resref.lower())
+
+    @_records(lambda area, path, index, *_a, **_k: ("area-prop", area.lower(), tuple(path), index))
+    def set_area_property(
+        self, area_resref: str, git_path: tuple, prop_index: int, *,
+        subtype: int | None = None, cost_value: int | None = None,
+        param1: int | None = None, param1_value: int | None = None,
+        uses_per_day: int | None = None, where: str = "", label: str = "property",
+    ) -> None:
+        """Stage a change to an area item's property (subtype / value / param)."""
+        structs = self._area_property_list(area_resref, git_path).value.structs
+        if not 0 <= prop_index < len(structs):
+            raise SaveEditError(f"property {prop_index} out of range")
+        prop = structs[prop_index]
+        for field_name, value in (
+            ("Subtype", subtype), ("CostValue", cost_value), ("Param1", param1),
+            ("Param1Value", param1_value), ("UsesPerDay", uses_per_day),
+        ):
+            if value is not None and field_name in prop.fields:
+                prop.fields[field_name].value = int(value)
+        self._area_dirty(area_resref)
+        self._stage(
+            "area-item", (area_resref, tuple(git_path), prop_index),
+            where or area_resref, f"edit {label}",
+        )
+
+    @_records()
+    def add_area_property(
+        self, area_resref: str, git_path: tuple, *, property_name: int, subtype: int,
+        cost_value: int, cost_table: int, param1: int | None = None,
+        where: str = "", label: str = "property",
+    ) -> None:
+        """Stage adding a magical property to an item that lives in an area."""
+        plist = self._area_property_list(area_resref, git_path)
+        struct = _make_property_struct(
+            property_name, subtype, cost_table, cost_value, param1
+        )
+        struct.struct_type = len(plist.value.structs)  # struct_type == list index
+        plist.value.structs.append(struct)
+        self._area_dirty(area_resref)
+        self._stage(
+            "area-item", (area_resref, tuple(git_path), struct.struct_type),
+            where or area_resref, f"add {label}",
+        )
+
+    @_records()
+    def remove_area_property(
+        self, area_resref: str, git_path: tuple, prop_index: int, *,
+        where: str = "", label: str = "property",
+    ) -> None:
+        """Stage removing a property from an item that lives in an area."""
+        structs = self._area_property_list(area_resref, git_path).value.structs
+        if not 0 <= prop_index < len(structs):
+            raise SaveEditError(f"property {prop_index} out of range")
+        del structs[prop_index]
+        for i, struct in enumerate(structs):  # keep struct_type == index
+            struct.struct_type = i
+        self._add_seq += 1
+        self._area_dirty(area_resref)
+        # What it named is gone, so a sequence number keeps successive removals
+        # from the same slot distinct — as it does for a raw list removal.
+        self._stage(
+            "area-item", (area_resref, tuple(git_path), prop_index, self._add_seq),
+            where or area_resref, f"remove {label}",
+        )
 
     def _area_tree(self, area_resref: str) -> Gff:
         key = area_resref.lower()
@@ -1650,7 +1744,7 @@ class SaveEditor:
             change.key[0].lower()
             for change in self._changes.values()
             if change.kind == "store"
-        } | self._raw_areas
+        } | self._raw_areas | self._edited_areas
 
     def _overrides(self) -> dict[tuple[str, int], bytes]:
         out = {(key, _GIT_RESTYPE): write_gff(self._areas[key]) for key in self._dirty_areas()}

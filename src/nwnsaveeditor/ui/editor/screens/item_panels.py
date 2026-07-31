@@ -219,11 +219,12 @@ class PlayerItemPanel(_PanelBase):
 
 
 class AreaItemPanel(_PanelBase):
-    """A store / creature / container item: copyable, never editable.
+    """A store / creature / container item: copyable, and editable in place.
 
-    Deliberately has no property editor at all. These items live in an area's
-    ``.git``, which the editor treats as read-only — the only thing you can do
-    with one is take a copy into your own inventory.
+    Its properties are edited through the same dialogs the player's own items
+    use, writing to the area's ``.git``. A ``.git`` item has no ``player.bic``
+    mirror, so those edits go to one tree rather than two — the panel's only
+    real difference from :class:`PlayerItemPanel`.
     """
 
     def __init__(self, screen, item, area_resref: str, parent: QWidget | None = None) -> None:
@@ -236,13 +237,20 @@ class AreaItemPanel(_PanelBase):
             return
         self._add_identity(item)
 
-        self._body.addWidget(w.cap_label("Properties"))
         properties = getattr(item, "properties", []) or []
+        header = QHBoxLayout()
+        header.addWidget(w.cap_label(f"Properties ({len(properties)})"))
+        header.addStretch(1)
+        if self._editable():
+            add = w.small_ghost("Add a property…")
+            add.clicked.connect(self._add_property)
+            header.addWidget(add)
+        self._body.addLayout(header)
+
         if not properties:
             self._body.addWidget(w.body("No magical properties.", t.TEXT_3, 12))
-        for prop in properties:
-            label = w.body(describe_property(getattr(prop, "prop", prop), None), t.TEXT_2, 12.5)
-            self._body.addWidget(label)
+        for index, prop in enumerate(properties):
+            self._body.addWidget(self._property_row(index, getattr(prop, "prop", prop)))
 
         self._body.addWidget(w.hline())
         self._action_slot = QWidget()
@@ -251,11 +259,93 @@ class AreaItemPanel(_PanelBase):
         self._body.addWidget(self._action_slot)
         self._show_action()
         self._body.addWidget(w.body(
-            "Items here belong to the world, not to you — Vaultkeeper never edits "
-            "them. Taking a copy adds a new item to your own inventory.",
+            "This item belongs to the world. Editing it changes the area itself — "
+            "taking a copy instead leaves the world alone and adds a new item to "
+            "your own inventory.",
             t.TEXT_3, 11.5,
         ))
         self._body.addStretch(1)
+
+    def _editable(self) -> bool:
+        """Edit mode, and an item this panel can actually address in the .git."""
+        return bool(self._screen.editing and getattr(self._item, "git_path", ()))
+
+    def _property_row(self, index: int, prop) -> QWidget:
+        row = QWidget()
+        row.setStyleSheet("background:transparent;")
+        line = QHBoxLayout(row)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(6)
+        line.addWidget(w.body(describe_property(prop, None), t.TEXT_2, 12.5), 1)
+        if self._editable():
+            edit = w.small_ghost("Edit…")
+            edit.clicked.connect(lambda _=False, i=index, p=prop: self._edit_property(i, p))
+            line.addWidget(edit)
+            remove = w.small_ghost("×")
+            remove.setToolTip("Remove this property")
+            remove.clicked.connect(lambda _=False, i=index, p=prop: self._remove_property(i, p))
+            line.addWidget(remove)
+        return row
+
+    # -- property editing --------------------------------------------------- #
+    def _edit_property(self, index: int, prop) -> None:
+        from vaultkeeper.ui.dialogs.property_editor_dialog import PropertyEditorDialog
+
+        tables = self._screen.property_tables()
+        if tables is None:
+            QMessageBox.information(
+                self, "Property tables unavailable",
+                "The game's iprp_* tables could not be read, so this property's "
+                "valid values are unknown. Set the game folder in Settings and "
+                "reopen the editor.",
+            )
+            return
+        dialog = w.style_dialog(
+            PropertyEditorDialog(prop, tables, prop.param1, parent=self)
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        edits = dialog.edits()
+        if not edits:
+            return
+        self._area_edit(
+            "set_area_property", index,
+            label=describe_property(prop, None), **edits
+        )
+
+    def _remove_property(self, index: int, prop) -> None:
+        confirm = QMessageBox.question(
+            self, "Remove property",
+            f"Remove “{describe_property(prop, None)}” from {self._item.name}?\n\n"
+            f"This changes the area itself, not your inventory.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+        self._area_edit("remove_area_property", index, label=describe_property(prop, None))
+
+    def _add_property(self) -> None:
+        from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
+
+        dialog = w.style_dialog(AddPropertyDialog(
+            parent=self, tables=self._screen.property_tables()
+        ))
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        built = dialog.result_property()
+        self._area_edit("add_area_property", **built)
+
+    def _area_edit(self, method: str, *args, **kwargs) -> None:
+        """Call one of the session's area-item mutators and report any failure."""
+        try:
+            getattr(self._screen.session(), method)(
+                self._area_resref, tuple(self._item.git_path), *args,
+                where=self._item.name, **kwargs,
+            )
+        except Exception as exc:  # SaveEditError and friends
+            QMessageBox.critical(self, "Edit failed", str(exc))
+            return
+        self._screen.changed()
 
     def _show_action(self, *, copied: bool = False) -> None:
         layout = self._action_slot.layout()

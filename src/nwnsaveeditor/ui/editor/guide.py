@@ -62,8 +62,11 @@ explicitly choose <b>Overwrite…</b> — which keeps a timestamped backup first
   <li><b>Party &amp; Campaign</b> — this save's summary and the module's party
       settings.</li>
   <li><b>Area Contents</b> — stores, creatures and containers. Store pricing is
-      editable; the items are not, but any of them can be <b>copied into your own
-      inventory</b>.</li>
+      editable, and so are the magical properties of any item in the world: a
+      chest's loot and a creature's gear use the same property editor your own
+      items do. Editing one changes the <i>area</i>; <b>copying it into your own
+      inventory</b> instead leaves the world untouched. Items themselves are not
+      added to or removed from the world here — use Raw Data for that.</li>
   <li><b>Raw Data (GFF)</b> — every resource in the save, as its raw field tree.
       Scalar values can be edited here; a field's type is always preserved. A
       list of structs can also gain and lose entries: <b>Duplicate entry</b>

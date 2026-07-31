@@ -189,16 +189,16 @@ def read_area_contents(
     area = AreaContents(resref=resref, name=resref)
     _read_area_meta(reader, sav_path, resref, area, resolver)
 
-    for sid in _list(git, 0, "StoreList"):
-        area.stores.append(_read_store(git, sid, resolver))
-    for sid in _list(git, 0, "Creature List"):
-        creature = _read_creature(git, sid, resolver)
+    for index, sid in enumerate(_list(git, 0, "StoreList")):
+        area.stores.append(_read_store(git, sid, resolver, (("StoreList", index),)))
+    for index, sid in enumerate(_list(git, 0, "Creature List")):
+        creature = _read_creature(git, sid, resolver, (("Creature List", index),))
         if creature is None:
             area.hidden_creatures += 1
         else:
             area.creatures.append(creature)
-    for sid in _list(git, 0, "Placeable List"):
-        container = _read_container(git, sid, resolver)
+    for index, sid in enumerate(_list(git, 0, "Placeable List")):
+        container = _read_container(git, sid, resolver, (("Placeable List", index),))
         if container is not None:
             area.containers.append(container)
 
@@ -241,7 +241,23 @@ def _read_area_meta(
     area.natural = bool(flags & _AREA_NATURAL)
 
 
-def _read_store(git: _GFF, struct_id: int, resolver: ItemNameResolver | None) -> Store:
+def _with_paths(
+    items: list[InventoryItem], owner: tuple, list_field: str
+) -> list[InventoryItem]:
+    """Record where each item sits in the ``.git``, so it can be edited in place.
+
+    Nested container contents are addressed through their holder's own
+    ``ItemList``, which is how the item structs actually nest on disk.
+    """
+    for index, item in enumerate(items):
+        item.git_path = (*owner, (list_field, index))
+        _with_paths(item.contents, item.git_path, "ItemList")
+    return items
+
+
+def _read_store(
+    git: _GFF, struct_id: int, resolver: ItemNameResolver | None, path: tuple = ()
+) -> Store:
     fields = _fields(git, struct_id)
     store = Store(
         tag=(git.read_value(*fields["Tag"]) if "Tag" in fields else "") or "",
@@ -257,8 +273,12 @@ def _read_store(git: _GFF, struct_id: int, resolver: ItemNameResolver | None) ->
         store.name = store.tag or "Store"
     # A store's stock is split across category panels, each with its own ItemList.
     items: list[InventoryItem] = []
-    for panel in _list(git, struct_id, "StoreList"):
-        items.extend(BicFileReader._read_item(git, iid) for iid in _list(git, panel, "ItemList"))
+    for panel_index, panel in enumerate(_list(git, struct_id, "StoreList")):
+        panel_path = (*path, ("StoreList", panel_index))
+        items.extend(_with_paths(
+            [BicFileReader._read_item(git, iid) for iid in _list(git, panel, "ItemList")],
+            panel_path, "ItemList",
+        ))
     if resolver is not None:
         resolver.resolve_items(items)
     store.items = items
@@ -266,7 +286,7 @@ def _read_store(git: _GFF, struct_id: int, resolver: ItemNameResolver | None) ->
 
 
 def _read_creature(
-    git: _GFF, struct_id: int, resolver: ItemNameResolver | None
+    git: _GFF, struct_id: int, resolver: ItemNameResolver | None, path: tuple = ()
 ) -> CreatureRef | None:
     fields = _fields(git, struct_id)
     first = _locstring(fields, git, "FirstName", resolver)
@@ -276,7 +296,11 @@ def _read_creature(
         return None
     name = " ".join(part for part in (first, last) if part).strip()
     equipped = BicFileReader._read_equipped(git, _list(git, struct_id, "Equip_ItemList"))
-    carried = [BicFileReader._read_item(git, iid) for iid in _list(git, struct_id, "ItemList")]
+    _with_paths([e.item for e in equipped], path, "Equip_ItemList")
+    carried = _with_paths(
+        [BicFileReader._read_item(git, iid) for iid in _list(git, struct_id, "ItemList")],
+        path, "ItemList",
+    )
     if resolver is not None:
         resolver.resolve_items([e.item for e in equipped])
         resolver.resolve_items(carried)
@@ -290,14 +314,16 @@ def _read_creature(
 
 
 def _read_container(
-    git: _GFF, struct_id: int, resolver: ItemNameResolver | None
+    git: _GFF, struct_id: int, resolver: ItemNameResolver | None, path: tuple = ()
 ) -> Container | None:
     """A placeable with items; ``None`` for the (many) plain scenery placeables."""
     item_ids = _list(git, struct_id, "ItemList")
     if not item_ids:
         return None
     fields = _fields(git, struct_id)
-    items = [BicFileReader._read_item(git, iid) for iid in item_ids]
+    items = _with_paths(
+        [BicFileReader._read_item(git, iid) for iid in item_ids], path, "ItemList"
+    )
     if resolver is not None:
         resolver.resolve_items(items)
     return Container(

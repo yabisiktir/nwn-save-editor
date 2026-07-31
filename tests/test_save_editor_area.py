@@ -204,3 +204,97 @@ def _first_item_node(screen):
         if found is not None:
             return found
     return None
+
+
+# -- editing an item that lives in the area --------------------------------- #
+def _shop_item(window):
+    from vaultkeeper.game.save_area import read_area_contents
+
+    area = read_area_contents(window.save.sav_path, "area1")
+    return area.stores[0].items[0]
+
+
+def _panel(window, screen, qtbot):
+    from PySide6.QtWidgets import QApplication
+
+    # widgets.retire() holds a Python wrapper until the next event-loop turn; in
+    # a test the loop may not spin between widgets, so drain it before building
+    # a new panel or PySide can hand back a stale wrapper for a reused address.
+    QApplication.processEvents()
+    panel = AreaItemPanel(screen, _shop_item(window), "area1")
+    qtbot.addWidget(panel)
+    return panel
+
+
+def test_an_area_item_knows_where_it_lives_in_the_git(window):
+    """Without this path there is nothing to write to, so it stays read-only."""
+    assert _shop_item(window).git_path == (
+        ("StoreList", 0), ("StoreList", 0), ("ItemList", 0)
+    )
+
+
+def test_the_panel_offers_property_editing_in_edit_mode(window, screen, qtbot):
+    window._edit_toggle.setChecked(True)
+    labels = [b.text() for b in _panel(window, screen, qtbot).findChildren(QPushButton)]
+    assert "Add a property…" in labels
+    assert "Edit…" in labels
+    assert "×" in labels
+    assert "Add a copy to my inventory" in labels, "copying is still offered"
+
+
+def test_the_panel_stays_read_only_with_edit_mode_off(window, screen, qtbot):
+    panel = _panel(window, screen, qtbot)
+    assert not panel._editable(), "the edit gate governs area items too"
+
+
+def test_removing_a_property_stages_an_area_change(window, screen, qtbot, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    panel = _panel(window, screen, qtbot)
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+    panel._remove_property(0, _shop_item(window).properties[0])
+
+    staged = window.session().pending_changes()
+    assert [c.kind for c in staged] == ["area-item"]
+    assert staged[0].where == _shop_item(window).name
+
+
+def test_declining_the_confirmation_stages_nothing(window, screen, qtbot, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    panel = _panel(window, screen, qtbot)
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+    panel._remove_property(0, _shop_item(window).properties[0])
+    assert not window.session().has_edits
+
+
+def test_a_failed_area_edit_reports_instead_of_passing_silently(
+    window, screen, qtbot, monkeypatch
+):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    panel = _panel(window, screen, qtbot)
+    panel._item.git_path = (("StoreList", 99),)  # no longer resolves
+    told = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: told.append(a))
+    panel._area_edit("remove_area_property", 0, label="x")
+    assert told, "a silent no-op would look like a successful edit"
+
+
+def test_an_area_edit_lights_the_area_sections_dot(window, screen, qtbot, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    panel = _panel(window, screen, qtbot)
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+    panel._remove_property(0, _shop_item(window).properties[0])
+    assert not window._nav_rows["area"]._dot.isHidden()

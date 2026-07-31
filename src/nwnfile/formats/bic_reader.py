@@ -178,6 +178,11 @@ class InventoryItem:
     name_strref: int = -1
     properties: list[ItemProperty] = field(default_factory=list)
     contents: list["InventoryItem"] = field(default_factory=list)
+    #: Where this item sits in an area's ``.git``, as ``((field, index), …)`` from
+    #: the file root — empty for the player's own items, which are addressed from
+    #: the character struct instead. Set by :mod:`vaultkeeper.game.save_area` so an
+    #: area item can be edited in place rather than only copied.
+    git_path: tuple = ()
 
     @property
     def is_container(self) -> bool:

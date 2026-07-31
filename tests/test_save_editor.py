@@ -1048,3 +1048,89 @@ def test_discarding_one_of_two_added_items_keeps_the_other(tmp_path):
     new_save = editor.save_as(tmp_path / "out")
     carried = _ifo_char(new_save.sav_path).fields["ItemList"].value.structs
     assert len(carried) == 2  # the original bag + one clone
+
+
+# -- editing items that live in an area ------------------------------------- #
+_SHOP_SWORD = (("StoreList", 0), ("StoreList", 0), ("ItemList", 0))
+
+
+def _area_git(sav_path):
+    er = ErfReader()
+    res = er.find_resource(sav_path, "area1", res_type=2023)
+    return read_gff(er.read_resource_bytes(sav_path, res))
+
+
+def _shop_props(sav_path):
+    struct = _area_git(sav_path).root
+    for label, index in _SHOP_SWORD:
+        struct = struct.fields[label].value.structs[index]
+    return struct.fields["PropertiesList"].value.structs
+
+
+def test_editing_an_area_items_property_writes_the_areas_git(tmp_path):
+    """A chest's loot and a guard's sword were readable and untouchable."""
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    editor.set_area_property("area1", _SHOP_SWORD, 0, cost_value=9, where="Shop Sword")
+    assert [c.kind for c in editor.pending_changes()] == ["area-item"]
+
+    new_save = editor.save_as(tmp_path / "out")
+    assert _shop_props(new_save.sav_path)[0].fields["CostValue"].value == 9
+
+
+def test_adding_a_property_to_an_area_item(tmp_path):
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    editor.add_area_property(
+        "area1", _SHOP_SWORD, property_name=1, subtype=0, cost_value=4,
+        cost_table=2, where="Shop Sword", label="AC Bonus +4",
+    )
+    new_save = editor.save_as(tmp_path / "out")
+    props = _shop_props(new_save.sav_path)
+    assert len(props) == 2
+    assert props[-1].fields["PropertyName"].value == 1
+    assert props[-1].struct_type == 1, "struct_type must equal the list index"
+
+
+def test_removing_a_property_from_an_area_item_renumbers_the_rest(tmp_path):
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    editor.add_area_property(
+        "area1", _SHOP_SWORD, property_name=1, subtype=0, cost_value=4, cost_table=2
+    )
+    editor.remove_area_property("area1", _SHOP_SWORD, 0)
+    new_save = editor.save_as(tmp_path / "out")
+    props = _shop_props(new_save.sav_path)
+    assert len(props) == 1
+    assert props[0].fields["PropertyName"].value == 1, "the added one survived"
+    assert props[0].struct_type == 0
+
+
+def test_an_area_edit_leaves_the_original_save_alone(tmp_path):
+    save = _make_char_save_with_git(tmp_path)
+    before = save.sav_path.read_bytes()
+    editor = SaveEditor(save)
+    editor.set_area_property("area1", _SHOP_SWORD, 0, cost_value=9)
+    editor.save_as(tmp_path / "out")
+    assert save.sav_path.read_bytes() == before
+
+
+def test_an_area_item_path_that_does_not_resolve_is_refused(tmp_path):
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    with pytest.raises(SaveEditError, match="does not resolve"):
+        editor.set_area_property("area1", (("StoreList", 99),), 0, cost_value=1)
+
+
+def test_undoing_an_area_edit_restores_the_original_bytes(tmp_path):
+    """Undo replays the log from clean, so the .git must come back untouched."""
+    save = _make_char_save_with_git(tmp_path)
+    editor = SaveEditor(save)
+    editor.set_area_property("area1", _SHOP_SWORD, 0, cost_value=9)
+    editor.undo()
+    assert not editor.has_edits
+    item = editor._area_item_struct("area1", _SHOP_SWORD)
+    props = item.fields["PropertiesList"].value.structs
+    assert props[0].fields["CostValue"].value == 5
+
+
+def test_an_area_edit_files_under_the_area_section():
+    from vaultkeeper.ui.save_editor.sections import section_for_kind
+
+    assert section_for_kind("area-item") == "area"

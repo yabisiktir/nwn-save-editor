@@ -92,9 +92,10 @@ def test_property_actions_are_absent_until_edit_mode_is_on(window, screen):
 
 
 # -- the two panels are deliberately different ----------------------------- #
-def test_an_area_item_panel_offers_no_property_editing(window, qtbot):
-    """The handoff forbids sharing one panel across contexts."""
-    item = window.session().player_items()[0]
+def test_an_area_item_the_editor_cannot_address_stays_read_only(window, qtbot):
+    """Editing a .git item needs its path in that file. Without one there is
+    nothing to write to, so the panel must not pretend otherwise."""
+    item = window.session().player_items()[0]  # a player item: no git_path
     window._edit_toggle.setChecked(True)
     screen = window._screens["inventory"]
 
