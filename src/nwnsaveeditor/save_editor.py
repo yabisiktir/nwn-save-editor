@@ -144,15 +144,20 @@ def _fmt_uses(value: int) -> str:
 
 
 def _make_property_struct(
-    property_name: int, subtype: int, cost_table: int, cost_value: int
+    property_name: int, subtype: int, cost_table: int, cost_value: int,
+    param1: int | None = None,
 ) -> GffStruct:
-    """A full item-property struct, matching the game's field layout."""
+    """A full item-property struct, matching the game's field layout.
+
+    ``Param1`` is 255 — the game's "no parameter" — unless the property defines
+    one, in which case it carries the chosen row from its ``Param1ResRef`` table.
+    """
     return GffStruct(struct_type=0, fields={
         "PropertyName": GffField(GffType.WORD, property_name),
         "Subtype": GffField(GffType.WORD, subtype),
         "CostTable": GffField(GffType.BYTE, cost_table),
         "CostValue": GffField(GffType.WORD, cost_value),
-        "Param1": GffField(GffType.BYTE, 255),
+        "Param1": GffField(GffType.BYTE, 255 if param1 is None else int(param1)),
         "Param1Value": GffField(GffType.BYTE, 0),
         "ChanceAppear": GffField(GffType.BYTE, 100),
         "UsesPerDay": GffField(GffType.BYTE, 255),
@@ -864,7 +869,8 @@ class SaveEditor:
     @_records()
     def add_item_property(
         self, item_path: tuple, *, property_name: int, subtype: int, cost_value: int,
-        cost_table: int, where: str = "", label: str = "property",
+        cost_table: int, param1: int | None = None,
+        where: str = "", label: str = "property",
     ) -> None:
         """Stage adding a new magical property to a player item (both trees)."""
         self._char_dirty = True
@@ -875,7 +881,9 @@ class SaveEditor:
             if plist is None or plist.type != GffType.LIST:
                 plist = GffField(GffType.LIST, GffList([]))
                 item.fields["PropertiesList"] = plist
-            struct = _make_property_struct(property_name, subtype, cost_table, cost_value)
+            struct = _make_property_struct(
+                property_name, subtype, cost_table, cost_value, param1
+            )
             struct.struct_type = len(plist.value.structs)  # struct_type == list index
             plist.value.structs.append(struct)
             if tree is module:  # the authoritative tree names the property

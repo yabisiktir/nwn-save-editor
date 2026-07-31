@@ -207,14 +207,13 @@ class PlayerItemPanel(_PanelBase):
     def _add_property(self) -> None:
         from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
 
-        dialog = w.style_dialog(AddPropertyDialog(parent=self))
+        dialog = w.style_dialog(AddPropertyDialog(
+            parent=self, tables=self._screen.property_tables()
+        ))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        values = dialog.values()
-        if values is None:
-            return
         self._screen.session().add_item_property(
-            self._item.path, where=self._item.name, **values
+            self._item.path, where=self._item.name, **dialog.result_property()
         )
         self._screen.changed()
 

@@ -213,3 +213,69 @@ def test_switching_the_sort_re_renders(window, screen):
     assert screen._sort == "name"
     screen._set_sort("type")
     assert screen._sort == "type"
+
+
+# -- adding a property from the item panel ---------------------------------- #
+def test_adding_a_property_stages_what_the_dialog_built(window, screen, monkeypatch):
+    """The panel called dialog.values(), which the dialog has never had — so
+    pressing OK raised AttributeError instead of adding anything."""
+    from PySide6.QtWidgets import QDialog
+
+    window._edit_toggle.setChecked(True)
+    item = window.session().player_items()[0]
+    screen._select(tuple(item.path))
+    panel = screen._detail_slot.findChild(PlayerItemPanel)
+
+    class _Dialog:
+        def __init__(self, *a, **k):
+            self.tables = k.get("tables")
+
+        def setStyleSheet(self, _qss):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def result_property(self):
+            return {
+                "property_name": 1, "subtype": 0, "cost_value": 6,
+                "cost_table": 2, "param1": None, "label": "AC Bonus +6",
+            }
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog
+    )
+    before = len(window.session().player_items()[0].properties)
+    panel._add_property()
+
+    staged = [c for c in window.session().pending_changes() if c.kind == "prop-add"]
+    assert [c.summary for c in staged] == ["add AC Bonus +6"]
+    assert len(window.session().player_items()[0].properties) == before + 1
+
+
+def test_the_add_dialog_is_given_the_games_property_tables(window, screen, monkeypatch):
+    """Without them it falls back to 14 curated types and cannot add a bonus feat."""
+    from PySide6.QtWidgets import QDialog
+
+    window._edit_toggle.setChecked(True)
+    item = window.session().player_items()[0]
+    screen._select(tuple(item.path))
+    panel = screen._detail_slot.findChild(PlayerItemPanel)
+    seen = {}
+
+    class _Dialog:
+        def __init__(self, *a, **k):
+            seen["tables"] = k.get("tables", "missing")
+
+        def setStyleSheet(self, _qss):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Rejected
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog
+    )
+    monkeypatch.setattr(screen, "property_tables", lambda: "the tables")
+    panel._add_property()
+    assert seen["tables"] == "the tables"
