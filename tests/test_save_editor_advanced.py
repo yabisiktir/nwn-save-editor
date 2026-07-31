@@ -352,3 +352,129 @@ def _find_scalar(raw, label: str):
             if child.text(0) == label:
                 return child
     return None
+
+
+# -- keeping your place in the tree ----------------------------------------- #
+def _top(raw, label):
+    return next(
+        raw._tree.topLevelItem(i) for i in range(raw._tree.topLevelItemCount())
+        if raw._tree.topLevelItem(i).text(0) == label
+    )
+
+
+def _open_to_gold(raw):
+    """Expand Mod_PlayerList → [0] and select the character's Gold field."""
+    players = _top(raw, "Mod_PlayerList")
+    raw._tree.expandItem(players)
+    character = players.child(0)
+    raw._tree.expandItem(character)
+    gold = next(
+        character.child(i) for i in range(character.childCount())
+        if character.child(i).text(0) == "Gold"
+    )
+    raw._tree.setCurrentItem(gold)
+    return players, character, gold
+
+
+def test_an_edit_leaves_the_tree_open_where_it_was(window, raw):
+    """refresh() rebuilds the whole tree, so without this every edit collapsed it
+    and threw you back to the top, several expansions from what you just changed."""
+    window._edit_toggle.setChecked(True)
+    players, character, gold = _open_to_gold(raw)
+    _kind, path, _entry = gold.data(0, _ROLE)
+
+    window.session().set_raw_field("module.ifo", path, 4321, where="Gold")
+    raw.refresh()
+
+    players = _top(raw, "Mod_PlayerList")
+    assert players.isExpanded(), "the list you opened is still open"
+    assert players.child(0).isExpanded(), "and so is the struct inside it"
+    current = raw._tree.currentItem()
+    assert current is not None and current.data(0, _ROLE)[1] == path, "still selected"
+    assert current.text(2) == "4321", "showing the new value"
+
+
+def test_a_collapsed_tree_stays_collapsed(raw):
+    raw.refresh()
+    players = _top(raw, "Mod_PlayerList")
+    assert not players.isExpanded()
+
+
+def test_switching_resource_does_not_carry_the_old_expansion_over(window, raw):
+    """The paths belong to the resource they came from; another resource's tree
+    must not be forced open at whatever happens to share a label."""
+    _open_to_gold(raw)
+    targets = [t for t in raw._targets() if t != "module.ifo"]
+    if not targets:
+        pytest.skip("this save has a single resource")
+    raw._choose_target(targets[0])
+    assert raw._target == targets[0]
+
+
+# -- double-click ------------------------------------------------------------ #
+def test_double_clicking_a_scalar_opens_the_editor(window, raw, monkeypatch):
+    window._edit_toggle.setChecked(True)
+    opened = []
+    monkeypatch.setattr(raw, "_edit_selected", lambda: opened.append(1))
+    node = _find_scalar(raw, "Gold")
+    raw._on_double_click(node, 0)
+
+    assert opened, "a double-click is how a tree row is edited everywhere else"
+    assert raw._tree.currentItem() is node, "and it selects what you clicked"
+
+
+def test_double_clicking_a_container_does_not_open_the_editor(window, raw, monkeypatch):
+    window._edit_toggle.setChecked(True)
+    opened = []
+    monkeypatch.setattr(raw, "_edit_selected", lambda: opened.append(1))
+    raw._on_double_click(_top(raw, "Mod_PlayerList"), 0)
+    assert not opened, "a list expands on double-click; there is no value to edit"
+
+
+# -- themed prompts ---------------------------------------------------------- #
+def test_the_value_editor_wears_the_editors_theme(window, raw, monkeypatch):
+    """It was built without style_dialog, so inside a light-themed editor it drew
+    the app's dark input field — dark text on a dark box."""
+    from PySide6.QtWidgets import QDialog
+
+    import vaultkeeper.ui.dialogs.property_edit_dialog as ped
+
+    window._edit_toggle.setChecked(True)
+    seen = {}
+
+    class _Spy(ped.PropertyEditDialog):
+        def setStyleSheet(self, qss):  # noqa: N802 - Qt override
+            seen["qss"] = qss
+            super().setStyleSheet(qss)
+
+        def exec(self):
+            return QDialog.DialogCode.Rejected
+
+    monkeypatch.setattr(ped, "PropertyEditDialog", _Spy)
+    raw._tree.setCurrentItem(_find_scalar(raw, "Gold"))
+    raw._edit_selected()
+
+    assert "QSpinBox" in seen.get("qss", ""), "its inputs must be styled"
+
+
+def test_the_value_editor_is_not_called_a_property(window, raw, monkeypatch):
+    """A raw GFF field is not an item property; the shared dialog said it was."""
+    from PySide6.QtWidgets import QDialog
+
+    import vaultkeeper.ui.dialogs.property_edit_dialog as ped
+
+    window._edit_toggle.setChecked(True)
+    titles = []
+
+    class _Spy(ped.PropertyEditDialog):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            titles.append(self.windowTitle())
+
+        def exec(self):
+            return QDialog.DialogCode.Rejected
+
+    monkeypatch.setattr(ped, "PropertyEditDialog", _Spy)
+    raw._tree.setCurrentItem(_find_scalar(raw, "Gold"))
+    raw._edit_selected()
+    assert titles == ["Edit Value"]

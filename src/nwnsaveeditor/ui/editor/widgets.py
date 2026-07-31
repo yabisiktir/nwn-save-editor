@@ -459,6 +459,24 @@ def apply_tree_palette(tree) -> None:
     tree.setPalette(palette)
 
 
+def prompt_text(parent, title: str, label: str, current: str) -> tuple[str, bool]:
+    """Ask for a line of text in a dialog wearing the editor's theme.
+
+    Built rather than taken from ``QInputDialog.getText``: the convenience
+    function shows the dialog before a caller can style it, so inside a
+    light-themed editor it rendered with the app's dark input field.
+    """
+    from PySide6.QtWidgets import QDialog, QInputDialog
+
+    dialog = style_dialog(QInputDialog(parent))
+    dialog.setWindowTitle(title)
+    dialog.setLabelText(label)
+    dialog.setTextValue(current)
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return "", False
+    return dialog.textValue(), True
+
+
 def dialog_qss() -> str:
     """Styling for the plain Qt dialogs the editor reuses.
 

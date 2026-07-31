@@ -9,7 +9,7 @@ that would change a field's type — a raw edit should be able to break the
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -124,6 +124,9 @@ class RawScreen(QWidget):
         w.apply_tree_palette(self._tree)
         self._tree.itemExpanded.connect(self._on_expand)
         self._tree.currentItemChanged.connect(self._on_select)
+        # A GFF path is a long way down; making people find it again after every
+        # edit is what made the tree tiring to use.
+        self._tree.itemDoubleClicked.connect(self._on_double_click)
         self._tree.setColumnWidth(0, 340)
         self._tree.setColumnWidth(1, 110)
         split.addWidget(self._tree, 1)
@@ -189,6 +192,7 @@ class RawScreen(QWidget):
 
     # -- rebuilding -------------------------------------------------------- #
     def refresh(self) -> None:
+        was_open, was_current, was_scrolled = self._tree_state()
         targets = self._targets()
         if [self._target_box.itemText(i) for i in range(self._target_box.count())] != targets:
             self._target_box.blockSignals(True)
@@ -215,8 +219,63 @@ class RawScreen(QWidget):
             return
         for label, entry in tree.root.fields.items():
             self._tree.addTopLevelItem(self._node(label, entry, ((label, None),)))
+        self._restore_tree_state(was_open, was_current, was_scrolled)
         if not self._reference.isHidden():
             self._reference.refresh()
+
+    # -- keeping your place ------------------------------------------------- #
+    def _tree_state(self) -> tuple[set, tuple | None, int]:
+        """Which nodes are open, which is selected, and where the view sits.
+
+        ``refresh`` rebuilds the whole tree, so without this every edit collapsed
+        it and threw you back to the top — with the field you just changed several
+        expansions away.
+        """
+        opened: set = set()
+
+        def walk(node: QTreeWidgetItem) -> None:
+            role = node.data(0, _ROLE)
+            if node.isExpanded() and role is not None:
+                opened.add(role[1])
+            for index in range(node.childCount()):
+                walk(node.child(index))
+
+        for index in range(self._tree.topLevelItemCount()):
+            walk(self._tree.topLevelItem(index))
+        current = self._tree.currentItem()
+        role = current.data(0, _ROLE) if current is not None else None
+        selected = role[1] if role is not None else None
+        return opened, selected, self._tree.verticalScrollBar().value()
+
+    def _restore_tree_state(self, opened: set, current: tuple | None, scrolled: int) -> None:
+        if not opened and current is None:
+            return
+        found: list[QTreeWidgetItem] = []
+
+        def walk(node: QTreeWidgetItem) -> None:
+            role = node.data(0, _ROLE)
+            path = role[1] if role is not None else None
+            if path is not None and path == current:
+                found.append(node)
+            if path in opened:
+                # Children are built lazily on expand, so this has to go top-down.
+                node.setExpanded(True)
+            for index in range(node.childCount()):
+                walk(node.child(index))
+
+        for index in range(self._tree.topLevelItemCount()):
+            walk(self._tree.topLevelItem(index))
+        if found:
+            self._tree.setCurrentItem(found[0])
+        # After the layout settles, or the bar has not yet grown to this extent.
+        QTimer.singleShot(0, lambda: self._tree.verticalScrollBar().setValue(scrolled))
+
+    def _on_double_click(self, node: QTreeWidgetItem, _column: int = 0) -> None:
+        """Edit a scalar in place; a container just toggles, as Qt already does."""
+        role = node.data(0, _ROLE)
+        if role is not None and role[0] == "scalar":
+            self._tree.setCurrentItem(node)
+            self._edit_selected()
 
     def _toggle_reference(self) -> None:
         """Show or hide the property reference beside the tree.
@@ -422,10 +481,11 @@ class RawScreen(QWidget):
                 return
             new_value = text
         else:
-            dialog = PropertyEditDialog(
+            dialog = w.style_dialog(PropertyEditDialog(
                 label, f"{path[-1][0]}:", int(entry.value),
-                minimum=-2_147_483_648, maximum=2_147_483_647, parent=self,
-            )
+                minimum=-2_147_483_648, maximum=2_147_483_647,
+                title="Edit Value", parent=self,
+            ))
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return
             new_value = dialog.value()
@@ -477,6 +537,4 @@ def _short(value, limit: int = 80) -> str:
 
 
 def _get_text(parent, title: str, current: str):
-    from PySide6.QtWidgets import QInputDialog
-
-    return QInputDialog.getText(parent, "Edit value", title, text=current)
+    return w.prompt_text(parent, "Edit Value", title, current)

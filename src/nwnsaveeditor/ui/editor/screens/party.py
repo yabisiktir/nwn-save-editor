@@ -179,10 +179,11 @@ class PartyScreen(QWidget):
     def _edit(self, field) -> None:
         from vaultkeeper.ui.dialogs.property_edit_dialog import PropertyEditDialog
 
-        dialog = PropertyEditDialog(
+        dialog = w.style_dialog(PropertyEditDialog(
             field.display, f"{field.display}:", int(field.value),
-            minimum=field.minimum, maximum=field.maximum, parent=self,
-        )
+            minimum=field.minimum, maximum=field.maximum,
+            title="Edit Value", parent=self,
+        ))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         try:

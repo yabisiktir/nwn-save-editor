@@ -30,10 +30,11 @@ class PropertyEditDialog(QDialog):
         minimum: int = 0,
         maximum: int = 255,
         special_text: str = "",
+        title: str = "Edit Property",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Edit Property")
+        self.setWindowTitle(title)
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(f"<b>{description}</b>"))
         form = QFormLayout()

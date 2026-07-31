@@ -191,19 +191,17 @@ class QuestsScreen(QWidget):
         from vaultkeeper.ui.dialogs.property_edit_dialog import PropertyEditDialog
 
         if isinstance(variable.value, str):
-            from PySide6.QtWidgets import QInputDialog
-
-            text, ok = QInputDialog.getText(
-                self, "Edit variable", variable.name, text=str(variable.value)
-            )
+            text, ok = w.prompt_text(self, "Edit Variable", variable.name,
+                                     str(variable.value))
             if not ok:
                 return
             new_value = text
         else:
-            dialog = PropertyEditDialog(
+            dialog = w.style_dialog(PropertyEditDialog(
                 variable.name, f"{variable.type_name}:", int(variable.value),
-                minimum=-2_147_483_648, maximum=2_147_483_647, parent=self,
-            )
+                minimum=-2_147_483_648, maximum=2_147_483_647,
+                title="Edit Value", parent=self,
+            ))
             if dialog.exec() != QDialog.DialogCode.Accepted:
                 return
             new_value = dialog.value()
