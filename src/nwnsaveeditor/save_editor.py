@@ -1554,6 +1554,33 @@ class SaveEditor:
         "Mod_XPScale": ("XP scale (%)", 0, 1000),
     }
 
+    def player_natural_weapons(self) -> list:
+        """The claws and bites PRC has recorded for the character.
+
+        They live in the character's own ``VarTable``, not in an equipment slot:
+        PRC swaps them into the creature weapon slots by script, so a Red Dragon
+        Disciple's bite can be part of the character and equipped nowhere.
+        """
+        from vaultkeeper.game.natural_weapons import (
+            CREATURE_WEAPON_SLOTS,
+            natural_weapons,
+        )
+
+        player = self._player_struct(self._module_tree())
+        entry = player.fields.get("VarTable")
+        if entry is None or entry.type != GffType.LIST:
+            return []
+        pairs = [
+            (struct.get("Name") or "", struct.get("Value"))
+            for struct in entry.value.structs
+        ]
+        worn = {
+            (item.resref or "").lower(): item.slot
+            for item in self.player_items()
+            if item.slot in CREATURE_WEAPON_SLOTS
+        }
+        return natural_weapons(pairs, worn)
+
     def module_variables(self) -> list:
         """The module's persistent script variables (its world state)."""
         from vaultkeeper.game.world_state import read_variables

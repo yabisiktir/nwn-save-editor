@@ -280,3 +280,53 @@ def test_the_add_dialog_is_given_the_games_property_tables(window, screen, monke
     monkeypatch.setattr(screen, "property_tables", lambda: "the tables")
     panel._add_property()
     assert seen["tables"] == "the tables"
+
+
+# -- natural weapons --------------------------------------------------------- #
+def _labels(widget) -> str:
+    from PySide6.QtWidgets import QLabel
+
+    return "\n".join(label.text() for label in widget.findChildren(QLabel))
+
+
+def test_recorded_natural_weapons_are_listed_even_when_not_equipped(
+    window, screen, monkeypatch
+):
+    """A claw or bite is an item in a creature slot, so only the one in hand
+    showed as equipment — a Dragon Disciple's bite looked lost."""
+    from vaultkeeper.game.natural_weapons import natural_weapons
+
+    weapons = natural_weapons(
+        [
+            ("ARRAY_NAT_PRI_WEAP_RESREF_0", "prc_claw_1d6l_m"),
+            ("ARRAY_NAT_SEC_WEAP_RESREF_0", "prc_rdd_bite_m"),
+        ],
+        {"prc_claw_1d6l_m": 16384},
+    )
+    monkeypatch.setattr(screen, "_natural_weapons", lambda: weapons)
+    screen.refresh()
+    text = _labels(screen._scroll.widget())
+
+    assert "prc_rdd_bite_m" in text, "the bite the save records"
+    assert "not in hand" in text, "and that it is not currently equipped"
+    assert "Creature Weapon L" in text, "while the claw says where it is"
+
+
+def test_a_character_with_no_natural_weapons_gets_no_such_block(window, screen, monkeypatch):
+    monkeypatch.setattr(screen, "_natural_weapons", list)
+    screen.refresh()
+    assert "Natural weapons" not in _labels(screen._scroll.widget())
+
+
+def test_the_list_is_read_only_even_in_edit_mode(window, screen, monkeypatch):
+    """PRC derives the set from classes and feats and rewrites it, so an edit
+    here would be undone at the next recalculation."""
+    from vaultkeeper.game.natural_weapons import natural_weapons
+
+    monkeypatch.setattr(
+        screen, "_natural_weapons",
+        lambda: natural_weapons([("ARRAY_NAT_SEC_WEAP_RESREF_0", "prc_rdd_bite_m")]),
+    )
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    assert "read-only" in _labels(screen._scroll.widget())

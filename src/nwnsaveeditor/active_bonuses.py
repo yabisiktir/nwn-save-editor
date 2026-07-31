@@ -365,3 +365,19 @@ def _ordered(groups: list[BonusGroup]) -> list[BonusGroup]:
         return (category, 99, group.subject.lower())
 
     return sorted(groups, key=sort_key)
+
+
+def gear_bonus_for_save(groups, kind: str) -> int | None:
+    """The largest gear bonus that applies to one saving throw, or ``None``.
+
+    Both the throw's own group ("Fortitude save") and the universal one
+    ("Saving throws") count. *Largest*, not sum: NWN applies only the biggest of
+    several same-type bonuses, and this module refuses to add table-row values
+    together — see the module docstring.
+    """
+    wanted = {f"{kind} save".lower(), "saving throws"}
+    amounts = [
+        group.largest for group in groups
+        if group.subject.lower() in wanted and group.largest is not None
+    ]
+    return max(amounts, key=abs) if amounts else None

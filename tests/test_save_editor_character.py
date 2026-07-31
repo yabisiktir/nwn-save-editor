@@ -599,3 +599,48 @@ def test_the_look_pickers_open_at_all(window, screen, monkeypatch):
 
 class _Stop(Exception):
     """Stops _pick_look once we have seen what it offered."""
+
+
+# -- base vs total ----------------------------------------------------------- #
+def _abilities_page(screen):
+    screen._tabs.set_value("abilities")
+    screen._show_tab()
+    return screen._pages.currentWidget()
+
+
+def test_the_combat_numbers_say_they_are_the_stored_bases(window, screen):
+    """A "Fortitude +12" that Details also edits reads as a total; it is not."""
+    text = _labels(_abilities_page(screen)).lower()  # the stat captions uppercase
+    assert "base fortitude" in text
+    assert "base reflex" in text
+    assert "base will" in text
+    assert "base attack bonus" in text
+    assert "the same ones details edits" in text
+
+
+def test_a_save_shows_the_ability_that_adds_to_it(window, screen):
+    text = _labels(_abilities_page(screen))
+    assert "Con" in text and "Dex" in text and "Wis" in text
+
+
+def test_gear_is_credited_when_an_item_grants_the_save(window, screen, monkeypatch):
+    monkeypatch.setattr(
+        screen, "_save_gear_bonuses", lambda: {"Fortitude": 3, "Reflex": None, "Will": None}
+    )
+    screen.refresh()
+    assert "+3 gear" in _labels(_abilities_page(screen))
+
+
+def test_it_says_what_the_save_does_not_record_at_all(window, screen):
+    """Perfect Two-Weapon Fighting changes attacks per round, which is computed by
+    the engine and stored nowhere — so its absence needs explaining, not hiding."""
+    text = _labels(_abilities_page(screen))
+    assert "Attacks per round and off-hand attacks are not stored" in text
+    assert "never what they do" in text, "and feats are unattributed for a reason"
+
+
+def test_gear_bonuses_survive_an_unreadable_session(window, screen, monkeypatch):
+    monkeypatch.setattr(
+        window, "session", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    assert screen._save_gear_bonuses() == {}

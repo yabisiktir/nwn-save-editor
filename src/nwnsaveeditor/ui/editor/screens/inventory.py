@@ -164,8 +164,11 @@ class InventoryScreen(QWidget):
 
         column.addWidget(w.heading("Equipment"))
         column.addWidget(self._build_paperdoll(equipped), 0, Qt.AlignmentFlag.AlignLeft)
-        if any(bit in equipped for bit in CREATURE_SLOTS):
-            column.addWidget(self._build_creature_slots(equipped))
+        # Read once: a character can have natural weapons recorded and none of
+        # them equipped, which is exactly the case worth showing.
+        natural = self._natural_weapons()
+        if natural or any(bit in equipped for bit in CREATURE_SLOTS):
+            column.addWidget(self._build_creature_slots(equipped, natural))
 
         # Split the bag by container. Two thirds of a real character's items live
         # inside bags, and a single flat grid gives no clue which item is in what.
@@ -218,7 +221,7 @@ class InventoryScreen(QWidget):
         doll.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         return doll
 
-    def _build_creature_slots(self, equipped: dict) -> QWidget:
+    def _build_creature_slots(self, equipped: dict, natural: list) -> QWidget:
         holder = QWidget()
         holder.setStyleSheet("background:transparent;")
         column = QVBoxLayout(holder)
@@ -238,6 +241,43 @@ class InventoryScreen(QWidget):
                 row.addWidget(self._slot_cell(bit, equipped[bit]))
         row.addStretch(1)
         column.addLayout(row)
+        if natural:
+            column.addWidget(self._build_natural_weapons(natural))
+        return holder
+
+    def _natural_weapons(self) -> list:
+        try:
+            return self._window.session().player_natural_weapons()
+        except Exception:
+            return []
+
+    def _build_natural_weapons(self, weapons: list) -> QWidget:
+        """What PRC has recorded, equipped or not.
+
+        A claw or a bite is an ordinary item in a creature weapon slot, so only
+        the one currently in hand appeared as equipment. PRC keeps the whole set
+        in the character's VarTable and swaps them in by script, which is why a
+        Dragon Disciple's bite could look as though the save had lost it.
+        """
+        holder = QWidget()
+        holder.setStyleSheet("background:transparent;")
+        column = QVBoxLayout(holder)
+        column.setContentsMargins(0, 8, 0, 0)
+        column.setSpacing(6)
+        column.addWidget(w.cap_label(f"Natural weapons — PRC ({len(weapons)})"))
+        column.addWidget(w.body(
+            "PRC records these on the character and swaps them into the creature "
+            "slots by script, so one being unequipped does not mean it is gone. "
+            "The names come from the blueprint resref — the blueprints live in a "
+            "hak, not in the save. Derived from your classes and feats, so this "
+            "list is read-only.",
+            t.TEXT_3, 11.5,
+        ))
+        panel = w.Panel(padding=0)
+        panel.body_layout().setSpacing(0)
+        for weapon in weapons:
+            panel.body_layout().addWidget(_natural_row(weapon))
+        column.addWidget(panel)
         return holder
 
     def _slot_cell(self, bit: int, item):
@@ -343,3 +383,26 @@ def _left_click(action):
             action()
 
     return handler
+
+
+def _natural_row(weapon) -> QWidget:
+    """One recorded natural weapon: what it is, and whether it is in hand."""
+    row = QWidget()
+    row.setStyleSheet(
+        f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};"
+    )
+    line = QHBoxLayout(row)
+    line.setContentsMargins(12, 6, 12, 6)
+    line.setSpacing(10)
+    line.addWidget(w.body(weapon.label, t.TEXT, 12.5), 1)
+    line.addWidget(w.mono(weapon.group, t.TEXT_3, 11))
+    line.addWidget(w.mono(weapon.resref, t.TEXT_3, 11))
+    if weapon.equipped:
+        slot = w.body(
+            EQUIP_SLOT_NAMES.get(weapon.equipped_slot, "equipped"), t.GOLD, 11.5
+        )
+        slot.setToolTip("Currently in one of the creature weapon slots")
+        line.addWidget(slot)
+    else:
+        line.addWidget(w.body("not in hand", t.TEXT_3, 11.5))
+    return row

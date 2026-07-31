@@ -400,33 +400,76 @@ class CharacterScreen(QWidget):
         return box
 
     def _combat_panel(self, info) -> QWidget:
-        """Read-only derived stats, each with the source it comes from."""
+        """The stored base numbers, with what is known to add to them.
+
+        These are the values the record holds, and the same ones the Details tab
+        edits — which was the confusion: nothing said whether a "Fortitude" of
+        +12 was the base or the total. So each is labelled *base*, and the parts
+        that can be attributed honestly are shown beneath it rather than folded
+        into a single number the engine might not agree with.
+        """
         holder = QWidget()
         holder.setStyleSheet("background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(8)
         column.addWidget(w.body(
-            "Computed from abilities, feats & gear — see the Effects tab; edit the "
-            "sources, not these totals.",
+            "The values the save stores — the same ones Details edits. The engine "
+            "recomputes the totals it shows in-game from these plus your ability "
+            "modifiers, gear and feats.",
             t.TEXT_3, 11.5,
         ))
         panel = w.Panel(padding=16)
         stats = QHBoxLayout()
         stats.setSpacing(24)
         dex = ability_modifier(self._field_value("Dex", info.abilities.get("Dex", 10)))
-        for label, value, source in (
-            ("Base attack", _signed(info.base_attack_bonus), f"BAB {info.base_attack_bonus}"),
-            ("Initiative", _signed(dex), f"{_signed(dex)} Dex"),
-            ("Fortitude", _signed(info.save_fortitude), "base + Con"),
-            ("Reflex", _signed(info.save_reflex), "base + Dex"),
-            ("Will", _signed(info.save_will), "base + Wis"),
+        gear = self._save_gear_bonuses()
+        rows = [
+            ("Base attack bonus", _signed(info.base_attack_bonus), "stored"),
+            ("Initiative", _signed(dex), f"{_signed(dex)} Dex (derived)"),
+        ]
+        for kind, ability, stored in (
+            ("Fortitude", "Con", info.save_fortitude),
+            ("Reflex", "Dex", info.save_reflex),
+            ("Will", "Wis", info.save_will),
         ):
+            modifier = ability_modifier(
+                self._field_value(ability, info.abilities.get(ability, 10))
+            )
+            parts = [f"{_signed(modifier)} {ability}"]
+            if gear.get(kind) is not None:
+                parts.append(f"{_signed(gear[kind])} gear")
+            rows.append((f"Base {kind}", _signed(stored), " · ".join(parts)))
+        for label, value, source in rows:
             stats.addWidget(_combat_stat(label, value, source))
         stats.addStretch(1)
         panel.body_layout().addLayout(stats)
         column.addWidget(panel)
+        column.addWidget(w.body(
+            "Gear is the largest single bonus that applies, since NWN does not "
+            "stack same-type bonuses; what each feat adds is not shown, because "
+            "the save records which feats you have and never what they do. "
+            "Attacks per round and off-hand attacks are not stored at all — a feat "
+            "like Perfect Two-Weapon Fighting changes them in the running game "
+            "only, so there is nothing here for it to appear as.",
+            t.TEXT_3, 11,
+        ))
         return holder
+
+    def _save_gear_bonuses(self) -> dict[str, int | None]:
+        """The largest equipped-gear bonus applying to each saving throw."""
+        from vaultkeeper.game.active_bonuses import gear_bonus_for_save, item_contributions
+
+        try:
+            groups = item_contributions(
+                self._window.session().player_items(), self._window.item_name
+            )
+        except Exception:
+            return {}
+        return {
+            kind: gear_bonus_for_save(groups, kind)
+            for kind in ("Fortitude", "Reflex", "Will")
+        }
 
     # -- Skills ------------------------------------------------------------ #
     def _build_details(self, layout: QVBoxLayout, info) -> None:
