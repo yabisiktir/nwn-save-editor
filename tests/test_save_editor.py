@@ -608,6 +608,7 @@ def _make_char_save_with_details(tmp_path, name="000000 - test"):
     char.fields["Gold"] = GffField(GffType.DWORD, 100)
     char.fields["Str"] = GffField(GffType.BYTE, 12)
     char.fields["GoodEvil"] = GffField(GffType.BYTE, 50)
+    char.fields["Race"] = GffField(GffType.BYTE, 6)
     char.fields["Appearance_Type"] = GffField(GffType.WORD, 6)
     char.fields["Portrait"] = GffField(GffType.CRESREF, "po_hu_m_11_")
     ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
@@ -616,6 +617,7 @@ def _make_char_save_with_details(tmp_path, name="000000 - test"):
     bic_char = _character()
     bic_char.fields["Gold"] = GffField(GffType.DWORD, 100)
     bic_char.fields["Str"] = GffField(GffType.BYTE, 12)
+    bic_char.fields["Race"] = GffField(GffType.BYTE, 6)
     bic_char.fields["Appearance_Type"] = GffField(GffType.WORD, 6)
     bic_char.fields["Portrait"] = GffField(GffType.CRESREF, "po_hu_m_11_")
     bic = Gff("BIC ", "V3.2", bic_char)

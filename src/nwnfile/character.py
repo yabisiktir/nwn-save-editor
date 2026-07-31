@@ -115,6 +115,26 @@ def race_name(race_id: int, reference=None) -> str:
     return ref.prc_race_names.get(race_id, f"Race {race_id}")
 
 
+def is_base_race(race_id: int) -> bool:
+    """Whether this is a stock race rather than one PRC added.
+
+    PRC builds its races out of scripts and the creature skin, so changing a
+    character *to* or *from* one is not the simple byte swap it looks like.
+    """
+    return race_id in RACE_NAMES
+
+
+def race_options(reference=None) -> dict[int, str]:
+    """Every race id the app can name, for a picker — base first, then PRC's."""
+    from vaultkeeper.game.character_reference import default_reference
+
+    ref = reference if reference is not None else default_reference()
+    options = dict(RACE_NAMES)
+    for race_id, name in ref.prc_race_names.items():
+        options.setdefault(race_id, name)
+    return dict(sorted(options.items()))
+
+
 def class_name(class_id: int, reference=None) -> str:
     """Display name for a class id — base ``CLASS_NAMES`` first, then the bundled
     PRC class extension, then ``Class <id>`` (mirrors the feat/skill three-tier

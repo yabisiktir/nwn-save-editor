@@ -32,6 +32,7 @@ from vaultkeeper.game.character import (
     _good_evil_word,
     _lawful_chaotic_word,
     class_name,
+    is_base_race,
     race_name,
 )
 from vaultkeeper.game.rules import limits_for, skill_limits
@@ -452,7 +453,7 @@ class CharacterScreen(QWidget):
             ("Health & saves", (
                 "CurrentHitPoints", "FortSaveThrow", "RefSaveThrow", "WillSaveThrow",
             )),
-            ("Identity", ("FirstName", "LastName", "Appearance_Type", "Portrait")),
+            ("Identity", ("FirstName", "LastName", "Race", "Appearance_Type", "Portrait")),
         ]
         by_name = {f.field: f for f in fields}
         placed: set[str] = set()
@@ -521,6 +522,12 @@ class CharacterScreen(QWidget):
             button = w.small_ghost(str(self._shown_value(field)))
             button.clicked.connect(lambda _=False, f=field: self._pick_look(f))
             line.addWidget(button)
+        elif field.kind == "race":
+            button = w.small_ghost(str(self._shown_value(field)))
+            button.clicked.connect(lambda _=False, f=field: self._pick_race(f))
+            line.addWidget(button)
+            if not is_base_race(int(field.value)):
+                line.addWidget(w.prc_badge())
         else:
             limits = self._limits(field.field, self._window.character_info())
             box = QSpinBox()
@@ -540,7 +547,49 @@ class CharacterScreen(QWidget):
     def _shown_value(self, field):
         if field.kind == "appearance":
             return self._window.look_tables().appearance_name(int(field.value))
+        if field.kind == "race":
+            return race_name(int(field.value))
         return field.value
+
+    def _pick_race(self, field) -> None:
+        """Change the racial type.
+
+        Race is one stored byte, but it is not only cosmetic: the engine reads it
+        for racial ability adjustments and favoured class, and PRC builds its own
+        races out of scripts and the creature skin. So the picker offers only
+        what fits the byte, and says plainly when a choice is PRC's.
+        """
+        from PySide6.QtWidgets import QDialog, QMessageBox
+
+        from vaultkeeper.game.character import race_options
+        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+
+        limits = self._limits("Race", self._window.character_info())
+        options = [
+            (race_id, name if is_base_race(race_id) else f"{name}  (PRC)")
+            for race_id, name in race_options().items()
+            if limits.minimum <= race_id <= limits.maximum
+        ]
+        dialog = w.style_dialog(
+            IdPickerDialog("Race", options, value_header="Race", parent=self)
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        race_id = dialog.selected_id()
+        if race_id is None or race_id == int(field.value):
+            return
+        if not (is_base_race(race_id) and is_base_race(int(field.value))):
+            answer = QMessageBox.warning(
+                self, "PRC race",
+                "PRC builds its races from its own scripts and the creature skin, "
+                "not from this byte alone. Changing to or from one leaves the "
+                "racial feats and abilities as they are, and PRC may put the old "
+                "race back.\n\nStage it anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        self._set_detail("Race", race_id)
 
     def _set_detail(self, field: str, value: int) -> None:
         self._window.session().set_character_field(field, value, where=field)
@@ -552,10 +601,12 @@ class CharacterScreen(QWidget):
         from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         looks = self._window.look_tables()
+        # The picker takes (id, name) pairs. Handing it a mapping iterates the
+        # keys, so each "pair" is a bare int and it raises before it ever shows.
         if field.kind == "appearance":
-            options = looks.appearance_options()
+            options = sorted(looks.appearance_options().items())
         else:
-            options = dict(enumerate(looks.portrait_resrefs()))
+            options = list(enumerate(looks.portrait_resrefs()))
         dialog = w.style_dialog(
             IdPickerDialog(field.display, options, value_header=field.display, parent=self)
         )
@@ -980,6 +1031,13 @@ class CharacterScreen(QWidget):
         for field, label in (("FirstName", "First name"), ("LastName", "Last name")):
             rows.addWidget(self._name_row(field, label, field in pending))
         layout.addWidget(grid)
+        if self._window.editing:
+            # The name used to be editable here *and* under Details → Identity.
+            # Two editors for one field means one of them is always showing a
+            # stale value, so this one shows and Details edits.
+            layout.addWidget(w.body(
+                "Edit the name under Details → Identity.", t.TEXT_3, 11.5
+            ))
 
         layout.addWidget(w.cap_label("Biography"))
         text = w.body(info.biography or "(no biography written)", t.TEXT_2, 13)
@@ -1004,14 +1062,7 @@ class CharacterScreen(QWidget):
             ).value
         except Exception:
             current = ""
-        if self._window.editing:
-            edit = QLineEdit(str(current))
-            edit.setStyleSheet(_input_qss())
-            edit.setFixedWidth(220)
-            edit.editingFinished.connect(lambda e=edit, f=field: self._set_name(f, e.text()))
-            line.addWidget(edit)
-        else:
-            line.addWidget(w.body(str(current), t.TEXT, 13))
+        line.addWidget(w.body(str(current), t.GOLD if dirty else t.TEXT, 13))
         return row
 
     def _set_name(self, field: str, text: str) -> None:

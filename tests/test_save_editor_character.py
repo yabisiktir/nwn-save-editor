@@ -298,6 +298,36 @@ def test_editing_the_first_name_stages_it(window, screen):
     assert screen._tabs._dots["biography"].text().endswith("●")
 
 
+def _biography_page(screen):
+    screen._tabs.set_value("biography")
+    screen._show_tab()
+    return screen._pages.currentWidget()
+
+
+def _labels(widget) -> str:
+    from PySide6.QtWidgets import QLabel
+
+    return "\n".join(label.text() for label in widget.findChildren(QLabel))
+
+
+def test_biography_shows_the_name_but_does_not_edit_it(window, screen):
+    """It was editable here *and* under Details → Identity; two editors for one
+    field means one of them always shows a stale value."""
+    from PySide6.QtWidgets import QLineEdit
+
+    window._edit_toggle.setChecked(True)
+    page = _biography_page(screen)
+
+    assert not page.findChildren(QLineEdit), "no second name editor"
+    assert "Edit the name under Details → Identity." in _labels(page)
+
+
+def test_biography_reflects_a_name_staged_under_details(window, screen):
+    window._edit_toggle.setChecked(True)
+    screen._set_name("FirstName", "Kaelen")
+    assert "Kaelen" in _labels(_biography_page(screen))
+
+
 # -- skins ------------------------------------------------------------------ #
 def test_switching_sheet_skin_changes_nothing_in_the_save(window, screen):
     window._edit_toggle.setChecked(True)
@@ -443,3 +473,129 @@ def test_skill_rows_show_a_total_not_just_a_rank(window, screen):
     text = _text_of(_page(screen, "skills"))
     assert "rank" in text.lower()
     assert "key ability" in text.lower(), "the total's makeup must be stated"
+
+
+# -- race ------------------------------------------------------------------- #
+def _race_field(window):
+    return next(
+        f for f in window.session().player_fields() if f.field == "Race"
+    )
+
+
+def test_race_is_offered_as_an_editable_field(window):
+    """It was shown on the sheet but nothing could change it."""
+    field = _race_field(window)
+    assert field.kind == "race"
+
+
+def test_the_race_row_shows_the_name_not_the_byte(window, screen):
+    screen._tabs.set_value("details")
+    screen._show_tab()
+    assert "Human" in _labels(screen._pages.currentWidget())
+
+
+def test_picking_a_race_stages_it_in_both_trees(window, screen, monkeypatch):
+    window._edit_toggle.setChecked(True)
+    _accept_race(monkeypatch, 1)  # Elf
+    screen._pick_race(_race_field(window))
+
+    changes = window.session().pending_changes()
+    assert [c.key for c in changes] == ["Race"]
+    assert _race_field(window).value == 1
+
+
+def test_a_prc_race_warns_first_and_declining_stages_nothing(window, screen, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    _accept_race(monkeypatch, 159)  # a PRC race id, not in RACE_NAMES
+    monkeypatch.setattr(
+        QMessageBox, "warning", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+    screen._pick_race(_race_field(window))
+    assert not window.session().has_edits
+
+
+def test_two_base_races_need_no_warning(window, screen, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    _accept_race(monkeypatch, 0)  # Dwarf, base -> base
+    monkeypatch.setattr(QMessageBox, "warning", _no_modal)
+    screen._pick_race(_race_field(window))
+    assert window.session().has_edits
+
+
+def test_the_picker_offers_only_ids_the_byte_can_hold(window, screen, monkeypatch):
+    """Race is a BYTE; offering id 300 would stage a value the save cannot store."""
+    seen = {}
+
+    def _capture(field):
+        from vaultkeeper.game.character import race_options
+
+        limits = screen._limits("Race", window.character_info())
+        seen["ids"] = [
+            r for r in race_options() if limits.minimum <= r <= limits.maximum
+        ]
+
+    _capture(None)
+    assert seen["ids"], "some races must survive the filter"
+    assert max(seen["ids"]) <= 255
+
+
+def _accept_race(monkeypatch, race_id: int) -> None:
+    from PySide6.QtWidgets import QDialog
+
+    import vaultkeeper.ui.dialogs.id_picker_dialog as idp
+
+    class _Chose(idp.IdPickerDialog):
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def selected_id(self):
+            return race_id
+
+    monkeypatch.setattr(idp, "IdPickerDialog", _Chose)
+
+
+def _no_modal(*_a, **_k):
+    raise AssertionError("a base-to-base race change must not warn")
+
+
+# -- the look pickers ------------------------------------------------------- #
+class _Looks:
+    def appearance_options(self):
+        return {6: "Human male", 1: "Dwarf male"}
+
+    def portrait_resrefs(self):
+        return ["po_hu_m_11_", "po_el_f_01_"]
+
+    def appearance_name(self, value):
+        return self.appearance_options().get(int(value), str(value))
+
+
+def test_the_look_pickers_open_at_all(window, screen, monkeypatch):
+    """They were handed a mapping, which the picker iterates as bare ints — so
+    clicking Appearance or Portrait raised before the dialog ever appeared."""
+    monkeypatch.setattr(window, "look_tables", lambda: _Looks())
+    window._edit_toggle.setChecked(True)
+    fields = {f.field: f for f in window.session().player_fields()}
+    shown = {}
+
+    def _spy(title, items, **kw):
+        shown[title] = list(items)
+        raise _Stop
+
+    monkeypatch.setattr(
+        "vaultkeeper.ui.dialogs.id_picker_dialog.IdPickerDialog", _spy
+    )
+    for name in ("Appearance_Type", "Portrait"):
+        with pytest.raises(_Stop):
+            screen._pick_look(fields[name])
+
+    assert shown["Appearance"] == [(1, "Dwarf male"), (6, "Human male")]
+    assert shown["Portrait"] == [(0, "po_hu_m_11_"), (1, "po_el_f_01_")]
+
+
+class _Stop(Exception):
+    """Stops _pick_look once we have seen what it offered."""

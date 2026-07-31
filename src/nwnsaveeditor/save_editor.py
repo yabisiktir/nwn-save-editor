@@ -71,7 +71,7 @@ class CharacterField:
 
     field: str  #: the GFF field name (e.g. "Gold", "Str", "FirstName")
     display: str
-    kind: str  #: "int" | "name"
+    kind: str  #: "int" | "name" | "race" | "appearance" | "resref"
     value: object  #: current value (int, or the name text)
     minimum: int = 0
     maximum: int = 0
@@ -1052,6 +1052,8 @@ class SaveEditor:
                 loc = player.get(name)
                 text = loc.text() if loc is not None else ""
                 fields.append(CharacterField(name, display, "name", text))
+        if "Race" in player.fields:  # racial type — a byte, but picked by name
+            fields.append(CharacterField("Race", "Race", "race", player.get("Race") or 0))
         if "Appearance_Type" in player.fields:  # cosmetic model (appearance.2da)
             fields.append(CharacterField(
                 "Appearance_Type", "Appearance", "appearance", player.get("Appearance_Type") or 0
