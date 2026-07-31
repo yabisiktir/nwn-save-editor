@@ -49,7 +49,8 @@ def window(qtbot, tmp_path, monkeypatch):
 
 @pytest.fixture
 def screen(window):
-    screen = window._screens["properties"]
+    """The reference lives inside Raw Data, not in the sidebar."""
+    screen = window._screens["raw"]._reference
     screen.refresh()
     return screen
 
@@ -119,6 +120,40 @@ def test_the_screen_offers_no_way_to_edit(window, screen):
 
 def test_unreadable_tables_explain_themselves(window, monkeypatch):
     monkeypatch.setattr(window, "property_tables", lambda: None)
-    screen = window._screens["properties"]
+    screen = window._screens["raw"]._reference
     screen.refresh()
     assert "could not be read" in _texts(screen)
+
+
+# -- where it lives --------------------------------------------------------- #
+def test_it_is_not_its_own_sidebar_section(window):
+    """Leaving Raw Data to look up a property id defeats the point of looking it
+    up, so it is a companion panel rather than a destination."""
+    from vaultkeeper.ui.save_editor.sections import SECTIONS
+
+    assert "properties" not in {section.key for section in SECTIONS}
+
+
+def test_raw_data_hides_it_until_asked(window):
+    raw = window._screens["raw"]
+    assert raw._reference.isHidden()
+    assert raw._reference_button.text() == "Property reference ›"
+
+
+def test_the_toggle_shows_it_beside_the_tree(window):
+    raw = window._screens["raw"]
+    raw._toggle_reference()
+    assert not raw._reference.isHidden()
+    assert not raw._tree.isHidden(), "beside the tree, not instead of it"
+    assert raw._reference_button.text() == "‹ Hide reference"
+
+    raw._toggle_reference()
+    assert raw._reference.isHidden()
+
+
+def test_it_refreshes_with_the_screen_only_while_shown(window, monkeypatch):
+    raw = window._screens["raw"]
+    calls = []
+    monkeypatch.setattr(raw._reference, "refresh", lambda: calls.append(1))
+    raw.refresh()
+    assert not calls, "a hidden panel must not pay for every tree rebuild"

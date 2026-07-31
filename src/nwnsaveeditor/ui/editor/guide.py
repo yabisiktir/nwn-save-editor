@@ -69,7 +69,10 @@ explicitly choose <b>Overwrite…</b> — which keeps a timestamped backup first
       list of structs can also gain and lose entries: <b>Duplicate entry</b>
       copies a sibling, which is the reliable way to add one, while <b>Add blank
       entry</b> only seeds the sibling's fields at zero and leaves filling them
-      in to you. Removing an entry moves every later one up a place.</li>
+      in to you. Removing an entry moves every later one up a place.
+      <b>Property reference ›</b> folds out beside the tree: what every item
+      property means, the values it accepts, and which of your items carry it —
+      so a raw <code>CostValue</code> can be read without leaving the tree.</li>
   <li><b>Backups &amp; Diff</b> — what an overwrite archived, and what differs
       between a backup and the save you have now.</li>
 </ul>

@@ -49,9 +49,8 @@ def test_every_section_has_a_nav_row_and_a_screen(window):
 
 
 def test_advanced_sections_are_grouped_last():
-    """The handoff designed two advanced screens; Property Reference was added
-    after it, so the assertion is that they are advanced and come last, not that
-    there are exactly two."""
+    """The assertion is that the advanced screens come last, not that there are
+    exactly two — the set has grown and shrunk since the handoff."""
     keys = [s.key for s in sec.SECTIONS]
     advanced = [s.key for s in sec.SECTIONS if s.advanced]
     assert {"raw", "backups"} <= set(advanced)

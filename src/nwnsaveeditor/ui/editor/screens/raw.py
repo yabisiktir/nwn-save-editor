@@ -30,6 +30,9 @@ _ROLE = Qt.ItemDataRole.UserRole
 #: Nodes are built lazily; a save's tree is far too large to expand eagerly.
 _LAZY = "…"
 
+_REFERENCE_SHOW = "Property reference ›"
+_REFERENCE_HIDE = "‹ Hide reference"
+
 
 def _combo_qss() -> str:
     """The resource picker's chrome, rebuilt per call so it follows the theme."""
@@ -110,6 +113,10 @@ class RawScreen(QWidget):
         self._filter.textChanged.connect(self._apply_filter)
         outer.addWidget(self._filter)
 
+        split = QHBoxLayout()
+        split.setSpacing(14)
+        outer.addLayout(split, 1)
+
         self._tree = QTreeWidget()
         self._tree.setColumnCount(3)
         self._tree.setHeaderLabels(["Field", "Type", "Value"])
@@ -119,12 +126,31 @@ class RawScreen(QWidget):
         self._tree.currentItemChanged.connect(self._on_select)
         self._tree.setColumnWidth(0, 340)
         self._tree.setColumnWidth(1, 110)
-        outer.addWidget(self._tree, 1)
+        split.addWidget(self._tree, 1)
+
+        # The property reference used to be its own sidebar section, so looking up
+        # what CostValue 6 means cost you the tree you were reading. It sits here
+        # instead, folded away until asked for.
+        from vaultkeeper.ui.save_editor.screens.property_reference import (
+            PropertyReferenceScreen,
+        )
+
+        self._reference = PropertyReferenceScreen(window, self)
+        self._reference.setFixedWidth(620)
+        self._reference.setVisible(False)
+        split.addWidget(self._reference)
 
         row = QHBoxLayout()
         row.setSpacing(8)
         self._path_label = w.mono("", t.TEXT_3, 11)
         row.addWidget(self._path_label, 1)
+        self._reference_button = w.ghost_button(_REFERENCE_SHOW)
+        self._reference_button.setToolTip(
+            "What each item property means, its valid values, and which of your "
+            "items carry it — beside the tree, not instead of it"
+        )
+        self._reference_button.clicked.connect(self._toggle_reference)
+        row.addWidget(self._reference_button)
         self._buttons: dict[str, object] = {}
         for key, text, handler in (
             ("blank", "Add blank entry", self._add_blank),
@@ -189,6 +215,21 @@ class RawScreen(QWidget):
             return
         for label, entry in tree.root.fields.items():
             self._tree.addTopLevelItem(self._node(label, entry, ((label, None),)))
+        if not self._reference.isHidden():
+            self._reference.refresh()
+
+    def _toggle_reference(self) -> None:
+        """Show or hide the property reference beside the tree.
+
+        ``isHidden`` rather than ``isVisible``: the latter is false whenever an
+        ancestor is hidden, which would flip the panel's own state on a screen
+        the stack is not currently showing.
+        """
+        showing = self._reference.isHidden()
+        self._reference.setVisible(showing)
+        self._reference_button.setText(_REFERENCE_HIDE if showing else _REFERENCE_SHOW)
+        if showing:
+            self._reference.refresh()
 
     def _tree_for(self, target: str):
         session = self._window._session
