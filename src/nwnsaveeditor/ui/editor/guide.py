@@ -65,8 +65,13 @@ explicitly choose <b>Overwrite…</b> — which keeps a timestamped backup first
       editable, and so are the magical properties of any item in the world: a
       chest's loot and a creature's gear use the same property editor your own
       items do. Editing one changes the <i>area</i>; <b>copying it into your own
-      inventory</b> instead leaves the world untouched. Items themselves are not
-      added to or removed from the world here — use Raw Data for that.</li>
+      inventory</b> instead leaves the world untouched.
+      Whole items can be added and removed too: <b>Duplicate here</b> and
+      <b>Remove from the world…</b> on a selected item, and <b>Place an item
+      here…</b> on a selected store, creature or container puts a copy of one of
+      yours into it. Removing an item renumbers everything after it in the same
+      list, and anything you have already staged against one of those follows the
+      item it belongs to.</li>
   <li><b>Raw Data (GFF)</b> — every resource in the save, as its raw field tree.
       Scalar values can be edited here; a field's type is always preserved. A
       list of structs can also gain and lose entries: <b>Duplicate entry</b>

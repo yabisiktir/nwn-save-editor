@@ -1,10 +1,14 @@
 """The item detail panels — one per context, deliberately not shared.
 
 The handoff is explicit about this: an item selected in *your* inventory gets a
-panel that can edit its magical properties, while an item selected in a store,
-creature or container gets a different panel whose only action is **Add a copy to
-my inventory**. They are separate classes rather than one panel with a flag, so a
-cross-context edit is not merely disallowed — it has nowhere to be typed.
+different panel from one selected in a store, creature or container. They are
+separate classes rather than one panel with a flag, so an edit meant for one
+context has nowhere to be typed in the other.
+
+Both can edit an item's magical properties, but they write to different files —
+the player's items to ``module.ifo`` and its ``player.bic`` mirror, an area's to
+that area's ``.git`` — and only the area panel can copy an item between the two
+or add and remove items outright.
 
 Every property field an editor offers comes from the game's ``iprp_*`` tables, so
 an edit cannot produce a value the engine does not recognise. Changing a
@@ -350,9 +354,12 @@ class AreaItemPanel(_PanelBase):
     def _show_action(self, *, copied: bool = False) -> None:
         layout = self._action_slot.layout()
         while layout.count():
-            widget = layout.takeAt(0).widget()
+            item = layout.takeAt(0)
+            widget = item.widget()
             if widget is not None:
                 w.retire(widget)
+            elif item.layout() is not None:  # the world-actions row
+                _clear_layout(item.layout())
         if copied:
             done = QLabel("●  Copy added to inventory")
             done.setStyleSheet(
@@ -367,6 +374,37 @@ class AreaItemPanel(_PanelBase):
             button.setToolTip("Turn on Edit to take a copy")
         button.clicked.connect(self._copy_to_inventory)
         layout.addWidget(button)
+        if not self._editable():
+            return
+        # These two change the world rather than your inventory, so they sit
+        # below the copy button rather than beside it.
+        world = QHBoxLayout()
+        world.setSpacing(6)
+        duplicate = w.small_ghost("Duplicate here")
+        duplicate.setToolTip("Add a second copy of this item where it already is")
+        duplicate.clicked.connect(self._duplicate_in_world)
+        world.addWidget(duplicate)
+        remove = w.small_ghost("Remove from the world…")
+        remove.clicked.connect(self._remove_from_world)
+        world.addWidget(remove)
+        world.addStretch(1)
+        layout.addLayout(world)
+
+    def _duplicate_in_world(self) -> None:
+        self._area_edit("duplicate_area_item")
+
+    def _remove_from_world(self) -> None:
+        confirm = QMessageBox.question(
+            self, "Remove from the world",
+            f"Remove {self._item.name} from this area?\n\n"
+            f"It is deleted from the world, not moved to your inventory. Anything "
+            f"you have already staged against a later item in the same list follows "
+            f"that item along.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+        self._area_edit("remove_area_item")
 
     def _copy_to_inventory(self) -> None:
         try:
@@ -414,3 +452,14 @@ def item_cell(
     if filled:
         cell.setCursor(Qt.CursorShape.PointingHandCursor)
     return cell
+
+
+def _clear_layout(layout) -> None:
+    """Retire every widget in a nested layout, so a rebuild leaves nothing behind."""
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        if widget is not None:
+            w.retire(widget)
+        elif item.layout() is not None:
+            _clear_layout(item.layout())

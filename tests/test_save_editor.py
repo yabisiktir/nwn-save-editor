@@ -1134,3 +1134,122 @@ def test_an_area_edit_files_under_the_area_section():
     from vaultkeeper.ui.save_editor.sections import section_for_kind
 
     assert section_for_kind("area-item") == "area"
+
+
+# -- adding and removing whole items in the world --------------------------- #
+_SHOP_PANEL = (("StoreList", 0), ("StoreList", 0), ("ItemList", None))
+
+
+def _make_git_with_stock(tmp_path, count=3, name="000000 - test"):
+    """A save whose shop panel holds ``count`` items, each with one property."""
+    save = _make_char_save_with_git(tmp_path, name=name)
+    editor = SaveEditor(save)
+    for _ in range(count - 1):
+        editor.duplicate_area_item("area1", _SHOP_SWORD)
+    if count > 1:
+        out = editor.save_as(tmp_path / f"{name} stocked")
+        return out
+    return save
+
+
+def _stock(sav_path):
+    struct = _area_git(sav_path).root
+    for label, index in _SHOP_PANEL[:-1]:
+        struct = struct.fields[label].value.structs[index]
+    return struct.fields["ItemList"].value.structs
+
+
+def test_removing_a_world_item_writes_the_shorter_list(tmp_path):
+    save = _make_git_with_stock(tmp_path, 3)
+    editor = SaveEditor(save)
+    assert len(_stock(save.sav_path)) == 3
+
+    editor.remove_area_item("area1", (*_SHOP_PANEL[:-1], ("ItemList", 1)), where="Shop Sword")
+    assert [c.kind for c in editor.pending_changes()] == ["area-item"]
+    new_save = editor.save_as(tmp_path / "out")
+    assert len(_stock(new_save.sav_path)) == 2
+
+
+def test_duplicating_a_world_item_gives_the_copy_its_own_object_id(tmp_path):
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    editor.duplicate_area_item("area1", _SHOP_SWORD, where="Shop Sword")
+    new_save = editor.save_as(tmp_path / "out")
+    stock = _stock(new_save.sav_path)
+
+    assert len(stock) == 2
+    assert stock[0].get("TemplateResRef") == stock[1].get("TemplateResRef")
+    assert stock[0].get("ObjectId") != stock[1].get("ObjectId"), "two items, not one twice"
+
+
+def test_placing_one_of_my_items_in_the_world_leaves_mine_alone(tmp_path):
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    mine = editor.player_items()[0]
+    before = len(editor.player_items())
+
+    editor.add_item_to_area("area1", _SHOP_PANEL, mine.path, where=mine.name)
+    new_save = editor.save_as(tmp_path / "out")
+    stock = _stock(new_save.sav_path)
+
+    assert len(stock) == 2
+    assert stock[-1].get("TemplateResRef") == mine.resref
+    assert len(SaveEditor(new_save).player_items()) == before, "a copy, not a move"
+
+
+def test_removing_an_item_repoints_a_change_staged_against_a_later_one(tmp_path):
+    """Deleting entry 0 makes entry 2 into entry 1; a change staged against the
+    old index would silently start naming a different item."""
+    save = _make_git_with_stock(tmp_path, 3)
+    editor = SaveEditor(save)
+    third = (*_SHOP_PANEL[:-1], ("ItemList", 2))
+    editor.set_area_property("area1", third, 0, cost_value=9, where="third")
+    editor.remove_area_item("area1", (*_SHOP_PANEL[:-1], ("ItemList", 0)))
+
+    staged = {c.key for c in editor.pending_changes()}
+    assert ("area1", (*_SHOP_PANEL[:-1], ("ItemList", 1)), 0) in staged, "followed the item"
+    new_save = editor.save_as(tmp_path / "out")
+    assert _stock(new_save.sav_path)[1].fields["PropertiesList"].value.structs[
+        0].fields["CostValue"].value == 9
+
+
+def test_removing_an_item_drops_changes_staged_against_that_very_item(tmp_path):
+    save = _make_git_with_stock(tmp_path, 3)
+    editor = SaveEditor(save)
+    doomed = (*_SHOP_PANEL[:-1], ("ItemList", 1))
+    editor.set_area_property("area1", doomed, 0, cost_value=9, where="doomed")
+    editor.remove_area_item("area1", doomed)
+
+    kinds = [c.summary for c in editor.pending_changes()]
+    assert not any("edit" in s for s in kinds), "its edit went away with it"
+    assert any("remove item" in s for s in kinds)
+
+
+def test_discarding_the_removal_puts_the_later_edit_back_where_it_belongs(tmp_path):
+    """Discard replays the remaining log from clean, so the surviving edit must
+    end up on the item the user actually picked."""
+    save = _make_git_with_stock(tmp_path, 3)
+    editor = SaveEditor(save)
+    third = (*_SHOP_PANEL[:-1], ("ItemList", 2))
+    editor.set_area_property("area1", third, 0, cost_value=9, where="third")
+    editor.remove_area_item("area1", (*_SHOP_PANEL[:-1], ("ItemList", 0)))
+    removal = next(c for c in editor.pending_changes() if "remove item" in c.summary)
+
+    assert editor.discard_change(("area-item", removal.key))
+    new_save = editor.save_as(tmp_path / "out")
+    stock = _stock(new_save.sav_path)
+    assert len(stock) == 3, "the removal is gone"
+    assert stock[2].fields["PropertiesList"].value.structs[0].fields["CostValue"].value == 9
+
+
+def test_removing_an_item_out_of_range_is_refused(tmp_path):
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    with pytest.raises(SaveEditError, match="out of range"):
+        editor.remove_area_item("area1", (*_SHOP_PANEL[:-1], ("ItemList", 99)))
+
+
+def test_undoing_a_world_removal_brings_the_item_back(tmp_path):
+    save = _make_git_with_stock(tmp_path, 3)
+    editor = SaveEditor(save)
+    editor.remove_area_item("area1", (*_SHOP_PANEL[:-1], ("ItemList", 0)))
+    editor.undo()
+    assert not editor.has_edits
+    assert len(editor._area_item_list("area1", _SHOP_PANEL).structs) == 3

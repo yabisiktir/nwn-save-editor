@@ -30,6 +30,10 @@ from vaultkeeper.ui.save_editor import widgets as w
 from vaultkeeper.ui.save_editor.screens.item_panels import AreaItemPanel
 
 _ROLE = Qt.ItemDataRole.UserRole
+#: A node that can *hold* items — a store, a creature or a container — carries the
+#: .git list an item placed into it is appended to. Separate from _ROLE because a
+#: store node is already a store there.
+_HOLDER = Qt.ItemDataRole.UserRole + 1
 #: Item icons in the tree, matching the Inventory screen's cells.
 _ICON_PX = 32
 
@@ -90,10 +94,21 @@ class AreaScreen(QWidget):
         w.apply_tree_palette(self._tree)
         self._tree.currentItemChanged.connect(self._on_select)
         self._middle.addWidget(self._tree, 1)
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
         self._store_button = w.ghost_button("Edit Store…")
         self._store_button.setEnabled(False)
         self._store_button.clicked.connect(self._edit_store)
-        self._middle.addWidget(self._store_button, 0, Qt.AlignmentFlag.AlignLeft)
+        buttons.addWidget(self._store_button)
+        self._place_button = w.ghost_button("Place an item here…")
+        self._place_button.setEnabled(False)
+        self._place_button.setToolTip(
+            "Put a copy of one of your own items into this store, creature or container"
+        )
+        self._place_button.clicked.connect(self._place_item)
+        buttons.addWidget(self._place_button)
+        buttons.addStretch(1)
+        self._middle.addLayout(buttons)
         outer.addWidget(middle, 1)
 
         # -- detail -------------------------------------------------------- #
@@ -143,7 +158,13 @@ class AreaScreen(QWidget):
         current = self._tree.currentItem()
         role = current.data(0, _ROLE) if current is not None else None
         self._store_button.setEnabled(bool(role) and role[0] == "store" and self.editing)
+        self._place_button.setEnabled(bool(self._holder()) and self.editing)
         self._show_detail(role[1] if role and role[0] == "item" else None)
+
+    def _holder(self) -> tuple | None:
+        """``(list path, label)`` for the selected store/creature/container."""
+        current = self._tree.currentItem()
+        return current.data(0, _HOLDER) if current is not None else None
 
     def _areas(self) -> list[tuple[str, str]]:
         save = self._window.save
@@ -245,6 +266,7 @@ class AreaScreen(QWidget):
             for index, store in enumerate(area.stores):
                 node = QTreeWidgetItem([f"{store.name or store.tag or 'Store'}"])
                 node.setData(0, _ROLE, ("store", index, store))
+                _hold(node, store.git_path, store.name or store.tag or "Store")
                 group.addChild(node)
                 for item in store.items:
                     node.addChild(self._item_node(item))
@@ -256,6 +278,7 @@ class AreaScreen(QWidget):
             for creature in area.creatures:
                 label = creature.name or creature.tag or "Creature"
                 node = QTreeWidgetItem([f"{label}  ({creature.item_count})"])
+                _hold(node, creature.git_path, label)
                 group.addChild(node)
                 for equipped in creature.equipped:
                     node.addChild(self._item_node(equipped.item, prefix="⌾ "))
@@ -268,6 +291,7 @@ class AreaScreen(QWidget):
             for container in area.containers:
                 label = container.name or container.tag or "Container"
                 node = QTreeWidgetItem([f"{label}  ({len(container.items)})"])
+                _hold(node, container.git_path, label)
                 group.addChild(node)
                 for item in container.items:
                     node.addChild(self._item_node(item))
@@ -332,6 +356,8 @@ class AreaScreen(QWidget):
     def _on_select(self, current: QTreeWidgetItem | None, _previous=None) -> None:
         role = current.data(0, _ROLE) if current is not None else None
         self._store_button.setEnabled(bool(role) and role[0] == "store" and self.editing)
+        holder = current.data(0, _HOLDER) if current is not None else None
+        self._place_button.setEnabled(bool(holder) and self.editing)
         if role and role[0] == "item":
             self._show_detail(role[1])
         else:
@@ -344,6 +370,49 @@ class AreaScreen(QWidget):
             if widget is not None:
                 w.retire(widget)
         layout.addWidget(AreaItemPanel(self, item, self._area_resref or ""))
+
+    # -- placing one of your items in the world ----------------------------- #
+    def _place_item(self) -> None:
+        """Put a copy of one of the player's items into the selected holder."""
+        from PySide6.QtWidgets import QDialog, QMessageBox
+
+        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+
+        holder = self._holder()
+        if not holder:
+            return
+        list_path, label = holder
+        try:
+            mine = self.session().player_items()
+        except Exception as exc:
+            QMessageBox.critical(self, "Place failed", str(exc))
+            return
+        if not mine:
+            QMessageBox.information(
+                self, "Nothing to place", "Your character is carrying no items."
+            )
+            return
+
+        dialog = w.style_dialog(IdPickerDialog(
+            f"Place a copy of one of your items in {label}",
+            [(i, self._window.item_name(item)) for i, item in enumerate(mine)],
+            value_header="Item", parent=self,
+        ))
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        chosen = dialog.selected_id()
+        if chosen is None:
+            return
+        item = mine[int(chosen)]
+        try:
+            self.session().add_item_to_area(
+                self._area_resref, tuple(list_path), tuple(item.path),
+                where=f"{self._window.item_name(item)} → {label}",
+            )
+        except Exception as exc:  # SaveEditError and friends
+            QMessageBox.critical(self, "Place failed", str(exc))
+            return
+        self.changed()
 
     # -- store editing ------------------------------------------------------ #
     def _edit_store(self) -> None:
@@ -376,3 +445,9 @@ def _scroll(body: QWidget):
     area.setStyleSheet(w.scroll_area_qss())
     area.setWidget(body)
     return area
+
+
+def _hold(node: QTreeWidgetItem, git_path: tuple, label: str) -> None:
+    """Mark a tree node as a place items can be put, if the reader gave it a path."""
+    if git_path:
+        node.setData(0, _HOLDER, (tuple(git_path), label))

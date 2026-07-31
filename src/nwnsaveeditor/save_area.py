@@ -63,6 +63,8 @@ class Store:
     max_buy_price: int = -1
     black_market: bool = False
     items: list[InventoryItem] = field(default_factory=list)
+    #: the ``.git`` list new stock is appended to (its first category panel).
+    git_path: tuple = ()
 
 
 @dataclass
@@ -74,6 +76,8 @@ class CreatureRef:
     gold: int = 0
     equipped: list[EquippedItem] = field(default_factory=list)
     carried: list[InventoryItem] = field(default_factory=list)
+    #: the ``.git`` list an item given to this creature is appended to.
+    git_path: tuple = ()
 
     @property
     def item_count(self) -> int:
@@ -87,6 +91,8 @@ class Container:
     name: str = ""
     tag: str = ""
     items: list[InventoryItem] = field(default_factory=list)
+    #: the ``.git`` list an item put into this container is appended to.
+    git_path: tuple = ()
 
 
 @dataclass
@@ -282,6 +288,8 @@ def _read_store(
     if resolver is not None:
         resolver.resolve_items(items)
     store.items = items
+    # New stock goes into the first category panel; a store always has one.
+    store.git_path = (*path, ("StoreList", 0), ("ItemList", None))
     return store
 
 
@@ -310,6 +318,7 @@ def _read_creature(
         gold=_int(fields, git, "Gold"),
         equipped=equipped,
         carried=carried,
+        git_path=(*path, ("ItemList", None)),
     )
 
 
@@ -332,6 +341,7 @@ def _read_container(
         or "Container",
         tag=(git.read_value(*fields["Tag"]) if "Tag" in fields else "") or "",
         items=items,
+        git_path=(*path, ("ItemList", None)),
     )
 
 

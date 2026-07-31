@@ -43,7 +43,8 @@ SECTION_BLURBS: dict[str, str] = {
     "quests": "Journal entries and per-module local/global boolean, number and string variables.",
     "party": "Party-wide gold/XP and campaign-persistent global variables.",
     "area": "Browse an area's stores, creatures and containers — edit store pricing, "
-            "and the magical properties of any item in the world.",
+            "add, remove and duplicate the items in the world, and change their "
+            "magical properties.",
     "raw": "Advanced: browse and edit the underlying GFF struct/field tree directly, "
            "with the item-property reference foldable alongside it.",
     "backups": "Restore a previous auto-backup, or diff two saves field-by-field.",

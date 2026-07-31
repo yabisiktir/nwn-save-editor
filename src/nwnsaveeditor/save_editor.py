@@ -241,6 +241,20 @@ def _shift_path(path: tuple, list_path: tuple, removed: int) -> tuple | None:
     return path[:depth - 1] + ((label, index - 1),) + path[depth:]
 
 
+def _same_target(one: str, other: str) -> bool:
+    """Whether two change keys name the same resource — resrefs are case-blind."""
+    return str(one).lower() == str(other).lower()
+
+
+def _list_path(item_path: tuple) -> tuple:
+    """The list an item sits in, as :func:`_shift_path` wants it.
+
+    An item path ends with the list label and the item's index in it; the list
+    itself is that same path with the index blanked out.
+    """
+    return item_path[:-1] + ((item_path[-1][0], None),)
+
+
 def _unshift_path(path: tuple, list_path: tuple, removed: int) -> tuple:
     """:func:`_shift_path` backwards — the path this one was renumbered *from*."""
     depth = len(list_path)
@@ -343,16 +357,22 @@ class _Command:
     coalesce: tuple | None = None
 
 
-def _removal(command: _Command) -> tuple[str, tuple, int] | None:
-    """``(target, list path, index)`` if ``command`` is a raw list removal.
+def _removal(command: _Command) -> tuple[str, str, tuple, int] | None:
+    """``(change kind, target, list path, index)`` if ``command`` removed a list entry.
 
-    Read off the recorded call: ``remove_raw_struct`` takes those three
+    Read off the recorded call: both removals take their arguments
     positional-only, so a recorded removal is always in exactly this shape.
+    Anything that renumbers a list has to appear here, or a key staged against a
+    later sibling cannot be walked back through it.
     """
-    if command.method != "remove_raw_struct":
-        return None
-    target, path, index = command.args
-    return target, tuple(path), index
+    if command.method == "remove_raw_struct":
+        target, path, index = command.args
+        return "raw", target, tuple(path), index
+    if command.method == "remove_area_item":
+        area_resref, git_path = command.args
+        git_path = tuple(git_path)
+        return "area-item", area_resref, _list_path(git_path), git_path[-1][1]
+    return None
 
 
 def _records(coalesce=None):
@@ -568,10 +588,12 @@ class SaveEditor:
         for command in reversed(self._log):
             current = keys[-1]
             removal = _removal(command)
-            if removal is not None and current[0] == "raw" and current[1][0] == removal[0]:
+            if removal is not None and current[0] == removal[0] and _same_target(
+                current[1][0], removal[1]
+            ):
                 change_key = current[1]
-                current = ("raw", (
-                    change_key[0], _unshift_path(change_key[1], removal[1], removal[2]),
+                current = (removal[0], (
+                    change_key[0], _unshift_path(change_key[1], removal[2], removal[3]),
                 ) + tuple(change_key[2:]))
             keys.append(current)
         keys.reverse()
@@ -762,6 +784,115 @@ class SaveEditor:
             "area-item", (area_resref, tuple(git_path), prop_index, self._add_seq),
             where or area_resref, f"remove {label}",
         )
+
+    # -- whole items in the world ------------------------------------------- #
+    def _area_item_list(self, area_resref: str, list_path: tuple) -> GffList:
+        """The ``.git`` list ``list_path`` names — its last step's index is ignored."""
+        struct = self._area_tree(area_resref).root
+        for label, index in list_path[:-1]:
+            entry = struct.fields.get(label)
+            if entry is None or entry.type != GffType.LIST:
+                raise SaveEditError(f"path {list_path} does not resolve")
+            if not 0 <= index < len(entry.value.structs):
+                raise SaveEditError(f"path {list_path} does not resolve")
+            struct = entry.value.structs[index]
+        entry = struct.fields.get(list_path[-1][0])
+        if entry is None or entry.type != GffType.LIST:
+            raise SaveEditError(f"{list_path[-1][0]} is not a list here")
+        return entry.value
+
+    @_records()
+    def remove_area_item(self, area_resref: str, git_path: tuple, /, *, where: str = "") -> None:
+        """Remove an item from a container, a creature or a store's stock.
+
+        Deleting entry *k* renumbers every later sibling, so anything already
+        staged against one of them names a different item afterwards — hence the
+        path fix-up, the same one raw list removal does.
+        """
+        git_path = tuple(git_path)
+        if not git_path:
+            raise SaveEditError("no item to remove")
+        entries = self._area_item_list(area_resref, git_path).structs
+        index = git_path[-1][1]
+        if not 0 <= index < len(entries):
+            raise SaveEditError(f"item {index} is out of range")
+        numbered = _numbered_by_index(entries)
+        del entries[index]
+        if numbered:  # e.g. a PropertiesList; an ItemList is not index-numbered
+            for position, struct in enumerate(entries):
+                struct.struct_type = position
+
+        self._shift_area_paths(area_resref, _list_path(git_path), index)
+        self._area_dirty(area_resref)
+        self._add_seq += 1
+        self._stage(
+            "area-item", (area_resref, git_path, "remove", self._add_seq),
+            where or area_resref, f"remove item [{index}] of {len(entries) + 1}",
+        )
+
+    @_records()
+    def duplicate_area_item(
+        self, area_resref: str, git_path: tuple, *, where: str = ""
+    ) -> None:
+        """Append a copy of a world item to the list it already sits in."""
+        source = self._area_item_struct(area_resref, tuple(git_path))
+        entries = self._area_item_list(area_resref, tuple(git_path)).structs
+        clone = self._area_clone(source, struct_type=source.struct_type)
+        entries.append(clone)
+        self._area_dirty(area_resref)
+        self._stage(
+            "area-item", (area_resref, tuple(git_path), "duplicate", clone.get("ObjectId")),
+            where or area_resref, "duplicate item",
+        )
+
+    @_records()
+    def add_item_to_area(
+        self, area_resref: str, list_path: tuple, item_path: tuple, *, where: str = ""
+    ) -> None:
+        """Place a copy of one of the player's items into a world list.
+
+        The mirror of :meth:`add_item_from_area`: the source is a complete,
+        module-valid item struct, so it is copied over unchanged bar a fresh
+        ObjectId and a carried (rather than equipped) struct type.
+        """
+        source = self._item_struct(self._module_tree(), tuple(item_path))
+        entries = self._area_item_list(area_resref, tuple(list_path)).structs
+        clone = self._area_clone(source, struct_type=0)
+        entries.append(clone)
+        self._area_dirty(area_resref)
+        self._stage(
+            "area-item", (area_resref, tuple(list_path), "place", clone.get("ObjectId")),
+            where or area_resref, f"place a copy in {area_resref}",
+        )
+
+    def _area_clone(self, source: GffStruct, *, struct_type: int) -> GffStruct:
+        """A deep copy of an item struct with a fresh ObjectId."""
+        import copy
+
+        clone = copy.deepcopy(source)
+        clone.struct_type = struct_type
+        if "ObjectId" in clone.fields:
+            # Minted in the same order on every replay, so a discard key keyed on
+            # it stays put across undo/redo.
+            clone.fields["ObjectId"].value = self._next_object_id()
+        return clone
+
+    def _shift_area_paths(self, area_resref: str, list_path: tuple, removed: int) -> None:
+        """Re-point staged area-item changes after a sibling was removed."""
+        key_area = area_resref.lower()
+        changes: dict[tuple, PendingChange] = {}
+        for key, change in self._changes.items():
+            if key[0] != "area-item" or str(change.key[0]).lower() != key_area:
+                changes[key] = change
+                continue
+            shifted = _shift_path(change.key[1], list_path, removed)
+            if shifted is None:
+                continue  # what it named went away with the item
+            new_key = (change.key[0], shifted) + tuple(change.key[2:])
+            changes[("area-item", new_key)] = PendingChange(
+                kind=change.kind, key=new_key, where=change.where, summary=change.summary,
+            )
+        self._changes = changes
 
     def _area_tree(self, area_resref: str) -> Gff:
         key = area_resref.lower()

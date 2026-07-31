@@ -298,3 +298,115 @@ def test_an_area_edit_lights_the_area_sections_dot(window, screen, qtbot, monkey
     )
     panel._remove_property(0, _shop_item(window).properties[0])
     assert not window._nav_rows["area"]._dot.isHidden()
+
+
+# -- adding and removing whole items in the world --------------------------- #
+def _yes(monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+    )
+
+
+def test_the_world_actions_appear_only_in_edit_mode(window, screen, qtbot):
+    panel = _panel(window, screen, qtbot)
+    assert not panel._editable()
+
+    window._edit_toggle.setChecked(True)
+    labels = [b.text() for b in _panel(window, screen, qtbot).findChildren(QPushButton)]
+    assert "Duplicate here" in labels
+    assert "Remove from the world…" in labels
+
+
+def test_removing_an_item_from_the_world_stages_it(window, screen, qtbot, monkeypatch):
+    window._edit_toggle.setChecked(True)
+    panel = _panel(window, screen, qtbot)
+    _yes(monkeypatch)
+    panel._remove_from_world()
+
+    staged = window.session().pending_changes()
+    assert [c.kind for c in staged] == ["area-item"]
+    assert "remove item" in staged[0].summary
+
+
+def test_declining_the_removal_stages_nothing(window, screen, qtbot, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    panel = _panel(window, screen, qtbot)
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+    )
+    panel._remove_from_world()
+    assert not window.session().has_edits
+
+
+def test_duplicating_an_item_needs_no_confirmation(window, screen, qtbot):
+    """It adds; it destroys nothing, so a modal would only be in the way."""
+    window._edit_toggle.setChecked(True)
+    _panel(window, screen, qtbot)._duplicate_in_world()
+    assert [c.summary for c in window.session().pending_changes()] == ["duplicate item"]
+
+
+def test_a_holder_node_can_take_one_of_your_items(window, screen, monkeypatch):
+    from PySide6.QtWidgets import QDialog
+
+    import vaultkeeper.ui.dialogs.id_picker_dialog as idp
+
+    window._edit_toggle.setChecked(True)
+    node = _find_node(screen, lambda n: n.data(0, _holder_role()) is not None)
+    assert node is not None, "a store, creature or container must be placeable-into"
+    screen._tree.setCurrentItem(node)
+    assert screen._place_button.isEnabled()
+
+    offered = {}
+
+    class _Chose(idp.IdPickerDialog):
+        def __init__(self, title, items, **kw):
+            offered["items"] = list(items)
+            super().__init__(title, items, **kw)
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def selected_id(self):
+            return 0
+
+    monkeypatch.setattr(idp, "IdPickerDialog", _Chose)
+    screen._place_item()
+
+    assert offered["items"], "your own items are what it offers"
+    staged = window.session().pending_changes()
+    assert [c.kind for c in staged] == ["area-item"]
+    assert "place a copy" in staged[0].summary
+
+
+def test_the_place_button_is_dead_without_a_holder_selected(window, screen):
+    window._edit_toggle.setChecked(True)
+    screen._tree.setCurrentItem(None)
+    screen._sync_gate()
+    assert not screen._place_button.isEnabled()
+
+
+def _holder_role():
+    from vaultkeeper.ui.save_editor.screens.area import _HOLDER
+
+    return _HOLDER
+
+
+def _find_node(screen, predicate):
+    def walk(node):
+        if predicate(node):
+            return node
+        for i in range(node.childCount()):
+            hit = walk(node.child(i))
+            if hit is not None:
+                return hit
+        return None
+
+    for i in range(screen._tree.topLevelItemCount()):
+        hit = walk(screen._tree.topLevelItem(i))
+        if hit is not None:
+            return hit
+    return None
