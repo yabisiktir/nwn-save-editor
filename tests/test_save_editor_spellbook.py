@@ -232,3 +232,79 @@ def test_a_level_with_nothing_to_add_says_so_instead_of_an_empty_picker(
         pytest.skip("the fixture bard has only a level-0 list")
     screen._add_spell(bard, high)
     assert told, "an empty picker helps nobody"
+
+
+# -- the whole class at once ------------------------------------------------ #
+def test_the_level_row_offers_an_all_view(screen):
+    screen.refresh()
+    assert any(b.startswith("All") for b in _buttons(screen))
+
+
+def _two_level_book():
+    """A Known list at level 0 and another at level 3, on one class."""
+    from vaultkeeper.game.save_editor import ClassSpellbook, SpellList
+
+    return [ClassSpellbook(
+        class_index=0, class_id=10, class_name="Wizard", is_base=True,
+        lists=[
+            SpellList(0, "KnownList0", "Known", 0, [(1, "Light"), (2, "Daze")]),
+            SpellList(0, "KnownList3", "Known", 3, [(3, "Fireball")]),
+        ],
+    )]
+
+
+def test_all_lists_every_level_with_its_level_shown(screen, monkeypatch):
+    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+
+    monkeypatch.setattr(screen, "_book", _two_level_book)
+    screen._choose_level(ALL)
+    text = _texts(screen._scroll.widget())
+
+    assert {"Light", "Daze", "Fireball"} <= set(text.split("\n")), "every level's"
+    assert "L0" in text and "L3" in text, "each row says which level it is in"
+    assert "KNOWN — ALL LEVELS (3)" in text
+
+
+def test_all_orders_by_level_then_name(screen, monkeypatch):
+    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+
+    monkeypatch.setattr(screen, "_book", _two_level_book)
+    screen._choose_level(ALL)
+    shown = [line for line in _texts(screen._scroll.widget()).split("\n")
+             if line in {"Light", "Daze", "Fireball"}]
+    assert shown == ["Daze", "Light", "Fireball"]
+
+
+def test_all_does_not_offer_add_because_it_names_no_level(window, screen):
+    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+
+    window._edit_toggle.setChecked(True)
+    screen._choose_level(ALL)
+    assert not [b for b in _buttons(screen) if "Add a spell" in b]
+    assert "Pick a level to add spells" in _texts(screen._scroll.widget())
+
+
+def test_all_still_removes_from_the_right_level(window, screen):
+    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+
+    window._edit_toggle.setChecked(True)
+    book = window.session().player_spellbook()
+    chosen = book[0]
+    target = next((sl for sl in chosen.lists if sl.spells), None)
+    if target is None:
+        pytest.skip("the fixture class knows no spells")
+    spell_id = target.spells[0][0]
+
+    screen._choose_level(ALL)
+    screen._remove_spell(chosen, target, spell_id)
+    keys = [c.key for c in window.session().pending_changes() if c.kind == "spell"]
+    assert (chosen.class_index, target.list_field, "remove", spell_id) in keys
+
+
+def test_switching_back_to_a_level_still_works(window, screen):
+    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+
+    screen._choose_level(ALL)
+    screen._choose_level(0)
+    assert screen._level == 0
+    assert "all levels" not in _texts(screen._scroll.widget())

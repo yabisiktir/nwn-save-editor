@@ -26,6 +26,10 @@ from PySide6.QtWidgets import (
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 
+#: The "show every level at once" pseudo-level. Not a real spell level, so it
+#: cannot collide with one.
+ALL = -1
+
 
 class SpellbookScreen(QWidget):
     """The Spellbook section."""
@@ -110,16 +114,20 @@ class SpellbookScreen(QWidget):
         column.addWidget(self._class_row(book, chosen))
 
         levels = sorted({sl.level for sl in chosen.lists})
-        if self._level not in levels:
+        if self._level != ALL and self._level not in levels:
             self._level = levels[0] if levels else None
         if self._level is not None:
             column.addWidget(self._level_row(chosen, levels))
 
-        lists = [sl for sl in chosen.lists if sl.level == self._level]
-        for spell_list in lists:
-            column.addWidget(self._list_block(chosen, spell_list))
-        if not lists:
-            column.addWidget(w.body("Nothing at this level.", t.TEXT_3, 12.5))
+        if self._level == ALL:
+            for kind in _kinds(chosen):
+                column.addWidget(self._all_block(chosen, kind))
+        else:
+            lists = [sl for sl in chosen.lists if sl.level == self._level]
+            for spell_list in lists:
+                column.addWidget(self._list_block(chosen, spell_list))
+            if not lists:
+                column.addWidget(w.body("Nothing at this level.", t.TEXT_3, 12.5))
         column.addStretch(1)
         w.set_scroll_widget(self._scroll, content)
 
@@ -160,6 +168,12 @@ class SpellbookScreen(QWidget):
         column.addWidget(w.cap_label("Spell level"))
         row = QHBoxLayout()
         row.setSpacing(6)
+        total = sum(len(sl.spells) for sl in chosen.lists)
+        everything = w.pill_toggle(f"All  ({total})")
+        everything.setToolTip("Every spell this class knows, across all levels")
+        everything.setChecked(self._level == ALL)
+        everything.clicked.connect(lambda _=False: self._choose_level(ALL))
+        row.addWidget(everything)
         for level in levels:
             count = sum(
                 len(sl.spells) for sl in chosen.lists if sl.level == level
@@ -218,7 +232,65 @@ class SpellbookScreen(QWidget):
         self._apply_filter(self._filter, rows)
         return holder
 
-    def _spell_row(self, chosen, spell_list, spell_id: int, name: str, dirty: bool) -> QWidget:
+    def _all_block(self, chosen, kind: str) -> QWidget:
+        """One kind's whole spellbook at once, level by level.
+
+        The level tabs answer "what is slotted at level 3"; this answers "what
+        does this class know at all", which the tabs make you visit ten times.
+        """
+        holder = QWidget()
+        holder.setStyleSheet("background:transparent;")
+        column = QVBoxLayout(holder)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(8)
+
+        entries = [
+            (sl.level, sl, spell_id, name)
+            for sl in chosen.lists if sl.kind == kind
+            for spell_id, name in sl.spells
+        ]
+        entries.sort(key=lambda e: (e[0], e[3].lower()))
+
+        header = QHBoxLayout()
+        header.addWidget(w.cap_label(f"{kind} — all levels ({len(entries)})"))
+        header.addStretch(1)
+        if self._window.editing:
+            # Adding needs a level to write into, and only the level tabs name
+            # one. Say so rather than offering a button that must then ask.
+            header.addWidget(w.body("Pick a level to add spells", t.TEXT_3, 11.5))
+        column.addLayout(header)
+
+        if not entries:
+            column.addWidget(w.body(f"No {kind.lower()} spells.", t.TEXT_3, 12.5))
+            return holder
+
+        search = QLineEdit()
+        search.setPlaceholderText("Filter by name or id…")
+        search.setText(self._filter)
+        search.setStyleSheet(_input_qss())
+        rows: list[tuple[str, QWidget]] = []
+        search.textChanged.connect(lambda text, r=rows: self._apply_filter(text, r))
+        column.addWidget(search)
+
+        pending = self._pending_spell_keys()
+        panel = w.Panel(padding=0)
+        panel.body_layout().setSpacing(0)
+        for level, spell_list, spell_id, name in entries:
+            key = (chosen.class_index, spell_list.list_field, spell_id)
+            row = self._spell_row(
+                chosen, spell_list, spell_id, name, key in pending,
+                level_tag=f"L{level}",
+            )
+            rows.append((f"{name.lower()} {spell_id}", row))
+            panel.body_layout().addWidget(row)
+        column.addWidget(panel)
+        self._apply_filter(self._filter, rows)
+        return holder
+
+    def _spell_row(
+        self, chosen, spell_list, spell_id: int, name: str, dirty: bool,
+        level_tag: str | None = None,
+    ) -> QWidget:
         row = QWidget()
         row.setStyleSheet(
             f"background:{t.gold_tint(0.12) if dirty else 'transparent'};"
@@ -229,6 +301,8 @@ class SpellbookScreen(QWidget):
         line.setSpacing(10)
         if dirty:
             line.addWidget(w.status_dot())
+        if level_tag:
+            line.addWidget(w.mono(level_tag, t.TEXT_3, 11))
         line.addWidget(w.body(name, t.GOLD if dirty else t.TEXT, 13), 1)
         line.addWidget(w.mono(str(spell_id), t.TEXT_3, 11))
         if self._window.editing:
@@ -308,6 +382,15 @@ class SpellbookScreen(QWidget):
             chosen.class_index, spell_list.list_field, spell_id
         )
         self._window.notify_changed()
+
+
+def _kinds(chosen) -> list[str]:
+    """The class's list kinds — Known, Memorized or both — in first-seen order."""
+    seen: list[str] = []
+    for spell_list in chosen.lists:
+        if spell_list.kind not in seen:
+            seen.append(spell_list.kind)
+    return seen
 
 
 def _input_qss() -> str:
