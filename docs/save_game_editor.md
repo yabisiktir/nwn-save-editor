@@ -10,6 +10,24 @@ even then it is archived first. Editing is safe to experiment with.
 The older read-only **Save Game Viewer** is still on its own menu item. Both drive
 the same engine, so anything said here about how a change is written applies to both.
 
+## Running it on its own
+
+The editor does not need Vaultkeeper. It runs as its own application:
+
+```bash
+nwn-save-editor
+```
+
+or, from a checkout, `python -m vaultkeeper.ui.save_editor`. With no arguments it
+finds the game and your saves in the usual places; `--game-root` and `--user-dir`
+override that, and save folders can be named directly.
+
+Everything it asks of whatever is hosting it is one small protocol —
+`vaultkeeper.ui.save_editor.host.EditorHost`: where the game is, and how to
+remember the light/dark choice. Vaultkeeper's own controller satisfies it, and so
+does the standalone launcher, which keeps its own settings file rather than writing
+to the app's.
+
 ## Quick start
 
 1. **Tools → Save Game Editor**, and pick a save.

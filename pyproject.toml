@@ -29,6 +29,10 @@ dev = [
 
 [project.gui-scripts]
 vaultkeeper = "vaultkeeper.__main__:main"
+# The save editor runs on its own: it needs no Vaultkeeper application, only the
+# small host in vaultkeeper.ui.save_editor.host. Kept as its own entry point so
+# that stays true.
+nwn-save-editor = "vaultkeeper.ui.save_editor.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vaultkeeper"]
