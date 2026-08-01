@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
 from nwnsaveeditor.save_game import SaveGame, scan_save_games
 from nwnsaveeditor.ui.editor import tokens as t
 from nwnsaveeditor.ui.editor import widgets as w
+from nwnsaveeditor.ui.editor.appicon import app_icon
 from nwnsaveeditor.ui.editor.sections import (
     SECTION_BLURBS,
     SECTIONS,
@@ -121,6 +122,7 @@ class SaveEditorWindow(QMainWindow):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Save Game Editor")
+        self.setWindowIcon(app_icon())
         self.resize(t.WINDOW_W, t.WINDOW_H)
         self._controller = controller
         self._saves = list(saves)

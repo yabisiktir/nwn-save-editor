@@ -46,12 +46,14 @@ def collect_saves(paths: list[Path], user_dir: Path | None) -> list:
 def main(argv: list[str] | None = None) -> int:
     from PySide6.QtWidgets import QApplication, QMessageBox
 
+    from nwnsaveeditor.ui.editor.appicon import app_icon
     from nwnsaveeditor.ui.editor.host import StandaloneHost
     from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
     args = parse_args(argv)
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("NWN Save Editor")
+    app.setWindowIcon(app_icon())
 
     host = StandaloneHost(game_root=args.game_root, game_user_dir=args.user_dir)
     saves = collect_saves(args.saves, host.ctx.game_user_dir)
