@@ -241,6 +241,24 @@ def _shift_path(path: tuple, list_path: tuple, removed: int) -> tuple | None:
     return path[:depth - 1] + ((label, index - 1),) + path[depth:]
 
 
+def _unshift_property(key: tuple, command: _Command) -> tuple:
+    """Walk a property key back through a ``remove_item_property`` in the log.
+
+    The mirror of :meth:`SaveEditor._shift_property_keys`: that renumbers staged
+    keys forwards as the removal happens, so a discard replaying the log has to
+    know which index the change was filed under *before* it.
+    """
+    if command.method != "remove_item_property":
+        return key
+    if key[0] not in ("property", "prop-add"):
+        return key
+    item_path, removed = tuple(command.args[0]), command.args[1]
+    change_key = key[1]
+    if change_key[0] != item_path or change_key[1] < removed:
+        return key
+    return (key[0], (change_key[0], change_key[1] + 1))
+
+
 def _same_target(one: str, other: str) -> bool:
     """Whether two change keys name the same resource — resrefs are case-blind."""
     return str(one).lower() == str(other).lower()
@@ -595,6 +613,8 @@ class SaveEditor:
                 current = (removal[0], (
                     change_key[0], _unshift_path(change_key[1], removal[2], removal[3]),
                 ) + tuple(change_key[2:]))
+            else:
+                current = _unshift_property(current, command)
             keys.append(current)
         keys.reverse()
         return keys
@@ -1117,6 +1137,44 @@ class SaveEditor:
         # inventory screen marks a property with, and edits to it are staged under.
         self._stage("prop-add", (tuple(item_path), index), where or "item", f"add {label}")
 
+    def _shift_property_keys(self, item_path: tuple, removed: int) -> None:
+        """Re-point staged property bookkeeping after property ``removed`` went.
+
+        A ``PropertiesList`` is renumbered by a deletion just as any other list
+        is, so a change staged against a later property now names a different
+        one. The ledger's gold dot is placed by matching ``(item path, index)``
+        against the property's *current* index, so without this it marked the
+        wrong row — or no row at all.
+
+        ``prop-remove`` entries are left alone: each carries a sequence number
+        and names something that is already gone, so there is nothing to follow.
+        """
+        def shifted(index: int) -> int | None:
+            if index < removed:
+                return index
+            return None if index == removed else index - 1
+
+        originals: dict[tuple[tuple, int], dict[str, object]] = {}
+        for (path, index), value in self._prop_originals.items():
+            moved = shifted(index) if path == item_path else index
+            if moved is not None:
+                originals[(path, moved)] = value
+        self._prop_originals = originals
+
+        changes: dict[tuple, PendingChange] = {}
+        for key, change in self._changes.items():
+            if key[0] not in ("property", "prop-add") or change.key[0] != item_path:
+                changes[key] = change
+                continue
+            moved = shifted(change.key[1])
+            if moved is None:
+                continue  # the property it named went away
+            new_key = (item_path, moved)
+            changes[(key[0], new_key)] = PendingChange(
+                kind=change.kind, key=new_key, where=change.where, summary=change.summary,
+            )
+        self._changes = changes
+
     @_records()
     def remove_item_property(
         self, item_path: tuple, prop_index: int, *, where: str = "", label: str = "property",
@@ -1130,6 +1188,7 @@ class SaveEditor:
                     del plist.value.structs[prop_index]
                 for i, struct in enumerate(plist.value.structs):  # keep struct_type == index
                     struct.struct_type = i
+        self._shift_property_keys(tuple(item_path), prop_index)
         self._add_seq += 1
         # What it named is gone, so the sequence number keeps successive removals
         # from the same slot distinct — as it does for a raw list removal.

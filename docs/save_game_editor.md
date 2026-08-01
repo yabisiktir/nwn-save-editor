@@ -1,119 +1,185 @@
 # Save Game Editor — Guide
 
-The **Save Game Viewer** (Tools → Save Game Viewer) can also *edit* a save and write
-the result to a **brand-new save**. Your original save is never modified — it is your
-backup — so editing is safe to experiment with.
+**Tools → Save Game Editor** opens a full window: a sidebar of sections on the left,
+the section you picked in the middle, and a detail panel on the right where the
+section has one.
+
+Your original save is never modified in place unless you explicitly ask for it, and
+even then it is archived first. Editing is safe to experiment with.
+
+The older read-only **Save Game Viewer** is still on its own menu item. Both drive
+the same engine, so anything said here about how a change is written applies to both.
 
 ## Quick start
 
-1. **Tools → Save Game Viewer** and pick a save on the left.
-2. Click **Edit** (bottom bar) to turn on edit mode. A **pending-changes** panel
-   appears at the bottom.
-3. Make changes (see below). Each one is *staged* — nothing is written yet — and
-   listed in the pending panel, with a ● marker on the thing you changed.
-4. Commit your changes one of two ways:
-   - **Save as New Save…** — writes a new save folder next to the original (which is
-     left untouched). Safest.
-   - **Overwrite This Save…** — replaces the selected save in place. The version
-     being replaced is first moved to a timestamped folder under
-     `…/Neverwinter Nights/vaultkeeper_backups/`, so it stays recoverable. The edited
-     save is fully written and verified to a staging folder *before* the old one is
-     touched, so a failure never harms it.
+1. **Tools → Save Game Editor**, and pick a save.
+2. Turn on **Edit** in the toolbar. Read-only is the default, so a stray click cannot
+   change anything.
+3. Make changes. Each one is *staged* — nothing is written yet — and appears in the
+   **change ledger** with a gold ● on the thing you changed. **Undo**, **Redo** and
+   per-change **Discard** all work.
+4. Commit one of two ways:
+   - **Save as New Save…** — writes a new save folder beside the original, which is
+     left untouched. Safest, and the default.
+   - **Overwrite This Save…** — replaces the selected save. The edited save is fully
+     written *and verified* to a staging folder before the old one is touched, and
+     the replaced version is moved to a timestamped folder under
+     `…/Neverwinter Nights/vaultkeeper_backups/`, so it stays recoverable.
 
-Use **Discard All** to drop every staged change, or turn **Edit** off (it asks
-before discarding unsaved changes).
+**Discard All** drops every staged change.
 
-## What you can edit
+## Strict and Free
 
-Almost everything is reached by **selecting** a node or **right-clicking** it while
-in edit mode.
+The toolbar's rule mode decides how far a value may go.
 
-### Stores (merchant pricing)
-Expand an area → **Stores** → select a store → **Edit Store…** (bottom bar). Change
-buy markup, sell-back markdown, store gold, identify price, max buy price and the
-black-market flag.
+- **Strict** — the game's own limits. A spell can only be added to a level its class
+  actually casts; a skill cannot exceed its rank cap.
+- **Free** — only the field's *storable* range applies. That range is a property of
+  the file format and binds in both modes; Free says so wherever it widens something.
 
-### The player character
-Expand the **Player character** node. It has **Details**, **Equipped**, **Carried**,
-**Skills**, **Feats** and **Spells**.
+## Sections
 
-- **Details:** the core character fields — gold, experience (XP), the six ability
-  scores, alignment (Good–Evil / Lawful–Chaotic, 0–100), age, current HP, the
-  first/last name, plus the cosmetic **Appearance** (model) and **Portrait**
-  (chosen from pickers of valid values). Select one and click **Edit…**.
+### Character
 
-- **Item properties — edit a value:** select a magical property under an item and
-  click **Edit…**. Every field is a dropdown (or a searchable picker for the huge
-  feat/spell lists) populated from the game's `iprp_*` tables, so you can change the
-  **subtype** (which ability / damage type / spell …), the **value** (`+8`, `1d6`,
-  `5 Charges/Use`, `50%` …) and, for Cast-Spell properties, **uses/day** — and can
-  only pick values the game recognises, so an edit can't corrupt the item. (To change
-  the property *type* itself, remove it and add a new one.)
-- **Item properties — add / remove:** right-click an item → **Add a property…** and
-  choose a type (Ability/AC/Attack/Enhancement/Skill bonus, saving throws,
-  regeneration, or a flag like Haste/Keen/True Seeing/Freedom of Movement/Improved
-  Evasion/Darkvision), a subtype and a magnitude. Right-click a property →
-  **Remove this property**.
-- **Add items:** right-click one of your items → **Add a copy to my inventory** to
-  duplicate it. You can also right-click any **store / creature / container** item
-  in an area and choose the same — it copies that item into your inventory.
-- **Skills:** select a skill → **Edit…** to set its rank.
-- **Feats:** right-click **Feats** → **Add a feat…** (a searchable ID + Name list),
-  or right-click a feat → **Remove this feat**.
-- **Spells:** expand **Spells** → a caster class → a **Known / Memorized** level;
-  right-click the level → **Add a spell…**, or right-click a spell → **Remove this
-  spell**.
+Six tabs.
 
-The **Add a feat / spell** picker is a browsable **ID + Name** table: scroll and
-click, or type in the search box to filter by name **or** the raw id.
+- **Abilities & Combat** — the character sheet: ability scores with their modifiers,
+  AC and HP, and the stored combat numbers. Those are labelled **base** deliberately:
+  they are the values the save holds, and the same ones Details edits. The engine
+  recomputes what it shows in-game from these plus your ability modifiers, gear and
+  feats. The ability modifier and the largest applicable gear bonus are shown as
+  separate parts beside each saving throw rather than folded into a total.
+  Attacks per round and off-hand attacks are **not stored at all** — the engine
+  computes them, so a feat like Perfect Two-Weapon Fighting has nothing here to
+  appear as.
+- **Details** — every editable field on the record: gold, experience, alignment, age,
+  current HP, the three base saves, first and last name, **race**, appearance and
+  portrait. Race, appearance and portrait are pickers. A PRC race is badged and warns
+  before staging, because PRC builds its races from scripts and the creature skin,
+  not from the stored byte alone.
+- **Skills** — rank and the computed total (rank + key ability + equipped-item
+  bonuses), sortable and filterable.
+- **Feats** — add and remove. PRC feats are badged: PRC regenerates them onto the
+  creature skin, so an edit to one may not stick in-game. Base-game feats do.
+- **Effects** — what the save's `EffectList` holds, or a switch to **active bonuses**:
+  where each number comes from, attributed to the item, class or spell that supplies
+  it. What a *feat* contributes is not shown, because the save records which feats
+  you have and never what any of them does.
+- **Biography** — the written biography, with the name shown read-only. Details is
+  the one place it is edited.
 
-### Raw Data (GFF) — the escape hatch
+### Inventory & Equipment
 
-**Raw Data (GFF)** browses every resource in the save as its decoded field tree, and
-edits it directly. It is deliberately unhelpful: it bypasses the friendly editors,
-so its changes are marked **raw** in the ledger. A field's *type* is always
-preserved, so a raw edit can break the game's rules but not the file.
+A paperdoll of the worn slots, the carried bag grouped by container, and a detail
+panel for the selected item.
 
-With **Edit** on, select a node and use the buttons under the tree:
+Item properties are edited from the game's own `iprp_*` tables, so every value you
+can pick is one the engine recognises. **Add a property…** offers every property type
+the game defines — around 200 on a full install — with a searchable picker when the
+subtype list is long, so a Bonus Feat reaches the whole feat list. To change a
+property's *type*, remove it and add the one you want.
 
-- a scalar leaf → **Edit value…**
-- a **list** → **Add blank entry** / **Duplicate entry**
-- one of a list's **entries** → also **Remove entry…** (it confirms first)
+The creature slots are shown apart, including the **PRC skin**, which is where PRC
+puts the feats and bonuses it regenerates.
 
-Adding is the part worth understanding. **Duplicate entry** copies a sibling, which
-is the reliable route: the copy already carries the fields, types and struct type
-the game expects in that list. **Add blank entry** can only *seed* one — it takes
-the first sibling's field set and types and zeroes the values, so you get the right
-shape but have to fill it in. The line under the buttons says which one you got.
+Below them, **Natural weapons — PRC**. A claw or a bite is an ordinary item in a
+creature weapon slot, so only the one currently in hand shows as equipment — but PRC
+keeps the whole set on the character and swaps them in by script. This lists what it
+has recorded and whether each is in hand, so an unequipped bite does not look lost.
+Read-only: PRC derives the set from your classes and feats and rewrites it.
 
-Removing an entry renumbers every entry after it — `[5]` becomes `[4]`, and so on.
-Staged changes follow the entries they were made against, so the ledger keeps
-pointing at what you actually edited.
+### Spellbook
+
+Caster class along the top, spell level below it, and the list for that level.
+**All** shows the whole book at once with each row tagged by level.
+
+Adding is done from a level tab, because an add needs a level to write into. In
+Strict the picker offers only what that class casts at that level — the save stores
+a bare spell id in a level-numbered list, so an unfiltered picker would happily put
+a level-6 wizard spell in a bard's cantrips. A PRC prestige spellbook is badged and
+warns first.
+
+### Quests & World State
+
+The module's persistent script variables. Object and location variables are shown but
+not editable — they are runtime handles, and setting one by hand points a script at
+something that is not there.
+
+There is no journal: a `.sav` does not bundle a `.jrl`.
+
+### Party & Campaign
+
+Party-wide settings. The campaign database is reported rather than opened.
+
+### Area Contents
+
+Browse an area's stores, creatures and containers.
+
+- **Store pricing** — buy markup, sell-back markdown, store gold, identify price,
+  max buy price, black market.
+- **Item properties** — a chest's loot and a creature's gear use the same property
+  editor your own items do.
+- **Whole items** — **Duplicate here** and **Remove from the world…** on a selected
+  item, and **Place an item here…** on a selected store, creature or container, which
+  puts a *copy* of one of yours into it.
+- **Add a copy to my inventory** takes a copy the other way and leaves the world
+  alone.
+
+Editing any of these changes the *area*. Removing an item renumbers everything after
+it in the same list, and anything already staged against one of those follows the
+item it belongs to.
+
+### Raw Data (GFF) — advanced
+
+Every resource in the save, as its decoded struct/field tree. It is deliberately
+unhelpful: it bypasses the friendly editors, so its changes are marked **raw** in the
+ledger.
+
+- Scalars are editable, and a field's type is always preserved — a raw edit can break
+  the game's *rules*, not the *file*. **Double-click** a row to edit it.
+- A list of structs can gain and lose entries. **Duplicate entry** copies a sibling,
+  which is the reliable route: the copy already carries the fields, types and struct
+  type the game expects there. **Add blank entry** can only *seed* one — it takes the
+  first sibling's field set and zeroes the values, so you get the right shape and have
+  to fill it in. The line under the buttons says which you got.
+- Removing an entry renumbers every entry after it, and staged changes follow.
+- The tree keeps its open nodes, selection and scroll position across an edit.
+- **Property reference ›** folds out beside the tree: what every item property means,
+  the values it accepts, and which of your items carry it — so a raw `CostValue` can
+  be read without leaving the tree. A stored `CostValue` is a *row* in a cost table,
+  not the number itself.
 
 Raw edits touch **one resource only**: editing `module.ifo` does not mirror into
 `player.bic` the way the friendly editors do.
 
-## Important: PRC content
+### Backups & Diff — advanced
 
-If your game uses the **PRC** (Player Resource Consortium), it manages a lot of
-character state through its own scripts and the character's hidden *skin* item.
-That means:
+What an overwrite archived, and a field-by-field diff between two saves.
 
-- **Base-game** feats, skills and spells edit cleanly and persist.
-- **PRC** feats, and **PRC prestige-class** spellbooks, are marked **(PRC)**. PRC
-  regenerates them from its own data on rest / level-up / area-load, so an edit here
-  **may not stick in-game**. The editor warns you before changing one.
+## What PRC changes about all this
 
-Derived stats (AC, attack bonus, saving throws, max HP) are recomputed by the engine
-from your abilities, feats and gear — so edit those *sources*, not the numbers.
+If your game uses the **PRC** (Player Resource Consortium), a great deal of the
+character is script-managed, through PRC's own scripts and the character's hidden
+*skin* item. The editor detects this and warns rather than pretending otherwise:
+
+- **Feats** live on the creature skin and are regenerated from PRC's own data.
+- **Races** are built from scripts and the skin, not from the stored byte alone.
+- **Prestige spellbooks** are rebuilt by PRC.
+- **Natural weapons** are recorded on the character and equipped by script.
+
+Base-game edits stick. PRC ones may revert at the next rest, level-up or area load —
+which is why each is flagged before it stages, not after it fails.
 
 ## Safety model
 
-- **Your original save is never touched** — every save is written to a new folder.
-- The character lives inside the save's `module.ifo`; edits are applied there and
-  mirrored into the folder's `player.bic`.
+- **Save as New Save…** never touches the original. **Overwrite This Save…** writes
+  and verifies to a staging folder first, then archives the old save to a timestamped
+  `vaultkeeper_backups/` folder before swapping.
+- The character lives inside the save's `module.ifo`, under `Mod_PlayerList[0]`. That
+  is authoritative; the folder's `player.bic` is a mirror, and every character edit is
+  written to both.
 - After writing, the new save is re-read and byte-verified; a failed write cleans up
   rather than leaving a corrupt save.
 
 > **Always test an edited save in-game before relying on it**, especially anything
-> PRC-related. The editor can't load a save in NWN to confirm it.
+> PRC-related. The editor cannot load a save in NWN to confirm it.

@@ -1253,3 +1253,80 @@ def test_undoing_a_world_removal_brings_the_item_back(tmp_path):
     editor.undo()
     assert not editor.has_edits
     assert len(editor._area_item_list("area1", _SHOP_PANEL).structs) == 3
+
+
+# -- removing a property renumbers the rest --------------------------------- #
+def _prop_state(editor, item_path):
+    item = next(i for i in editor.player_items() if tuple(i.path) == tuple(item_path))
+    return [(p.index, p.prop.cost_value) for p in item.properties]
+
+
+def _staged(editor, kind):
+    return [c for c in editor.pending_changes() if c.kind == kind]
+
+
+def _with_three_properties(tmp_path):
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    path = tuple(editor.player_items()[0].path)
+    editor.add_item_property(
+        path, property_name=1, subtype=0, cost_value=4, cost_table=2, label="AC +4"
+    )
+    return editor, path
+
+
+def test_removing_a_property_moves_a_later_ones_marker_with_it(tmp_path):
+    """The gold dot is placed by matching (item path, index) against the
+    property's current index, so a stale key marks the wrong row — or none."""
+    editor, path = _with_three_properties(tmp_path)
+    added = len(_prop_state(editor, path)) - 1
+    editor.set_property(path, added, cost_value=9, where="added", label="added")
+    editor.remove_item_property(path, 0, label="first")
+
+    now = _prop_state(editor, path)
+    moved = next(index for index, value in now if value == 9)
+    assert [c.key for c in _staged(editor, "property")] == [(path, moved)]
+
+
+def test_a_change_staged_against_the_removed_property_goes_with_it(tmp_path):
+    editor, path = _with_three_properties(tmp_path)
+    editor.set_property(path, 0, cost_value=9, where="first", label="first")
+    editor.remove_item_property(path, 0, label="first")
+    assert not _staged(editor, "property"), "it named something that is gone"
+
+
+def test_a_property_before_the_removed_one_does_not_move(tmp_path):
+    editor, path = _with_three_properties(tmp_path)
+    if len(_prop_state(editor, path)) < 3:
+        pytest.skip("the fixture item carries too few properties")
+    editor.set_property(path, 0, cost_value=9, where="first", label="first")
+    editor.remove_item_property(path, 1, label="second")
+    assert [c.key for c in _staged(editor, "property")] == [(path, 0)]
+
+
+def test_an_added_property_that_shifts_keeps_a_working_discard(tmp_path):
+    """Shifting the keys must not strand Discard: it replays the log, so it has
+    to know which index the change was filed under before the removal."""
+    editor, path = _with_three_properties(tmp_path)
+    added = len(_prop_state(editor, path)) - 1
+    editor.set_property(path, added, cost_value=9, where="added", label="added")
+    editor.remove_item_property(path, 0, label="first")
+
+    edit = _staged(editor, "property")[0]
+    assert editor.discard_change((edit.kind, edit.key))
+    assert not _staged(editor, "property")
+    assert _staged(editor, "prop-add"), "the add and the removal survive"
+    assert _staged(editor, "prop-remove")
+    assert 9 not in [value for _index, value in _prop_state(editor, path)]
+
+
+def test_the_revert_originals_follow_the_property_too(tmp_path):
+    """Setting a shifted property back to its original value must still clear
+    the pending entry, which needs the original filed under the new index."""
+    editor, path = _with_three_properties(tmp_path)
+    added = len(_prop_state(editor, path)) - 1
+    editor.set_property(path, added, cost_value=9, where="added", label="added")
+    editor.remove_item_property(path, 0, label="first")
+
+    moved = next(index for index, value in _prop_state(editor, path) if value == 9)
+    editor.set_property(path, moved, cost_value=4, where="added", label="added")
+    assert not _staged(editor, "property"), "reverted, so no longer pending"
