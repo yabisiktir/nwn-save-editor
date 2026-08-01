@@ -18,7 +18,7 @@ offset       meaning
 
 Rows run bottom-to-top, as in TGA.
 
-The result is deliberately :class:`~vaultkeeper.core.formats.tga_reader.TGAImage`
+The result is deliberately :class:`~nwnfile.formats.tga_reader.TGAImage`
 shaped so callers that already know how to show a TGA need no new path, and this
 module stays free of Qt.
 """
@@ -78,7 +78,7 @@ def colour_plt(plt: Plt, palettes: dict[str, object], tints: dict[int, int] | No
     ``tints`` picks the row per layer, defaulting to 0 — an inventory icon carries
     no per-item tint, so the game's first row is the honest choice.
     """
-    from vaultkeeper.core.formats.tga_reader import TGAImage
+    from nwnfile.formats.tga_reader import TGAImage
 
     tints = tints or {}
     rows: dict[str, tuple[bytes, int, int]] = {}

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.core.formats.bic_reader import (
+from nwnfile.formats.bic_reader import (
     BicFileReader,
     CharacterClass,
     CharacterInfo,
@@ -145,7 +145,7 @@ class TestBicIntegration:
         """Test BIC parsing with actual GFF structure"""
         import struct
 
-        from vaultkeeper.core.formats.gff_reader import GFFReader
+        from nwnfile.formats.gff_reader import GFFReader
         
         # Create a minimal GFF structure that looks like a BIC file
         test_file = temp_dir / "test.bic"
@@ -271,8 +271,8 @@ class TestRealBic:
 
     def test_real_player_bic_extended_fields(self):
         """Gold (DWORD), Deity (CExoString) and the six ability scores decode."""
-        from vaultkeeper.core.formats.bic_reader import ABILITY_LABELS
-        from vaultkeeper.game.character import character_summary
+        from nwnfile.character import character_summary
+        from nwnfile.formats.bic_reader import ABILITY_LABELS
 
         info = BicFileReader().read_file(REAL_BIC)
         assert info.is_valid

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.core.formats.tga_reader import TGAImage, TGAReader
+from nwnfile.formats.tga_reader import TGAImage, TGAReader
 
 
 @pytest.mark.unit

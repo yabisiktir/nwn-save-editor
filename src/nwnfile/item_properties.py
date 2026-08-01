@@ -31,7 +31,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from vaultkeeper.core.formats.bic_reader import ItemProperty
+from nwnfile.formats.bic_reader import ItemProperty
 
 _DATA_DIR = Path(__file__).resolve().parent / "data"
 PROPERTY_NAMES_FILE = "Item Property Names.json"
@@ -200,7 +200,7 @@ def _spell_levels() -> dict[int, str]:
 
 def _class_name(class_id: int) -> str:
     """Class name for a Use-Limitation/Bonus-Spell-Slot subtype (base -> PRC -> Class N)."""
-    from vaultkeeper.game.character import class_name
+    from nwnfile.character import class_name
 
     return class_name(class_id)
 
@@ -208,7 +208,7 @@ def _class_name(class_id: int) -> str:
 def _skills() -> dict[int, str]:
     global _skill_subtypes
     if _skill_subtypes is None:
-        from vaultkeeper.game.character_reference import default_reference
+        from nwnfile.character_reference import default_reference
 
         ref = default_reference()
         skills = dict(enumerate(ref.skill_names))

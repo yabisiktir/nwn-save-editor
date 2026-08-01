@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from PySide6.QtWidgets import QPushButton
 
-from vaultkeeper.core.formats.bic_reader import EQUIP_SLOT_NAMES
+from nwnfile.formats.bic_reader import EQUIP_SLOT_NAMES
 from vaultkeeper.ui.save_editor.screens.inventory import (
     CREATURE_SLOTS,
     PAPERDOLL,
@@ -189,7 +189,7 @@ def test_toggling_edit_mode_re_renders_the_screens(window, screen):
 # -- sorting ---------------------------------------------------------------- #
 def test_carried_items_group_by_type_by_default(window, screen):
     """The game's own inventory groups by item type, so that is the default."""
-    from vaultkeeper.game.item_names import base_item_type
+    from nwnfile.item_names import base_item_type
 
     assert screen._sort == "type"
     carried = [i for i in window.session().player_items() if i.slot is None]

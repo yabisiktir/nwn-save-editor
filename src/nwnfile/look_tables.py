@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from vaultkeeper.core.formats.erf_reader import ErfReader
-from vaultkeeper.core.formats.key_bif_reader import KeyBifReader
-from vaultkeeper.game.item_property_tables import parse_2da
+from nwnfile.formats.erf_reader import ErfReader
+from nwnfile.formats.key_bif_reader import KeyBifReader
+from nwnfile.item_property_tables import parse_2da
 
 _2DA_RESTYPE = 2017
 #: haks (in the user hak folder) that commonly override appearance/portraits.

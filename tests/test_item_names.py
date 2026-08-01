@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import struct
 
-from vaultkeeper.core.formats.bic_reader import InventoryItem
-from vaultkeeper.core.formats.tlk_reader import TlkReader
-from vaultkeeper.game.item_names import (
+from nwnfile.formats.bic_reader import InventoryItem
+from nwnfile.formats.tlk_reader import TlkReader
+from nwnfile.item_names import (
     ItemNameResolver,
     base_item_type,
     default_base_item_names,

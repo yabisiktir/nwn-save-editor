@@ -4,7 +4,7 @@ Neverwinter Nights packs game resources (models, textures, 2DAs, scripts, …) i
 *ERF* containers with the type tags ``ERF``/``HAK``/``MOD``/``SAV``. This reader
 parses the V1.0 layout and can list every resource and extract its bytes. It is a
 faithful port of the structural half of ``ErfFileReader.vb`` and shares its layout
-with the validated :mod:`vaultkeeper.game.module_reader` (which reads ``module.ifo``
+with the validated module reader above it (which reads ``module.ifo``
 out of a ``.mod``); this module is the general-purpose extractor the hak-facing
 tools (portrait/loadscreen extraction, backup inspection) build on.
 
@@ -31,7 +31,7 @@ import struct
 from dataclasses import dataclass
 from pathlib import Path
 
-from vaultkeeper.core.log import get_logger
+from nwnfile.log import get_logger
 
 logger = get_logger(__name__)
 

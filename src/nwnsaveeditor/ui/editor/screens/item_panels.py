@@ -28,8 +28,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.item_names import base_item_type
-from vaultkeeper.game.item_properties import describe_property
+from nwnfile.item_names import base_item_type
+from nwnfile.item_properties import describe_property
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 

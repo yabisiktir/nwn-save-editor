@@ -23,8 +23,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.core.formats.bic_reader import EQUIP_SLOT_NAMES
-from vaultkeeper.game.item_names import base_item_type
+from nwnfile.formats.bic_reader import EQUIP_SLOT_NAMES
+from nwnfile.item_names import base_item_type
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 from vaultkeeper.ui.save_editor.screens.item_panels import PlayerItemPanel, item_cell

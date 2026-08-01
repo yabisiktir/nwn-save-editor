@@ -53,7 +53,7 @@ def test_only_the_resources_that_changed_are_reported(tmp_path):
 
 
 def test_a_field_present_on_one_side_only_is_marked(tmp_path):
-    from vaultkeeper.core.formats.gff import GffField, GffType
+    from nwnfile.formats.gff import GffField, GffType
 
     original = _make_char_save_with_details(tmp_path, name="000001 - before")
     editor = SaveEditor(original)

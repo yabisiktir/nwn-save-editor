@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.core.formats.erf_reader import ErfReader
-from vaultkeeper.core.formats.erf_writer import build_erf, rewrite_erf
+from nwnfile.formats.erf_reader import ErfReader
+from nwnfile.formats.erf_writer import build_erf, rewrite_erf
 
 
 def _make_erf(resources: list[tuple[str, int, bytes]]) -> bytes:

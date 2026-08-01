@@ -14,7 +14,7 @@ This reader resolves each of those into ``{row -> label}`` option maps, so the e
 can present only valid choices — you can never store an out-of-range value that would
 corrupt the item. PRC's extended tables (in ``prc8_2das.hak``) are read in preference
 to the base game, so PRC properties/spells/feats are covered too. The huge feat/spell
-subtype tables reuse the bundled maps in :mod:`vaultkeeper.game.item_properties`.
+subtype tables reuse the bundled maps in :mod:`nwnfile.item_properties`.
 """
 
 from __future__ import annotations
@@ -22,8 +22,8 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
-from vaultkeeper.core.formats.erf_reader import ErfReader
-from vaultkeeper.core.formats.key_bif_reader import KeyBifReader
+from nwnfile.formats.erf_reader import ErfReader
+from nwnfile.formats.key_bif_reader import KeyBifReader
 
 _2DA_RESTYPE = 2017
 #: property ids whose subtype table is huge / PRC-extended — reuse bundled maps.
@@ -80,7 +80,7 @@ class ItemPropertyTables:
             hak_path = candidate if candidate.is_file() else None
         tlk = None
         if game_root is not None:
-            from vaultkeeper.game.item_names import _dialog_tlk_path, _load_tlk
+            from nwnfile.item_names import _dialog_tlk_path, _load_tlk
 
             tlk = _load_tlk(_dialog_tlk_path(game_root))
         return cls(game_root, hak_path, tlk)
@@ -101,7 +101,7 @@ class ItemPropertyTables:
     def subtype_options(self, property_name: int) -> dict[int, str] | None:
         """Valid ``Subtype`` rows + labels for a property, or ``None`` if it has none."""
         if property_name in _BUNDLED_SUBTYPES:
-            from vaultkeeper.game import item_properties
+            from nwnfile import item_properties
 
             return dict(getattr(item_properties, _BUNDLED_SUBTYPES[property_name])())
         subtype_ref = self._def(property_name, "SubTypeResRef")

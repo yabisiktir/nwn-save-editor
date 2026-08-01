@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from vaultkeeper.core.formats.bic_reader import _GFF, _GFFType
-from vaultkeeper.core.formats.erf_reader import ErfReader
+from nwnfile.formats.bic_reader import _GFF, _GFFType
+from nwnfile.formats.erf_reader import ErfReader
 from vaultkeeper.game.game_saves import get_location_in_game_save
 
 _IFO_RESTYPE = 2014  # module.ifo

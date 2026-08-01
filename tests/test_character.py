@@ -7,13 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.core.formats.bic_reader import (
-    CharacterClass,
-    CharacterInfo,
-    Gender,
-    Race,
-)
-from vaultkeeper.game.character import (
+from nwnfile.character import (
     alignment_title,
     character_summary,
     class_name,
@@ -23,6 +17,12 @@ from vaultkeeper.game.character import (
     resolve_portrait,
     scan_character_files,
     scan_portraits,
+)
+from nwnfile.formats.bic_reader import (
+    CharacterClass,
+    CharacterInfo,
+    Gender,
+    Race,
 )
 
 
@@ -53,7 +53,7 @@ class TestNameTables:
         assert class_name(CharacterClass.RED_DRAGON_DISCIPLE.value) == "Red Dragon Disciple"
 
     def test_class_name_resolves_base_then_prc_then_unknown(self):
-        from vaultkeeper.game.character_reference import CharacterReference
+        from nwnfile.character_reference import CharacterReference
 
         ref = CharacterReference(prc_class_names={43: "Binder"})
         assert class_name(1, ref) == "Bard"  # base CLASS_NAMES wins
@@ -61,7 +61,7 @@ class TestNameTables:
         assert class_name(9999, ref) == "Class 9999"  # neither -> visible fallback
 
     def test_race_name_resolves_base_then_prc_then_unknown(self):
-        from vaultkeeper.game.character_reference import CharacterReference
+        from nwnfile.character_reference import CharacterReference
 
         ref = CharacterReference(prc_race_names={159: "Bralani Eladrin"})
         assert race_name(6, ref) == "Human"  # base RACE_NAMES wins

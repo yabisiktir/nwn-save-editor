@@ -6,7 +6,7 @@ from functools import cmp_to_key
 
 import pytest
 
-from vaultkeeper.core.win_sort import win_compare
+from nwnfile.win_sort import win_compare
 
 
 def _sign(n: int) -> int:

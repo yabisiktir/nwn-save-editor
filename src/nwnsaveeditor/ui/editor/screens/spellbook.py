@@ -331,7 +331,7 @@ class SpellbookScreen(QWidget):
         self.refresh()
 
     def _add_spell(self, chosen, spell_list) -> None:
-        from vaultkeeper.game.character_reference import default_reference
+        from nwnfile.character_reference import default_reference
         from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         if not chosen.is_base and not _confirm_prc(self, chosen.class_name):

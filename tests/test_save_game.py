@@ -65,7 +65,7 @@ def test_save_game_viewer_lists_and_shows_detail(qtbot, tmp_path):
 
 
 def _mk_item(name, base=0):
-    from vaultkeeper.core.formats.bic_reader import InventoryItem
+    from nwnfile.formats.bic_reader import InventoryItem
 
     return InventoryItem(
         name=name, base_item=base, tag="", resref="rr", stack_size=1,
@@ -75,7 +75,7 @@ def _mk_item(name, base=0):
 
 def test_save_viewer_area_contents_tree(qtbot, tmp_path, monkeypatch):
     import vaultkeeper.ui.dialogs.save_game_viewer as sgv
-    from vaultkeeper.core.formats.bic_reader import EquippedItem
+    from nwnfile.formats.bic_reader import EquippedItem
     from vaultkeeper.game.save_area import (
         AreaContents,
         Container,
@@ -574,7 +574,7 @@ def test_save_viewer_edit_portrait(qtbot, tmp_path, monkeypatch):
 
 
 def test_property_editor_dialog_builds_edits(qtbot):
-    from vaultkeeper.core.formats.bic_reader import ItemProperty
+    from nwnfile.formats.bic_reader import ItemProperty
     from vaultkeeper.ui.dialogs.property_editor_dialog import PropertyEditorDialog
 
     prop = ItemProperty(
@@ -714,9 +714,9 @@ def test_save_viewer_clone_store_item(qtbot, tmp_path, monkeypatch):
     from types import SimpleNamespace
 
     import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from nwnfile.formats.bic_reader import InventoryItem
     from tests.test_save_editor import _ifo_char, _make_char_save_with_git
     from vaultkeeper.config.settings import Settings
-    from vaultkeeper.core.formats.bic_reader import InventoryItem
 
     save = _make_char_save_with_git(tmp_path)
 

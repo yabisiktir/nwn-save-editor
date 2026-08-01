@@ -1,7 +1,7 @@
 """Feat/skill reference data for character display (VB ``BicFileInfo`` GetNames/GetDescriptions).
 
 A character's ``.bic`` stores its feats as a list of feat *ids* and its skills as a
-list of ranks (see :mod:`vaultkeeper.core.formats.bic_reader`). To show them by name we
+list of ranks (see :mod:`nwnfile.formats.bic_reader`). To show them by name we
 need the game's lookup tables, which the original tool ships as four text files in its
 program folder and which are bundled here (``game/data/``):
 
@@ -51,7 +51,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from vaultkeeper.core.win_sort import win_compare
+from nwnfile.win_sort import win_compare
 
 _DATA_DIR = Path(__file__).resolve().parent / "data"
 
@@ -305,7 +305,7 @@ class CharacterReference:
         (description from the PRC manual). De-duplicated by name (base wins) and
         sorted by name (``WinCompare``). Returns ``[(name, description)]``.
         """
-        from vaultkeeper.game.character import CLASS_NAMES, CLASS_REFS
+        from nwnfile.character import CLASS_NAMES, CLASS_REFS
 
         excluded = (8154, 8155)
         rows: list[tuple[str, str]] = []

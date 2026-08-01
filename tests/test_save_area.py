@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.game.item_names import resolver_for
+from nwnfile.item_names import resolver_for
 from vaultkeeper.game.save_area import (
     AreaContents,
     Container,

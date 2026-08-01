@@ -374,7 +374,7 @@ class SaveEditorWindow(QMainWindow):
         authoritative ``module.ifo`` record, and cached per save because parsing
         walks the whole inventory.
         """
-        from vaultkeeper.core.formats.bic_reader import BicFileReader
+        from nwnfile.formats.bic_reader import BicFileReader
 
         save = self._current
         if save is None or save.player_bic is None:
@@ -388,7 +388,7 @@ class SaveEditorWindow(QMainWindow):
         return self._char_cache
 
     def _resolver(self):
-        from vaultkeeper.game.item_names import resolver_for
+        from nwnfile.item_names import resolver_for
 
         return resolver_for(self._game_root())
 
@@ -412,7 +412,7 @@ class SaveEditorWindow(QMainWindow):
 
     def look_tables(self):
         """appearance.2da / portraits.2da options, built once."""
-        from vaultkeeper.game.look_tables import LookTables
+        from nwnfile.look_tables import LookTables
 
         if self._look_tables is _UNSET:
             user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
@@ -432,7 +432,7 @@ class SaveEditorWindow(QMainWindow):
         Every item-property editor is populated from these, so an edit can only
         produce a value the engine recognises.
         """
-        from vaultkeeper.game.item_property_tables import ItemPropertyTables
+        from nwnfile.item_property_tables import ItemPropertyTables
 
         if self._prop_tables is _UNSET:
             user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)

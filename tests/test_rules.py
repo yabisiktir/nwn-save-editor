@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from vaultkeeper.core.formats.gff import GffType
+from nwnfile.formats.gff import GffType
 from vaultkeeper.game.rules import (
     Limits,
     limits_for,

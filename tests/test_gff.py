@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.core.formats.gff import (
+from nwnfile.formats.gff import (
     Gff,
     GffField,
     GffList,
@@ -135,7 +135,7 @@ def test_real_bic_roundtrips_byte_identical():
 
 @pytest.mark.skipif(not _SAVES.is_dir(), reason="no local NWN saves on this box")
 def test_real_save_gff_no_data_loss():
-    from vaultkeeper.core.formats.erf_reader import ErfReader
+    from nwnfile.formats.erf_reader import ErfReader
 
     er = ErfReader()
     sav = next(iter(_SAVES.glob("*/*.sav")), None)

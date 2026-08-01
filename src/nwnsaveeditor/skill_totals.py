@@ -64,8 +64,8 @@ def key_abilities(game_root) -> dict[int, str]:
     if game_root is None:
         return {}
     try:
-        from vaultkeeper.core.formats.key_bif_reader import KeyBifReader
-        from vaultkeeper.game.item_property_tables import parse_2da
+        from nwnfile.formats.key_bif_reader import KeyBifReader
+        from nwnfile.item_property_tables import parse_2da
 
         text = KeyBifReader.for_install(game_root).read_2da_text("skills")
         if not text:

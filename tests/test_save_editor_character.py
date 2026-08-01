@@ -251,7 +251,7 @@ def test_the_bonuses_view_credits_each_bonus_to_the_item_that_grants_it(
 ):
     from types import SimpleNamespace
 
-    from vaultkeeper.core.formats.bic_reader import ItemProperty
+    from nwnfile.formats.bic_reader import ItemProperty
     from vaultkeeper.game import active_bonuses
 
     def _prop(pid, subtype, cost):
@@ -531,7 +531,7 @@ def test_the_picker_offers_only_ids_the_byte_can_hold(window, screen, monkeypatc
     seen = {}
 
     def _capture(field):
-        from vaultkeeper.game.character import race_options
+        from nwnfile.character import race_options
 
         limits = screen._limits("Race", window.character_info())
         seen["ids"] = [

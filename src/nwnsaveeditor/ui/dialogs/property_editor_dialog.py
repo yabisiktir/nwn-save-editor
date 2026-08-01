@@ -2,7 +2,7 @@
 
 Every editable field is a dropdown (or a searchable picker, for the huge feat/spell
 subtype lists) populated from the property's ``iprp_*`` tables via
-:class:`vaultkeeper.game.item_property_tables.ItemPropertyTables`, so you can only
+:class:`nwnfile.item_property_tables.ItemPropertyTables`, so you can only
 choose values the game recognises — no free-form number that could corrupt the item.
 The property *type* itself is fixed (change it by removing + adding a property).
 """
@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.core.formats.bic_reader import ItemProperty
-from vaultkeeper.game.item_property_tables import ItemPropertyTables
+from nwnfile.formats.bic_reader import ItemProperty
+from nwnfile.item_property_tables import ItemPropertyTables
 
 _PICKER_THRESHOLD = 200  # above this many subtype options, use a searchable picker
 _USES_PROPERTIES = {15, 82}  # Cast Spell / On Hit Cast Spell -> uses/day is meaningful

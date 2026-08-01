@@ -16,7 +16,7 @@ _HAK = Path.home() / "Documents" / "Neverwinter Nights" / "hak"
 
 @pytest.mark.skipif(not _GAME.is_dir(), reason="no local NWN install on this box")
 def test_real_appearance_and_portraits():
-    from vaultkeeper.game.look_tables import LookTables
+    from nwnfile.look_tables import LookTables
 
     tables = LookTables.for_install(_GAME, _HAK if _HAK.is_dir() else None)
     assert tables.available

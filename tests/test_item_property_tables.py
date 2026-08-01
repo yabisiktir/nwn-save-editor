@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.game.item_property_tables import ItemPropertyTables, parse_2da
+from nwnfile.item_property_tables import ItemPropertyTables, parse_2da
 
 
 def test_parse_2da_basic():

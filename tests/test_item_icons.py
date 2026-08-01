@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from nwnfile.item_icons import ItemIconSource
 from tests.test_erf_reader import _build_erf
-from vaultkeeper.game.item_icons import ItemIconSource
 
 
 def test_icon_candidate_derivation():

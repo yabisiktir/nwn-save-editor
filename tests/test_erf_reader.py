@@ -9,7 +9,7 @@ from __future__ import annotations
 import struct
 from pathlib import Path
 
-from vaultkeeper.core.formats.erf_reader import (
+from nwnfile.formats.erf_reader import (
     ErfReader,
     extension_for_res_type,
 )

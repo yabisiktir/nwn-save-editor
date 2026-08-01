@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import struct
 
-from vaultkeeper.core.formats.key_bif_reader import RES_TYPE_2DA, KeyBifReader
+from nwnfile.formats.key_bif_reader import RES_TYPE_2DA, KeyBifReader
 
 
 def _write_key_bif(root, resref: str, res_type: int, payload: bytes) -> None:

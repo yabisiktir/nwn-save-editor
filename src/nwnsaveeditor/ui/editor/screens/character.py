@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.character import (
+from nwnfile.character import (
     _good_evil_word,
     _lawful_chaotic_word,
     class_name,
@@ -604,7 +604,7 @@ class CharacterScreen(QWidget):
         """
         from PySide6.QtWidgets import QDialog, QMessageBox
 
-        from vaultkeeper.game.character import race_options
+        from nwnfile.character import race_options
         from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         limits = self._limits("Race", self._window.character_info())
@@ -836,7 +836,7 @@ class CharacterScreen(QWidget):
     def _add_feat(self) -> None:
         from PySide6.QtWidgets import QDialog
 
-        from vaultkeeper.game.character_reference import default_reference
+        from nwnfile.character_reference import default_reference
         from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         reference = default_reference()
@@ -1028,7 +1028,7 @@ class CharacterScreen(QWidget):
         table would print confident nonsense, so the raw ids stand until the real
         serialized enum is sourced.
         """
-        from vaultkeeper.game.character_reference import default_reference
+        from nwnfile.character_reference import default_reference
 
         try:
             session = self._window.session()

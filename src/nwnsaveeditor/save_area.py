@@ -11,7 +11,7 @@ state) and ``<area>.are`` (static metadata) to surface
 * **area metadata** — tileset, size, interior/underground/natural flags, object counts,
 
 plus the module-wide **faction** list (``repute.fac``). Every item is decoded with
-the existing :class:`~vaultkeeper.core.formats.bic_reader.BicFileReader` item reader
+the existing :class:`~nwnfile.formats.bic_reader.BicFileReader` item reader
 (the ``.git`` item structs share the ``.bic`` item layout), so magical properties,
 icons and ``dialog.tlk`` names all resolve exactly as they do for a character's own
 inventory. Read-only, best-effort (missing/odd resources degrade to empty).
@@ -25,15 +25,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from vaultkeeper.core.formats.bic_reader import (
+from nwnfile.formats.bic_reader import (
     _GFF,
     BicFileReader,
     EquippedItem,
     InventoryItem,
     _GFFType,
 )
-from vaultkeeper.core.formats.erf_reader import ErfReader
-from vaultkeeper.game.item_names import ItemNameResolver
+from nwnfile.formats.erf_reader import ErfReader
+from nwnfile.item_names import ItemNameResolver
 
 _GIT_RESTYPE = 2023  # <area>.git — area instance (creatures, placeables, stores …)
 _ARE_RESTYPE = 2012  # <area>.are — static area metadata

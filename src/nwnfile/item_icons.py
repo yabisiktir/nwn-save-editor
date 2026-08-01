@@ -20,8 +20,8 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
-from vaultkeeper.core.formats.erf_reader import ErfReader, ErfResource
-from vaultkeeper.core.formats.key_bif_reader import KeyBifReader
+from nwnfile.formats.erf_reader import ErfReader, ErfResource
+from nwnfile.formats.key_bif_reader import KeyBifReader
 
 _TGA_RES_TYPE = 3
 _MAX_RESREF = 16
@@ -131,7 +131,7 @@ class ItemIconSource:
         Handles both of the formats the game uses: a plain TGA, or a PLT that has
         to be coloured through the palette textures first.
         """
-        from vaultkeeper.core.formats.tga_reader import TGAReader
+        from nwnfile.formats.tga_reader import TGAReader
 
         key = (base_item, model_part)
         if key not in self._image_cache:
@@ -146,7 +146,7 @@ class ItemIconSource:
 
     def _plt_image(self, base_item: int, model_part: int):
         """Decode and colour the PLT icon for an item, if it has one."""
-        from vaultkeeper.core.formats.plt_reader import (
+        from nwnfile.formats.plt_reader import (
             LAYER_PALETTES,
             colour_plt,
             read_plt,
@@ -163,7 +163,7 @@ class ItemIconSource:
 
     def _palettes(self, names) -> dict:
         """The palette textures a PLT needs, decoded once."""
-        from vaultkeeper.core.formats.tga_reader import TGAReader
+        from nwnfile.formats.tga_reader import TGAReader
 
         if self._palette_cache is None:
             self._palette_cache = {}

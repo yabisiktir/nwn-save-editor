@@ -20,9 +20,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.core.formats.bic_reader import EQUIP_SLOT_NAMES
+from nwnfile.formats.bic_reader import EQUIP_SLOT_NAMES
+from nwnfile.item_properties import describe_property
 from vaultkeeper.game.active_bonuses import _source_label
-from vaultkeeper.game.item_properties import describe_property
 from vaultkeeper.ui.save_editor import tokens as t
 from vaultkeeper.ui.save_editor import widgets as w
 

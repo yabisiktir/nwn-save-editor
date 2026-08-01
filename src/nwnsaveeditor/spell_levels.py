@@ -35,7 +35,7 @@ class SpellLevels:
     @classmethod
     def for_install(cls, game_root, hak_dir=None) -> SpellLevels:
         """Read ``spells.2da``, preferring the PRC hak so its spells are covered."""
-        from vaultkeeper.game.item_property_tables import ItemPropertyTables
+        from nwnfile.item_property_tables import ItemPropertyTables
 
         tables = ItemPropertyTables.for_install(game_root, hak_dir)
         return cls(tables._read("spells"))

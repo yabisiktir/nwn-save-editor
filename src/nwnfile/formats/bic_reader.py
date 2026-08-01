@@ -3,7 +3,7 @@ BIC file format reader for Neverwinter Nights character files.
 
 Self-contained GFF (V3.2) struct decoder — it does NOT depend on the generic
 salvaged ``gff_reader``. The offset arithmetic mirrors
-:mod:`vaultkeeper.game.module_reader` (which faithfully decodes a module.ifo GFF)
+the module reader above it (which faithfully decodes a module.ifo GFF)
 and is grounded against the C# ground-truth parser at
 ``BicFileReader/BicFileReader/GffReader.cs`` + ``Info.cs``.
 
@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from pathlib import Path
 
-from vaultkeeper.core.log import get_logger
+from nwnfile.log import get_logger
 
 logger = get_logger(__name__)
 
@@ -180,7 +180,7 @@ class InventoryItem:
     contents: list["InventoryItem"] = field(default_factory=list)
     #: Where this item sits in an area's ``.git``, as ``((field, index), …)`` from
     #: the file root — empty for the player's own items, which are addressed from
-    #: the character struct instead. Set by :mod:`vaultkeeper.game.save_area` so an
+    #: the character struct instead. Set by the save-area reader above it, so an
     #: area item can be edited in place rather than only copied.
     git_path: tuple = ()
 

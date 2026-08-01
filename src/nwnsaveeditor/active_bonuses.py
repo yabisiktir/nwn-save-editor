@@ -9,7 +9,7 @@ What is attributed:
 
 * **Equipped items** — every magical property on an item in a worn slot,
   routed to what it affects (ability, AC, save, skill, regeneration, immunity…)
-  and named by :func:`~vaultkeeper.game.item_properties.describe_property`. The
+  and named by :func:`~nwnfile.item_properties.describe_property`. The
   PRC skin (slot ``131072``) is one of those items and is labelled as such,
   because on a PRC character most granted bonuses live there.
 * **Feats granted by gear** — Bonus Feat properties, credited to the item.
@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from vaultkeeper.game.item_properties import (
+from nwnfile.item_properties import (
     ABILITY_SUBTYPES,
     DAMAGE_SUBTYPES,
     describe_property,
@@ -236,7 +236,7 @@ def _subject(prop) -> str | None:
     if pid in (41, 50):
         return f"{_SAVE_KINDS.get(prop.subtype, 'Saving throw')} save"
     if pid in (52, 29):
-        from vaultkeeper.game.item_properties import _skills
+        from nwnfile.item_properties import _skills
 
         return _skills().get(prop.subtype, f"Skill {prop.subtype}")
     if pid in _DAMAGE_SUBJECTS:
@@ -335,7 +335,7 @@ def compute(items, feats, info, effects=(), name_of=None) -> ActiveBonuses:
     result.spell_effects = spell_effects(effects)
 
     if info is not None:
-        from vaultkeeper.game.character import class_name
+        from nwnfile.character import class_name
 
         result.classes = [
             f"{class_name(cid)} {level}" for cid, level in getattr(info, "classes", ())

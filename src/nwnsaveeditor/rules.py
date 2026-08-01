@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from vaultkeeper.core.formats.gff import GffType
+from nwnfile.formats.gff import GffType
 
 
 @dataclass(frozen=True)

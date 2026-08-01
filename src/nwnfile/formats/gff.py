@@ -1,6 +1,6 @@
 """A full GFF (V3.2) tree reader **and writer** — the basis for editing saves.
 
-The read-only :class:`vaultkeeper.core.formats.bic_reader._GFF` decodes fields on
+The read-only :class:`nwnfile.formats.bic_reader._GFF` decodes fields on
 demand for viewing; it is lossy (it never models the whole tree) so it cannot write
 a file back. This module parses a GFF into a complete, mutable tree
 (:class:`GffStruct` / :class:`GffList` / :class:`LocString`) and serialises it back

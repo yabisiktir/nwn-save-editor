@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.core.formats.gff_reader import (
+from nwnfile.formats.gff_reader import (
     GFFField,
     GFFFieldType,
     GFFFile,
@@ -79,7 +79,7 @@ class TestGffReader:
     
     def test_gff_struct_fields_access(self):
         """Test GFFStruct field access"""
-        from vaultkeeper.core.formats.gff_reader import GFFField
+        from nwnfile.formats.gff_reader import GFFField
         struct = GFFStruct(struct_id=0)
         struct.fields["TestField"] = GFFField(label="TestField", field_type=GFFFieldType.CEXOSTRING, value="TestValue")
         

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.game.character_reference import (
+from nwnfile.character_reference import (
     CharacterReference,
     default_reference,
     load_feat_descriptions,
@@ -197,7 +197,7 @@ def test_load_prc_skill_names_parses_json_and_skips_non_int(tmp_path):
 
 
 def test_load_prc_class_names_parses_json_and_skips_non_int(tmp_path):
-    from vaultkeeper.game.character_reference import load_prc_class_names
+    from nwnfile.character_reference import load_prc_class_names
 
     path = tmp_path / "PRC Classes.json"
     path.write_text('{"43": "Binder", "bad": "skip"}', encoding="utf-8")
@@ -219,7 +219,7 @@ def test_bundled_prc_races_loaded():
 
 
 def test_load_prc_class_descriptions_gzip(tmp_path):
-    from vaultkeeper.game.character_reference import load_prc_class_descriptions
+    from nwnfile.character_reference import load_prc_class_descriptions
 
     path = tmp_path / "PRC Class Descriptions.json.gz"
     _write_gz_json(path, {"43": "A soul binder.", "bad": "x"})
@@ -307,7 +307,7 @@ def test_bundled_prc_skills_loaded():
 
 
 def test_load_prc_skill_descriptions(tmp_path):
-    from vaultkeeper.game.character_reference import load_prc_skill_descriptions
+    from nwnfile.character_reference import load_prc_skill_descriptions
 
     path = tmp_path / "PRC Skill Descriptions.json"
     path.write_text('{"28": "Leap over pits.", "bad": "x"}', encoding="utf-8")
@@ -352,7 +352,7 @@ def test_real_level40_character_resolves_all_prc_feats_and_skills():
     end of the base table and vanished, and 11 PRC skills (ids 28-38) showed as
     "Unknown 1".."Unknown 11"; now every id resolves to a name.
     """
-    from vaultkeeper.core.formats.bic_reader import BicFileReader
+    from nwnfile.formats.bic_reader import BicFileReader
 
     info = BicFileReader().read_file(_REAL_L40)
     assert info is not None and info.level == 40

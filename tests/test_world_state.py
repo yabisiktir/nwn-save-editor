@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from nwnfile.formats.gff import GffField, GffList, GffStruct, GffType
 from tests.test_save_editor import _make_char_save_with_details
-from vaultkeeper.core.formats.gff import GffField, GffList, GffStruct, GffType
 from vaultkeeper.game.save_editor import SaveEditError, SaveEditor
 from vaultkeeper.game.world_state import (
     INT,

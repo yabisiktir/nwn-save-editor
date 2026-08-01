@@ -1,1 +1,1 @@
-"""Native binary format readers (GFF/BIC/ERF/TGA), salvaged from the prior port."""
+"""NWN binary file formats: GFF, ERF, 2DA, TLK, KEY/BIF, TGA and PLT."""

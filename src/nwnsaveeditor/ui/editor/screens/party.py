@@ -54,7 +54,7 @@ class PartyScreen(QWidget):
 
     def _campaign_db(self):
         """``(present, size)`` for the save's embedded campaign database."""
-        from vaultkeeper.core.formats.erf_reader import ErfReader
+        from nwnfile.formats.erf_reader import ErfReader
 
         save = self._window.save
         if save is None or save.sav_path is None:

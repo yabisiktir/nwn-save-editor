@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from vaultkeeper.core.formats.bic_reader import ItemProperty
+from nwnfile.formats.bic_reader import ItemProperty
 from vaultkeeper.game import active_bonuses as ab
 
 

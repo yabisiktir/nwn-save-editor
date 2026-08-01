@@ -15,7 +15,7 @@ import struct
 from dataclasses import dataclass
 from pathlib import Path
 
-from vaultkeeper.core.log import get_logger
+from nwnfile.log import get_logger
 
 logger = get_logger(__name__)
 

@@ -16,7 +16,7 @@ from enum import IntEnum
 from pathlib import Path
 from typing import Any
 
-from vaultkeeper.core.log import get_logger
+from nwnfile.log import get_logger
 
 logger = get_logger(__name__)
 

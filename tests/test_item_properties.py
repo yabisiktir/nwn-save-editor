@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from vaultkeeper.core.formats.bic_reader import ItemProperty
-from vaultkeeper.game.item_properties import (
+from nwnfile.formats.bic_reader import ItemProperty
+from nwnfile.item_properties import (
     default_property_names,
     describe_properties,
     describe_property,
@@ -71,7 +71,7 @@ def test_improved_saving_throws_and_vs_racial_group():
 
 
 def test_bundled_onhit_spell_and_spell_levels_loaded():
-    from vaultkeeper.game.item_properties import _onhit_spells, _spell_levels
+    from nwnfile.item_properties import _onhit_spells, _spell_levels
 
     assert len(_onhit_spells()) > 50
     assert len(_spell_levels()) > 500
@@ -99,7 +99,7 @@ def test_spell_level_property_shows_level_not_plus_bonus():
 
 
 def test_bundled_subtype_maps_loaded():
-    from vaultkeeper.game.item_properties import _feats, _spells
+    from nwnfile.item_properties import _feats, _spells
 
     assert len(_feats()) > 10000  # iprp_feats resolved to feat names
     assert len(_spells()) > 500  # iprp_spells resolved to spell names

@@ -1,7 +1,7 @@
 """Character (.bic) summary + discovery, ported from VB ``BicFileInfo``.
 
 The heavy lifting — decoding the BIC's GFF struct — is done by
-:mod:`vaultkeeper.core.formats.bic_reader`. This module adds the *presentation*
+:mod:`nwnfile.formats.bic_reader`. This module adds the *presentation*
 layer VB's ``BicFileInfo.CharacterSummary`` provides: faithful race/class display
 names, the alignment title, and the multi-line summary text shown in the
 Character Viewer and behind the status-bar character button.
@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from vaultkeeper.core.formats.bic_reader import (
+from nwnfile.formats.bic_reader import (
     ABILITY_LABELS,
     BicFileReader,
     CharacterInfo,
@@ -109,7 +109,7 @@ def race_name(race_id: int, reference=None) -> str:
     """
     if race_id in RACE_NAMES:
         return RACE_NAMES[race_id]
-    from vaultkeeper.game.character_reference import default_reference
+    from nwnfile.character_reference import default_reference
 
     ref = reference if reference is not None else default_reference()
     return ref.prc_race_names.get(race_id, f"Race {race_id}")
@@ -126,7 +126,7 @@ def is_base_race(race_id: int) -> bool:
 
 def race_options(reference=None) -> dict[int, str]:
     """Every race id the app can name, for a picker — base first, then PRC's."""
-    from vaultkeeper.game.character_reference import default_reference
+    from nwnfile.character_reference import default_reference
 
     ref = reference if reference is not None else default_reference()
     options = dict(RACE_NAMES)
@@ -142,7 +142,7 @@ def class_name(class_id: int, reference=None) -> str:
     """
     if class_id in CLASS_NAMES:
         return CLASS_NAMES[class_id]
-    from vaultkeeper.game.character_reference import default_reference
+    from nwnfile.character_reference import default_reference
 
     ref = reference if reference is not None else default_reference()
     return ref.prc_class_names.get(class_id, f"Class {class_id}")
@@ -465,7 +465,7 @@ class CharacterFile:
 
 def character_feats(info: CharacterInfo, reference=None) -> list[tuple[str, str]]:
     """Named, de-duplicated, name-sorted feats for a character (VB ``GetFeats``)."""
-    from vaultkeeper.game.character_reference import default_reference
+    from nwnfile.character_reference import default_reference
 
     ref = reference if reference is not None else default_reference()
     return ref.feats(info.feat_ids)
@@ -473,7 +473,7 @@ def character_feats(info: CharacterInfo, reference=None) -> list[tuple[str, str]
 
 def character_skills(info: CharacterInfo, reference=None) -> list[tuple[str, int, str]]:
     """Named skills with ranks + descriptions for a character (VB ``GetSkills``)."""
-    from vaultkeeper.game.character_reference import default_reference
+    from nwnfile.character_reference import default_reference
 
     ref = reference if reference is not None else default_reference()
     return ref.skills(info.skill_ranks)
@@ -481,7 +481,7 @@ def character_skills(info: CharacterInfo, reference=None) -> list[tuple[str, int
 
 def character_spells(info: CharacterInfo, reference=None) -> list[tuple[str, str, int | None]]:
     """Named, name-sorted spells (name, description, spell level) for a character."""
-    from vaultkeeper.game.character_reference import default_reference
+    from nwnfile.character_reference import default_reference
 
     ref = reference if reference is not None else default_reference()
     return ref.spells(info.spell_ids, info.spell_levels)

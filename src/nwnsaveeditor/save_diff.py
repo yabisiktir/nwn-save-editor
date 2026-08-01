@@ -11,8 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from vaultkeeper.core.formats.erf_reader import ErfReader
-from vaultkeeper.core.formats.gff import Gff, GffList, GffStruct, read_gff
+from nwnfile.formats.erf_reader import ErfReader
+from nwnfile.formats.gff import Gff, GffList, GffStruct, read_gff
 from vaultkeeper.game.save_game import SaveGame
 
 #: Value shown for a path that exists on only one side.

@@ -15,8 +15,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from vaultkeeper.core.formats.bic_reader import CharacterInfo, InventoryItem
-from vaultkeeper.core.formats.tlk_reader import CUSTOM_TLK_BASE, TlkReader, TlkTable
+from nwnfile.formats.bic_reader import CharacterInfo, InventoryItem
+from nwnfile.formats.tlk_reader import CUSTOM_TLK_BASE, TlkReader, TlkTable
 
 _DIALOG_LANGS = ("en", "de", "fr", "it", "es", "pl")
 _tlk_cache: dict[Path, TlkTable | None] = {}

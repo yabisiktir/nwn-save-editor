@@ -7,7 +7,7 @@ recognises. This is the same source the property *editor* uses, so adding
 "Bonus Feat: Whirlwind Attack" now offers every feat rather than a handful.
 
 Without a readable game folder there are no tables, so it falls back to the
-curated set in :func:`vaultkeeper.game.item_properties.addable_properties` —
+curated set in :func:`nwnfile.item_properties.addable_properties` —
 properties whose ``CostValue`` is the literal magnitude, which can be built from
 a plain number alone.
 """
@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.item_properties import PropertyTemplate, addable_properties
+from nwnfile.item_properties import PropertyTemplate, addable_properties
 
 _PICKER_THRESHOLD = 200  # above this many subtype options, use a searchable picker
 

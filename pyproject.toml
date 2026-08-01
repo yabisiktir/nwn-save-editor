@@ -35,7 +35,7 @@ vaultkeeper = "vaultkeeper.__main__:main"
 nwn-save-editor = "vaultkeeper.ui.save_editor.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/vaultkeeper"]
+packages = ["src/nwnfile", "src/vaultkeeper"]
 
 # ---------------------------------------------------------------------------
 # Tooling
@@ -53,7 +53,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # original pending a typed refactor. Their "unused" locals (F841) are deliberate
 # offset-advancing reads (e.g. `x = self._read_dword()`) that must NOT be removed;
 # a few long lines/loop vars are tolerated here until the refactor.
-"src/vaultkeeper/core/formats/*" = ["F841", "E501", "B007", "SIM"]
+"src/nwnfile/formats/*" = ["F841", "E501", "B007", "SIM"]
 "tests/test_erf_reader.py" = ["E501", "F841"]
 "tests/test_gff_reader.py" = ["E501", "F841"]
 "tests/test_tga_reader.py" = ["E501", "F841"]
@@ -70,7 +70,7 @@ markers = [
 
 [tool.mypy]
 python_version = "3.11"
-packages = ["vaultkeeper"]
+packages = ["nwnfile", "vaultkeeper"]
 mypy_path = "src"
 strict = true
 warn_unused_ignores = true

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import struct
 
-from vaultkeeper.core.formats.plt_reader import (
+from nwnfile.formats.plt_reader import (
     LAYER_PALETTES,
     colour_plt,
     read_plt,
 )
-from vaultkeeper.core.formats.tga_reader import TGAImage
+from nwnfile.formats.tga_reader import TGAImage
 
 
 def _plt(width: int, height: int, pairs: list[tuple[int, int]]) -> bytes:

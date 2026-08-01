@@ -6,9 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from tests.test_erf_writer import _make_erf
-from vaultkeeper.core.formats.erf_reader import ErfReader
-from vaultkeeper.core.formats.gff import (
+from nwnfile.formats.erf_reader import ErfReader
+from nwnfile.formats.gff import (
     Gff,
     GffField,
     GffList,
@@ -18,7 +17,8 @@ from vaultkeeper.core.formats.gff import (
     read_gff,
     write_gff,
 )
-from vaultkeeper.game.item_properties import editable_magnitude, is_cast_spell
+from nwnfile.item_properties import editable_magnitude, is_cast_spell
+from tests.test_erf_writer import _make_erf
 from vaultkeeper.game.save_area import read_area_contents
 from vaultkeeper.game.save_editor import SaveEditError, SaveEditor, _render_raw_path
 from vaultkeeper.game.save_game import SaveGame
@@ -736,7 +736,7 @@ def test_remove_item_property_reindexes(tmp_path):
 
 
 def test_addable_properties_have_valid_shapes():
-    from vaultkeeper.game.item_properties import addable_properties
+    from nwnfile.item_properties import addable_properties
 
     templates = addable_properties()
     assert any(t.label == "Ability Bonus" and t.subtypes for t in templates)  # subtype
