@@ -644,3 +644,46 @@ def test_gear_bonuses_survive_an_unreadable_session(window, screen, monkeypatch)
         window, "session", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
     )
     assert screen._save_gear_bonuses() == {}
+
+
+# -- where an ability score comes from --------------------------------------- #
+def test_gear_is_credited_per_ability_while_editing(window, screen, monkeypatch):
+    """The sheet shows the stored base; the game shows a much larger total. This
+    explains part of the gap without inventing the rest."""
+    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": (10, 25)})
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    assert "gear +10…+25" in _labels(_page(screen, "abilities"))
+
+
+def test_a_single_source_is_not_written_as_a_range(window, screen, monkeypatch):
+    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": (6, 6)})
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    text = _labels(_page(screen, "abilities"))
+    assert "gear +6" in text and "…" not in text.split("gear +6")[1][:4]
+
+
+def test_the_breakdown_stays_out_of_the_way_when_not_editing(window, screen, monkeypatch):
+    """Reading a character should not be cluttered with attribution."""
+    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": (10, 25)})
+    screen.refresh()
+    assert "gear +" not in _labels(_page(screen, "abilities"))
+
+
+def test_no_total_is_invented(window, screen, monkeypatch):
+    """PRC applies race, class and template adjustments from compiled scripts —
+    racialtypes.2da does not even contain its races, and templates.2da carries
+    only script names. A printed 'total' would therefore be wrong."""
+    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": (10, 25)})
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    text = _labels(_page(screen, "abilities")).lower()
+    assert "total" not in text.split("gear +")[0][-200:]
+
+
+def test_an_unreadable_session_costs_nothing(window, screen, monkeypatch):
+    monkeypatch.setattr(
+        window, "session", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    assert screen._ability_gear() == {}

@@ -331,6 +331,7 @@ class CharacterScreen(QWidget):
 
         pending = self._pending_char_fields()
         editable = self._editable_fields()
+        gear = self._ability_gear()
         for field, label in ABILITIES:
             score = self._field_value(field, info.abilities.get(field, 10))
             was = self._original_value(field) if field in pending else None
@@ -339,6 +340,8 @@ class CharacterScreen(QWidget):
             # missing one would look editable and silently do nothing.
             stats.addWidget(_ability_row(
                 field, label, score, was,
+                gear=gear.get(field),
+                detail=self._window.editing,
                 limits=self._limits(field, info),
                 on_change=(
                     self._set_ability
@@ -351,6 +354,27 @@ class CharacterScreen(QWidget):
         stats.addStretch(1)
         row.addLayout(stats, 1)
         return card
+
+    def _ability_gear(self) -> dict[str, tuple[int, int]]:
+        """``field -> (largest, sum)`` of what equipped gear grants each ability.
+
+        Both numbers, because NWN applies only the largest of several same-kind
+        item bonuses but the save does not record which one it picked — and on a
+        PRC character the skin carries many, so the two differ widely.
+        """
+        from nwnsaveeditor.active_bonuses import item_contributions
+
+        by_label = {label: field for field, label in ABILITIES}
+        out: dict[str, tuple[int, int]] = {}
+        try:
+            groups = item_contributions(self._window.session().player_items())
+        except Exception:
+            return out
+        for group in groups:
+            field = by_label.get(group.subject)
+            if field is not None and group.largest is not None:
+                out[field] = (group.largest, group.total or 0)
+        return out
 
     def _limits(self, field: str, info):
         """The range this field may take under the current rule mode."""
@@ -1205,13 +1229,20 @@ def _sheet_divider() -> QFrame:
 
 
 def _ability_row(
-    field: str, label: str, score: int, was=None, *, limits=None, on_change=None
+    field: str, label: str, score: int, was=None, *, limits=None, on_change=None,
+    gear=None, detail: bool = False
 ) -> QWidget:
     """One ability: gold initial chip, name, score, and the derived modifier.
 
     ``was`` is the pre-edit score when this ability has a staged change — the
     design shows it struck through beside the new value. ``on_change`` turns the
     score into a stepper; ``None`` (edit mode off) leaves it read-only.
+
+    ``gear`` is ``(largest, sum)`` of what equipped items grant, shown only while
+    editing: it explains why the number here is lower than the one in the game,
+    without pretending to be the total. It cannot be the total — the engine also
+    adds race, class and PRC template adjustments, and those live in compiled
+    scripts rather than in anything the save or the 2DAs spell out.
     """
     dirty = was is not None
     row = QWidget()
@@ -1234,6 +1265,19 @@ def _ability_row(
     )
     line.addWidget(chip)
     line.addWidget(w.body(label, t.SHEET_TEXT, 13.5), 1)
+
+    if detail and gear:
+        largest, total = gear
+        chip_text = f"gear +{largest}" if largest == total else f"gear +{largest}…+{total}"
+        worn = w.body(chip_text, t.TEXT_3, 11)
+        worn.setToolTip(
+            "What your equipped items grant this ability.\n"
+            "NWN applies only the largest of several same-kind item bonuses, but "
+            "the save does not record which it picked, so both are shown.\n"
+            "The game's sheet is higher again: it also counts race, class and "
+            "template adjustments, which PRC applies from compiled scripts."
+        )
+        line.addWidget(worn)
 
     if dirty:
         old = w.body(str(was), t.TEXT_3, 13)
