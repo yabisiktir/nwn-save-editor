@@ -8,6 +8,7 @@ the implementation.
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -57,8 +58,12 @@ def test_it_does_not_write_to_vaultkeepers_settings(tmp_path):
 def test_an_unknown_theme_is_refused_rather_than_stored(tmp_path):
     host = StandaloneHost(settings_dir=tmp_path)
     host.set_save_editor_theme("chartreuse")
+
     assert host._settings().save_editor_theme == "dark"
-    assert not (tmp_path / "save_editor.json").exists()
+    # The file exists either way now — the constructor writes it to remember
+    # where the game is — so what matters is that the bad value is not in it.
+    saved = json.loads((tmp_path / "save_editor.json").read_text(encoding="utf-8"))
+    assert saved["save_editor_theme"] == "dark"
 
 
 def test_a_corrupt_settings_file_falls_back_to_dark(tmp_path):
@@ -215,3 +220,101 @@ def test_a_host_lookup_that_raises_falls_back_rather_than_showing_nothing(
 def test_a_character_with_no_portrait_resref_asks_for_nothing(qtbot, tmp_path):
     window = _portrait_window(qtbot, tmp_path, tmp_path / "user")
     assert window.portrait_path("") is None
+
+
+# -- remembering where the game is ------------------------------------------- #
+def _fake_game(tmp_path, name="NWN"):
+    root = tmp_path / name
+    (root / "data").mkdir(parents=True)
+    return root
+
+
+def test_a_path_passed_on_the_command_line_is_remembered(tmp_path):
+    """Otherwise every launch needs the flag again on a machine where detection
+    guesses wrong, or where the game sits somewhere unusual."""
+    root = _fake_game(tmp_path)
+    StandaloneHost(game_root=root, game_user_dir=tmp_path, settings_dir=tmp_path)
+
+    again = StandaloneHost(settings_dir=tmp_path)
+    assert again.ctx.game_root == root
+    assert again.ctx.game_user_dir == tmp_path
+
+
+def test_what_you_pass_beats_what_was_saved(tmp_path):
+    first, second = _fake_game(tmp_path, "one"), _fake_game(tmp_path, "two")
+    StandaloneHost(game_root=first, settings_dir=tmp_path)
+    host = StandaloneHost(game_root=second, settings_dir=tmp_path)
+    assert host.ctx.game_root == second
+    assert StandaloneHost(settings_dir=tmp_path).ctx.game_root == second
+
+
+def test_a_remembered_path_that_has_gone_falls_back_to_detection(tmp_path, monkeypatch):
+    """An unplugged drive or an uninstalled game must not pin the editor to
+    somewhere empty for good."""
+    vanished = _fake_game(tmp_path, "gone")
+    StandaloneHost(game_root=vanished, settings_dir=tmp_path)
+    shutil.rmtree(vanished)
+
+    detected = _fake_game(tmp_path, "detected")
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.host.default_game_root", lambda: detected
+    )
+    assert StandaloneHost(settings_dir=tmp_path).ctx.game_root == detected
+
+
+def test_remembering_paths_does_not_forget_the_theme(tmp_path):
+    root = _fake_game(tmp_path)
+    host = StandaloneHost(game_root=root, settings_dir=tmp_path)
+    host.set_save_editor_theme("light")
+
+    again = StandaloneHost(settings_dir=tmp_path)
+    assert again._settings().save_editor_theme == "light"
+    assert again.ctx.game_root == root
+
+
+def test_the_user_directory_is_looked_for_where_each_platform_keeps_it():
+    """Enhanced Edition on Linux uses ~/.local/share, not Documents — guessing
+    Documents everywhere finds nothing there."""
+    from nwnfile.locations import HostOS, user_documents_dir
+
+    linux = user_documents_dir(HostOS.LINUX)
+    assert linux.parts[-3:] == (".local", "share", "Neverwinter Nights")
+    for host in (HostOS.MACOS, HostOS.WINDOWS):
+        assert user_documents_dir(host).parts[-2:] == ("Documents", "Neverwinter Nights")
+
+
+def test_detection_is_delegated_rather_than_guessed_at(monkeypatch):
+    """It walks Steam library folders, GOG/Beamdog and Wine prefixes, and checks
+    each candidate really looks like an NWN root."""
+    import nwnsaveeditor.ui.editor.host as host_mod
+
+    called = []
+    monkeypatch.setattr(
+        "nwnfile.locations.discover_installs", lambda *a, **k: called.append(1) or []
+    )
+    assert host_mod.default_game_root() is None
+    assert called, "the shared locator is what decides, not a hardcoded list"
+
+
+def test_a_missing_game_folder_is_explained_rather_than_left_puzzling(
+    tmp_path, monkeypatch
+):
+    """Without it every name comes out as a raw id. Saying so beats a screen of
+    "Feat 1337" with no explanation."""
+    from PySide6.QtWidgets import QMessageBox
+
+    told = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: told.append(a))
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.__main__.collect_saves",
+        lambda *a: [__import__("tests.test_save_editor", fromlist=["x"])._make_char_save(tmp_path)],
+    )
+    monkeypatch.setattr("nwnsaveeditor.ui.editor.host.default_game_root", lambda: None)
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.window.SaveEditorWindow.show", lambda self: None
+    )
+    monkeypatch.setattr("PySide6.QtWidgets.QApplication.exec", lambda self: 0)
+
+    assert main(["--user-dir", str(tmp_path)]) == 0
+    assert told, "a missing game folder must be reported"
+    assert "raw numbers" in told[0][2]

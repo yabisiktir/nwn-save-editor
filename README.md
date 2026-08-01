@@ -20,9 +20,20 @@ pip install -e ".[dev]"
 nwn-save-editor
 ```
 
-With no arguments it finds the game and your saves in the usual places.
-`--game-root` and `--user-dir` override that, and save folders can be named
-directly. `python -m nwnsaveeditor.ui.editor` works from a checkout.
+With no arguments it finds the game and your saves in the usual places for your
+platform — Steam's library folders (not just the default one), GOG and Beamdog
+installs, and Wine/CrossOver prefixes. Note that Enhanced Edition keeps its user
+directory in `Documents/Neverwinter Nights` on macOS and Windows but in
+`~/.local/share/Neverwinter Nights` on Linux.
+
+If it guesses wrong, or your game lives somewhere unusual, say so once:
+
+```
+nwn-save-editor --game-root /path/to/nwn --user-dir /path/to/user/dir
+```
+
+Both are **remembered**, so later runs need no flags. Save folders can also be
+named directly. `python -m nwnsaveeditor.ui.editor` works from a checkout.
 
 ## Embedding it
 

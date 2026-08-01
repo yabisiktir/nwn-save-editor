@@ -62,9 +62,21 @@ def main(argv: list[str] | None = None) -> int:
             None, "No saves found",
             f"No save games found in {host.ctx.game_user_dir or '(no user directory)'}.\n\n"
             "Pass save folders on the command line, or --user-dir to point at "
-            "your Neverwinter Nights directory.",
+            "your Neverwinter Nights directory. Whatever you pass is remembered, "
+            "so you only need the flag once.",
         )
         return 1
+
+    if host.ctx.game_root is None:
+        # The editor still opens and edits — it just cannot name anything, since
+        # every name comes from the game's 2DAs and dialog.tlk. Saying so beats
+        # a screen full of "Feat 1337" with no explanation.
+        QMessageBox.information(
+            None, "Game folder not found",
+            "The Neverwinter Nights installation could not be found, so items, "
+            "feats and spells will show as raw numbers rather than names.\n\n"
+            "Pass --game-root to point at it; it is remembered afterwards.",
+        )
 
     window = SaveEditorWindow(saves, host)
     window.resize(1440, 920)

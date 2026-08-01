@@ -64,10 +64,13 @@ class _Settings:
 
 
 class StandaloneHost:
-    """A host for running the editor with no Vaultkeeper application.
+    """A host for running the editor with no application around it.
 
-    Finds the game the same way the app does when it can, falls back to the
-    platform's usual locations, and keeps its own tiny settings file.
+    Where the game is gets settled once, in this order: what the caller passed,
+    then what was saved last time, then detection. Whatever it lands on is
+    written back, so a machine where detection guesses wrong — or where the game
+    is somewhere unusual — is a one-time ``--game-root`` away from working, not a
+    flag on every launch.
     """
 
     def __init__(
@@ -76,14 +79,18 @@ class StandaloneHost:
         game_user_dir: Path | None = None,
         settings_dir: Path | None = None,
     ) -> None:
-        self.ctx = _Context(
-            game_root if game_root is not None else default_game_root(),
-            game_user_dir if game_user_dir is not None else default_user_dir(),
-        )
         self._settings_path = (
             (settings_dir or default_settings_dir()) / STANDALONE_SETTINGS
         )
-        self._theme = self._read_theme()
+        saved = self._read()
+        self._theme = saved.get("save_editor_theme", "dark")
+        if self._theme not in THEMES:
+            self._theme = "dark"
+
+        root = game_root or _saved_dir(saved, "game_root") or default_game_root()
+        user = game_user_dir or _saved_dir(saved, "game_user_dir") or default_user_dir()
+        self.ctx = _Context(root, user)
+        self.remember_paths()
 
     # -- the protocol ------------------------------------------------------- #
     def _settings(self) -> _Settings:
@@ -93,45 +100,74 @@ class StandaloneHost:
         if name not in THEMES:
             return
         self._theme = name
-        try:
-            self._settings_path.parent.mkdir(parents=True, exist_ok=True)
-            self._settings_path.write_text(
-                json.dumps({"save_editor_theme": name}, indent=2), encoding="utf-8"
-            )
-        except OSError:
-            pass  # a theme that cannot be remembered is not worth failing over
+        self._write()
 
     # -- persistence -------------------------------------------------------- #
-    def _read_theme(self) -> str:
+    def remember_paths(self) -> None:
+        """Write the folders currently in use, so the next run starts there."""
+        self._write()
+
+    def _read(self) -> dict:
         try:
             data = json.loads(self._settings_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            return "dark"
-        theme = data.get("save_editor_theme")
-        return theme if theme in THEMES else "dark"
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def _write(self) -> None:
+        payload = {"save_editor_theme": self._theme}
+        for key, value in (("game_root", self.ctx.game_root),
+                           ("game_user_dir", self.ctx.game_user_dir)):
+            if value is not None:
+                payload[key] = str(value)
+        try:
+            self._settings_path.parent.mkdir(parents=True, exist_ok=True)
+            self._settings_path.write_text(
+                json.dumps(payload, indent=2), encoding="utf-8"
+            )
+        except OSError:
+            pass  # settings that cannot be remembered are not worth failing over
+
+
+def _saved_dir(saved: dict, key: str) -> Path | None:
+    """A remembered folder, if it is still there.
+
+    A path that has gone — an unplugged drive, an uninstalled game — falls
+    through to detection rather than pinning the editor to somewhere empty.
+    """
+    value = saved.get(key)
+    if not value:
+        return None
+    path = Path(value)
+    return path if path.is_dir() else None
 
 
 def default_user_dir() -> Path | None:
-    """The NWN user directory — where saves, haks and portraits live on EE."""
-    candidates = [
-        Path.home() / "Documents" / "Neverwinter Nights",
-        Path.home() / "Documents" / "Neverwinter Nights 2",
-    ]
-    return next((path for path in candidates if path.is_dir()), None)
+    """The NWN user directory — where saves, haks and portraits live on EE.
+
+    Per platform, because it is not the same place: macOS and Windows use
+    ``Documents/Neverwinter Nights``, but Enhanced Edition on Linux uses
+    ``~/.local/share/Neverwinter Nights``. Guessing Documents everywhere finds
+    nothing on a Linux machine.
+    """
+    from nwnfile.locations import HostOS, user_documents_dir
+
+    path = user_documents_dir(HostOS.current())
+    return path if path.is_dir() else None
 
 
 def default_game_root() -> Path | None:
-    """The installed game, looked for where the usual stores put it."""
-    home = Path.home()
-    candidates = [
-        home / "Library/Application Support/Steam/steamapps/common/Neverwinter Nights",
-        Path("/Applications/Neverwinter Nights Enhanced Edition"),
-        home / ".steam/steam/steamapps/common/Neverwinter Nights",
-        home / ".local/share/Steam/steamapps/common/Neverwinter Nights",
-        Path("C:/Program Files (x86)/Steam/steamapps/common/Neverwinter Nights"),
-        Path("C:/Program Files/Steam/steamapps/common/Neverwinter Nights"),
-    ]
-    return next((path for path in candidates if path.is_dir()), None)
+    """The installed game, wherever this platform's stores put it.
+
+    Delegated rather than guessed at: :mod:`nwnfile.locations` walks Steam's
+    library folders (which are not always the default one), GOG and Beamdog
+    installs, and Wine/CrossOver prefixes, and checks each candidate actually
+    looks like an NWN root instead of trusting the path.
+    """
+    from nwnfile.locations import discover_installs
+
+    found = discover_installs()
+    return found[0].root if found else None
 
 
 def default_settings_dir() -> Path:
