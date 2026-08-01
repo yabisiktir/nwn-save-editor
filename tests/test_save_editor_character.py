@@ -615,7 +615,7 @@ def test_the_combat_numbers_say_they_are_the_stored_bases(window, screen):
     assert "base reflex" in text
     assert "base will" in text
     assert "base attack bonus" in text
-    assert "the same ones details edits" in text
+    assert "the one details edits" in text
 
 
 def test_a_save_shows_the_ability_that_adds_to_it(window, screen):
@@ -647,39 +647,53 @@ def test_gear_bonuses_survive_an_unreadable_session(window, screen, monkeypatch)
 
 
 # -- where an ability score comes from --------------------------------------- #
-def test_gear_is_credited_per_ability_while_editing(window, screen, monkeypatch):
-    """The sheet shows the stored base; the game shows a much larger total. This
-    explains part of the gap without inventing the rest."""
-    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": (10, 25)})
-    window._edit_toggle.setChecked(True)
-    screen.refresh()
-    assert "gear +10…+25" in _labels(_page(screen, "abilities"))
+def _total(field="Str", base=29, parts=(), attributed=True):
+    from nwnfile.ability_breakdown import AbilityTotal, Component
+
+    return AbilityTotal(field, base, tuple(Component(*p) for p in parts), attributed)
 
 
-def test_a_single_source_is_not_written_as_a_range(window, screen, monkeypatch):
-    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": (6, 6)})
-    window._edit_toggle.setChecked(True)
+def test_the_row_shows_what_the_score_actually_is(window, screen, monkeypatch):
+    """The save stores a base; the game shows base + race + gear. Show the total.
+
+    The total is built on the score the row is displaying, not the one the
+    breakdown was read from, so it follows the stepper during an edit.
+    """
+    monkeypatch.setattr(
+        screen, "_ability_gear",
+        lambda: {"Str": _total(parts=[("Bralani", 8, "race"), ("Belt", 10, "item")])},
+    )
     screen.refresh()
     text = _labels(_page(screen, "abilities"))
-    assert "gear +6" in text and "…" not in text.split("gear +6")[1][:4]
+    assert "→ 30" in text  # the fixture's Strength is 12, plus the 18 named above
+    assert "+10" in text  # and the modifier follows the total, not the base
 
 
-def test_the_breakdown_stays_out_of_the_way_when_not_editing(window, screen, monkeypatch):
-    """Reading a character should not be cluttered with attribution."""
-    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": (10, 25)})
+def test_a_score_with_nothing_added_shows_no_total(window, screen, monkeypatch):
+    """A bare number beside an identical one is noise."""
+    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": _total(parts=[])})
     screen.refresh()
-    assert "gear +" not in _labels(_page(screen, "abilities"))
+    assert "→" not in _labels(_page(screen, "abilities"))
 
 
-def test_no_total_is_invented(window, screen, monkeypatch):
-    """PRC applies race, class and template adjustments from compiled scripts —
-    racialtypes.2da does not even contain its races, and templates.2da carries
-    only script names. A printed 'total' would therefore be wrong."""
-    monkeypatch.setattr(screen, "_ability_gear", lambda: {"Str": (10, 25)})
-    window._edit_toggle.setChecked(True)
-    screen.refresh()
-    text = _labels(_page(screen, "abilities")).lower()
-    assert "total" not in text.split("gear +")[0][-200:]
+def test_every_contribution_is_named(window, screen):
+    from nwnsaveeditor.ui.editor.screens.character import _breakdown_tooltip
+
+    tip = _breakdown_tooltip("Strength", _total(
+        parts=[("Bralani", 8, "race"), ("Halftroll", 6, "template"), ("Belt", 10, "item")]
+    ))
+    assert "Strength 53 in play" in tip
+    assert "29\tbase" in tip
+    for expected in ("+8\tBralani (race)", "+6\tHalftroll (template)", "+10\tBelt (worn)"):
+        assert expected in tip
+
+
+def test_an_unattributed_skin_says_so(window, screen):
+    """Silently showing a partial split would lose points with no sign of it."""
+    from nwnsaveeditor.ui.editor.screens.character import _breakdown_tooltip
+
+    tip = _breakdown_tooltip("Strength", _total(parts=[("skin", 6, "item")], attributed=False))
+    assert "registry did not account" in tip
 
 
 def test_an_unreadable_session_costs_nothing(window, screen, monkeypatch):

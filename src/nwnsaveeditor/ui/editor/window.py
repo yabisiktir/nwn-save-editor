@@ -128,6 +128,7 @@ class SaveEditorWindow(QMainWindow):
         self._saves = list(saves)
         self._current: SaveGame | None = None
         self._session = None  # SaveEditor, built on the first edit
+        self._races = None  # RaceTable for the open save's haks
         self._editing = False
         self._nav_rows: dict[str, w.NavRow] = {}
         self._save_rows: list[_SaveRow] = []
@@ -461,6 +462,35 @@ class SaveEditorWindow(QMainWindow):
             return LookTables.for_install(self._game_root(), self._hak_dir())
         except Exception:
             return None
+
+    def hak_stack(self):
+        """The open save's own hak search path, or ``None``.
+
+        Read from its ``Mod_HakList`` rather than guessed: which haks a module
+        uses, and in what order, differs from save to save, and the tables that
+        decide a character's race and item names live in them.
+        """
+        from nwnfile.hak_stack import HakStack, hak_names_from_module
+
+        session = self.session()
+        if session is None:
+            return None
+        try:
+            names = hak_names_from_module(session.module_root())
+        except Exception:
+            return None
+        return HakStack.for_module(names, self._hak_dir(), self._game_root())
+
+    def race_table(self):
+        """``racialtypes.2da`` for this save, giving each race's ability adjustment."""
+        from nwnfile.races import RaceTable
+
+        stack = self.hak_stack()
+        if stack is None:
+            return None
+        if self._races is None or self._races.stack != stack:
+            self._races = RaceTable(stack)
+        return self._races
 
     def _hak_dir(self):
         user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)

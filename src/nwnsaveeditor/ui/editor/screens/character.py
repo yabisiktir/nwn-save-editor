@@ -341,7 +341,6 @@ class CharacterScreen(QWidget):
             stats.addWidget(_ability_row(
                 field, label, score, was,
                 gear=gear.get(field),
-                detail=self._window.editing,
                 limits=self._limits(field, info),
                 on_change=(
                     self._set_ability
@@ -355,26 +354,18 @@ class CharacterScreen(QWidget):
         row.addLayout(stats, 1)
         return card
 
-    def _ability_gear(self) -> dict[str, tuple[int, int]]:
-        """``field -> (largest, sum)`` of what equipped gear grants each ability.
+    def _ability_gear(self) -> dict[str, object]:
+        """``field -> AbilityTotal``: where each score comes from, part by part.
 
-        Both numbers, because NWN applies only the largest of several same-kind
-        item bonuses but the save does not record which one it picked — and on a
-        PRC character the skin carries many, so the two differ widely.
+        The save holds base scores; the game's sheet adds the racial adjustment
+        and everything worn, PRC's invisible skin included. Reading all of it
+        back is what lets this show a total instead of a number that looks wrong.
         """
-        from nwnsaveeditor.active_bonuses import item_contributions
-
-        by_label = {label: field for field, label in ABILITIES}
-        out: dict[str, tuple[int, int]] = {}
         try:
-            groups = item_contributions(self._window.session().player_items())
+            rows = self._window.session().ability_breakdown(self._window.race_table())
         except Exception:
-            return out
-        for group in groups:
-            field = by_label.get(group.subject)
-            if field is not None and group.largest is not None:
-                out[field] = (group.largest, group.total or 0)
-        return out
+            return {}
+        return {row.field: row for row in rows}
 
     def _limits(self, field: str, info):
         """The range this field may take under the current rule mode."""
@@ -433,9 +424,10 @@ class CharacterScreen(QWidget):
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(8)
         column.addWidget(w.body(
-            "The values the save stores — the same ones Details edits. The engine "
-            "recomputes the totals it shows in-game from these plus your ability "
-            "modifiers, gear and feats.",
+            "Each ability shows the base score the save stores — the one Details "
+            "edits — then the score in play after your race, any PRC templates and "
+            "everything you are wearing. Hover a total to see every part of it. "
+            "The saving throws below still count gear only.",
             t.TEXT_3, 11.5,
         ))
         panel = w.Panel(padding=16)
@@ -1228,9 +1220,32 @@ def _sheet_divider() -> QFrame:
     return line
 
 
+_KIND_WORD = {"race": "race", "template": "template", "item": "worn"}
+
+
+def _breakdown_tooltip(label: str, total, base: int | None = None) -> str:
+    """Name every part of an ability score, so the total can be checked.
+
+    ``base`` overrides the stored score, so that while editing the sum shown
+    follows the stepper rather than describing the save it came from.
+    """
+    base = total.base if base is None else base
+    lines = [f"{label} {base + total.added} in play", f"    {base}\tbase, as stored in the save"]
+    for part in total.components:
+        kind = _KIND_WORD.get(part.kind, part.kind)
+        lines.append(f"    {part.amount:+d}\t{part.source} ({kind})")
+    if not total.attributed:
+        lines.append(
+            "\nPart of this comes from the PRC skin, whose own registry did not "
+            "account for the whole amount; it is shown as the item rather than "
+            "split between templates."
+        )
+    return "\n".join(lines)
+
+
 def _ability_row(
     field: str, label: str, score: int, was=None, *, limits=None, on_change=None,
-    gear=None, detail: bool = False
+    gear=None,
 ) -> QWidget:
     """One ability: gold initial chip, name, score, and the derived modifier.
 
@@ -1238,11 +1253,11 @@ def _ability_row(
     design shows it struck through beside the new value. ``on_change`` turns the
     score into a stepper; ``None`` (edit mode off) leaves it read-only.
 
-    ``gear`` is ``(largest, sum)`` of what equipped items grant, shown only while
-    editing: it explains why the number here is lower than the one in the game,
-    without pretending to be the total. It cannot be the total — the engine also
-    adds race, class and PRC template adjustments, and those live in compiled
-    scripts rather than in anything the save or the 2DAs spell out.
+    ``gear`` is an ``AbilityTotal``: the racial adjustment, each PRC template and
+    each worn item that raises this ability. The row shows the total beside the
+    stored base — the stored number alone reads far below the game's sheet — and
+    names every part in the tooltip, so a disagreement with the game shows up at
+    a named contribution rather than as one unexplained number.
     """
     dirty = was is not None
     row = QWidget()
@@ -1265,19 +1280,6 @@ def _ability_row(
     )
     line.addWidget(chip)
     line.addWidget(w.body(label, t.SHEET_TEXT, 13.5), 1)
-
-    if detail and gear:
-        largest, total = gear
-        chip_text = f"gear +{largest}" if largest == total else f"gear +{largest}…+{total}"
-        worn = w.body(chip_text, t.TEXT_3, 11)
-        worn.setToolTip(
-            "What your equipped items grant this ability.\n"
-            "NWN applies only the largest of several same-kind item bonuses, but "
-            "the save does not record which it picked, so both are shown.\n"
-            "The game's sheet is higher again: it also counts race, class and "
-            "template adjustments, which PRC applies from compiled scripts."
-        )
-        line.addWidget(worn)
 
     if dirty:
         old = w.body(str(was), t.TEXT_3, 13)
@@ -1304,12 +1306,32 @@ def _ability_row(
         value.setFixedWidth(34)
         line.addWidget(value)
 
-    modifier = ability_modifier(score)
+    # The score in play, after race, templates and gear — what the game's sheet
+    # shows. It follows the stored value so the row reads "29 → 62", and the
+    # modifier below is taken from it: a modifier derived from the base instead
+    # would sit beside the total contradicting it.
+    in_play = score
+    if gear is not None and gear.components:
+        in_play = score + gear.added
+        total = w.body(f"→ {in_play}", t.GOLD, 15)
+        total.setStyleSheet(total.styleSheet() + "font-weight:700;")
+        total.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        total.setFixedWidth(56)
+        total.setToolTip(_breakdown_tooltip(label, gear, score))
+        line.addWidget(total)
+    else:
+        line.addSpacing(56)
+
+    modifier = ability_modifier(in_play)
     mod = w.body(_signed(modifier), t.GREEN if modifier >= 0 else t.DANGER, 13)
     mod.setStyleSheet(mod.styleSheet() + "font-weight:700;")
     mod.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
     mod.setFixedWidth(34)
-    mod.setToolTip("Derived from the score — the engine recomputes it.")
+    mod.setToolTip(
+        "Derived from the score in play, as the engine derives it."
+        if in_play != score
+        else "Derived from the score — the engine recomputes it."
+    )
     line.addWidget(mod)
     return row
 

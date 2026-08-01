@@ -1071,6 +1071,37 @@ class SaveEditor:
             self._module = read_gff(self._reader.read_resource_bytes(self._save.sav_path, res))
         return self._module
 
+    def module_root(self) -> GffStruct:
+        """``module.ifo``'s root struct — where the module's hak list is recorded."""
+        return self._module_tree().root
+
+    def ability_breakdown(self, races=None, name_of=None):
+        """Per-ability totals: base score, racial adjustment, templates, worn items.
+
+        The save stores base scores, so this is what the game's character sheet
+        shows and ours otherwise cannot. ``races`` is a ``RaceTable`` built from
+        this save's own haks; without it the racial row is omitted rather than
+        assumed to be zero.
+        """
+        from nwnfile.ability_breakdown import ability_breakdown
+
+        return ability_breakdown(self._player_struct(self._module_tree()), races, name_of)
+
+    def applied_templates(self) -> list[str]:
+        """PRC templates applied to the character, from the registry on its skin."""
+        from nwnfile import prc_bonuses
+
+        player = self._player_struct(self._module_tree())
+        equip = player.fields.get("Equip_ItemList")
+        if equip is None or equip.type != GffType.LIST:
+            return []
+        names: list[str] = []
+        for struct in equip.value.structs:
+            for name in prc_bonuses.template_names(struct):
+                if name not in names:
+                    names.append(name)
+        return names
+
     def _bic_tree(self) -> Gff | None:
         if not self._bic_loaded:
             self._bic_loaded = True
