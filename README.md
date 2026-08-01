@@ -94,6 +94,31 @@ shows them read-only and names who is in charge, rather than offering an edit th
 would write somewhere the editor never reads. A host opts in by offering
 `set_game_paths`, the same way it opts into `portrait_path`.
 
+## Building an app
+
+```
+pip install pyinstaller
+python scripts/build_app.py
+```
+
+Produces a self-contained app with Python, Qt and the game tables inside it —
+about 45 MB packaged, 100 MB installed.
+
+| Platform | Artifact |
+|---|---|
+| macOS | `dist/nwn-save-editor-<ver>-macos-<arch>.dmg` |
+| Windows | `dist/nwn-save-editor-<ver>-windows-x64.zip` |
+| Linux | `dist/nwn-save-editor-<ver>-linux-<arch>.tar.gz` |
+
+**Each artifact must be built on the OS it targets** — the freeze embeds a Python
+interpreter and Qt's native libraries, so there is no cross-building. That goes
+for the CPU too: PySide6 ships per-architecture wheels, so an Apple Silicon build
+will not launch on an Intel Mac, which is why the name says which.
+
+Nothing is signed. macOS Gatekeeper will ask for right-click → Open the first
+time, and Windows SmartScreen will warn; the hooks for adding certificates are
+marked in `packaging/nwn-save-editor.spec`.
+
 ## Embedding it
 
 Everything the editor asks of a host is one small protocol —

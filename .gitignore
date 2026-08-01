@@ -24,3 +24,8 @@ env/
 .DS_Store
 .idea/
 .vscode/
+
+# Build output
+/build/
+/dist/
+*.spec.bak
