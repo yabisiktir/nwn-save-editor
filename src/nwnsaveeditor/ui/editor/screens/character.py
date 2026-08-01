@@ -252,14 +252,9 @@ class CharacterScreen(QWidget):
     def _portrait_pixmap(self, info, box: int):
         from nwnsaveeditor.ui.icons import tga_to_pixmap
 
-        controller = self._window._controller
-        save = self._window.save
-        if info is None or not info.portrait_resref or controller is None or save is None:
+        if info is None or not info.portrait_resref:
             return None
-        resolve = getattr(controller, "portrait_path", None)
-        if resolve is None:
-            return None
-        path = resolve(info.portrait_resref, extra_dirs=[save.folder])
+        path = self._window.portrait_path(info.portrait_resref, self._window.save)
         return tga_to_pixmap(path, box=box) if path is not None else None
 
     def _skin_switcher(self) -> QHBoxLayout:

@@ -410,6 +410,46 @@ class SaveEditorWindow(QMainWindow):
         """The configured game folder, or ``None`` — screens need it for 2DAs."""
         return self._game_root()
 
+    def portrait_path(self, resref: str, save=None):
+        """Find a character's portrait TGA, or ``None``.
+
+        A host that knows more — one tracking portraits its own mod installs
+        added, or ones extracted out of haks — can supply ``portrait_path`` and
+        it is preferred. Without one the editor looks where NWN itself keeps
+        them, which is what it needs to work standalone: this used to delegate
+        the search entirely to the host, so running the editor on its own showed
+        no portrait at all even when the file was sitting in ``portraits/``.
+        """
+        from nwnfile.character import resolve_portrait
+
+        if not resref:
+            return None
+        host_lookup = getattr(self._controller, "portrait_path", None)
+        if host_lookup is not None:
+            try:
+                return host_lookup(
+                    resref, extra_dirs=[save.folder] if save is not None else []
+                )
+            except Exception:
+                pass  # fall through to our own search rather than showing nothing
+        return resolve_portrait(resref, self.portrait_dirs(save))
+
+    def portrait_dirs(self, save=None) -> list:
+        """Where NWN keeps portraits, nearest first.
+
+        The save folder comes first: a save can carry its own copy. ``ovr`` is
+        Enhanced Edition's override; the plain ``override`` and ``portraits``
+        folders are where both editions look.
+        """
+        dirs = [save.folder] if save is not None else []
+        user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
+        if user is not None:
+            dirs += [user / "ovr", user / "override", user / "portraits"]
+        root = self._game_root()
+        if root is not None:
+            dirs += [root / "ovr", root / "override", root / "portraits"]
+        return [d for d in dirs if d is not None and d.is_dir()]
+
     def look_tables(self):
         """appearance.2da / portraits.2da options, built once."""
         from nwnfile.look_tables import LookTables

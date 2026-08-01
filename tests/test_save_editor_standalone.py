@@ -135,3 +135,83 @@ def test_a_settings_file_is_read_leniently(tmp_path, payload):
     theme = StandaloneHost(settings_dir=tmp_path)._settings().save_editor_theme
     assert theme in {"dark", "light"}
     assert json.loads(payload) is not None  # the payload really is what we wrote
+
+
+# -- portraits --------------------------------------------------------------- #
+def _portrait_window(qtbot, tmp_path, user_dir):
+    from tests.test_save_editor import _make_char_save
+
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+
+    # An explicit empty game root: passing None makes StandaloneHost go looking
+    # for a real install, which would make these depend on the machine.
+    game_root = tmp_path / "NWN"
+    game_root.mkdir(exist_ok=True)
+    host = StandaloneHost(
+        game_root=game_root, game_user_dir=user_dir, settings_dir=tmp_path
+    )
+    window = SaveEditorWindow([_make_char_save(tmp_path)], host)
+    qtbot.addWidget(window)
+    return window
+
+
+def test_the_editor_finds_a_portrait_without_a_host_lookup(qtbot, tmp_path):
+    """It used to delegate the whole search to a host method only an application
+    had, so running on its own showed no portrait even with the file right there."""
+    user = tmp_path / "user"
+    (user / "portraits").mkdir(parents=True)
+    (user / "portraits" / "hero_m.tga").write_bytes(b"not a real tga")
+
+    window = _portrait_window(qtbot, tmp_path, user)
+    assert window.portrait_path("hero_") == user / "portraits" / "hero_m.tga"
+
+
+def test_it_searches_nwns_folders_nearest_first(qtbot, tmp_path):
+    user = tmp_path / "user"
+    for name in ("ovr", "override", "portraits"):
+        (user / name).mkdir(parents=True)
+    window = _portrait_window(qtbot, tmp_path, user)
+    names = [d.name for d in window.portrait_dirs()]
+    assert names == ["ovr", "override", "portraits"]
+
+
+def test_the_save_folder_is_searched_first_because_a_save_can_carry_its_own(
+    qtbot, tmp_path
+):
+    user = tmp_path / "user"
+    (user / "portraits").mkdir(parents=True)
+    window = _portrait_window(qtbot, tmp_path, user)
+    dirs = window.portrait_dirs(window.save)
+    assert dirs[0] == window.save.folder
+
+
+def test_a_host_that_knows_better_is_preferred(qtbot, tmp_path):
+    """An application may know about portraits its own installs put down."""
+    user = tmp_path / "user"
+    (user / "portraits").mkdir(parents=True)
+    (user / "portraits" / "hero_m.tga").write_bytes(b"x")
+    window = _portrait_window(qtbot, tmp_path, user)
+
+    theirs = tmp_path / "from-the-host.tga"
+    window._controller.portrait_path = lambda resref, extra_dirs=(): theirs
+    assert window.portrait_path("hero_") == theirs
+
+
+def test_a_host_lookup_that_raises_falls_back_rather_than_showing_nothing(
+    qtbot, tmp_path
+):
+    user = tmp_path / "user"
+    (user / "portraits").mkdir(parents=True)
+    (user / "portraits" / "hero_m.tga").write_bytes(b"x")
+    window = _portrait_window(qtbot, tmp_path, user)
+
+    def _boom(resref, extra_dirs=()):
+        raise RuntimeError("host is confused")
+
+    window._controller.portrait_path = _boom
+    assert window.portrait_path("hero_") == user / "portraits" / "hero_m.tga"
+
+
+def test_a_character_with_no_portrait_resref_asks_for_nothing(qtbot, tmp_path):
+    window = _portrait_window(qtbot, tmp_path, tmp_path / "user")
+    assert window.portrait_path("") is None

@@ -1,9 +1,15 @@
 """What the save editor needs from whatever is hosting it.
 
-The editor is a full window that Vaultkeeper opens, but it does not need
-Vaultkeeper. Everything it asks of its host is here — four things, and it reads
-all of them defensively, so a host that supplies none of them still opens (with
-no game folder, the tables that need one simply report themselves unreadable).
+The editor is a full window an application can open, but it does not need one.
+Everything it *requires* of a host is here — four things, read defensively, so a
+host that supplies none of them still opens (with no game folder, the tables that
+need one simply report themselves unreadable).
+
+A host may also offer ``portrait_path(resref, extra_dirs=...)``. That one is
+optional and is used when present, because an application may know about
+portraits the editor cannot find on its own — ones its mod installs put down, or
+ones extracted out of haks. Without it the editor searches NWN's own portrait
+folders, which is enough to show the portrait of a normal character.
 
 Stating the surface as a protocol is what makes running the editor on its own
 possible without a second implementation drifting from the first: Vaultkeeper's
@@ -35,7 +41,7 @@ class EditorContext(Protocol):
 
 @runtime_checkable
 class EditorHost(Protocol):
-    """The whole of the editor's dependency on its host application."""
+    """What the editor requires of its host. See also the optional lookup above."""
 
     ctx: EditorContext
 
