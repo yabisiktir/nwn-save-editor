@@ -40,7 +40,6 @@ class SpellbookScreen(QWidget):
         self._class_index: int | None = None
         self._level: int | None = None
         self._filter = ""
-        self._levels = None
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
@@ -61,16 +60,20 @@ class SpellbookScreen(QWidget):
             return []
 
     def _spell_levels(self):
-        """``spells.2da`` as a class/level lookup, built once per screen."""
+        """``spells.2da`` as a class/level lookup for the current install.
+
+        Not held on the screen: it used to be, and it was the one thing a
+        game-folder change did not reach — the screen went on filtering spells
+        against the old install's table. Keyed on the install instead, so a new
+        folder is simply a different lookup.
+        """
         from nwnsaveeditor.spell_levels import SpellLevels
 
-        if self._levels is None:
-            user = getattr(getattr(self._window._controller, "ctx", None),
-                           "game_user_dir", None)
-            self._levels = SpellLevels.for_install(
-                self._window.game_root(), (user / "hak") if user else None
-            )
-        return self._levels
+        user = getattr(getattr(self._window._controller, "ctx", None),
+                       "game_user_dir", None)
+        return SpellLevels.for_install(
+            self._window.game_root(), (user / "hak") if user else None
+        )
 
     def _pending_spell_keys(self) -> set:
         """Staged spell changes as ``(class_index, list_field, spell_id)``.

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from nwnfile.cache import by_install
 from nwnfile.formats.erf_reader import ErfReader
 from nwnfile.formats.key_bif_reader import KeyBifReader
 from nwnfile.item_property_tables import parse_2da
@@ -31,6 +32,7 @@ class LookTables:
         self._portraits: list[str] | None = None
 
     @classmethod
+    @by_install
     def for_install(cls, game_root: Path | None, hak_dir: Path | None = None) -> LookTables:
         haks = [hak_dir / name for name in _LOOK_HAKS] if hak_dir is not None else []
         return cls(game_root, haks)

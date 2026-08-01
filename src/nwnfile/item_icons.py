@@ -20,6 +20,7 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
+from nwnfile.cache import by_install
 from nwnfile.formats.erf_reader import ErfReader, ErfResource
 from nwnfile.formats.key_bif_reader import KeyBifReader
 
@@ -191,3 +192,15 @@ class ItemIconSource:
                     break
             self._cache[key] = data
         return self._cache[key]
+
+
+@by_install
+def icon_source_for(game_root, hak_dir=None) -> ItemIconSource:
+    """An :class:`ItemIconSource` for an install, shared between callers.
+
+    Keyed on the install for the same reason the tables are: it indexes the
+    game's KEY/BIF (and optionally every hak), which is far too slow to redo per
+    window, and holding it anywhere else means something has to remember to
+    throw it away when the folders change.
+    """
+    return ItemIconSource(game_root, hak_dir=hak_dir)

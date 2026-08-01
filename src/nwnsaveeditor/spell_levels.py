@@ -13,6 +13,8 @@ answer, read straight from the game.
 
 from __future__ import annotations
 
+from nwnfile.cache import by_install
+
 #: Class id -> the ``spells.2da`` column naming that class's spell level.
 #: Sorcerer and Wizard share one column, as the game does.
 CLASS_COLUMNS: dict[int, str] = {
@@ -33,6 +35,7 @@ class SpellLevels:
         self._rows = rows or {}
 
     @classmethod
+    @by_install
     def for_install(cls, game_root, hak_dir=None) -> SpellLevels:
         """Read ``spells.2da``, preferring the PRC hak so its spells are covered."""
         from nwnfile.item_property_tables import ItemPropertyTables

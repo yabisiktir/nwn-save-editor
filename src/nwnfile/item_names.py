@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from nwnfile.cache import by_install
 from nwnfile.formats.bic_reader import CharacterInfo, InventoryItem
 from nwnfile.formats.tlk_reader import CUSTOM_TLK_BASE, TlkReader, TlkTable
 
@@ -94,7 +95,13 @@ class ItemNameResolver:
         self.resolve_items(info.inventory_items)
 
 
+@by_install
 def resolver_for(game_root: Path | None) -> ItemNameResolver:
-    """An :class:`ItemNameResolver` backed by the install's ``dialog.tlk`` (cached)."""
+    """An :class:`ItemNameResolver` backed by the install's ``dialog.tlk``.
+
+    Keyed on the install like the tables are. The talk table itself was already
+    cached, but a fresh resolver was built around it on every lookup — and this
+    is the one called per item name rather than per screen.
+    """
     path = _dialog_tlk_path(game_root) if game_root else None
     return ItemNameResolver(_load_tlk(path))

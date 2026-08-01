@@ -45,7 +45,6 @@ from nwnsaveeditor.ui.icons import item_icon_source, tga_to_pixmap
 _SAVES_LIST_MAX_H = 196
 
 #: "not built yet", distinct from a cached ``None`` meaning "tried and unavailable".
-_UNSET = object()
 #: how wide one footer pending-change sample may get before it is elided.
 _CHIP_WIDTH = 300
 
@@ -133,8 +132,6 @@ class SaveEditorWindow(QMainWindow):
         self._screens: dict[str, QWidget] = {}
         self._char_cache = None  # CharacterInfo for _char_cache_for
         self._char_cache_for: Path | None = None
-        self._prop_tables = _UNSET  # ItemPropertyTables | None, built lazily
-        self._look_tables = _UNSET  # LookTables | None, built lazily
         self._rebuilding = False
         self._icons = _icon_source(controller)
         # Set the theme first: everything below reads token colours as it builds.
@@ -455,17 +452,17 @@ class SaveEditorWindow(QMainWindow):
         return [d for d in dirs if d is not None and d.is_dir()]
 
     def look_tables(self):
-        """appearance.2da / portraits.2da options, built once."""
+        """appearance.2da / portraits.2da options for the current install."""
         from nwnfile.look_tables import LookTables
 
-        if self._look_tables is _UNSET:
-            user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
-            hak_dir = (user / "hak") if user is not None else None
-            try:
-                self._look_tables = LookTables.for_install(self._game_root(), hak_dir)
-            except Exception:
-                self._look_tables = None
-        return self._look_tables
+        try:
+            return LookTables.for_install(self._game_root(), self._hak_dir())
+        except Exception:
+            return None
+
+    def _hak_dir(self):
+        user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
+        return (user / "hak") if user is not None else None
 
     def _game_root(self):
         return getattr(getattr(self._controller, "ctx", None), "game_root", None)
@@ -478,14 +475,10 @@ class SaveEditorWindow(QMainWindow):
         """
         from nwnfile.item_property_tables import ItemPropertyTables
 
-        if self._prop_tables is _UNSET:
-            user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
-            hak_dir = (user / "hak") if user is not None else None
-            try:
-                self._prop_tables = ItemPropertyTables.for_install(self._game_root(), hak_dir)
-            except Exception:
-                self._prop_tables = None
-        return self._prop_tables
+        try:
+            return ItemPropertyTables.for_install(self._game_root(), self._hak_dir())
+        except Exception:
+            return None
 
     def notify_changed(self) -> None:
         """A screen staged an edit: refresh the footer, the dots and the screens."""
@@ -646,16 +639,17 @@ class SaveEditorWindow(QMainWindow):
         SettingsDialog(self, self).exec()
 
     def forget_game_tables(self) -> None:
-        """Drop what was read from the game folder, and redraw.
+        """Rebuild after the game folders changed.
 
-        Called after the folders change: the 2DA and TLK tables are built once
-        and cached, so without this a new game root would leave every name as it
-        was read from the old one.
+        Nothing here holds the tables any more — they are keyed on the install
+        (see :mod:`nwnfile.cache`), so a new folder simply reads as a different
+        key. What this does is rebuild the shell, because *screens* can still
+        hold things derived from the old folder, and a list of which ones is
+        exactly the kind of thing that gets forgotten. The theme switch already
+        rebuilds for the same reason.
         """
-        self._prop_tables = _UNSET
-        self._look_tables = _UNSET
         self._icons = _icon_source(self._controller)
-        self._refresh_screens()
+        self._build_ui()
 
     def _set_theme(self, name: str) -> None:
         """Switch the editor's palette and rebuild the window in it.

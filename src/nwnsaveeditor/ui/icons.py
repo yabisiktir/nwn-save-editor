@@ -57,7 +57,7 @@ def item_icon_source(host):
     With the host's ``hak_item_icons`` setting on, the user's hak folder is
     searched too — opt-in, because the first lookup scans every hak.
     """
-    from nwnfile.item_icons import ItemIconSource
+    from nwnfile.item_icons import icon_source_for
 
     ctx = getattr(host, "ctx", None)
     game_root = getattr(ctx, "game_root", None)
@@ -67,4 +67,6 @@ def item_icon_source(host):
         user_dir = getattr(ctx, "game_user_dir", None)
         if user_dir is not None:
             hak_dir = user_dir / "hak"
-    return ItemIconSource(game_root, hak_dir=hak_dir)
+    # Keyed on the install: it indexes the game's KEY/BIF (and every hak when
+    # the setting is on), which is much too slow to redo per window.
+    return icon_source_for(game_root, hak_dir)

@@ -22,6 +22,7 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
+from nwnfile.cache import by_install
 from nwnfile.formats.erf_reader import ErfReader
 from nwnfile.formats.key_bif_reader import KeyBifReader
 
@@ -72,6 +73,7 @@ class ItemPropertyTables:
         self._cache: dict[str, dict[int, dict[str, str]] | None] = {}
 
     @classmethod
+    @by_install
     def for_install(cls, game_root: Path | None, hak_dir: Path | None = None) -> ItemPropertyTables:
         """Build from an install, preferring ``prc8_2das.hak`` + the base ``dialog.tlk``."""
         hak_path = None

@@ -161,17 +161,40 @@ def test_the_toolbar_offers_it(qtbot, tmp_path):
     assert "Settings…" in [b.text() for b in window.findChildren(QPushButton)]
 
 
-def test_changing_folders_drops_the_cached_tables(qtbot, tmp_path):
-    """They are built once from the game folder; a new folder must re-read them."""
+def test_changing_folders_changes_what_the_tables_say(qtbot, tmp_path):
+    """The tables are keyed on the install, so a new folder is a new lookup."""
+    host = _standalone(tmp_path)
+    window = _window(qtbot, tmp_path, host)
+    before = window.property_tables()
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    host.set_game_paths(game_root=elsewhere)
+    assert window.property_tables() is not before, "still reading the old install"
+    assert window.look_tables() is not None
+
+
+def test_the_spellbook_follows_the_folder_too(qtbot, tmp_path):
+    """This is the one a central "forget everything" list missed: the screen held
+    spells.2da itself, so it kept filtering against the old install."""
+    host = _standalone(tmp_path)
+    window = _window(qtbot, tmp_path, host)
+    spellbook = window._screens["spellbook"]
+    before = spellbook._spell_levels()
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    host.set_game_paths(game_root=elsewhere)
+    assert spellbook._spell_levels() is not before
+
+
+def test_nothing_in_the_window_holds_a_table_any_more(qtbot, tmp_path):
+    """Held state is what has to be remembered and eventually is not."""
     window = _window(qtbot, tmp_path, _standalone(tmp_path))
     window.property_tables()
     window.look_tables()
-    window.forget_game_tables()
-
-    from nwnsaveeditor.ui.editor.window import _UNSET
-
-    assert window._prop_tables is _UNSET
-    assert window._look_tables is _UNSET
+    held = [n for n in vars(window) if "table" in n.lower()]
+    assert held == [], f"a table is being held on the window: {held}"
 
 
 def test_a_path_is_shown_even_before_anything_is_chosen(qtbot, tmp_path):
