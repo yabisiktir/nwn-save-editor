@@ -1,0 +1,38 @@
+Vaultkeeper & NWN Save Editor — final pair (1a)
+
+SOURCE (preferred)
+  icons/vaultkeeper.svg            full detail
+  icons/vaultkeeper-48.svg         48px build
+  icons/vaultkeeper-32.svg         32px build, also used for 16
+  icons/nwn-save-editor.svg / -48 / -32
+
+PNG SIZE SET (this folder)
+  16, 32   rendered from the -32 build
+  48       rendered from the -48 build
+  128, 256, 512, 1024   rendered from full detail
+
+WHAT DROPS, AND WHEN
+  Below 48px
+    Vaultkeeper    the eight rim rivets
+    Save Editor    the left page's ink lines
+  Below 32px (use for 32 and 16)
+    Vaultkeeper    the four handwheel spokes.
+                   Survives: gold ring / dark channel / inner disc / bright boss.
+    Save Editor    all ink lines.
+                   Survives: gold cover / two parchment pages / dark gutter.
+
+WHY IT HOLDS AT 16
+  No two touching golds share a value: every gold meets either the dark
+  channel (#14100C) or parchment. The 16px read is pure shape --
+  round metal vs wide parchment -- plus a value difference, so the two
+  never swap in a crowded dock. Both marks fill the same optical circle
+  inside the same plaque and rim, lit from the top.
+
+PALETTE
+  plaque      #2E2117 -> #14100C (vertical)
+  rim         #8A6524
+  gold        #F2D089 -> #A9782C (vertical)
+  gold dark   #8F6A28 -> #6B4C18
+  parchment   #EADCB8 / #DCC9A0
+  ink         #5E4114, dull rule #B69A63
+  channel     #14100C

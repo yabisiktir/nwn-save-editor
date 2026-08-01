@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="plaque" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2E2117"></stop>
+      <stop offset="1" stop-color="#14100C"></stop>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E7C173"></stop>
+      <stop offset="1" stop-color="#A9782C"></stop>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F0E3C2"></stop>
+      <stop offset="1" stop-color="#DCC housing"></stop>
+    </linearGradient>
+  </defs>
+  <rect x="48" y="48" width="928" height="928" rx="208" fill="url(#plaque)"></rect>
+  <rect x="69" y="69" width="886" height="886" rx="188" fill="none" stroke="#8A6524" stroke-width="26"></rect>
+  <path d="M 150 292 C 288 274 448 292 512 350 C 576 292 736 274 874 292 L 874 706 C 736 688 576 706 512 764 C 448 706 288 688 150 706 Z" fill="url(#gold)"></path>
+  <path d="M 512 386 C 448 336 306 320 196 334 L 196 664 C 306 650 448 666 512 716 Z" fill="#F0E3C2"></path>
+  <path d="M 512 386 C 576 336 718 320 828 334 L 828 664 C 718 650 576 666 512 716 Z" fill="#DCC9A0"></path>
+  <path d="M 488 372 L 536 372 L 536 730 L 488 730 Z" fill="#14100C"></path>
+  <g data-drop="32">
+    <rect x="580" y="424" width="196" height="30" rx="15" fill="#B69A63"></rect>
+    <rect x="580" y="492" width="212" height="30" rx="15" fill="#5E4114"></rect>
+    <rect x="580" y="560" width="150" height="30" rx="15" fill="#B69A63"></rect>
+  </g>
+</svg>

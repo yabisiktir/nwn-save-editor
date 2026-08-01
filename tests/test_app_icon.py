@@ -90,22 +90,38 @@ def test_every_size_renders_something(size):
     assert len(seen) > 3, f"{size}px is essentially blank"
 
 
-def test_the_pen_is_dropped_at_the_sizes_it_would_only_smear():
-    """The first attempt layered scroll, rules and pen in one gold; at 16px they
-    merged into a smudge that read as a "7". The pen now appears only from 48 up,
-    and the scroll silhouette carries the smaller sizes on its own."""
-    draw = _draw()
-    from PySide6.QtGui import QColor
+def test_each_size_is_rendered_from_the_build_authored_for_it():
+    """The artwork ships in three builds, not one drawing scaled down.
 
-    gold = QColor("#deaf56").rgb() & 0xFFFFFF
+    That is the whole reason it survives 16px: the designer stripped detail for
+    the small sizes rather than letting a downscale mush it. Rendering 16 from
+    the full-detail source would throw that away silently.
+    """
+    import sys
 
-    def has_bright_gold(size):
-        image = draw(size)
-        return any(
-            abs(((image.pixel(x, y) & 0xFFFFFF) >> 16) - (gold >> 16)) < 12
-            and abs(((image.pixel(x, y) >> 8) & 0xFF) - ((gold >> 8) & 0xFF)) < 12
-            for x in range(size) for y in range(size)
-        )
+    sys.path.insert(0, str(_ROOT / "scripts"))
+    import make_icons
 
-    assert has_bright_gold(64), "the pen should be drawn at 64"
-    assert not has_bright_gold(32), "and dropped at 32, where it would only smear"
+    assert make_icons.build_for(1024).name.endswith("nwn-save-editor.svg")
+    assert make_icons.build_for(64).name.endswith("nwn-save-editor.svg")
+    assert make_icons.build_for(48).name.endswith("-48.svg")
+    assert make_icons.build_for(32).name.endswith("-32.svg")
+    assert make_icons.build_for(16).name.endswith("-32.svg")
+
+
+def test_the_small_build_really_does_carry_less():
+    """DESIGN.txt: below 32 the ink lines go, leaving cover, pages and gutter."""
+    import sys
+
+    sys.path.insert(0, str(_ROOT / "scripts"))
+    import make_icons
+
+    full = (make_icons.SOURCE / "nwn-save-editor.svg").read_text()
+    small = (make_icons.SOURCE / "nwn-save-editor-32.svg").read_text()
+    assert len(small) < len(full), "the 32px build should be the reduced one"
+
+
+def test_the_sources_are_vendored_so_a_build_needs_nothing_outside_the_repo():
+    for name in ("nwn-save-editor.svg", "nwn-save-editor-48.svg",
+                 "nwn-save-editor-32.svg", "DESIGN.txt"):
+        assert (_ICONS / "source" / name).is_file(), f"{name} is not vendored"
