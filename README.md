@@ -81,12 +81,18 @@ knowing if you move between machines:
 ```
 
 Edit it by hand or delete it to start over — a missing or malformed file falls
-back to detection rather than failing. There is no in-app way to change the
-folders yet; it is the command line or this file.
+back to detection rather than failing.
 
-An application that embeds the editor supplies its own settings instead and this
-file is not used — a standalone run must never write into an embedding
-application's configuration.
+### Settings…
+
+The toolbar's **Settings…** shows both folders, what each is for, and lets you
+change them — *when they are the editor's to change*.
+
+Opened from an application that has its own game-folder setting, they are not:
+that application supplies them, and this file is not used at all. The screen then
+shows them read-only and names who is in charge, rather than offering an edit that
+would write somewhere the editor never reads. A host opts in by offering
+`set_game_paths`, the same way it opts into `portrait_path`.
 
 ## Embedding it
 

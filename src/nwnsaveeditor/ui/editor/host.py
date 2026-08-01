@@ -102,6 +102,22 @@ class StandaloneHost:
         self._theme = name
         self._write()
 
+    def set_game_paths(
+        self, game_root: Path | None = None, game_user_dir: Path | None = None
+    ) -> None:
+        """Point the editor at a different game folder, and remember it.
+
+        Its presence is what tells the settings screen the paths are the
+        editor's to change. A host that owns them — an application with its own
+        game-folder setting — simply does not offer this, and the screen shows
+        them read-only rather than writing somewhere with no effect.
+        """
+        if game_root is not None:
+            self.ctx.game_root = game_root
+        if game_user_dir is not None:
+            self.ctx.game_user_dir = game_user_dir
+        self._write()
+
     # -- persistence -------------------------------------------------------- #
     def remember_paths(self) -> None:
         """Write the folders currently in use, so the next run starts there."""

@@ -214,6 +214,10 @@ class SaveEditorWindow(QMainWindow):
         guide.setToolTip("How the save editor works")
         guide.clicked.connect(self._show_guide)
         layout.addWidget(guide)
+        settings = w.ghost_button("Settings…")
+        settings.setToolTip("Which game folders the editor is reading")
+        settings.clicked.connect(self._show_settings)
+        layout.addWidget(settings)
 
         self._rule_mode = w.SegmentedControl((("strict", "Strict"), ("free", "Free")))
         self._rule_mode.changed.connect(lambda _: self._refresh_screens())
@@ -635,6 +639,23 @@ class SaveEditorWindow(QMainWindow):
         from nwnsaveeditor.ui.editor.guide import EditorGuideDialog
 
         EditorGuideDialog(self).exec()
+
+    def _show_settings(self) -> None:
+        from nwnsaveeditor.ui.editor.settings import SettingsDialog
+
+        SettingsDialog(self, self).exec()
+
+    def forget_game_tables(self) -> None:
+        """Drop what was read from the game folder, and redraw.
+
+        Called after the folders change: the 2DA and TLK tables are built once
+        and cached, so without this a new game root would leave every name as it
+        was read from the old one.
+        """
+        self._prop_tables = _UNSET
+        self._look_tables = _UNSET
+        self._icons = _icon_source(self._controller)
+        self._refresh_screens()
 
     def _set_theme(self, name: str) -> None:
         """Switch the editor's palette and rebuild the window in it.
