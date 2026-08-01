@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from PySide6.QtWidgets import QLabel, QPushButton, QSpinBox
 
-from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
 
 class _Tables:
@@ -129,7 +129,7 @@ def test_unreadable_tables_explain_themselves(window, monkeypatch):
 def test_it_is_not_its_own_sidebar_section(window):
     """Leaving Raw Data to look up a property id defeats the point of looking it
     up, so it is a companion panel rather than a destination."""
-    from vaultkeeper.ui.save_editor.sections import SECTIONS
+    from nwnsaveeditor.ui.editor.sections import SECTIONS
 
     assert "properties" not in {section.key for section in SECTIONS}
 

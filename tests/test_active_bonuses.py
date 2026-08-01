@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from nwnfile.formats.bic_reader import ItemProperty
-from vaultkeeper.game import active_bonuses as ab
+from nwnsaveeditor import active_bonuses as ab
 
 
 def _prop(property_name: int, subtype: int = 0, cost_value: int = 0) -> ItemProperty:
@@ -191,7 +191,7 @@ def test_compute_survives_a_save_with_nothing_readable():
 
 # -- gear applying to one saving throw --------------------------------------- #
 def test_the_universal_group_counts_towards_every_save():
-    from vaultkeeper.game.active_bonuses import BonusGroup, Contribution, gear_bonus_for_save
+    from nwnsaveeditor.active_bonuses import BonusGroup, Contribution, gear_bonus_for_save
 
     universal = BonusGroup("saves", "Saving throws", [Contribution("Belt", "+2", 2)])
     assert gear_bonus_for_save([universal], "Fortitude") == 2
@@ -199,7 +199,7 @@ def test_the_universal_group_counts_towards_every_save():
 
 
 def test_the_largest_wins_because_nwn_does_not_stack_same_type():
-    from vaultkeeper.game.active_bonuses import BonusGroup, Contribution, gear_bonus_for_save
+    from nwnsaveeditor.active_bonuses import BonusGroup, Contribution, gear_bonus_for_save
 
     groups = [
         BonusGroup("saves", "Saving throws", [Contribution("Belt", "+2", 2)]),
@@ -209,7 +209,7 @@ def test_the_largest_wins_because_nwn_does_not_stack_same_type():
 
 
 def test_a_save_nothing_applies_to_reports_none():
-    from vaultkeeper.game.active_bonuses import BonusGroup, Contribution, gear_bonus_for_save
+    from nwnsaveeditor.active_bonuses import BonusGroup, Contribution, gear_bonus_for_save
 
     groups = [BonusGroup("saves", "Fortitude save", [Contribution("Ring", "+5", 5)])]
     assert gear_bonus_for_save(groups, "Will") is None

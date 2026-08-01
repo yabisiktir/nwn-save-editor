@@ -23,9 +23,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.world_state import matches
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
+from nwnsaveeditor.world_state import matches
 
 #: How many variable rows to build at once. A module can hold hundreds — the
 #: owner's carries 821 — and building every row costs real time, so the list pages.
@@ -188,7 +188,7 @@ class QuestsScreen(QWidget):
         self.refresh()
 
     def _edit(self, variable) -> None:
-        from vaultkeeper.ui.dialogs.property_edit_dialog import PropertyEditDialog
+        from nwnsaveeditor.ui.dialogs.property_edit_dialog import PropertyEditDialog
 
         if isinstance(variable.value, str):
             text, ok = w.prompt_text(self, "Edit Variable", variable.name,

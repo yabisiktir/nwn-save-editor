@@ -16,11 +16,41 @@ from pathlib import Path
 
 from nwnfile.formats.bic_reader import _GFF, _GFFType
 from nwnfile.formats.erf_reader import ErfReader
-from vaultkeeper.game.game_saves import get_location_in_game_save
 
 _IFO_RESTYPE = 2014  # module.ifo
 _ARE_RESTYPE = 2012  # <area>.are (static area data — small; holds the Name)
 _SCREENSHOTS = ("screen.tga", "portrait.tga")
+
+
+#: The file inside a save folder naming where in the module the party is.
+SAVE_INFO_FILE = "savenfo.txt"
+#: Reported when that file is missing or unreadable.
+GAME_LOCATION_FAILED = "Location in game unavailable"
+
+
+def _read_text_lenient(path: Path) -> str:
+    """Read a small text file, tolerating either UTF-8 or Latin-1 (savenfo etc.)."""
+    data = path.read_bytes()
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("latin-1")
+
+
+def get_location_in_game_save(save_folder: Path) -> tuple[str, str | None]:
+    """Read the in-module location from ``savenfo.txt``.
+
+    Returns ``(location, error)`` where ``error`` is ``None`` on success. Leading
+    dots and whitespace are stripped, matching ``Defs.GetLocationInGameSave``.
+    """
+    save_info = save_folder / SAVE_INFO_FILE
+    if not save_info.is_file():
+        return GAME_LOCATION_FAILED, f"{SAVE_INFO_FILE} does not exist"
+    try:
+        text = _read_text_lenient(save_info)
+        return text.lstrip(".").lstrip(), None
+    except OSError as ex:
+        return GAME_LOCATION_FAILED, str(ex)
 
 
 @dataclass

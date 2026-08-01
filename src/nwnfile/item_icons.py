@@ -80,7 +80,7 @@ class ItemIconSource:
             )
 
     #: Tintable parts (cloaks, robes) ship a PLT rather than a TGA: it stores no
-    #: colour, only a palette index per pixel. See core.formats.plt_reader.
+    #: colour, only a palette index per pixel. See nwnfile.formats.plt_reader.
     PLT_RES_TYPE = 6
 
     def _candidates(self, base_item: int, model_part: int) -> list[str]:

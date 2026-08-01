@@ -22,8 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 #: The slide-over's width, and how far in from the window's right edge it sits.
 LEDGER_W = 420
@@ -189,7 +189,7 @@ class ChangeLedger(QFrame):
 
 
 def _section_label(kind: str) -> str:
-    from vaultkeeper.ui.save_editor.sections import by_key, section_for_kind
+    from nwnsaveeditor.ui.editor.sections import by_key, section_for_kind
 
     section = by_key(section_for_kind(kind) or "")
     return section.label if section is not None else kind

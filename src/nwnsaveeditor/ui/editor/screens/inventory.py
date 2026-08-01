@@ -5,7 +5,7 @@ note in the handoff asked for this): a head circle and torso outline are painted
 behind the cells, and the paired slots — weapon/shield, the two rings, the two
 creature weapons — sit mirrored left and right of the body axis.
 
-The detail column is filled by :mod:`~vaultkeeper.ui.save_editor.screens.item_panels`,
+The detail column is filled by :mod:`~nwnsaveeditor.ui.editor.screens.item_panels`,
 which has a separate panel class per context so a store or creature item can never
 be property-edited from here.
 """
@@ -25,9 +25,9 @@ from PySide6.QtWidgets import (
 
 from nwnfile.formats.bic_reader import EQUIP_SLOT_NAMES
 from nwnfile.item_names import base_item_type
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
-from vaultkeeper.ui.save_editor.screens.item_panels import PlayerItemPanel, item_cell
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
+from nwnsaveeditor.ui.editor.screens.item_panels import PlayerItemPanel, item_cell
 
 #: ``(row, column)`` for each equipment slot bit, arranged as a body.
 #: Column 1 is the body axis; 0 and 2 are the mirrored right/left pairs.
@@ -346,9 +346,9 @@ class InventoryScreen(QWidget):
         icons = getattr(self._window, "_icons", None)
         if icons is None:
             return None
-        from vaultkeeper.ui.dialogs.inventory_view import _load_icon
+        from nwnsaveeditor.ui.icons import load_item_icon
 
-        icon = _load_icon(icons, item)
+        icon = load_item_icon(icons, item)
         return icon.pixmap(t.ITEM_CELL - 12, t.ITEM_CELL - 12) if icon is not None else None
 
     # -- selection -------------------------------------------------------- #

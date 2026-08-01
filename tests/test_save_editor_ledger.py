@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from PySide6.QtWidgets import QLabel, QPushButton
 
-from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
 
 @pytest.fixture

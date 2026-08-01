@@ -8,7 +8,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel
 
-from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
 _ROLE = Qt.ItemDataRole.UserRole
 
@@ -99,7 +99,7 @@ def test_a_raw_edit_stages_as_raw(window, raw):
 
 
 def test_a_raw_edit_will_not_change_a_fields_type(window):
-    from vaultkeeper.game.save_editor import SaveEditError
+    from nwnsaveeditor.save_editor import SaveEditError
 
     session = window.session()
     path = (("Mod_PlayerList", 0), ("Gold", None))
@@ -108,7 +108,7 @@ def test_a_raw_edit_will_not_change_a_fields_type(window):
 
 
 def test_a_raw_edit_refuses_a_container(window):
-    from vaultkeeper.game.save_editor import SaveEditError
+    from nwnsaveeditor.save_editor import SaveEditError
 
     session = window.session()
     with pytest.raises(SaveEditError, match="scalar"):
@@ -437,7 +437,7 @@ def test_the_value_editor_wears_the_editors_theme(window, raw, monkeypatch):
     the app's dark input field — dark text on a dark box."""
     from PySide6.QtWidgets import QDialog
 
-    import vaultkeeper.ui.dialogs.property_edit_dialog as ped
+    import nwnsaveeditor.ui.dialogs.property_edit_dialog as ped
 
     window._edit_toggle.setChecked(True)
     seen = {}
@@ -461,7 +461,7 @@ def test_the_value_editor_is_not_called_a_property(window, raw, monkeypatch):
     """A raw GFF field is not an item property; the shared dialog said it was."""
     from PySide6.QtWidgets import QDialog
 
-    import vaultkeeper.ui.dialogs.property_edit_dialog as ped
+    import nwnsaveeditor.ui.dialogs.property_edit_dialog as ped
 
     window._edit_toggle.setChecked(True)
     titles = []

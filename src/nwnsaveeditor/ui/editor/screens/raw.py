@@ -23,8 +23,8 @@ from PySide6.QtWidgets import (
 )
 
 from nwnfile.formats.gff import GffList, GffStruct
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 _ROLE = Qt.ItemDataRole.UserRole
 #: Nodes are built lazily; a save's tree is far too large to expand eagerly.
@@ -134,7 +134,7 @@ class RawScreen(QWidget):
         # The property reference used to be its own sidebar section, so looking up
         # what CostValue 6 means cost you the tree you were reading. It sits here
         # instead, folded away until asked for.
-        from vaultkeeper.ui.save_editor.screens.property_reference import (
+        from nwnsaveeditor.ui.editor.screens.property_reference import (
             PropertyReferenceScreen,
         )
 
@@ -182,7 +182,7 @@ class RawScreen(QWidget):
             try:
                 session = self._window.session()
             except Exception:
-                from vaultkeeper.game.save_editor import SaveEditor
+                from nwnsaveeditor.save_editor import SaveEditor
 
                 return list(SaveEditor.RAW_TARGETS)
         try:
@@ -466,7 +466,7 @@ class RawScreen(QWidget):
             self._tree.scrollToItem(node, QTreeWidget.ScrollHint.PositionAtCenter)
 
     def _edit_selected(self) -> None:
-        from vaultkeeper.ui.dialogs.property_edit_dialog import PropertyEditDialog
+        from nwnsaveeditor.ui.dialogs.property_edit_dialog import PropertyEditDialog
 
         current = self._tree.currentItem()
         role = current.data(0, _ROLE) if current is not None else None

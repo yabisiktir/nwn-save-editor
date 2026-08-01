@@ -23,8 +23,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 #: The "show every level at once" pseudo-level. Not a real spell level, so it
 #: cannot collide with one.
@@ -62,7 +62,7 @@ class SpellbookScreen(QWidget):
 
     def _spell_levels(self):
         """``spells.2da`` as a class/level lookup, built once per screen."""
-        from vaultkeeper.game.spell_levels import SpellLevels
+        from nwnsaveeditor.spell_levels import SpellLevels
 
         if self._levels is None:
             user = getattr(getattr(self._window._controller, "ctx", None),
@@ -332,7 +332,7 @@ class SpellbookScreen(QWidget):
 
     def _add_spell(self, chosen, spell_list) -> None:
         from nwnfile.character_reference import default_reference
-        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         if not chosen.is_base and not _confirm_prc(self, chosen.class_name):
             return

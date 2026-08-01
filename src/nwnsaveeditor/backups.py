@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from vaultkeeper.game.save_game import SaveGame
+from nwnsaveeditor.save_game import SaveGame
 
 #: How :meth:`SaveEditor._replace_existing` names a backup folder.
 _NAME = re.compile(r"^(?P<stamp>\d{8}-\d{6})(?:\.\d+)? - (?P<name>.+)$")

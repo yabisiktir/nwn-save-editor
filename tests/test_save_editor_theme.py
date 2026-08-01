@@ -6,9 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
-from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
+from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
 
 @pytest.fixture(autouse=True)

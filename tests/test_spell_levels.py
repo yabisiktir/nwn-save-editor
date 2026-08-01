@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from vaultkeeper.game.spell_levels import CLASS_COLUMNS, SpellLevels
+from nwnsaveeditor.spell_levels import CLASS_COLUMNS, SpellLevels
 
 # id -> {column: level}, shaped like the real 2da rows.
 _ROWS = {

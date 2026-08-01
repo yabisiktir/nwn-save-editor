@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import pytest
 from PySide6.QtWidgets import QLabel, QMessageBox, QPushButton
 
-from vaultkeeper.ui.save_editor.screens.spellbook import SpellbookScreen
-from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+from nwnsaveeditor.ui.editor.screens.spellbook import SpellbookScreen
+from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
 
 @pytest.fixture
@@ -151,7 +151,7 @@ def _spy_picker(monkeypatch, screen, reject=True):
     """Capture what the Add-a-spell picker is offered, without showing it."""
     from PySide6.QtWidgets import QDialog
 
-    import vaultkeeper.ui.dialogs.id_picker_dialog as idp
+    import nwnsaveeditor.ui.dialogs.id_picker_dialog as idp
 
     seen = {}
 
@@ -242,7 +242,7 @@ def test_the_level_row_offers_an_all_view(screen):
 
 def _two_level_book():
     """A Known list at level 0 and another at level 3, on one class."""
-    from vaultkeeper.game.save_editor import ClassSpellbook, SpellList
+    from nwnsaveeditor.save_editor import ClassSpellbook, SpellList
 
     return [ClassSpellbook(
         class_index=0, class_id=10, class_name="Wizard", is_base=True,
@@ -254,7 +254,7 @@ def _two_level_book():
 
 
 def test_all_lists_every_level_with_its_level_shown(screen, monkeypatch):
-    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+    from nwnsaveeditor.ui.editor.screens.spellbook import ALL
 
     monkeypatch.setattr(screen, "_book", _two_level_book)
     screen._choose_level(ALL)
@@ -266,7 +266,7 @@ def test_all_lists_every_level_with_its_level_shown(screen, monkeypatch):
 
 
 def test_all_orders_by_level_then_name(screen, monkeypatch):
-    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+    from nwnsaveeditor.ui.editor.screens.spellbook import ALL
 
     monkeypatch.setattr(screen, "_book", _two_level_book)
     screen._choose_level(ALL)
@@ -276,7 +276,7 @@ def test_all_orders_by_level_then_name(screen, monkeypatch):
 
 
 def test_all_does_not_offer_add_because_it_names_no_level(window, screen):
-    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+    from nwnsaveeditor.ui.editor.screens.spellbook import ALL
 
     window._edit_toggle.setChecked(True)
     screen._choose_level(ALL)
@@ -285,7 +285,7 @@ def test_all_does_not_offer_add_because_it_names_no_level(window, screen):
 
 
 def test_all_still_removes_from_the_right_level(window, screen):
-    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+    from nwnsaveeditor.ui.editor.screens.spellbook import ALL
 
     window._edit_toggle.setChecked(True)
     book = window.session().player_spellbook()
@@ -302,7 +302,7 @@ def test_all_still_removes_from_the_right_level(window, screen):
 
 
 def test_switching_back_to_a_level_still_works(window, screen):
-    from vaultkeeper.ui.save_editor.screens.spellbook import ALL
+    from nwnsaveeditor.ui.editor.screens.spellbook import ALL
 
     screen._choose_level(ALL)
     screen._choose_level(0)

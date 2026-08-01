@@ -1,13 +1,13 @@
 """The Save Game Editor's global shell — toolbar, sidebar, content, pending footer.
 
 This is the frame from ``docs/design_handoff_save_editor``; the screens that fill
-it live in :mod:`vaultkeeper.ui.save_editor.screens` and are added one at a time.
+it live in :mod:`nwnsaveeditor.ui.editor.screens` and are added one at a time.
 Sections with no screen yet render the design's centred empty-state card.
 
 Editing is a *global gate*: with Edit off the window is a viewer — the pending
 footer is hidden and Save/Overwrite are inert. Nothing is written until the user
 commits, and committing goes through the same
-:class:`~vaultkeeper.game.save_editor.SaveEditor` the read-only viewer uses, so the
+:class:`~nwnsaveeditor.save_editor.SaveEditor` the read-only viewer uses, so the
 staging, byte-verification and backup guarantees are unchanged.
 """
 
@@ -29,17 +29,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.save_game import SaveGame, scan_save_games
-from vaultkeeper.ui.dialogs.character_viewer import item_icon_source, tga_to_pixmap
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
-from vaultkeeper.ui.save_editor.sections import (
+from nwnsaveeditor.save_game import SaveGame, scan_save_games
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
+from nwnsaveeditor.ui.editor.sections import (
     SECTION_BLURBS,
     SECTIONS,
     Section,
     by_key,
     section_for_kind,
 )
+from nwnsaveeditor.ui.icons import item_icon_source, tga_to_pixmap
 
 #: How tall the sidebar's save list may grow before it scrolls (~4 rows).
 _SAVES_LIST_MAX_H = 196
@@ -174,7 +174,7 @@ class SaveEditorWindow(QMainWindow):
         outer.addLayout(middle, 1)
         outer.addWidget(self._build_footer())
 
-        from vaultkeeper.ui.save_editor.ledger import ChangeLedger
+        from nwnsaveeditor.ui.editor.ledger import ChangeLedger
 
         ledger = getattr(self, "_ledger", None)
         if ledger is not None:
@@ -326,14 +326,14 @@ class SaveEditorWindow(QMainWindow):
 
     def _screen_builders(self) -> dict[str, object]:
         """Screens that exist. Sections absent from this map render an empty state."""
-        from vaultkeeper.ui.save_editor.screens.area import AreaScreen
-        from vaultkeeper.ui.save_editor.screens.backups import BackupsScreen
-        from vaultkeeper.ui.save_editor.screens.character import CharacterScreen
-        from vaultkeeper.ui.save_editor.screens.inventory import InventoryScreen
-        from vaultkeeper.ui.save_editor.screens.party import PartyScreen
-        from vaultkeeper.ui.save_editor.screens.quests import QuestsScreen
-        from vaultkeeper.ui.save_editor.screens.raw import RawScreen
-        from vaultkeeper.ui.save_editor.screens.spellbook import SpellbookScreen
+        from nwnsaveeditor.ui.editor.screens.area import AreaScreen
+        from nwnsaveeditor.ui.editor.screens.backups import BackupsScreen
+        from nwnsaveeditor.ui.editor.screens.character import CharacterScreen
+        from nwnsaveeditor.ui.editor.screens.inventory import InventoryScreen
+        from nwnsaveeditor.ui.editor.screens.party import PartyScreen
+        from nwnsaveeditor.ui.editor.screens.quests import QuestsScreen
+        from nwnsaveeditor.ui.editor.screens.raw import RawScreen
+        from nwnsaveeditor.ui.editor.screens.spellbook import SpellbookScreen
 
         return {
             "character": lambda: CharacterScreen(self),
@@ -360,7 +360,7 @@ class SaveEditorWindow(QMainWindow):
         return self._current
 
     def session(self):
-        """The :class:`~vaultkeeper.game.save_editor.SaveEditor` for the selection."""
+        """The :class:`~nwnsaveeditor.save_editor.SaveEditor` for the selection."""
         return self._ensure_session()
 
     def rule_mode(self) -> str:
@@ -528,7 +528,7 @@ class SaveEditorWindow(QMainWindow):
             row.setChecked(row.save is self._current)
 
     def _choose_save(self) -> None:
-        from vaultkeeper.ui.save_editor.dialogs import OpenSaveDialog
+        from nwnsaveeditor.ui.editor.dialogs import OpenSaveDialog
 
         dialog = OpenSaveDialog(self._saves, self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -559,7 +559,7 @@ class SaveEditorWindow(QMainWindow):
 
     def _ensure_session(self):
         """The edit session for the selected save, created on first use."""
-        from vaultkeeper.game.save_editor import SaveEditor
+        from nwnsaveeditor.save_editor import SaveEditor
 
         if self._session is None:
             if self._current is None:
@@ -592,7 +592,7 @@ class SaveEditorWindow(QMainWindow):
             self.notify_changed()
 
     def _show_guide(self) -> None:
-        from vaultkeeper.ui.save_editor.guide import EditorGuideDialog
+        from nwnsaveeditor.ui.editor.guide import EditorGuideDialog
 
         EditorGuideDialog(self).exec()
 
@@ -696,7 +696,7 @@ class SaveEditorWindow(QMainWindow):
 
     # -- committing ------------------------------------------------------- #
     def _save_as_new(self) -> None:
-        from vaultkeeper.game.save_editor import SaveEditError
+        from nwnsaveeditor.save_editor import SaveEditError
 
         if self._session is None or not self._session.has_edits or self._current is None:
             return
@@ -724,7 +724,7 @@ class SaveEditorWindow(QMainWindow):
 
     def _overwrite_current(self) -> None:
         """Replace the selected save, keeping a timestamped backup."""
-        from vaultkeeper.game.save_editor import SaveEditError
+        from nwnsaveeditor.save_editor import SaveEditError
 
         if self._session is None or not self._session.has_edits or self._current is None:
             return
@@ -771,7 +771,7 @@ class SaveEditorWindow(QMainWindow):
 
     def _save_dialog(self, mode: str):
         """Build the Save dialog for ``mode``, primed with what will be written."""
-        from vaultkeeper.ui.save_editor.dialogs import SaveDialog
+        from nwnsaveeditor.ui.editor.dialogs import SaveDialog
 
         save = self._current
         session = self._session

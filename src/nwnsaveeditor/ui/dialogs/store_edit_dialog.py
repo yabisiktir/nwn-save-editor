@@ -1,6 +1,6 @@
 """A small dialog to edit a merchant's pricing settings (the first save edit).
 
-Prefilled from a :class:`~vaultkeeper.game.save_area.Store`; :meth:`values` returns
+Prefilled from a :class:`~nwnsaveeditor.save_area.Store`; :meth:`values` returns
 the edited scalar settings ready for :meth:`SaveEditor.set_store_fields`. The dialog
 only collects values — writing the (new) save is the caller's job.
 """
@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.save_area import Store
+from nwnsaveeditor.save_area import Store
 
 _BILLION = 2_000_000_000
 

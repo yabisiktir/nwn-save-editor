@@ -104,7 +104,7 @@ class PropertyEditorDialog(QDialog):
         return f"{name}   (change…)"
 
     def _pick_subtype(self) -> None:
-        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         dialog = IdPickerDialog(
             "Choose Subtype", list(self._subtypes.items()), parent=self

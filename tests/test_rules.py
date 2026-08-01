@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from nwnfile.formats.gff import GffType
-from vaultkeeper.game.rules import (
+from nwnsaveeditor.rules import (
     Limits,
     limits_for,
     skill_limits,

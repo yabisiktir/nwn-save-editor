@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.game.save_game import ModuleSaveInfo, SaveGame, scan_save_games
+from nwnsaveeditor.save_game import ModuleSaveInfo, SaveGame, scan_save_games
 
 
 def test_save_game_paths(tmp_path):
@@ -76,7 +76,7 @@ def _mk_item(name, base=0):
 def test_save_viewer_area_contents_tree(qtbot, tmp_path, monkeypatch):
     import vaultkeeper.ui.dialogs.save_game_viewer as sgv
     from nwnfile.formats.bic_reader import EquippedItem
-    from vaultkeeper.game.save_area import (
+    from nwnsaveeditor.save_area import (
         AreaContents,
         Container,
         CreatureRef,
@@ -148,9 +148,9 @@ def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
     from types import SimpleNamespace
 
     import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from nwnsaveeditor.save_area import read_area_contents
     from tests.test_save_editor import _git_with_store, _make_save, _store_struct
     from vaultkeeper.config.settings import Settings
-    from vaultkeeper.game.save_area import read_area_contents
 
     save = _make_save(tmp_path, _git_with_store(_store_struct(markup=200)))
     store = read_area_contents(save.sav_path, "area1").stores[0]
@@ -183,7 +183,7 @@ def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
             return {"markup": 111, "black_market": True}
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.store_edit_dialog.StoreEditDialog", _FakeDialog
+        "nwnsaveeditor.ui.dialogs.store_edit_dialog.StoreEditDialog", _FakeDialog
     )
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("My Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
@@ -209,8 +209,8 @@ def test_save_viewer_edit_store_writes_new_save(qtbot, tmp_path, monkeypatch):
 
 def test_save_viewer_overwrite_current(qtbot, tmp_path, monkeypatch):
     import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from nwnsaveeditor.save_area import read_area_contents
     from tests.test_save_editor import _git_with_store, _make_save, _store_struct
-    from vaultkeeper.game.save_area import read_area_contents
 
     # a save inside a saves/ dir so the backup dir lands beside it (saves/../backups)
     saves = tmp_path / "saves"
@@ -242,9 +242,9 @@ def test_save_viewer_discard_clears_pending(qtbot, tmp_path, monkeypatch):
     from types import SimpleNamespace
 
     import vaultkeeper.ui.dialogs.save_game_viewer as sgv
+    from nwnsaveeditor.save_area import read_area_contents
     from tests.test_save_editor import _git_with_store, _make_save, _store_struct
     from vaultkeeper.config.settings import Settings
-    from vaultkeeper.game.save_area import read_area_contents
 
     save = _make_save(tmp_path, _git_with_store(_store_struct(markup=200)))
     store = read_area_contents(save.sav_path, "area1").stores[0]
@@ -332,7 +332,7 @@ def test_save_viewer_character_node_edits_item_property(qtbot, tmp_path, monkeyp
             return 8
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.property_edit_dialog.PropertyEditDialog", _FakeDialog
+        "nwnsaveeditor.ui.dialogs.property_edit_dialog.PropertyEditDialog", _FakeDialog
     )
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("My Char Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
@@ -424,7 +424,7 @@ def test_save_viewer_edit_skill_rank(qtbot, tmp_path, monkeypatch):
             return 50
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.property_edit_dialog.PropertyEditDialog", _FakeDialog
+        "nwnsaveeditor.ui.dialogs.property_edit_dialog.PropertyEditDialog", _FakeDialog
     )
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Skilled", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
@@ -501,7 +501,7 @@ def test_save_viewer_edit_character_field(qtbot, tmp_path, monkeypatch):
             return 9999
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.property_edit_dialog.PropertyEditDialog", _Dialog
+        "nwnsaveeditor.ui.dialogs.property_edit_dialog.PropertyEditDialog", _Dialog
     )
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Gold Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
@@ -562,7 +562,7 @@ def test_save_viewer_edit_portrait(qtbot, tmp_path, monkeypatch):
         def selected_id(self):
             return 1
 
-    monkeypatch.setattr("vaultkeeper.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker)
+    monkeypatch.setattr("nwnsaveeditor.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker)
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Look Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
 
@@ -575,7 +575,7 @@ def test_save_viewer_edit_portrait(qtbot, tmp_path, monkeypatch):
 
 def test_property_editor_dialog_builds_edits(qtbot):
     from nwnfile.formats.bic_reader import ItemProperty
-    from vaultkeeper.ui.dialogs.property_editor_dialog import PropertyEditorDialog
+    from nwnsaveeditor.ui.dialogs.property_editor_dialog import PropertyEditorDialog
 
     prop = ItemProperty(
         property_name=0, subtype=0, cost_table=1, cost_value=2, param1=255, param1_value=0
@@ -628,7 +628,7 @@ def test_save_viewer_edit_property_full(qtbot, tmp_path, monkeypatch):
             return {"subtype": 2, "cost_value": 7}
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.property_editor_dialog.PropertyEditorDialog", _Dialog
+        "nwnsaveeditor.ui.dialogs.property_editor_dialog.PropertyEditorDialog", _Dialog
     )
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("PropFull", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
@@ -642,7 +642,7 @@ def test_save_viewer_edit_property_full(qtbot, tmp_path, monkeypatch):
 
 
 def test_add_property_dialog_builds_property(qtbot):
-    from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
+    from nwnsaveeditor.ui.dialogs.add_property_dialog import AddPropertyDialog
 
     dialog = AddPropertyDialog()
     qtbot.addWidget(dialog)
@@ -698,7 +698,7 @@ def test_save_viewer_add_property(qtbot, tmp_path, monkeypatch):
                 "label": "AC Bonus +6",
             }
 
-    monkeypatch.setattr("vaultkeeper.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog)
+    monkeypatch.setattr("nwnsaveeditor.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog)
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Prop Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
 
@@ -785,7 +785,7 @@ def test_save_viewer_add_and_remove_feat(qtbot, tmp_path, monkeypatch):
             return 5
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker
+        "nwnsaveeditor.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker
     )
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Feats Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
@@ -871,7 +871,7 @@ def test_save_viewer_add_and_remove_spell(qtbot, tmp_path, monkeypatch):
         def selected_id(self):
             return 300
 
-    monkeypatch.setattr("vaultkeeper.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker)
+    monkeypatch.setattr("nwnsaveeditor.ui.dialogs.id_picker_dialog.IdPickerDialog", _Picker)
     monkeypatch.setattr(sgv.QInputDialog, "getText", lambda *a, **k: ("Spells Edit", True))
     monkeypatch.setattr(sgv.QMessageBox, "information", lambda *a, **k: None)
 

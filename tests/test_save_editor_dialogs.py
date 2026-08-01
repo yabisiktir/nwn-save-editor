@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtWidgets import QLabel
 
-from vaultkeeper.ui.save_editor.dialogs import (
+from nwnsaveeditor.ui.editor.dialogs import (
     OpenSaveDialog,
     SaveDialog,
     _human_size,

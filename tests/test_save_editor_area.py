@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 from PySide6.QtWidgets import QPushButton
 
-from vaultkeeper.ui.save_editor.screens.area import AreaScreen
-from vaultkeeper.ui.save_editor.screens.item_panels import AreaItemPanel, PlayerItemPanel
-from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+from nwnsaveeditor.ui.editor.screens.area import AreaScreen
+from nwnsaveeditor.ui.editor.screens.item_panels import AreaItemPanel, PlayerItemPanel
+from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def test_editing_a_store_stages_it_against_the_chosen_area(window, screen, monke
             return {"markup": 133}
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.store_edit_dialog.StoreEditDialog", _Dialog
+        "nwnsaveeditor.ui.dialogs.store_edit_dialog.StoreEditDialog", _Dialog
     )
     screen._edit_store()
     changes = window.session().pending_changes()
@@ -133,7 +133,7 @@ def test_a_store_that_cannot_be_edited_reports_instead_of_staging(
     surface that rather than silently claiming the edit was staged."""
     from PySide6.QtWidgets import QDialog, QMessageBox
 
-    from vaultkeeper.game.save_editor import SaveEditError
+    from nwnsaveeditor.save_editor import SaveEditError
 
     if _first_store_node(screen) is None:
         pytest.skip("the fixture area holds no store")
@@ -154,7 +154,7 @@ def test_a_store_that_cannot_be_edited_reports_instead_of_staging(
             return {"markup": 133}
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.store_edit_dialog.StoreEditDialog", _Dialog
+        "nwnsaveeditor.ui.dialogs.store_edit_dialog.StoreEditDialog", _Dialog
     )
 
     def _refuse(*_a, **_k):
@@ -208,7 +208,7 @@ def _first_item_node(screen):
 
 # -- editing an item that lives in the area --------------------------------- #
 def _shop_item(window):
-    from vaultkeeper.game.save_area import read_area_contents
+    from nwnsaveeditor.save_area import read_area_contents
 
     area = read_area_contents(window.save.sav_path, "area1")
     return area.stores[0].items[0]
@@ -352,7 +352,7 @@ def test_duplicating_an_item_needs_no_confirmation(window, screen, qtbot):
 def test_a_holder_node_can_take_one_of_your_items(window, screen, monkeypatch):
     from PySide6.QtWidgets import QDialog
 
-    import vaultkeeper.ui.dialogs.id_picker_dialog as idp
+    import nwnsaveeditor.ui.dialogs.id_picker_dialog as idp
 
     window._edit_toggle.setChecked(True)
     node = _find_node(screen, lambda n: n.data(0, _holder_role()) is not None)
@@ -390,7 +390,7 @@ def test_the_place_button_is_dead_without_a_holder_selected(window, screen):
 
 
 def _holder_role():
-    from vaultkeeper.ui.save_editor.screens.area import _HOLDER
+    from nwnsaveeditor.ui.editor.screens.area import _HOLDER
 
     return _HOLDER
 

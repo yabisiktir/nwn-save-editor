@@ -7,13 +7,13 @@ from types import SimpleNamespace
 import pytest
 from PySide6.QtWidgets import QSpinBox
 
-from vaultkeeper.ui.save_editor.screens.character import (
+from nwnsaveeditor.ui.editor.screens.character import (
     ABILITIES,
     TABS,
     CharacterScreen,
     ability_modifier,
 )
-from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
 
 @pytest.fixture
@@ -218,7 +218,7 @@ def test_identical_effects_collapse_instead_of_repeating(window, screen, monkeyp
 
 def test_an_unset_caster_level_is_not_printed_as_a_caster_level(window, screen):
     """CasterLevel is a DWORD, so unset arrives as 4294967295, not 0."""
-    from vaultkeeper.ui.save_editor.screens.character import _effect_row
+    from nwnsaveeditor.ui.editor.screens.character import _effect_row
 
     row = _effect_row({
         "tag": "", "type": 30, "subtype": 4, "spell": "",
@@ -230,7 +230,7 @@ def test_an_unset_caster_level_is_not_printed_as_a_caster_level(window, screen):
 
 # -- effects: the view switch ----------------------------------------------- #
 def test_the_effects_tab_offers_both_views(window, screen):
-    from vaultkeeper.ui.save_editor.screens.character import EFFECT_VIEWS
+    from nwnsaveeditor.ui.editor.screens.character import EFFECT_VIEWS
 
     assert [key for key, _label in EFFECT_VIEWS] == ["active", "bonuses"]
     assert screen._effects_view == "active", "the raw list stays the default"
@@ -252,7 +252,7 @@ def test_the_bonuses_view_credits_each_bonus_to_the_item_that_grants_it(
     from types import SimpleNamespace
 
     from nwnfile.formats.bic_reader import ItemProperty
-    from vaultkeeper.game import active_bonuses
+    from nwnsaveeditor import active_bonuses
 
     def _prop(pid, subtype, cost):
         return ItemProperty(
@@ -345,7 +345,7 @@ def _text_of(widget) -> str:
 
 # -- rule mode -------------------------------------------------------------- #
 def test_strict_mode_caps_the_skill_stepper_at_the_rank_limit(window, screen):
-    from vaultkeeper.game.rules import skill_rank_limit
+    from nwnsaveeditor.rules import skill_rank_limit
 
     window._edit_toggle.setChecked(True)
     window._rule_mode.set_value("strict")
@@ -546,7 +546,7 @@ def test_the_picker_offers_only_ids_the_byte_can_hold(window, screen, monkeypatc
 def _accept_race(monkeypatch, race_id: int) -> None:
     from PySide6.QtWidgets import QDialog
 
-    import vaultkeeper.ui.dialogs.id_picker_dialog as idp
+    import nwnsaveeditor.ui.dialogs.id_picker_dialog as idp
 
     class _Chose(idp.IdPickerDialog):
         def exec(self):
@@ -587,7 +587,7 @@ def test_the_look_pickers_open_at_all(window, screen, monkeypatch):
         raise _Stop
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.id_picker_dialog.IdPickerDialog", _spy
+        "nwnsaveeditor.ui.dialogs.id_picker_dialog.IdPickerDialog", _spy
     )
     for name in ("Appearance_Type", "Portrait"):
         with pytest.raises(_Stop):

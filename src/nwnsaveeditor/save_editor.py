@@ -36,7 +36,7 @@ from nwnfile.formats.gff import (
     read_gff,
     write_gff,
 )
-from vaultkeeper.game.save_game import SaveGame
+from nwnsaveeditor.save_game import SaveGame
 
 _GIT_RESTYPE = 2023
 _IFO_RESTYPE = 2014
@@ -1620,7 +1620,7 @@ class SaveEditor:
         PRC swaps them into the creature weapon slots by script, so a Red Dragon
         Disciple's bite can be part of the character and equipped nowhere.
         """
-        from vaultkeeper.game.natural_weapons import (
+        from nwnsaveeditor.natural_weapons import (
             CREATURE_WEAPON_SLOTS,
             natural_weapons,
         )
@@ -1642,14 +1642,14 @@ class SaveEditor:
 
     def module_variables(self) -> list:
         """The module's persistent script variables (its world state)."""
-        from vaultkeeper.game.world_state import read_variables
+        from nwnsaveeditor.world_state import read_variables
 
         return read_variables(self._module_tree())
 
     @_records(lambda index, *_a, **_k: ("variable", index))
     def set_variable(self, index: int, value, *, where: str = "") -> None:
         """Set a module variable's value, keeping its stored type."""
-        from vaultkeeper.game.world_state import EDITABLE_TYPES
+        from nwnsaveeditor.world_state import EDITABLE_TYPES
 
         entry_field = self._module_tree().root.fields.get("VarTable")
         table = entry_field.value if entry_field is not None else None

@@ -35,9 +35,9 @@ from nwnfile.character import (
     is_base_race,
     race_name,
 )
-from vaultkeeper.game.rules import limits_for, skill_limits
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.rules import limits_for, skill_limits
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 #: The character screen's tabs, in the prototype's order.
 TABS: tuple[tuple[str, str], ...] = (
@@ -250,7 +250,7 @@ class CharacterScreen(QWidget):
         return label
 
     def _portrait_pixmap(self, info, box: int):
-        from vaultkeeper.ui.dialogs.character_viewer import tga_to_pixmap
+        from nwnsaveeditor.ui.icons import tga_to_pixmap
 
         controller = self._window._controller
         save = self._window.save
@@ -458,7 +458,7 @@ class CharacterScreen(QWidget):
 
     def _save_gear_bonuses(self) -> dict[str, int | None]:
         """The largest equipped-gear bonus applying to each saving throw."""
-        from vaultkeeper.game.active_bonuses import gear_bonus_for_save, item_contributions
+        from nwnsaveeditor.active_bonuses import gear_bonus_for_save, item_contributions
 
         try:
             groups = item_contributions(
@@ -605,7 +605,7 @@ class CharacterScreen(QWidget):
         from PySide6.QtWidgets import QDialog, QMessageBox
 
         from nwnfile.character import race_options
-        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         limits = self._limits("Race", self._window.character_info())
         options = [
@@ -641,7 +641,7 @@ class CharacterScreen(QWidget):
     def _pick_look(self, field) -> None:
         from PySide6.QtWidgets import QDialog
 
-        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         looks = self._window.look_tables()
         # The picker takes (id, name) pairs. Handing it a mapping iterates the
@@ -713,7 +713,7 @@ class CharacterScreen(QWidget):
         layout.addStretch(1)
 
     def _skill_totals(self, skills, info) -> list:
-        from vaultkeeper.game import skill_totals
+        from nwnsaveeditor import skill_totals
 
         abilities = dict(getattr(info, "abilities", {}) or {})
         try:
@@ -837,7 +837,7 @@ class CharacterScreen(QWidget):
         from PySide6.QtWidgets import QDialog
 
         from nwnfile.character_reference import default_reference
-        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         reference = default_reference()
         feats = reference.all_feat_ids()
@@ -1005,7 +1005,7 @@ class CharacterScreen(QWidget):
         return holder
 
     def _active_bonuses(self, info):
-        from vaultkeeper.game import active_bonuses
+        from nwnsaveeditor import active_bonuses
 
         try:
             session = self._window.session()

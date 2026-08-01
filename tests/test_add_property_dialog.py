@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
+from nwnsaveeditor.ui.dialogs.add_property_dialog import AddPropertyDialog
 
 
 class _Tables:

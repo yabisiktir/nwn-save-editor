@@ -8,13 +8,13 @@ import pytest
 from PySide6.QtWidgets import QPushButton
 
 from nwnfile.formats.bic_reader import EQUIP_SLOT_NAMES
-from vaultkeeper.ui.save_editor.screens.inventory import (
+from nwnsaveeditor.ui.editor.screens.inventory import (
     CREATURE_SLOTS,
     PAPERDOLL,
     InventoryScreen,
 )
-from vaultkeeper.ui.save_editor.screens.item_panels import AreaItemPanel, PlayerItemPanel
-from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+from nwnsaveeditor.ui.editor.screens.item_panels import AreaItemPanel, PlayerItemPanel
+from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
 
 @pytest.fixture
@@ -244,7 +244,7 @@ def test_adding_a_property_stages_what_the_dialog_built(window, screen, monkeypa
             }
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog
+        "nwnsaveeditor.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog
     )
     before = len(window.session().player_items()[0].properties)
     panel._add_property()
@@ -275,7 +275,7 @@ def test_the_add_dialog_is_given_the_games_property_tables(window, screen, monke
             return QDialog.DialogCode.Rejected
 
     monkeypatch.setattr(
-        "vaultkeeper.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog
+        "nwnsaveeditor.ui.dialogs.add_property_dialog.AddPropertyDialog", _Dialog
     )
     monkeypatch.setattr(screen, "property_tables", lambda: "the tables")
     panel._add_property()
@@ -294,7 +294,7 @@ def test_recorded_natural_weapons_are_listed_even_when_not_equipped(
 ):
     """A claw or bite is an item in a creature slot, so only the one in hand
     showed as equipment — a Dragon Disciple's bite looked lost."""
-    from vaultkeeper.game.natural_weapons import natural_weapons
+    from nwnsaveeditor.natural_weapons import natural_weapons
 
     weapons = natural_weapons(
         [
@@ -321,7 +321,7 @@ def test_a_character_with_no_natural_weapons_gets_no_such_block(window, screen, 
 def test_the_list_is_read_only_even_in_edit_mode(window, screen, monkeypatch):
     """PRC derives the set from classes and feats and rewrites it, so an edit
     here would be undone at the next recalculation."""
-    from vaultkeeper.game.natural_weapons import natural_weapons
+    from nwnsaveeditor.natural_weapons import natural_weapons
 
     monkeypatch.setattr(
         screen, "_natural_weapons",

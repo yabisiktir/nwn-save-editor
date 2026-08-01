@@ -15,7 +15,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt  # noqa: E402
 
-from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog  # noqa: E402
+from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog  # noqa: E402
 
 _ITEMS = [(1, "Alertness"), (6, "Cleave"), (391, "Great Cleave"), (2, "Ambidexterity")]
 

@@ -350,7 +350,7 @@ class PortraitManager:
         return tga_image
     
     # NOTE: QPixmap conversion for display lives in the UI layer (Phase 7 Portrait
-    # Manager), which consumes TGAImage.to_rgba(). Keeping it out of core/formats
+    # Manager), which consumes TGAImage.to_rgba(). Keeping it out of nwnfile
     # preserves this module's Qt-free, headless-testable property.
 
     def scan_available_portraits(self, portraits_path: Path | None = None) -> list[tuple[str, str]]:

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from nwnfile.item_names import resolver_for
-from vaultkeeper.game.save_area import (
+from nwnsaveeditor.save_area import (
     AreaContents,
     Container,
     CreatureRef,
@@ -15,7 +15,7 @@ from vaultkeeper.game.save_area import (
     read_area_contents,
     read_factions,
 )
-from vaultkeeper.game.save_game import scan_save_games
+from nwnsaveeditor.save_game import scan_save_games
 
 
 def test_area_contents_helpers():

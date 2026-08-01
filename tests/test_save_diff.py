@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from nwnsaveeditor.backups import Backup, list_backups, restore
+from nwnsaveeditor.save_diff import MISSING, diff_saves, flatten
+from nwnsaveeditor.save_editor import SaveEditor
 from tests.test_save_editor import _make_char_save, _make_char_save_with_details
-from vaultkeeper.game.backups import Backup, list_backups, restore
-from vaultkeeper.game.save_diff import MISSING, diff_saves, flatten
-from vaultkeeper.game.save_editor import SaveEditor
 
 
 # -- flattening ------------------------------------------------------------- #

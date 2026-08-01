@@ -4,7 +4,7 @@ An area picker on the left, its contents as a tree in the middle, and the detail
 column on the right. Store *pricing* is editable; the items themselves are not.
 Areas live in the save's ``.git`` resources, which the editor treats as read-only
 — the only thing you can do with an item found here is take a copy into your own
-inventory, which :class:`~vaultkeeper.ui.save_editor.screens.item_panels.AreaItemPanel`
+inventory, which :class:`~nwnsaveeditor.ui.editor.screens.item_panels.AreaItemPanel`
 is the sole route to.
 
 Areas are decoded on demand: a save has many, and each one means reading and
@@ -24,10 +24,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.save_area import read_area_contents, read_factions
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
-from vaultkeeper.ui.save_editor.screens.item_panels import AreaItemPanel
+from nwnsaveeditor.save_area import read_area_contents, read_factions
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
+from nwnsaveeditor.ui.editor.screens.item_panels import AreaItemPanel
 
 _ROLE = Qt.ItemDataRole.UserRole
 #: A node that can *hold* items — a store, a creature or a container — carries the
@@ -346,10 +346,10 @@ class AreaScreen(QWidget):
         icons = getattr(self._window, "_icons", None)
         if icons is None:
             return None
-        from vaultkeeper.ui.dialogs.inventory_view import _load_icon
+        from nwnsaveeditor.ui.icons import load_item_icon
 
         try:
-            return _load_icon(icons, item)
+            return load_item_icon(icons, item)
         except Exception:
             return None
 
@@ -376,7 +376,7 @@ class AreaScreen(QWidget):
         """Put a copy of one of the player's items into the selected holder."""
         from PySide6.QtWidgets import QDialog, QMessageBox
 
-        from vaultkeeper.ui.dialogs.id_picker_dialog import IdPickerDialog
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         holder = self._holder()
         if not holder:
@@ -416,7 +416,7 @@ class AreaScreen(QWidget):
 
     # -- store editing ------------------------------------------------------ #
     def _edit_store(self) -> None:
-        from vaultkeeper.ui.dialogs.store_edit_dialog import StoreEditDialog
+        from nwnsaveeditor.ui.dialogs.store_edit_dialog import StoreEditDialog
 
         current = self._tree.currentItem()
         role = current.data(0, _ROLE) if current is not None else None

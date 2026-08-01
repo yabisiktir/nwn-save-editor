@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 
 def test_tokens_are_hex_or_rgba():

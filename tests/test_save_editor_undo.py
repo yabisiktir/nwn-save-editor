@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
+from nwnsaveeditor.save_editor import SaveEditor
 from tests.test_save_editor import _ifo_char, _make_char_save, _make_char_save_with_details
-from vaultkeeper.game.save_editor import SaveEditor
 
 
 @pytest.fixture

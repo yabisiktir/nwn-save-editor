@@ -17,7 +17,7 @@ import json
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from vaultkeeper.ui.save_editor.tokens import THEMES
+from nwnsaveeditor.ui.editor.tokens import THEMES
 
 #: Where a standalone run remembers its theme. Deliberately not Vaultkeeper's
 #: settings file — running the editor on its own must not write to the app's

@@ -124,3 +124,80 @@ def test_both_packages_are_built_into_the_wheel():
     packages = data["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
     assert "src/nwnfile" in packages
     assert "src/vaultkeeper" in packages
+
+
+# -- nwnsaveeditor ----------------------------------------------------------- #
+def test_the_save_editor_never_imports_vaultkeeper():
+    """It is a save editor Vaultkeeper opens, not a part of Vaultkeeper. One
+    import the other way and the two are a single package again."""
+    offenders = [
+        f"{path.relative_to(_SRC)}"
+        for path in _modules("nwnsaveeditor")
+        if re.search(r"^\s*(from|import)\s+vaultkeeper", path.read_text(encoding="utf-8"), re.M)
+    ]
+    assert not offenders, f"nwnsaveeditor must not import vaultkeeper: {offenders}"
+
+
+def test_the_layers_stack_one_way():
+    """nwnfile knows neither of the others; the editor knows only nwnfile."""
+    for path in _modules("nwnfile"):
+        text = path.read_text(encoding="utf-8")
+        assert "nwnsaveeditor" not in text, f"{path.name} reaches up to the editor"
+
+
+def test_the_save_editor_runs_without_a_vaultkeeper_import(tmp_path):
+    """Imported in a fresh interpreter, so a module another test already loaded
+    cannot mask a missing dependency."""
+    import subprocess
+    import sys
+
+    code = (
+        "import sys;"
+        "import nwnsaveeditor.ui.editor.window;"
+        "import nwnsaveeditor.ui.editor.__main__;"
+        "print('vaultkeeper' in ','.join(sys.modules))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True,
+        env={"QT_QPA_PLATFORM": "offscreen", "PATH": "/usr/bin:/bin", "HOME": str(tmp_path)},
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "False", "importing the editor pulled in vaultkeeper"
+
+
+def test_the_qt_conversions_are_not_in_the_file_layer():
+    """nwnfile decodes images into plain buffers and must stay Qt-free, so the
+    QPixmap/QIcon step lives with the editor and Vaultkeeper reuses it."""
+    from nwnsaveeditor.ui.icons import item_icon_source, load_item_icon, tga_to_pixmap
+
+    assert all(callable(f) for f in (item_icon_source, load_item_icon, tga_to_pixmap))
+    for path in _modules("nwnfile"):
+        # An import, not a mention: the readers carry comments explaining that the
+        # QPixmap step is deliberately elsewhere, and those are worth keeping.
+        assert not re.search(r"^\s*(from|import)\s+PySide6",
+                             path.read_text(encoding="utf-8"), re.M)
+
+
+def test_vaultkeeper_reuses_those_rather_than_keeping_a_second_copy():
+    from nwnsaveeditor.ui import icons
+    from vaultkeeper.ui.dialogs import character_viewer, inventory_view
+
+    assert character_viewer.tga_to_pixmap is icons.tga_to_pixmap
+    assert character_viewer.item_icon_source is icons.item_icon_source
+    assert inventory_view._load_icon is icons.load_item_icon
+
+
+def test_reading_a_save_folders_location_lives_with_the_save_package():
+    from nwnsaveeditor.save_game import get_location_in_game_save
+    from vaultkeeper.game import game_saves
+
+    assert game_saves.get_location_in_game_save is get_location_in_game_save
+
+
+def test_all_three_packages_are_built():
+    import tomllib
+
+    data = tomllib.loads((_SRC.parent / "pyproject.toml").read_text(encoding="utf-8"))
+    packages = data["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
+    assert packages == ["src/nwnfile", "src/nwnsaveeditor", "src/vaultkeeper"]
+    assert data["project"]["gui-scripts"]["nwn-save-editor"].startswith("nwnsaveeditor.")

@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from vaultkeeper.ui.save_editor.__main__ import collect_saves, main, parse_args
-from vaultkeeper.ui.save_editor.host import (
+from nwnsaveeditor.ui.editor.__main__ import collect_saves, main, parse_args
+from nwnsaveeditor.ui.editor.host import (
     EditorHost,
     StandaloneHost,
     default_settings_dir,
@@ -35,8 +35,8 @@ def test_vaultkeepers_own_controller_satisfies_it_too(tmp_path):
 
 
 def test_the_editor_opens_with_nothing_but_a_host(qtbot, tmp_path):
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
     from tests.test_save_editor import _make_char_save
-    from vaultkeeper.ui.save_editor.window import SaveEditorWindow
 
     host = StandaloneHost(game_root=None, game_user_dir=None, settings_dir=tmp_path)
     window = SaveEditorWindow([_make_char_save(tmp_path)], host)
@@ -100,7 +100,7 @@ def test_a_path_that_is_not_a_save_folder_is_skipped(tmp_path):
 def test_with_no_arguments_it_scans_the_user_directory(tmp_path, monkeypatch):
     seen = {}
     monkeypatch.setattr(
-        "vaultkeeper.game.save_game.scan_save_games",
+        "nwnsaveeditor.save_game.scan_save_games",
         lambda folder: seen.setdefault("folder", folder) or [],
     )
     collect_saves([], tmp_path)
@@ -121,7 +121,7 @@ def test_no_saves_explains_where_it_looked(tmp_path, monkeypatch):
     told = []
     monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: told.append(a))
     monkeypatch.setattr(
-        "vaultkeeper.ui.save_editor.__main__.collect_saves", lambda *a: []
+        "nwnsaveeditor.ui.editor.__main__.collect_saves", lambda *a: []
     )
     assert main(["--user-dir", str(tmp_path)]) == 1
     assert told and str(tmp_path) in told[0][2]
@@ -133,7 +133,7 @@ def test_the_console_script_points_at_this_entry_point():
     root = Path(__file__).resolve().parents[1]
     data = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     scripts = data["project"]["gui-scripts"]
-    assert scripts["nwn-save-editor"] == "vaultkeeper.ui.save_editor.__main__:main"
+    assert scripts["nwn-save-editor"] == "nwnsaveeditor.ui.editor.__main__:main"
 
 
 @pytest.mark.parametrize("payload", ['{"save_editor_theme": "light"}', "{}"])

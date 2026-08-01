@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from vaultkeeper.ui.save_editor import sections as sec
-from vaultkeeper.ui.save_editor.window import (
+from nwnsaveeditor.ui.editor import sections as sec
+from nwnsaveeditor.ui.editor.window import (
     SaveEditorWindow,
     _base_name,
     _next_save_folder,
@@ -212,5 +212,5 @@ def _stub_save_dialog(monkeypatch, *, name: str = "Edited", backup: bool = True)
         def backup_wanted(self):
             return backup
 
-    monkeypatch.setattr("vaultkeeper.ui.save_editor.dialogs.SaveDialog", _Dialog)
+    monkeypatch.setattr("nwnsaveeditor.ui.editor.dialogs.SaveDialog", _Dialog)
     return _Dialog

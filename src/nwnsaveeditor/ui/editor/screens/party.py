@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 #: The NWN resource type of the campaign database embedded in a save.
 CAMPAIGN_DB_RESTYPE = 2077
@@ -177,7 +177,7 @@ class PartyScreen(QWidget):
         return row
 
     def _edit(self, field) -> None:
-        from vaultkeeper.ui.dialogs.property_edit_dialog import PropertyEditDialog
+        from nwnsaveeditor.ui.dialogs.property_edit_dialog import PropertyEditDialog
 
         dialog = w.style_dialog(PropertyEditDialog(
             field.display, f"{field.display}:", int(field.value),

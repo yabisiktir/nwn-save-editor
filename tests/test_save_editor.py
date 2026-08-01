@@ -18,10 +18,10 @@ from nwnfile.formats.gff import (
     write_gff,
 )
 from nwnfile.item_properties import editable_magnitude, is_cast_spell
+from nwnsaveeditor.save_area import read_area_contents
+from nwnsaveeditor.save_editor import SaveEditError, SaveEditor, _render_raw_path
+from nwnsaveeditor.save_game import SaveGame
 from tests.test_erf_writer import _make_erf
-from vaultkeeper.game.save_area import read_area_contents
-from vaultkeeper.game.save_editor import SaveEditError, SaveEditor, _render_raw_path
-from vaultkeeper.game.save_game import SaveGame
 
 
 def _store_struct(markup=200, markdown=35, gold=-1, black=0):
@@ -177,7 +177,7 @@ _SAVES = Path.home() / "Documents" / "Neverwinter Nights" / "saves"
 
 @pytest.mark.skipif(not _SAVES.is_dir(), reason="no local NWN saves on this box")
 def test_real_save_store_edit_roundtrips(tmp_path):
-    from vaultkeeper.game.save_game import scan_save_games
+    from nwnsaveeditor.save_game import scan_save_games
 
     hit = None
     for save in scan_save_games(_SAVES):
@@ -1131,7 +1131,7 @@ def test_undoing_an_area_edit_restores_the_original_bytes(tmp_path):
 
 
 def test_an_area_edit_files_under_the_area_section():
-    from vaultkeeper.ui.save_editor.sections import section_for_kind
+    from nwnsaveeditor.ui.editor.sections import section_for_kind
 
     assert section_for_kind("area-item") == "area"
 

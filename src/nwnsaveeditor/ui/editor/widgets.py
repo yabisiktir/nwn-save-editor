@@ -11,7 +11,7 @@ expressed as explicitly dimmed colours in a ``:disabled`` rule.
 
 Every stylesheet here is built inside a function. A module-level f-string would
 bake whichever theme happened to be active at import time, and the editor's theme
-toggle swaps :mod:`~vaultkeeper.ui.save_editor.tokens` live.
+toggle swaps :mod:`~nwnsaveeditor.ui.editor.tokens` live.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.ui.save_editor import tokens as t
+from nwnsaveeditor.ui.editor import tokens as t
 
 
 def paints_own_background(widget: QWidget) -> QWidget:

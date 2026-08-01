@@ -22,9 +22,9 @@ from PySide6.QtWidgets import (
 
 from nwnfile.formats.bic_reader import EQUIP_SLOT_NAMES
 from nwnfile.item_properties import describe_property
-from vaultkeeper.game.active_bonuses import _source_label
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.active_bonuses import _source_label
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 #: A property's option tables can be huge (Cast Spell has 1,316 subtypes), so the
 #: lists are capped and say how many more there are.

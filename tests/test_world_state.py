@@ -5,9 +5,8 @@ from __future__ import annotations
 import pytest
 
 from nwnfile.formats.gff import GffField, GffList, GffStruct, GffType
-from tests.test_save_editor import _make_char_save_with_details
-from vaultkeeper.game.save_editor import SaveEditError, SaveEditor
-from vaultkeeper.game.world_state import (
+from nwnsaveeditor.save_editor import SaveEditError, SaveEditor
+from nwnsaveeditor.world_state import (
     INT,
     LOCATION,
     OBJECT,
@@ -16,6 +15,7 @@ from vaultkeeper.game.world_state import (
     matches,
     read_variables,
 )
+from tests.test_save_editor import _make_char_save_with_details
 
 
 def _var(name: str, type_code: int, gff_type: GffType, value) -> GffStruct:

@@ -25,9 +25,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.save_game import SaveGame
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.save_game import SaveGame
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 OPEN_DIALOG_W = 680
 SAVE_DIALOG_W = 560

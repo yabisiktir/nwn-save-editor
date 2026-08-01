@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from vaultkeeper.game.natural_weapons import natural_weapons
+from nwnsaveeditor.natural_weapons import natural_weapons
 
 # The shape read off the owner's real save: a claw in hand, two bites recorded.
 _REAL = [

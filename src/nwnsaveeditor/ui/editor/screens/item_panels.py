@@ -30,8 +30,8 @@ from PySide6.QtWidgets import (
 
 from nwnfile.item_names import base_item_type
 from nwnfile.item_properties import describe_property
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 
 class _PanelBase(QWidget):
@@ -171,7 +171,7 @@ class PlayerItemPanel(_PanelBase):
 
     # -- actions ---------------------------------------------------------- #
     def _edit_property(self, prop) -> None:
-        from vaultkeeper.ui.dialogs.property_editor_dialog import PropertyEditorDialog
+        from nwnsaveeditor.ui.dialogs.property_editor_dialog import PropertyEditorDialog
 
         tables = self._screen.property_tables()
         if tables is None:
@@ -209,7 +209,7 @@ class PlayerItemPanel(_PanelBase):
         self._screen.changed()
 
     def _add_property(self) -> None:
-        from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
+        from nwnsaveeditor.ui.dialogs.add_property_dialog import AddPropertyDialog
 
         dialog = w.style_dialog(AddPropertyDialog(
             parent=self, tables=self._screen.property_tables()
@@ -293,7 +293,7 @@ class AreaItemPanel(_PanelBase):
 
     # -- property editing --------------------------------------------------- #
     def _edit_property(self, index: int, prop) -> None:
-        from vaultkeeper.ui.dialogs.property_editor_dialog import PropertyEditorDialog
+        from nwnsaveeditor.ui.dialogs.property_editor_dialog import PropertyEditorDialog
 
         tables = self._screen.property_tables()
         if tables is None:
@@ -329,7 +329,7 @@ class AreaItemPanel(_PanelBase):
         self._area_edit("remove_area_property", index, label=describe_property(prop, None))
 
     def _add_property(self) -> None:
-        from vaultkeeper.ui.dialogs.add_property_dialog import AddPropertyDialog
+        from nwnsaveeditor.ui.dialogs.add_property_dialog import AddPropertyDialog
 
         dialog = w.style_dialog(AddPropertyDialog(
             parent=self, tables=self._screen.property_tables()

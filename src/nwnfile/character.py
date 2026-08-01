@@ -375,7 +375,7 @@ def scan_portraits(folders: list[Path]) -> list[PortraitEntry]:
     ]
 
 
-#: NWN TGA resource-type code (see ``core/formats/erf_reader.RES_TYPE_EXTENSIONS``).
+#: NWN TGA resource-type code (see ``nwnfile/formats/erf_reader.RES_TYPE_EXTENSIONS``).
 _TGA_RES_TYPE = 3
 
 

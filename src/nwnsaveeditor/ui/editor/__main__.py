@@ -1,8 +1,8 @@
-"""Run the save editor on its own: ``python -m vaultkeeper.ui.save_editor``.
+"""Run the save editor on its own: ``python -m nwnsaveeditor.ui.editor``.
 
 Vaultkeeper opens the same window from Tools → Save Game Editor. The only
 difference is who supplies the host — see
-:mod:`vaultkeeper.ui.save_editor.host`, which is the whole of what the editor
+:mod:`nwnsaveeditor.ui.editor.host`, which is the whole of what the editor
 asks for. Nothing here is Vaultkeeper-specific, which is the point: the editor
 is a save editor that Vaultkeeper happens to launch, not a part of Vaultkeeper.
 """
@@ -36,7 +36,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def collect_saves(paths: list[Path], user_dir: Path | None) -> list:
     """The saves to offer: the ones named, or everything in the user directory."""
-    from vaultkeeper.game.save_game import SaveGame, scan_save_games
+    from nwnsaveeditor.save_game import SaveGame, scan_save_games
 
     if paths:
         return [SaveGame(folder=path) for path in paths if path.is_dir()]
@@ -46,8 +46,8 @@ def collect_saves(paths: list[Path], user_dir: Path | None) -> list:
 def main(argv: list[str] | None = None) -> int:
     from PySide6.QtWidgets import QApplication, QMessageBox
 
-    from vaultkeeper.ui.save_editor.host import StandaloneHost
-    from vaultkeeper.ui.save_editor.window import SaveEditorWindow
+    from nwnsaveeditor.ui.editor.host import StandaloneHost
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
     args = parse_args(argv)
     app = QApplication.instance() or QApplication(sys.argv[:1])

@@ -18,10 +18,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from vaultkeeper.game.backups import list_backups, restore
-from vaultkeeper.game.save_diff import diff_saves
-from vaultkeeper.ui.save_editor import tokens as t
-from vaultkeeper.ui.save_editor import widgets as w
+from nwnsaveeditor.backups import list_backups, restore
+from nwnsaveeditor.save_diff import diff_saves
+from nwnsaveeditor.ui.editor import tokens as t
+from nwnsaveeditor.ui.editor import widgets as w
 
 #: A diff of a whole save can run to thousands of fields; show a workable slice.
 DIFF_LIMIT = 200

@@ -18,12 +18,12 @@ The editor does not need Vaultkeeper. It runs as its own application:
 nwn-save-editor
 ```
 
-or, from a checkout, `python -m vaultkeeper.ui.save_editor`. With no arguments it
+or, from a checkout, `python -m nwnsaveeditor.ui.editor`. With no arguments it
 finds the game and your saves in the usual places; `--game-root` and `--user-dir`
 override that, and save folders can be named directly.
 
 Everything it asks of whatever is hosting it is one small protocol —
-`vaultkeeper.ui.save_editor.host.EditorHost`: where the game is, and how to
+`nwnsaveeditor.ui.editor.host.EditorHost`: where the game is, and how to
 remember the light/dark choice. Vaultkeeper's own controller satisfies it, and so
 does the standalone launcher, which keeps its own settings file rather than writing
 to the app's.
