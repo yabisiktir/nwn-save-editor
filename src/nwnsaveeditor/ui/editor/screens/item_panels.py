@@ -94,6 +94,14 @@ class PlayerItemPanel(_PanelBase):
         self._add_identity(item)
 
         header = QHBoxLayout()
+        if screen.editing:
+            # Duplicating your own item was only ever offered by the older viewer,
+            # which put it behind a right-click. It belongs beside the item.
+            duplicate = w.small_ghost("Duplicate this item")
+            duplicate.setToolTip("Add a second copy of it to your inventory")
+            duplicate.clicked.connect(self._duplicate)
+            self._body.addWidget(duplicate, 0, Qt.AlignmentFlag.AlignLeft)
+
         header.addWidget(w.cap_label(f"Properties ({len(item.properties)})"))
         header.addStretch(1)
         if screen.editing:
@@ -170,6 +178,17 @@ class PlayerItemPanel(_PanelBase):
         return row
 
     # -- actions ---------------------------------------------------------- #
+    def _duplicate(self) -> None:
+        """Add a second copy of this item to the carried inventory."""
+        try:
+            self._screen.session().add_item_copy(
+                self._item.path, where=self._display_name(self._item)
+            )
+        except Exception as exc:  # SaveEditError and friends
+            QMessageBox.critical(self, "Duplicate failed", str(exc))
+            return
+        self._screen.changed()
+
     def _edit_property(self, prop) -> None:
         from nwnsaveeditor.ui.dialogs.property_editor_dialog import PropertyEditorDialog
 

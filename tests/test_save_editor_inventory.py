@@ -330,3 +330,63 @@ def test_the_list_is_read_only_even_in_edit_mode(window, screen, monkeypatch):
     window._edit_toggle.setChecked(True)
     screen.refresh()
     assert "read-only" in _labels(screen._scroll.widget())
+
+
+# -- duplicating one of your own items --------------------------------------- #
+def test_duplicating_your_own_item_stages_a_copy(window, screen):
+    """Only the older viewer offered this, behind a right-click. Closing the gap
+    is what makes that surface redundant rather than merely similar."""
+    window._edit_toggle.setChecked(True)
+    item = window.session().player_items()[0]
+    screen._select(tuple(item.path))
+    panel = screen._detail_slot.findChild(PlayerItemPanel)
+    before = len(window.session().player_items())
+
+    panel._duplicate()
+
+    assert [c.kind for c in window.session().pending_changes()] == ["add-item"]
+    assert len(window.session().player_items()) == before + 1
+
+
+def test_the_copy_is_carried_rather_than_equipped(window, screen):
+    window._edit_toggle.setChecked(True)
+    equipped = next(
+        (i for i in window.session().player_items() if i.slot is not None), None
+    )
+    if equipped is None:
+        pytest.skip("the fixture character wears nothing")
+    screen._select(tuple(equipped.path))
+    screen._detail_slot.findChild(PlayerItemPanel)._duplicate()
+
+    items = window.session().player_items()
+    copies = [i for i in items if i.resref == equipped.resref]
+    assert any(i.slot is None for i in copies), "a duplicate goes into the bag"
+
+
+def test_duplicate_is_absent_until_edit_mode_is_on(window, screen):
+    item = window.session().player_items()[0]
+    screen._select(tuple(item.path))
+    panel = screen._detail_slot.findChild(PlayerItemPanel)
+    assert "Duplicate this item" not in _buttons(panel)
+
+    window._edit_toggle.setChecked(True)
+    screen._select(tuple(item.path))
+    panel = screen._detail_slot.findChild(PlayerItemPanel)
+    assert "Duplicate this item" in _buttons(panel)
+
+
+def test_a_failed_duplicate_reports_instead_of_passing_silently(
+    window, screen, monkeypatch
+):
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    item = window.session().player_items()[0]
+    screen._select(tuple(item.path))
+    panel = screen._detail_slot.findChild(PlayerItemPanel)
+    panel._item.path = (("ItemList", 999),)  # no longer resolves
+
+    told = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: told.append(a))
+    panel._duplicate()
+    assert told
