@@ -20,20 +20,73 @@ pip install -e ".[dev]"
 nwn-save-editor
 ```
 
-With no arguments it finds the game and your saves in the usual places for your
-platform — Steam's library folders (not just the default one), GOG and Beamdog
-installs, and Wine/CrossOver prefixes. Note that Enhanced Edition keeps its user
-directory in `Documents/Neverwinter Nights` on macOS and Windows but in
-`~/.local/share/Neverwinter Nights` on Linux.
-
-If it guesses wrong, or your game lives somewhere unusual, say so once:
+`python -m nwnsaveeditor.ui.editor` works the same from a checkout.
 
 ```
-nwn-save-editor --game-root /path/to/nwn --user-dir /path/to/user/dir
+nwn-save-editor [--game-root PATH] [--user-dir PATH] [SAVE_FOLDER ...]
 ```
 
-Both are **remembered**, so later runs need no flags. Save folders can also be
-named directly. `python -m nwnsaveeditor.ui.editor` works from a checkout.
+Naming save folders opens exactly those; with none it lists everything under the
+user directory's `saves`.
+
+## Where it looks for the game
+
+Two folders matter, and they are not the same thing:
+
+- **the user directory** — your `saves`, `hak`, `portraits` and `override`.
+- **the game root** — the installation. Only needed for *names*: items, feats,
+  spells and item properties are stored as numbers, and the names come from the
+  game's 2DAs and `dialog.tlk`. Without it the editor still opens and still
+  edits, but shows raw ids — and says so on startup rather than leaving you to
+  wonder.
+
+Each is settled once, in this order:
+
+1. what you passed on the command line,
+2. what was saved last time,
+3. detection.
+
+Whatever it lands on is written back, so `--game-root` is a **one-time** flag
+rather than one you retype every launch. A remembered path that later disappears —
+an unplugged drive, an uninstalled game — falls through to detection instead of
+pinning the editor to somewhere empty.
+
+### What detection knows
+
+Steam's library folders (not only the default one), GOG and Beamdog installs, and
+Wine/CrossOver prefixes — each candidate checked to see whether it really looks
+like an NWN root. The user directory differs by platform, which is the part worth
+knowing if you move between machines:
+
+| Platform | NWN user directory |
+|---|---|
+| macOS | `~/Documents/Neverwinter Nights` |
+| Windows | `%USERPROFILE%\Documents\Neverwinter Nights` |
+| Linux | `~/.local/share/Neverwinter Nights` — **not** `Documents` |
+
+### The settings file
+
+| Platform | Path |
+|---|---|
+| macOS | `~/Library/Application Support/nwn-save-editor/save_editor.json` |
+| Windows | `%APPDATA%\nwn-save-editor\save_editor.json` |
+| Linux | `~/.config/nwn-save-editor/save_editor.json` |
+
+```json
+{
+  "save_editor_theme": "dark",
+  "game_root": "/path/to/Neverwinter Nights",
+  "game_user_dir": "/path/to/Documents/Neverwinter Nights"
+}
+```
+
+Edit it by hand or delete it to start over — a missing or malformed file falls
+back to detection rather than failing. There is no in-app way to change the
+folders yet; it is the command line or this file.
+
+An application that embeds the editor supplies its own settings instead and this
+file is not used — a standalone run must never write into an embedding
+application's configuration.
 
 ## Embedding it
 
