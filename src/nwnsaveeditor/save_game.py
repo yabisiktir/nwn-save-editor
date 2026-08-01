@@ -1,4 +1,4 @@
-"""Read the contents of an NWN save game for the Save Game Viewer.
+"""Read the contents of an NWN save game.
 
 A save folder (``saves/<NNNNNN - name>/``) holds ``player.bic``, screenshots,
 ``savenfo.txt`` (the in-module location) and a ``.sav`` file. The ``.sav`` is an

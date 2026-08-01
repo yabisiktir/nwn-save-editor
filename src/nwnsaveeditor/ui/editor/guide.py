@@ -1,9 +1,7 @@
 """The Save Game Editor's own guide.
 
-Separate from :mod:`vaultkeeper.ui.dialogs.save_editor_help`, which documents the
-read-only viewer's tree-and-right-click interaction. This one describes the
-sectioned editor: where each thing lives, what the edit gate does, and which
-edits the game will quietly undo.
+Describes the sectioned editor: where each thing lives, what the edit gate does,
+and which edits the game will quietly undo.
 """
 
 from __future__ import annotations

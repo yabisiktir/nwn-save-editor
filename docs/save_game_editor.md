@@ -7,8 +7,10 @@ section has one.
 Your original save is never modified in place unless you explicitly ask for it, and
 even then it is archived first. Editing is safe to experiment with.
 
-The older read-only **Save Game Viewer** is still on its own menu item. Both drive
-the same engine, so anything said here about how a change is written applies to both.
+It replaced an earlier dialog also called the Save Game Viewer, which had grown
+editing onto a read-only tree. Two surfaces over one engine meant every fix needed
+doing twice — and more than one was only ever done once — so that dialog is gone
+and this is the only save editor.
 
 ## Running it on its own
 

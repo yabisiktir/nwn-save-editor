@@ -1,9 +1,10 @@
 """The Save Game Editor — the full-window editor from ``docs/design_handoff_save_editor``.
 
-The read-only :mod:`vaultkeeper.ui.dialogs.save_game_viewer` stays as it is; this
-package is the designed editor that replaces it over time. Both drive the same
-:class:`~nwnsaveeditor.save_editor.SaveEditor` session, so the write path,
-verification and backup guarantees are unchanged.
+It replaced an earlier tree-and-right-click dialog that grew editing onto a
+read-only viewer. Two surfaces over one
+:class:`~nwnsaveeditor.save_editor.SaveEditor` meant every fix needed doing twice,
+and more than one of them was only ever done once — so there is deliberately just
+this one now.
 """
 
 from __future__ import annotations

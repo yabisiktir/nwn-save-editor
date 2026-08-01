@@ -1,6 +1,6 @@
 """Decode the *contents* of a save's areas — stores, creatures, containers, factions.
 
-The Save Game Viewer's :mod:`nwnsaveeditor.save_game` reads a ``.sav``'s
+:mod:`nwnsaveeditor.save_game` reads a ``.sav``'s
 ``module.ifo`` (module state) and each area's *name*. This module goes one level
 deeper: for a given area it reads the ``<area>.git`` (the area's dynamic instance
 state) and ``<area>.are`` (static metadata) to surface
