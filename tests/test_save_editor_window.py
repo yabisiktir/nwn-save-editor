@@ -165,7 +165,6 @@ def test_discarding_drops_the_changes_and_clears_the_dots(window, monkeypatch):
 # -- committing ----------------------------------------------------------- #
 def test_save_as_new_writes_a_new_save_and_leaves_the_original(window, monkeypatch, tmp_path):
     from PySide6.QtWidgets import QMessageBox
-
     from tests.test_save_editor import _ifo_char
 
     original = window._current

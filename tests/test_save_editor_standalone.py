@@ -26,17 +26,10 @@ def test_the_standalone_host_satisfies_the_protocol(tmp_path):
     assert isinstance(host, EditorHost)
 
 
-def test_vaultkeepers_own_controller_satisfies_it_too(tmp_path):
-    """Two hosts, one protocol — otherwise the standalone one drifts from the app."""
-    from vaultkeeper.ui.controller import ProfileController
-
-    assert hasattr(ProfileController, "set_save_editor_theme")
-    assert hasattr(ProfileController, "_settings")
-
-
 def test_the_editor_opens_with_nothing_but_a_host(qtbot, tmp_path):
-    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
     from tests.test_save_editor import _make_char_save
+
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
     host = StandaloneHost(game_root=None, game_user_dir=None, settings_dir=tmp_path)
     window = SaveEditorWindow([_make_char_save(tmp_path)], host)

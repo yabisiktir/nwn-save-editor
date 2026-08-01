@@ -19,9 +19,9 @@ from typing import Protocol, runtime_checkable
 
 from nwnsaveeditor.ui.editor.tokens import THEMES
 
-#: Where a standalone run remembers its theme. Deliberately not Vaultkeeper's
-#: settings file — running the editor on its own must not write to the app's
-#: configuration, which the app may have open at the same time.
+#: Where a standalone run remembers its theme. Its own file under its own
+#: directory: a host that embeds the editor supplies its settings instead, and a
+#: standalone run must never write into the embedding application's config.
 STANDALONE_SETTINGS = "save_editor.json"
 
 
@@ -133,11 +133,11 @@ def default_settings_dir() -> Path:
     import sys
 
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "vaultkeeper"
+        return Path.home() / "Library" / "Application Support" / "nwn-save-editor"
     if sys.platform.startswith("win"):
         import os
 
         base = os.environ.get("APPDATA")
         if base:
-            return Path(base) / "vaultkeeper"
-    return Path.home() / ".config" / "vaultkeeper"
+            return Path(base) / "nwn-save-editor"
+    return Path.home() / ".config" / "nwn-save-editor"

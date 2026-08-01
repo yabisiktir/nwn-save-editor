@@ -1,72 +1,44 @@
-# Vaultkeeper
+# NWN Save Editor
 
-Cross-platform **Neverwinter Nights** mod installer and manager — a ground-up,
-faithful successor to the Windows-only VB.NET *NWN Installer Tool* (NIT), built to
-run natively on **macOS, Windows and Linux** (including **Wine/CrossOver** and
-**network** game locations).
+Read and edit **Neverwinter Nights** save games — and the file formats behind them.
 
-> Status: **early rehaul (Phase 0 — foundations).** Not yet usable as an app.
-> See [`../rehaul/00_MASTER_PLAN.md`](../rehaul/00_MASTER_PLAN.md) for the full
-> plan and phased roadmap, and [`../rehaul/04_DECISIONS_ADDENDUM.md`](../rehaul/04_DECISIONS_ADDENDUM.md)
-> for the decisions driving this repo.
+Two packages:
 
-## Why a rewrite
+- **`nwnfile`** — the formats (GFF, ERF, 2DA, TLK, KEY/BIF, TGA, PLT) and the game
+  data that gives them meaning: which feat id is Whirlwind Attack, what item
+  property 12 does, what a race id is called. No Qt, no application; it reads files.
+- **`nwnsaveeditor`** — decoding a `.sav`, staging edits against it, writing a
+  verified new save, and the editor window over all of it.
 
-The original is ~127k lines of VB.NET + a WinForms control library and is
-Windows-only. A prior port attempt was a UI shell over an incomplete/incorrect
-backend. Vaultkeeper rebuilds the domain core (profile database, file-mapping
-engine, install engine, play tracking) from the documented ground truth, while
-reusing the genuinely good parts of the earlier attempt.
+The arrows point one way and tests hold them there: `nwnfile` never imports
+`nwnsaveeditor`, and never imports Qt.
 
-## Technology
+## Running it
 
-- **Python 3.11–3.13** (PySide6 wheels not yet available for 3.14).
-- **PySide6** (Qt for Python, LGPL) for the GUI.
-- Native binary parsers (GFF/BIC/ERF/TGA) in pure Python.
-- A small set of bundled native tools (`7zz`, `ffmpeg`) declared in
-  [`external/tools.toml`](external/tools.toml).
-
-## Design principles that differ from the original
-
-- **Config isolation.** Vaultkeeper keeps its own store/config and does **not**
-  silently rewrite the game's `nwn.ini` / `settings.tml`. Game-file changes are
-  explicit and user-confirmed (manual sync + startup validation).
-- **Cross-platform paths** are first-class: native Win/mac/Linux, Wine/CrossOver
-  prefixes, and network/UNC locations.
-- **Explicit dependencies.** Every runtime and bundled-binary dependency is
-  declared in `pyproject.toml` / `external/tools.toml`, not just prose.
-
-## Development
-
-```bash
-# Use a 3.11–3.13 interpreter (PySide6 constraint).
-python3.12 -m venv .venv
-source .venv/bin/activate           # Windows: .venv\Scripts\activate
+```
 pip install -e ".[dev]"
-
-pytest                               # run tests
-ruff check .                         # lint
-mypy                                 # type-check
-
-python -m vaultkeeper                # Phase 0: prints discovered installs + store
+nwn-save-editor
 ```
 
-## Layout
+With no arguments it finds the game and your saves in the usual places.
+`--game-root` and `--user-dir` override that, and save folders can be named
+directly. `python -m nwnsaveeditor.ui.editor` works from a checkout.
 
-```
-src/vaultkeeper/
-  app_paths.py      # Vaultkeeper's own isolated store/config layout
-  game/
-    editions.py     # NWN edition identity (EE / Diamond)
-    locations.py    # cross-platform install discovery (native/Wine/network)
-  config/           # settings (isolated store)            [growing]
-  core/             # domain: FileKey, Mapper, ProfileData  [Phase 1+]
-  persistence/      # native store + legacy NRBF import     [later]
-tests/              # headless unit tests
-external/           # bundled-binary manifest
-docs/               # phase notes
-```
+## Embedding it
 
-## Credit
+Everything the editor asks of a host is one small protocol —
+`nwnsaveeditor.ui.editor.host.EditorHost`: where the game is, and how to remember
+the light/dark choice. `StandaloneHost` is the whole of what a bare launcher
+provides; an application supplies its own and opens `SaveEditorWindow`.
 
-Based on the *NWN Installer Tool* by Louis (LazWorks).
+## Your saves are safe
+
+**Save as New Save…** never touches the original. **Overwrite This Save…** writes
+and verifies to a staging folder first, then archives the old save to a timestamped
+folder before swapping. See [docs/save_game_editor.md](docs/save_game_editor.md).
+
+## History
+
+Split out of [Vaultkeeper](../vaultkeeper), an NWN mod installer, where this code
+began. Commits touching these files came with it, so `git log` and `git blame`
+reach back past the split; anything about the installer stayed behind.

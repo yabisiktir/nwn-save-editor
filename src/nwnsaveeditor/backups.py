@@ -1,7 +1,9 @@
 """The backups an overwrite leaves behind, and restoring one.
 
 :meth:`SaveEditor.save_as` with ``overwrite=True`` moves the save it replaces into
-``vaultkeeper_backups/<YYYYmmdd-HHMMSS> - <save name>/``. This reads that folder
+``vaultkeeper_backups/<YYYYmmdd-HHMMSS> - <save name>/``. That name is kept
+verbatim despite the split: it names folders already sitting in users' save
+directories, and renaming it would orphan every backup taken so far. This reads that folder
 back and can put a backup returned to the saves folder.
 """
 

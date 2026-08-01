@@ -3,20 +3,17 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "vaultkeeper"
-version = "0.0.1"
-description = "Cross-platform Neverwinter Nights mod installer and manager (successor to the NWN Installer Tool)."
+name = "nwn-save-editor"
+version = "0.1.0"
+description = "Read and edit Neverwinter Nights save games, and the file formats behind them."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"  # PySide6 wheels not yet published for 3.14; dev on 3.12/3.13
 license = { text = "GPL-3.0-or-later" }
 authors = [{ name = "aqzina" }]
-keywords = ["neverwinter-nights", "nwn", "mods", "installer", "pyside6"]
+keywords = ["neverwinter-nights", "nwn", "save-game", "gff", "erf", "pyside6"]
 
-# Runtime Python dependencies. Pinned lower-bounds; a lockfile (see below) pins exact versions.
 dependencies = [
-    "PySide6>=6.7,<6.9",   # Qt for Python (LGPL). GUI toolkit.
-    "requests>=2.31",       # Neverwinter Vault scraping / downloads.
-    "send2trash>=1.8",      # Cross-platform recycle-bin/trash for safe deletes.
+    "PySide6>=6.7,<6.9",   # Qt for Python (LGPL). The editor's GUI.
 ]
 
 [project.optional-dependencies]
@@ -28,14 +25,10 @@ dev = [
 ]
 
 [project.gui-scripts]
-vaultkeeper = "vaultkeeper.__main__:main"
-# The save editor runs on its own: it needs no Vaultkeeper application, only the
-# small host in vaultkeeper.ui.save_editor.host. Kept as its own entry point so
-# that stays true.
 nwn-save-editor = "nwnsaveeditor.ui.editor.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/nwnfile", "src/nwnsaveeditor", "src/vaultkeeper"]
+packages = ["src/nwnfile", "src/nwnsaveeditor"]
 
 # ---------------------------------------------------------------------------
 # Tooling
@@ -49,10 +42,10 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ruff.lint.per-file-ignores]
-# Salvaged binary-format readers from the prior port, kept close to their working
-# original pending a typed refactor. Their "unused" locals (F841) are deliberate
-# offset-advancing reads (e.g. `x = self._read_dword()`) that must NOT be removed;
-# a few long lines/loop vars are tolerated here until the refactor.
+# Salvaged binary-format readers, kept close to their working original pending a
+# typed refactor. Their "unused" locals (F841) are deliberate offset-advancing
+# reads (e.g. `x = self._read_dword()`) that must NOT be removed; a few long
+# lines/loop vars are tolerated here until the refactor.
 "src/nwnfile/formats/*" = ["F841", "E501", "B007", "SIM"]
 "tests/test_erf_reader.py" = ["E501", "F841"]
 "tests/test_gff_reader.py" = ["E501", "F841"]
@@ -70,7 +63,7 @@ markers = [
 
 [tool.mypy]
 python_version = "3.11"
-packages = ["nwnfile", "nwnsaveeditor", "vaultkeeper"]
+packages = ["nwnfile", "nwnsaveeditor"]
 mypy_path = "src"
 strict = true
 warn_unused_ignores = true

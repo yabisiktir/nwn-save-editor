@@ -319,7 +319,6 @@ def test_declining_to_drop_edits_keeps_the_current_save_selected(window, monkeyp
     """add_save nulls the selection before switching; if the switch is declined the
     window must not be left with no save at all."""
     from PySide6.QtWidgets import QMessageBox
-
     from tests.test_save_editor import _make_char_save_with_details
 
     window._edit_toggle.setChecked(True)

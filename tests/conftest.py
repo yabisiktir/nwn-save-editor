@@ -15,25 +15,26 @@ import pytest  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
-def _isolate_store(tmp_path_factory, monkeypatch) -> Iterator[None]:
-    """Redirect Vaultkeeper's config/data roots to a per-test temp home.
+def _isolate_settings(tmp_path_factory, monkeypatch) -> Iterator[None]:
+    """Point the editor's own settings file at a per-test temp directory.
 
-    ``config_root``/``data_root`` derive from :func:`vaultkeeper.app_paths._home`.
-    Without this, any test that calls ``save_settings(settings)`` (no explicit
-    path — e.g. MainWindow's recent-mods / window-geometry saves) would write to
-    the developer's REAL ``~/Library/Application Support/Vaultkeeper`` store,
-    polluting live user data and leaking state between tests (which caused the
-    order-dependent recent-mods failures). Each test gets a clean isolated home.
+    ``StandaloneHost`` remembers the light/dark choice on disk. Without this, a
+    test that constructs one with no explicit ``settings_dir`` would write the
+    developer's real settings file and leak state between tests. The equivalent
+    fixture in the repo this was split from guarded the application's store for
+    the same reason, after it once ate live user data.
     """
-    home = tmp_path_factory.mktemp("home")
-    monkeypatch.setattr("vaultkeeper.app_paths._home", lambda: home)
+    home = tmp_path_factory.mktemp("settings")
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.host.default_settings_dir", lambda: home
+    )
     yield
 
 
 @pytest.fixture()
 def temp_dir() -> Iterator[Path]:
     """A throwaway temp directory (used by the salvaged binary-reader tests)."""
-    path = Path(tempfile.mkdtemp(prefix="vaultkeeper_test_"))
+    path = Path(tempfile.mkdtemp(prefix="nwn_save_editor_test_"))
     try:
         yield path
     finally:
