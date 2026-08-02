@@ -195,6 +195,11 @@ def hairline(alpha: float = 0.1) -> str:
     return f"rgba({_active['HAIRLINE_RGB']}, {alpha})"
 
 
+def hairline_rgb() -> str:
+    """The hairline colour as bare ``r, g, b``, for painting rather than QSS."""
+    return _active["HAIRLINE_RGB"]
+
+
 # -- Typography ----------------------------------------------------------- #
 #: Display face for the wordmark and section titles. Cinzel was a webfont in the
 #: prototype; fall back through faces likely to exist on the user's machine.

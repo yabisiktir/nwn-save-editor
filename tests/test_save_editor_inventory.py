@@ -47,18 +47,28 @@ def test_paperdoll_covers_the_wearable_slots():
     assert set(PAPERDOLL) == wearable
 
 
-def test_paired_slots_are_mirrored_across_the_body_axis():
-    """The handoff asks for a humanoid, not a flat grid: pairs sit left and right."""
-    for left_bit, right_bit in ((16, 32), (256, 128)):  # hands, rings
-        left_row, left_col = PAPERDOLL[left_bit]
-        right_row, right_col = PAPERDOLL[right_bit]
-        assert left_row == right_row, "a pair must share a row"
-        assert {left_col, right_col} == {0, 2}, "a pair must straddle the centre column"
+def test_the_slots_are_laid_out_the_way_the_game_lays_them_out():
+    """Two columns of six flanking the figure, in the game's own order.
+
+    An anatomical layout reads well on its own and matches nothing: anyone
+    checking a character against the running game has to hunt for each slot.
+    """
+    left = [1, 2, 4, 8, 16, 32]  # head, chest, boots, arms, right hand, left hand
+    right = [64, 128, 256, 512, 1024]  # cloak, rings, neck, belt
+    assert [PAPERDOLL[bit] for bit in left] == [(row, 0) for row in range(6)]
+    assert [PAPERDOLL[bit] for bit in right] == [(row, 2) for row in range(5)]
 
 
-def test_body_axis_slots_sit_in_the_centre_column():
-    for bit in (1, 2, 1024, 4):  # head, chest, belt, boots
-        assert PAPERDOLL[bit][1] == 1
+def test_the_middle_column_is_left_for_the_figure():
+    """Anything but ammunition in column 1 would be standing on the character."""
+    in_middle = {bit for bit, (_row, col) in PAPERDOLL.items() if col == 1}
+    assert in_middle == {4096}  # bullets, in the ammunition row
+
+
+def test_ammunition_is_grouped_on_its_own_bottom_row():
+    rows = {PAPERDOLL[bit][0] for bit in (2048, 4096, 8192)}
+    assert rows == {6}
+    assert max(row for row, _col in PAPERDOLL.values()) == 6
 
 
 # -- selection ------------------------------------------------------------- #
