@@ -47,28 +47,27 @@ def test_paperdoll_covers_the_wearable_slots():
     assert set(PAPERDOLL) == wearable
 
 
-def test_the_slots_are_laid_out_the_way_the_game_lays_them_out():
-    """Two columns of six flanking the figure, in the game's own order.
+def test_the_slots_are_where_the_game_puts_them():
+    """Matched against the panel on nwn.fandom.com/wiki/Inventory_slot.
 
-    An anatomical layout reads well on its own and matches nothing: anyone
-    checking a character against the running game has to hunt for each slot.
+    The game's top row is main hand, armor, off-hand, helmet, cloak; gloves sit
+    under the helmet and boots under the cloak.
     """
-    left = [1, 2, 4, 8, 16, 32]  # head, chest, boots, arms, right hand, left hand
-    right = [64, 128, 256, 512, 1024]  # cloak, rings, neck, belt
-    assert [PAPERDOLL[bit] for bit in left] == [(row, 0) for row in range(6)]
-    assert [PAPERDOLL[bit] for bit in right] == [(row, 2) for row in range(5)]
+    assert [PAPERDOLL[bit] for bit in (16, 2, 32, 1, 64)] == [(0, c) for c in range(5)]
+    assert PAPERDOLL[8][1] == PAPERDOLL[1][1], "gloves sit under the helmet"
+    assert PAPERDOLL[4][1] == PAPERDOLL[64][1], "boots sit under the cloak"
+    assert PAPERDOLL[1024][1] == PAPERDOLL[32][1], "the belt sits under the off-hand"
 
 
-def test_the_middle_column_is_left_for_the_figure():
-    """Anything but ammunition in column 1 would be standing on the character."""
-    in_middle = {bit for bit, (_row, col) in PAPERDOLL.items() if col == 1}
-    assert in_middle == {4096}  # bullets, in the ammunition row
-
-
-def test_ammunition_is_grouped_on_its_own_bottom_row():
+def test_ammunition_is_grouped_together():
     rows = {PAPERDOLL[bit][0] for bit in (2048, 4096, 8192)}
-    assert rows == {6}
-    assert max(row for row, _col in PAPERDOLL.values()) == 6
+    assert len(rows) == 1, "arrows, bullets and bolts belong on one row"
+    assert [PAPERDOLL[bit][1] for bit in (2048, 4096, 8192)] == [0, 1, 2]
+
+
+def test_the_two_rings_are_stacked_in_one_column():
+    assert PAPERDOLL[128][1] == PAPERDOLL[256][1]
+    assert abs(PAPERDOLL[128][0] - PAPERDOLL[256][0]) == 1
 
 
 # -- selection ------------------------------------------------------------- #
@@ -400,3 +399,39 @@ def test_a_failed_duplicate_reports_instead_of_passing_silently(
     monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: told.append(a))
     panel._duplicate()
     assert told
+
+
+# -- which name an item is shown under ---------------------------------------- #
+def test_an_items_own_name_beats_its_strref(window):
+    """A module names its items; the strref usually names the *base* item.
+
+    Preferring the strref renamed "Robes of Sesustris" to "White Robe of the
+    Archmagi" and "Tuxedo of Infiltration" to "Leather Armor" — 105 of the 169
+    items on a real character, none findable by the name the player knows.
+    """
+    item = SimpleNamespace(name="Robes of Sesustris", named=True, name_strref=5678)
+    assert window.item_name(item) == "Robes of Sesustris"
+
+
+def test_an_item_with_no_name_of_its_own_still_uses_its_strref(window, monkeypatch):
+    """Most base-game items store only a strref and would read "(unnamed: …)"."""
+    monkeypatch.setattr(
+        window, "_resolver", lambda: SimpleNamespace(name_for=lambda r: "Stone of Recall")
+    )
+    item = SimpleNamespace(name="(unnamed: nw_it_recall)", named=False, name_strref=1234)
+    assert window.item_name(item) == "Stone of Recall"
+
+
+def test_an_unresolvable_strref_leaves_the_placeholder(window, monkeypatch):
+    monkeypatch.setattr(
+        window, "_resolver", lambda: SimpleNamespace(name_for=lambda r: "")
+    )
+    item = SimpleNamespace(name="(unnamed: xyz)", named=False, name_strref=9)
+    assert window.item_name(item) == "(unnamed: xyz)"
+
+
+def test_the_named_flag_records_whether_the_save_carried_a_name(window):
+    """Without it a caller cannot tell a real name from the placeholder."""
+    items = window.session().player_items()
+    assert any(i.named for i in items)
+    assert all(i.named == (not i.name.startswith("(unnamed")) for i in items if i.name)

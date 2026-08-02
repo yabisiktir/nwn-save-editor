@@ -398,12 +398,19 @@ class SaveEditorWindow(QMainWindow):
         return resolver_for(self._game_root())
 
     def item_name(self, item) -> str:
-        """An item's display name, with its strref resolved through dialog.tlk.
+        """An item's display name: its own name first, else its strref.
 
-        Many items store only a strref; without this they show as
-        "(unnamed: <resref>)", which is what the read-only viewer resolved.
+        Many items store only a strref and would otherwise show as
+        "(unnamed: <resref>)", so that is resolved through dialog.tlk. But an
+        item that carries a ``LocalizedName`` has been *named by the module*,
+        and that name wins: the strref usually points at the base item's entry,
+        so preferring it renamed "Robes of Sesustris" to "White Robe of the
+        Archmagi" and "Tuxedo of Infiltration" to "Leather Armor" — 105 of the
+        169 items on a real character, each one unfindable by its actual name.
         """
         name = getattr(item, "name", "") or ""
+        if getattr(item, "named", False):
+            return name
         strref = getattr(item, "name_strref", -1)
         if strref is not None and strref >= 0:
             resolved = self._resolver().name_for(strref)

@@ -429,13 +429,18 @@ class CharacterScreen(QWidget):
             "Each ability shows the base score the save stores — the one Details "
             "edits — then the score in play after your race, any PRC templates and "
             "everything you are wearing. Hover a total to see every part of it. "
-            "The saving throws below still count gear only.",
+            "The saving throws and initiative below are derived from those same "
+            "scores.",
             t.TEXT_3, 11.5,
         ))
         panel = w.Panel(padding=16)
         stats = QHBoxLayout()
         stats.setSpacing(24)
-        dex = ability_modifier(self._field_value("Dex", info.abilities.get("Dex", 10)))
+        # Modifiers come from the scores *in play*. Taken from the stored ones
+        # they disagree with both the game and the Abilities rows just above:
+        # a Constitution of 14 in the save is 55 on the character, +2 against +22.
+        in_play = self._scores_in_play(info)
+        dex = ability_modifier(in_play.get("Dex", 10))
         gear = self._save_gear_bonuses()
         rows = [
             ("Base attack bonus", _signed(info.base_attack_bonus), "stored"),
@@ -446,9 +451,7 @@ class CharacterScreen(QWidget):
             ("Reflex", "Dex", info.save_reflex),
             ("Will", "Wis", info.save_will),
         ):
-            modifier = ability_modifier(
-                self._field_value(ability, info.abilities.get(ability, 10))
-            )
+            modifier = ability_modifier(in_play.get(ability, 10))
             parts = [f"{_signed(modifier)} {ability}"]
             if gear.get(kind) is not None:
                 parts.append(f"{_signed(gear[kind])} gear")
@@ -468,6 +471,22 @@ class CharacterScreen(QWidget):
             t.TEXT_3, 11,
         ))
         return holder
+
+    def _scores_in_play(self, info) -> dict[str, int]:
+        """Ability scores after race, class levels, templates and worn gear.
+
+        The single source anything deriving a modifier should use — saving
+        throws, initiative and skills all read the same numbers the Abilities
+        rows display, so the screen cannot contradict itself.
+        """
+        scores = {
+            field: self._field_value(field, info.abilities.get(field, 10))
+            for field, _label in ABILITIES
+        }
+        for field, row in self._ability_gear().items():
+            if field in scores:
+                scores[field] += row.added
+        return scores
 
     def _save_gear_bonuses(self) -> dict[str, int | None]:
         """The largest equipped-gear bonus applying to each saving throw."""
@@ -734,9 +753,7 @@ class CharacterScreen(QWidget):
         # The scores in play, not the stored ones: a skill's modifier comes from
         # the ability *after* race, class levels and templates, so the stored
         # score understates every skill of an adjusted character.
-        abilities = dict(getattr(info, "abilities", {}) or {})
-        for field, row in self._ability_gear().items():
-            abilities[field] = abilities.get(field, row.base) + row.added
+        abilities = self._scores_in_play(info)
         try:
             items = self._window.session().player_items()
         except Exception:

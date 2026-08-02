@@ -1,9 +1,10 @@
-"""The Inventory & Equipment screen — paperdoll, carried bag, item detail.
+"""The Inventory & Equipment screen — equipment grid, carried bag, item detail.
 
-The equipment slots are laid out as a humanoid rather than a flat grid (a review
-note in the handoff asked for this): a head circle and torso outline are painted
-behind the cells, and the paired slots — weapon/shield, the two rings, the two
-creature weapons — sit mirrored left and right of the body axis.
+The equipment slots reproduce the game's own inventory panel, slot for slot and
+position for position (nwn.fandom.com/wiki/Inventory_slot). The handoff asked
+for a humanoid arrangement instead and that is what this screen had, but a
+layout that matches nothing forces anyone checking a character against the
+running game to hunt for each slot; fidelity won.
 
 The detail column is filled by :mod:`~nwnsaveeditor.ui.editor.screens.item_panels`,
 which has a separate panel class per context so a store or creature item can never
@@ -12,8 +13,7 @@ be property-edited from here.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -29,69 +29,50 @@ from nwnsaveeditor.ui.editor import tokens as t
 from nwnsaveeditor.ui.editor import widgets as w
 from nwnsaveeditor.ui.editor.screens.item_panels import PlayerItemPanel, item_cell
 
-#: ``(row, column)`` for each equipment slot bit, following the game's own
-#: inventory panel: two columns of six flanking the character, ammunition
-#: grouped along the bottom. Column 1 is left clear for the figure.
+#: ``(row, column)`` for each equipment slot bit, laid out as the game's own
+#: inventory panel does it (nwn.fandom.com/wiki/Inventory_slot). Five columns:
 #:
-#: An earlier version laid these out anatomically — head at the top, boots at
-#: the bottom, rings level with the hands. It read well on its own and matched
-#: nothing: anyone checking a character against the running game had to hunt for
-#: each slot. Matching the game beats being tidy.
+#:      main hand │ armor   │ off-hand │ helmet │ cloak
+#:                │         │ belt     │ gloves │ boots
+#:      arrows    │ bullets │ bolts    │ rings  │ amulet
+#:
+#: The gloves sit directly under the helmet, the boots under the cloak and the
+#: belt under the off-hand, as they do in the game. The game additionally draws
+#: the two weapon cells double height, which is not reproduced: that comes from
+#: its panel being non-uniform, and in an even grid a tall main-hand cell only
+#: displaces the belt out of the column it belongs in. Two earlier versions were
+#: invented outright — one anatomical, one two flanking columns — and both made
+#: anyone comparing against the running game hunt for each slot.
 PAPERDOLL: dict[int, tuple[int, int]] = {
-    1: (0, 0),        # Head
-    2: (1, 0),        # Chest
-    4: (2, 0),        # Boots
-    8: (3, 0),        # Arms
-    16: (4, 0),       # Right Hand (weapon)
-    32: (5, 0),       # Left Hand (shield)
-    64: (0, 2),       # Cloak
-    128: (1, 2),      # Left Ring
-    256: (2, 2),      # Right Ring
-    512: (3, 2),      # Neck
-    1024: (4, 2),     # Belt
-    2048: (6, 0),     # Arrows
-    4096: (6, 1),     # Bullets
-    8192: (6, 2),     # Bolts
+    16: (0, 0),       # Main hand
+    2: (0, 1),        # Armor
+    32: (0, 2),       # Off hand
+    1: (0, 3),        # Helmet
+    64: (0, 4),       # Cloak
+    1024: (1, 2),     # Belt, under the off-hand
+    8: (1, 3),        # Gloves, under the helmet
+    4: (1, 4),        # Boots, under the cloak
+    2048: (2, 0),     # Arrows ┐
+    4096: (2, 1),     # Bullets├ ammunition, along the bottom-left
+    8192: (2, 2),     # Bolts  ┘
+    128: (2, 3),      # First ring
+    256: (3, 3),      # Second ring
+    512: (2, 4),      # Amulet
 }
 
 #: Slots the engine keeps for itself. On a PRC install the skin carries the feats
 #: and bonuses PRC regenerates, so they are shown — apart, and clearly labelled.
 CREATURE_SLOTS: tuple[int, ...] = (131072, 16384, 32768, 65536)
 
-_PAPERDOLL_COLS = 3
-_PAPERDOLL_ROWS = 7
-#: The ammunition row, which the figure behind the cells must stop short of.
-_FIGURE_ROWS = 6
-#: Room for the figure between the two columns of slots.
-_FIGURE_WIDTH = 128
-
 
 class Paperdoll(QWidget):
-    """The equipment grid, with a humanoid outline painted behind the cells."""
+    """The equipment grid.
 
-    def paintEvent(self, event) -> None:  # noqa: N802 - Qt override
-        super().paintEvent(event)
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        # A hairline, not a hardcoded white: in light mode white on cream is
-        # invisible, which left the figure absent from half the themes.
-        rgb = [int(part) for part in t.hairline_rgb().split(",")]
-        painter.setPen(QPen(QColor(rgb[0], rgb[1], rgb[2], 46), 2))
-
-        width, height = self.width(), self.height()
-        column = width / _PAPERDOLL_COLS
-        row = height / _PAPERDOLL_ROWS
-        centre = column * 1.5
-
-        # The figure stands in the empty middle column, between the two columns
-        # of slots, and stops above the ammunition row.
-        head = min(column, row) * 0.62
-        painter.drawEllipse(QRectF(centre - head / 2, row * 0.55 - head / 2, head, head))
-        torso_w = column * 0.92
-        painter.drawRoundedRect(
-            QRectF(centre - torso_w / 2, row * 1.15, torso_w, row * (_FIGURE_ROWS - 1.35)),
-            18, 18,
-        )
+    Nothing is painted behind the cells. Earlier versions drew a humanoid
+    outline, which only made sense while the slots were arranged as a body; the
+    game's panel is a plain grid of slots and the figure would now sit across
+    the ammunition.
+    """
 
 
 class InventoryScreen(QWidget):
@@ -231,14 +212,7 @@ class InventoryScreen(QWidget):
         grid.setSpacing(10)
         grid.setContentsMargins(10, 10, 10, 10)
         for bit, (row, column) in PAPERDOLL.items():
-            cell = self._slot_cell(bit, equipped.get(bit))
-            # The middle column is widened for the figure, so its one cell has to
-            # be centred or it hangs off to the left of the ammunition row.
-            align = Qt.AlignmentFlag.AlignHCenter if column == 1 else Qt.AlignmentFlag(0)
-            grid.addWidget(cell, row, column, align)
-        # The middle column holds one cell (bullets) and would otherwise collapse
-        # to its width, closing the gap the two columns are meant to flank.
-        grid.setColumnMinimumWidth(1, _FIGURE_WIDTH)
+            grid.addWidget(self._slot_cell(bit, equipped.get(bit)), row, column)
         doll.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         return doll
 

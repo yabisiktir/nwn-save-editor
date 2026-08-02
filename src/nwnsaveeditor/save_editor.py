@@ -115,6 +115,11 @@ class EditableItem:
     base_item: int
     model_part: int
     properties: list[EditableProperty]
+    #: True when the item carries its own ``LocalizedName``. Without this a
+    #: caller cannot tell a real name from the ``(unnamed: …)`` placeholder, and
+    #: a module's "Robes of Sesustris" gets displayed under whatever its
+    #: ``DescIdentified`` strref happens to say — "White Robe of the Archmagi".
+    named: bool = False
 
 
 @dataclass
@@ -987,6 +992,7 @@ class SaveEditor:
         return EditableItem(
             path=path, slot=slot,
             name=name or (f"(unnamed: {resref})" if resref else "(item)"),
+            named=bool(name),
             name_strref=name_strref, resref=resref,
             base_item=struct.get("BaseItem") or -1,
             model_part=struct.get("ModelPart1") or 0,

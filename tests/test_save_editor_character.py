@@ -647,7 +647,7 @@ def test_gear_bonuses_survive_an_unreadable_session(window, screen, monkeypatch)
 
 
 # -- where an ability score comes from --------------------------------------- #
-def _total(field="Str", base=29, parts=(), attributed=True):
+def _total(field="Str", base=29, parts=(), attributed=True):  # noqa: D103
     from nwnfile.ability_breakdown import AbilityTotal, Component
 
     return AbilityTotal(field, base, tuple(Component(*p) for p in parts), attributed)
@@ -701,3 +701,29 @@ def test_an_unreadable_session_costs_nothing(window, screen, monkeypatch):
         window, "session", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
     )
     assert screen._ability_gear() == {}
+
+
+def test_saving_throws_use_the_score_in_play(window, screen, monkeypatch):
+    """Fortitude read "+2 Con" off a stored 14 while the row above said 55."""
+    monkeypatch.setattr(
+        screen, "_ability_gear",
+        lambda: {"Con": _total("Con", 14, [("Bralani", 6, "race"), ("Belt", 35, "item")])},
+    )
+    info = window.character_info()
+    stored = info.abilities.get("Con", 10)
+    screen.refresh()
+    text = _labels(_page(screen, "abilities"))
+    assert f"{(stored + 41 - 10) // 2:+d} Con" in text
+    assert f"{(stored - 10) // 2:+d} Con" not in text, "the stored score must not be used"
+
+
+def test_one_source_of_truth_for_every_derived_number(window, screen, monkeypatch):
+    """Saves, initiative and skills must not disagree with the Abilities rows."""
+    monkeypatch.setattr(
+        screen, "_ability_gear",
+        lambda: {"Dex": _total("Dex", 10, [("Gloves", 20, "item")])},
+    )
+    info = window.character_info()
+    assert screen._scores_in_play(info)["Dex"] == 30
+    screen.refresh()
+    assert "+10 Dex" in _labels(_page(screen, "abilities"))
