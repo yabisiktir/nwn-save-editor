@@ -115,12 +115,29 @@ def test_one_item_carrying_two_resistances_uses_its_greater(stack):
 
 
 # -- feats -------------------------------------------------------------------- #
-def test_prc_records_granted_resistance_as_a_numbered_feat(stack):
-    """The owner's Bralani has "Spell Resistance 17" and no item granting any."""
+def test_a_racial_resistance_feat_scales_with_level(stack):
+    """The number in the name is a BASE, not the total.
+
+    PRC's manual page for each of these reads "The creature has an innate spell
+    resistance of 17, plus 1 per level", so the owner's level-40 Bralani has 57.
+    Taking the name at face value understates such a character by their whole
+    level -- 17 against 57, the difference between beatable and nearly immune.
+    """
+    names = {4617: "Spell Resistance 17"}
+    result = spell_resistance(
+        _character(feats=[4617]), stack, feat_name=names.get, character_level=40
+    )
+    assert result.effective == 57
+    assert result.sources[0].kind == "feat"
+    assert "+1 per level" in result.sources[0].label
+
+
+def test_the_base_alone_is_used_when_the_level_is_unknown(stack):
+    """Better a floor than a number invented from a level nobody supplied."""
     names = {4617: "Spell Resistance 17"}
     result = spell_resistance(_character(feats=[4617]), stack, feat_name=names.get)
     assert result.effective == 17
-    assert result.sources[0].kind == "feat"
+    assert "per level" not in result.sources[0].label
 
 
 def test_diamond_soul_is_ten_plus_monk_level(stack):
@@ -132,12 +149,17 @@ def test_diamond_soul_is_ten_plus_monk_level(stack):
     assert "monk 12" in result.sources[0].label
 
 
-def test_improved_spell_resistance_raises_diamond_soul(stack):
-    names = {4393: "Diamond Soul", 1: "Improved Spell Resistance", 2: "Improved Spell Resistance"}
+def test_each_improved_spell_resistance_feat_is_worth_two(stack):
+    """``nImprovedSR += 2`` in PRC's prc_forsaker.nss -- not one."""
+    names = {
+        4393: "Diamond Soul",
+        699: "Improved Spell Resistance I",
+        700: "Improved Spell Resistance II",
+    }
     result = spell_resistance(
-        _character(feats=[4393, 1, 2]), stack, feat_name=names.get, monk_level=20
+        _character(feats=[4393, 699, 700]), stack, feat_name=names.get, monk_level=20
     )
-    assert result.effective == 32  # 10 + 20 + 2
+    assert result.effective == 34  # 10 + 20 + 2 + 2
 
 
 def test_diamond_soul_without_monk_levels_grants_nothing(stack):
@@ -158,7 +180,7 @@ def test_a_feat_merely_mentioning_resistance_is_not_counted(stack):
 # -- what the number means ---------------------------------------------------- #
 def test_67_is_immunity_to_anything_a_player_can_cast(stack):
     """d20 + 40 caster levels + 6 epic penetration tops out at 66."""
-    names = {1: "Spell Resistance 66", 2: "Spell Resistance 67"}
+    names = {1: "Spell Resistance 66", 2: "Spell Resistance 67"}  # level 0, so as-is
     assert not spell_resistance(
         _character(feats=[1]), stack, feat_name=names.get
     ).immune_to_player_casters

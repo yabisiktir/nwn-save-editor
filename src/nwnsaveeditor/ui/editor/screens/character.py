@@ -487,9 +487,21 @@ class CharacterScreen(QWidget):
                 self._window.item_name,
                 names.get,
                 self._monk_level(),
+                self._character_level(),
             )
         except Exception:
             return None
+
+    def _character_level(self) -> int:
+        """Total class levels — what PRC's racial resistance feats scale with."""
+        try:
+            from nwnfile.class_tables import character_classes
+
+            session = self._window.session()
+            player = session._player_struct(session._module_tree())
+            return sum(level for _id, level in character_classes(player))
+        except Exception:
+            return 0
 
     def _monk_level(self) -> int:
         """Monk levels, which is what Diamond Soul's resistance is built from."""

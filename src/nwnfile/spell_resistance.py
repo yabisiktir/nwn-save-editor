@@ -41,11 +41,18 @@ SR_COST_TABLE = "iprp_srcost"
 MAX_CASTER_ROLL = 66
 
 _BONUS_LABEL = re.compile(r"Bonus_(\d+)", re.IGNORECASE)
-#: PRC grants resistance as feats named exactly this.
+#: PRC grants racial resistance as feats named exactly this. The number is a
+#: **base, not the total**: the manual's page for each one reads "The creature
+#: has an innate spell resistance of 17, plus 1 per level", so on a level-40
+#: character "Spell Resistance 17" is 57. Reading the name as the answer
+#: understates such a character by their entire level.
 _SR_FEAT = re.compile(r"^Spell Resistance (\d+)$", re.IGNORECASE)
 #: A monk's Diamond Soul: 10 + monk level, raised by Improved Spell Resistance.
 _DIAMOND_SOUL = "diamond soul"
 _IMPROVED_SR = "improved spell resistance"
+#: Each Improved Spell Resistance feat (there are ten) is worth 2, not 1 —
+#: ``nImprovedSR += 2`` in PRC's own prc_forsaker.nss.
+_IMPROVED_SR_STEP = 2
 
 
 @dataclass(frozen=True)
@@ -86,13 +93,19 @@ class SpellResistance:
 
 
 def spell_resistance(
-    player, stack=None, name_of=None, feat_name=None, monk_level: int = 0
+    player,
+    stack=None,
+    name_of=None,
+    feat_name=None,
+    monk_level: int = 0,
+    character_level: int = 0,
 ) -> SpellResistance:
     """Read every source of spell resistance the save records.
 
     ``stack`` resolves the cost table that turns a stored row into a number;
     without it item resistance cannot be valued and is left out rather than
-    guessed at.
+    guessed at. ``character_level`` scales PRC's racial resistance feats, which
+    grant their number *plus one per level*.
     """
     values = _cost_table(stack)
     sources: list[Source] = []
@@ -106,12 +119,12 @@ def spell_resistance(
             sources.append(Source(_item_label(item, name_of), value, "item"))
 
     if feat_name is not None:
-        sources.extend(_feat_sources(player, feat_name, monk_level))
+        sources.extend(_feat_sources(player, feat_name, monk_level, character_level))
 
     return SpellResistance(tuple(sorted(sources, key=lambda s: -s.value)))
 
 
-def _feat_sources(player, feat_name, monk_level: int) -> list[Source]:
+def _feat_sources(player, feat_name, monk_level: int, character_level: int) -> list[Source]:
     names: list[str] = []
     for feat_id in _feats(player):
         try:
@@ -122,12 +135,17 @@ def _feat_sources(player, feat_name, monk_level: int) -> list[Source]:
             names.append(str(name))
 
     out: list[Source] = []
-    improved = sum(1 for n in names if n.lower().startswith(_IMPROVED_SR))
+    improved = _IMPROVED_SR_STEP * sum(
+        1 for n in names if n.strip().lower().startswith(_IMPROVED_SR)
+    )
     for name in names:
-        match = _SR_FEAT.match(name.strip())
+        label = name.strip()
+        match = _SR_FEAT.match(label)
         if match:
-            out.append(Source(name.strip(), int(match.group(1)), "feat"))
-        elif name.strip().lower() == _DIAMOND_SOUL and monk_level:
+            base = int(match.group(1))
+            shown = f"{label} (+1 per level)" if character_level else label
+            out.append(Source(shown, base + character_level, "feat"))
+        elif label.lower() == _DIAMOND_SOUL and monk_level:
             out.append(Source(
                 f"Diamond Soul (monk {monk_level})", 10 + monk_level + improved, "feat"
             ))

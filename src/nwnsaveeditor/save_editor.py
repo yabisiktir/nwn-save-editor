@@ -1095,13 +1095,15 @@ class SaveEditor:
             self._player_struct(self._module_tree()), races, name_of, classes
         )
 
-    def spell_resistance(self, stack=None, name_of=None, feat_name=None, monk_level=0):
+    def spell_resistance(
+        self, stack=None, name_of=None, feat_name=None, monk_level=0, character_level=0
+    ):
         """Every source of spell resistance on the character, greatest first."""
         from nwnfile.spell_resistance import spell_resistance
 
         return spell_resistance(
             self._player_struct(self._module_tree()),
-            stack, name_of, feat_name, monk_level,
+            stack, name_of, feat_name, monk_level, character_level,
         )
 
     def applied_templates(self) -> list[str]:
