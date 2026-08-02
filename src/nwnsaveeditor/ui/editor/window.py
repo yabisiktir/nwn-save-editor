@@ -129,6 +129,7 @@ class SaveEditorWindow(QMainWindow):
         self._current: SaveGame | None = None
         self._session = None  # SaveEditor, built on the first edit
         self._races = None  # RaceTable for the open save's haks
+        self._classes = None  # ClassTable for the open save's haks
         self._editing = False
         self._nav_rows: dict[str, w.NavRow] = {}
         self._save_rows: list[_SaveRow] = []
@@ -491,6 +492,17 @@ class SaveEditorWindow(QMainWindow):
         if self._races is None or self._races.stack != stack:
             self._races = RaceTable(stack)
         return self._races
+
+    def class_table(self):
+        """``classes.2da`` and the stat gains each class grants as it levels."""
+        from nwnfile.class_tables import ClassTable
+
+        stack = self.hak_stack()
+        if stack is None:
+            return None
+        if self._classes is None or self._classes.stack != stack:
+            self._classes = ClassTable(stack)
+        return self._classes
 
     def _hak_dir(self):
         user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)

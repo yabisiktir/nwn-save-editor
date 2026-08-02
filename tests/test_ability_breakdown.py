@@ -231,3 +231,99 @@ def test_a_hak_the_player_has_removed_is_skipped_not_fatal(tmp_path):
 def test_a_module_with_no_haks_is_not_an_error():
     assert hak_names_from_module(_struct()) == ()
     assert HakStack.for_module((), None).haks == ()
+
+
+# -- abilities a class grants as it levels ------------------------------------ #
+CLASSES = """2DA V2.0
+
+    Label            StatGainTable
+1   Bard             ****
+37  Dragon_Disciple  cls_stat_dradis
+"""
+
+DRADIS = """2DA V2.0
+
+    Level Str  Con  Int  Cha
+0   1     **** **** **** ****
+1   2     2    **** **** ****
+2   3     **** **** **** ****
+3   4     2    **** **** ****
+4   5     **** **** **** ****
+5   6     **** **** **** ****
+6   7     **** 2    **** ****
+7   8     **** **** **** ****
+8   9     **** **** 2    ****
+9   10    4    **** **** 2
+"""
+
+
+class _ClassStack(HakStack):
+    def read_text(self, name, res_type, *, base=True):
+        return {"classes": CLASSES, "cls_stat_dradis": DRADIS}.get(name)
+
+
+@pytest.fixture
+def classes():
+    from nwnfile.class_tables import ClassTable
+
+    return ClassTable(_ClassStack())
+
+
+def _with_classes(*levels):
+    """A character carrying a ClassList of ``(class id, level)``."""
+    character = _character()
+    character.fields["ClassList"] = _list(*[
+        _struct(Class=_int(c), ClassLevel=_int(lv)) for c, lv in levels
+    ])
+    return character
+
+
+def test_class_levels_raise_abilities_and_are_not_stored(classes):
+    """A Red Dragon Disciple's Strength is re-added on load, never written back."""
+    assert classes.gains(37, 10) == {"Str": 8, "Con": 2, "Int": 2, "Cha": 2}
+
+
+def test_only_levels_actually_reached_count(classes):
+    assert classes.gains(37, 6) == {"Str": 4}
+    assert classes.gains(37, 1) == {}
+    assert classes.gains(37, 0) == {}
+
+
+def test_a_class_that_grants_nothing_has_no_table(classes):
+    assert classes.stat_gain_table(1) == ""
+    assert classes.gains(1, 20) == {}
+
+
+def test_the_class_row_is_named_with_its_level(classes, races):
+    strength = ability_breakdown(_with_classes((37, 10)), races, classes=classes)[0]
+    assert ("Dragon Disciple 10", 8, "class") in [
+        (c.source, c.amount, c.kind) for c in strength.components
+    ]
+    assert strength.total == 45  # 29 stored + 8 race + 8 class
+
+
+def test_every_class_in_a_multiclass_contributes(classes, races):
+    rows = ability_breakdown(_with_classes((1, 8), (37, 10)), races, classes=classes)
+    assert rows[0].total == 45
+    assert len(rows[0].of_kind("class")) == 1  # Bard grants no ability
+
+
+def test_without_the_table_the_class_row_is_absent_not_zero(races):
+    assert ability_breakdown(_with_classes((37, 10)), races)[0].of_kind("class") == ()
+
+
+def test_the_owners_character_adds_up_to_what_the_game_shows(classes, races):
+    """Strength 29 stored, 70 in play: race +8, Dragon Disciple +8, gear +25."""
+    character = _with_classes((37, 10))
+    character.fields["Equip_ItemList"] = _list(
+        _item("Belt of the Warrior", _property(0, 10)),
+        _item("Planar Shroud", _property(0, 4)),
+        _item("Ring of the All-Rounder", _property(0, 5)),
+        _item(
+            "base_prc_skin", _property(0, 6),
+            variables=[("PRC_CBon_Names", 1),
+                       ("PRC_CBon_Names_0", "Template_Halftroll_str"),
+                       ("Template_Halftroll_str", 6)],
+        ),
+    )
+    assert ability_breakdown(character, races, classes=classes)[0].total == 70

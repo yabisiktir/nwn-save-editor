@@ -1075,17 +1075,19 @@ class SaveEditor:
         """``module.ifo``'s root struct — where the module's hak list is recorded."""
         return self._module_tree().root
 
-    def ability_breakdown(self, races=None, name_of=None):
-        """Per-ability totals: base score, racial adjustment, templates, worn items.
+    def ability_breakdown(self, races=None, name_of=None, classes=None):
+        """Per-ability totals: base, race, class levels, PRC templates, worn items.
 
         The save stores base scores, so this is what the game's character sheet
-        shows and ours otherwise cannot. ``races`` is a ``RaceTable`` built from
-        this save's own haks; without it the racial row is omitted rather than
-        assumed to be zero.
+        shows and ours otherwise cannot. ``races`` and ``classes`` are tables
+        built from this save's own haks; without one, that row is omitted rather
+        than assumed to be zero.
         """
         from nwnfile.ability_breakdown import ability_breakdown
 
-        return ability_breakdown(self._player_struct(self._module_tree()), races, name_of)
+        return ability_breakdown(
+            self._player_struct(self._module_tree()), races, name_of, classes
+        )
 
     def applied_templates(self) -> list[str]:
         """PRC templates applied to the character, from the registry on its skin."""

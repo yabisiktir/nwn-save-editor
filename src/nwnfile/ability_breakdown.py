@@ -15,12 +15,13 @@ from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 
 from nwnfile import prc_bonuses
+from nwnfile.class_tables import ClassTable, character_classes
 from nwnfile.races import ABILITY_FIELDS, RaceTable
 
 #: ``PropertyName`` 0 is Ability Bonus; its ``Subtype`` indexes ABILITY_FIELDS.
 _ABILITY_BONUS = 0
 
-_KIND_ORDER = {"race": 0, "template": 1, "item": 2}
+_KIND_ORDER = {"race": 0, "class": 1, "template": 2, "item": 3}
 
 
 @dataclass(frozen=True)
@@ -61,13 +62,16 @@ class _Accumulator:
 
 
 def ability_breakdown(
-    player, races: RaceTable | None = None, name_of=None
+    player,
+    races: RaceTable | None = None,
+    name_of=None,
+    classes: ClassTable | None = None,
 ) -> list[AbilityTotal]:
     """Per-ability totals for a character struct from ``Mod_PlayerList[0]``.
 
-    ``races`` supplies the racial adjustment; without it the race row is simply
-    absent rather than assumed to be zero, because a missing table and a race
-    with no adjustment are different claims.
+    ``races`` and ``classes`` supply the adjustments the engine re-applies on
+    load; without either, that row is simply absent rather than assumed to be
+    zero, because a missing table and a genuine nothing are different claims.
     """
     acc = {f: _Accumulator() for f in ABILITY_FIELDS}
 
@@ -76,6 +80,14 @@ def ability_breakdown(
         label = races.label(race_id) or f"Race {race_id}"
         for ability, amount in races.adjustments(race_id).items():
             acc[ability].components.append(Component(label, amount, "race"))
+
+    if classes is not None:
+        for class_id, level in character_classes(player):
+            label = classes.label(class_id) or f"Class {class_id}"
+            for ability, amount in classes.gains(class_id, level).items():
+                acc[ability].components.append(
+                    Component(f"{label} {level}", amount, "class")
+                )
 
     for item in _equipped(player):
         _add_item(item, acc, name_of)

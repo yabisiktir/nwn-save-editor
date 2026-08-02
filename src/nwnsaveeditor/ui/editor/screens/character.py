@@ -362,7 +362,9 @@ class CharacterScreen(QWidget):
         back is what lets this show a total instead of a number that looks wrong.
         """
         try:
-            rows = self._window.session().ability_breakdown(self._window.race_table())
+            rows = self._window.session().ability_breakdown(
+                self._window.race_table(), classes=self._window.class_table()
+            )
         except Exception:
             return {}
         return {row.field: row for row in rows}
