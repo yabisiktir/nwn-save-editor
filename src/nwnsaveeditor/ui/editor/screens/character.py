@@ -401,6 +401,11 @@ class CharacterScreen(QWidget):
         line.addWidget(_fact("AC:", str(info.armor_class), accent))
         current = self._field_value("CurrentHitPoints", info.current_hit_points)
         line.addWidget(_fact("HP:", f"{current} / {info.hit_points}", accent))
+        resistance = self._spell_resistance()
+        if resistance is not None and resistance.sources:
+            fact = _fact("Spell resistance:", str(resistance.effective), accent)
+            fact.setToolTip(_resistance_tooltip(resistance))
+            line.addWidget(fact)
         line.addStretch(1)
         box.addLayout(line)
         box.addWidget(w.body(
@@ -471,6 +476,35 @@ class CharacterScreen(QWidget):
             t.TEXT_3, 11,
         ))
         return holder
+
+    def _spell_resistance(self):
+        """Spell resistance and its sources, or ``None`` if it cannot be read."""
+        try:
+            session = self._window.session()
+            names = {feat_id: name for feat_id, name, _base in session.player_feats()}
+            return session.spell_resistance(
+                self._window.hak_stack(),
+                self._window.item_name,
+                names.get,
+                self._monk_level(),
+            )
+        except Exception:
+            return None
+
+    def _monk_level(self) -> int:
+        """Monk levels, which is what Diamond Soul's resistance is built from."""
+        try:
+            from nwnfile.class_tables import character_classes
+
+            session = self._window.session()
+            player = session._player_struct(session._module_tree())
+            classes = self._window.class_table()
+            for class_id, level in character_classes(player):
+                if classes is not None and classes.label(class_id).lower() == "monk":
+                    return level
+        except Exception:
+            pass
+        return 0
 
     def _scores_in_play(self, info) -> dict[str, int]:
         """Ability scores after race, class levels, templates and worn gear.
@@ -1245,6 +1279,27 @@ def _sheet_divider() -> QFrame:
     line.setFixedHeight(1)
     line.setStyleSheet(f"background:{t.hairline(0.12)};border:none;")
     return line
+
+
+def _resistance_tooltip(resistance) -> str:
+    """Name every source, and say plainly that only one of them counts."""
+    applies = resistance.applies
+    lines = [f"Spell resistance {resistance.effective}", f"    from {applies.label}"]
+    if resistance.overridden:
+        lines.append("")
+        lines.append("Also present, but doing nothing — resistance does not stack,")
+        lines.append("only the greatest source applies:")
+        lines += [f"    {s.value}\t{s.label}" for s in resistance.overridden]
+    lines.append("")
+    lines.append(
+        "A caster rolls d20 + caster level + spell penetration against this."
+        if not resistance.immune_to_player_casters
+        else "Above 66, so no spell a player can cast will get through."
+    )
+    lines.append(
+        "Resistance from the spell of the same name is temporary and is not counted."
+    )
+    return "\n".join(lines)
 
 
 _KIND_WORD = {"race": "race", "template": "template", "item": "worn"}

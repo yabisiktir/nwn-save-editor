@@ -1095,6 +1095,15 @@ class SaveEditor:
             self._player_struct(self._module_tree()), races, name_of, classes
         )
 
+    def spell_resistance(self, stack=None, name_of=None, feat_name=None, monk_level=0):
+        """Every source of spell resistance on the character, greatest first."""
+        from nwnfile.spell_resistance import spell_resistance
+
+        return spell_resistance(
+            self._player_struct(self._module_tree()),
+            stack, name_of, feat_name, monk_level,
+        )
+
     def applied_templates(self) -> list[str]:
         """PRC templates applied to the character, from the registry on its skin."""
         from nwnfile import prc_bonuses
