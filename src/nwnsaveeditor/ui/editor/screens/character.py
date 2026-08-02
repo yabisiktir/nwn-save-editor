@@ -719,8 +719,11 @@ class CharacterScreen(QWidget):
         layout.addWidget(panel)
         layout.addWidget(w.body(
             "Total is rank + the skill's key ability modifier + bonuses from "
-            "equipped gear. Feat and spell effects are not included — the save "
-            "stores only ranks, and the rest is the engine's to recompute.",
+            "equipped gear; hover one to see every part. The modifier comes from "
+            "the ability score in play, which is how your race, class levels and "
+            "any PRC templates reach a skill — none of them has skill columns of "
+            "its own. Feat and spell effects are not included: the save stores "
+            "only ranks, and the rest is the engine's to recompute.",
             t.TEXT_3, 11.5,
         ))
         layout.addStretch(1)
@@ -728,13 +731,18 @@ class CharacterScreen(QWidget):
     def _skill_totals(self, skills, info) -> list:
         from nwnsaveeditor import skill_totals
 
+        # The scores in play, not the stored ones: a skill's modifier comes from
+        # the ability *after* race, class levels and templates, so the stored
+        # score understates every skill of an adjusted character.
         abilities = dict(getattr(info, "abilities", {}) or {})
+        for field, row in self._ability_gear().items():
+            abilities[field] = abilities.get(field, row.base) + row.added
         try:
             items = self._window.session().player_items()
         except Exception:
             items = []
         return skill_totals.compute(
-            skills, abilities, items, self._window.game_root()
+            skills, abilities, items, self._window.game_root(), self._window.hak_stack()
         )
 
     def _skill_row(self, skill, total=None) -> QWidget:
@@ -755,7 +763,7 @@ class CharacterScreen(QWidget):
             shown.setFixedWidth(46)
             shown.setStyleSheet(shown.styleSheet() + "font-weight:700;")
             shown.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            shown.setToolTip("rank + key ability + gear")
+            shown.setToolTip(total.detail())
             line.addWidget(shown)
             line.addSpacing(12)
 
