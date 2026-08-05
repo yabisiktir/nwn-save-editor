@@ -61,6 +61,8 @@ The toolbar's rule mode decides how far a value may go.
 
 ### Character
 
+![The Character section, on Abilities & Combat](images/character.png)
+
 Six tabs.
 
 - **Abilities & Combat** — the character sheet: ability scores with their modifiers,
@@ -77,6 +79,8 @@ Six tabs.
   portrait. Race, appearance and portrait are pickers. A PRC race is badged and warns
   before staging, because PRC builds its races from scripts and the creature skin,
   not from the stored byte alone.
+
+  ![Choosing a portrait from a grid of the pictures](images/portrait-picker.png)
 
   **Portrait is a grid of the actual pictures**, because `dw_f_07_` tells you nothing
   and there are 1,594 of them. It opens on the ones that fit this character — only 275
@@ -101,6 +105,8 @@ Six tabs.
   the one place it is edited.
 
 ### Inventory & Equipment
+
+![Equipment slots, creature slots and the carried bag](images/inventory.png)
 
 A paperdoll of the worn slots, the carried bag grouped by container, and a detail
 panel for the selected item.
@@ -147,6 +153,8 @@ a level-6 wizard spell in a bard's cantrips. A PRC prestige spellbook is badged 
 warns first.
 
 ### Quests & World State
+
+![The module's variables, with a search box above them](images/world-state.png)
 
 The module's persistent script variables. Object and location variables are shown but
 not editable — they are runtime handles, and setting one by hand points a script at

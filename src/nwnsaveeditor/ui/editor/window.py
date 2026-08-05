@@ -193,7 +193,9 @@ class SaveEditorWindow(QMainWindow):
         layout.setContentsMargins(20, 0, 20, 0)
         layout.setSpacing(12)
 
-        wordmark = self._wordmark = QLabel("VAULTKEEPER")
+        from nwnsaveeditor.ui.editor.host import wordmark_for
+
+        wordmark = self._wordmark = QLabel(wordmark_for(self._controller))
         wordmark.setStyleSheet(
             f"font-family:{t.DISPLAY_FAMILY};font-size:15px;font-weight:700;"
             f"letter-spacing:0.04em;color:{t.GOLD};background:transparent;"

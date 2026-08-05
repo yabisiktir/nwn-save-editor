@@ -30,6 +30,14 @@ from nwnsaveeditor.ui.editor.tokens import THEMES
 #: standalone run must never write into the embedding application's config.
 STANDALONE_SETTINGS = "save_editor.json"
 
+#: What the title bar says when nothing tells it otherwise.
+#:
+#: A host that embeds the editor puts its own name here, because to the person
+#: using it the editor is part of that application. Running on its own it is not
+#: part of anything, and said "VAULTKEEPER" for a while — an application the user
+#: may not have installed.
+DEFAULT_WORDMARK = "NWN SAVE EDITOR"
+
 
 @runtime_checkable
 class EditorContext(Protocol):
@@ -41,7 +49,12 @@ class EditorContext(Protocol):
 
 @runtime_checkable
 class EditorHost(Protocol):
-    """What the editor requires of its host. See also the optional lookup above."""
+    """What the editor requires of its host. See also the optional lookup above.
+
+    A host may also carry a ``wordmark`` — the name shown in the title bar. It is
+    optional, like ``portrait_path`` and ``set_game_paths``: without one the
+    editor uses :data:`DEFAULT_WORDMARK` and calls itself what it is.
+    """
 
     ctx: EditorContext
 
@@ -50,6 +63,12 @@ class EditorHost(Protocol):
 
     def set_save_editor_theme(self, name: str) -> None:
         """Remember the chosen theme."""
+
+
+def wordmark_for(controller) -> str:
+    """The name to show for whoever is hosting the editor."""
+    name = getattr(controller, "wordmark", "") if controller is not None else ""
+    return str(name).strip() or DEFAULT_WORDMARK
 
 
 class _Context:

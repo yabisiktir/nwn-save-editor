@@ -2,6 +2,8 @@
 
 Read and edit **Neverwinter Nights** save games — and the file formats behind them.
 
+![The character sheet: abilities as stored and as played, with every bonus attributed](docs/images/character.png)
+
 Two packages:
 
 - **`nwnfile`** — the formats (GFF, ERF, 2DA, TLK, KEY/BIF, TGA, PLT) and the game
@@ -12,6 +14,23 @@ Two packages:
 
 The arrows point one way and tests hold them there: `nwnfile` never imports
 `nwnsaveeditor`, and never imports Qt.
+
+## A look at it
+
+Inventory and equipment, with each item's real in-game icon — worked out from the
+game's own files, including the ones custom content adds:
+
+![Equipment slots as the game lays them out, creature slots, and the carried bag](docs/images/inventory.png)
+
+The module's persistent script variables — the flags and counters a campaign uses
+to remember what you did — searchable and editable:
+
+![Quests & World State: the module's variables, filtered](docs/images/world-state.png)
+
+Portraits are chosen by looking at them. Only 275 of the game's 1,594 are of
+people at all, so it opens on the ones that fit this character:
+
+![A grid of portraits, filtered to the ones that fit the character](docs/images/portrait-picker.png)
 
 ## Running it
 

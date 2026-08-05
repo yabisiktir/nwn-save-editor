@@ -255,3 +255,47 @@ def test_a_path_is_a_Path_not_a_string(tmp_path):
     host = _standalone(tmp_path)
     host.set_game_paths(game_root=tmp_path / "x")
     assert isinstance(host.ctx.game_root, Path)
+
+
+# -- who the editor says it is ---------------------------------------------- #
+def test_it_calls_itself_the_save_editor_when_nobody_hosts_it():
+    """It said "VAULTKEEPER" — an application a standalone user may not have."""
+    from nwnsaveeditor.ui.editor.host import DEFAULT_WORDMARK, wordmark_for
+
+    assert wordmark_for(None) == DEFAULT_WORDMARK == "NWN SAVE EDITOR"
+
+    class _Bare:
+        pass
+
+    assert wordmark_for(_Bare()) == DEFAULT_WORDMARK
+
+
+def test_a_host_may_put_its_own_name_on_it():
+    """Opened from an application, the editor is part of that application."""
+    from nwnsaveeditor.ui.editor.host import wordmark_for
+
+    class _Host:
+        wordmark = "VAULTKEEPER"
+
+    assert wordmark_for(_Host()) == "VAULTKEEPER"
+
+    class _Blank:
+        wordmark = "   "
+
+    assert wordmark_for(_Blank()) == "NWN SAVE EDITOR"  # not an empty title bar
+
+
+def test_the_window_shows_it(qtbot, tmp_path):
+    from types import SimpleNamespace
+
+    from tests.test_save_editor import _make_char_save
+
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+
+    class _Host:
+        wordmark = "SOMETHING ELSE"
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+    window = SaveEditorWindow([_make_char_save(tmp_path)], _Host())
+    qtbot.addWidget(window)
+    assert window._wordmark.text() == "SOMETHING ELSE"
