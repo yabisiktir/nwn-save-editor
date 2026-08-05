@@ -722,12 +722,12 @@ class CharacterScreen(QWidget):
         from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
 
         looks = self._window.look_tables()
+        if field.kind != "appearance":
+            self._pick_portrait(field, looks)
+            return
         # The picker takes (id, name) pairs. Handing it a mapping iterates the
         # keys, so each "pair" is a bare int and it raises before it ever shows.
-        if field.kind == "appearance":
-            options = sorted(looks.appearance_options().items())
-        else:
-            options = list(enumerate(looks.portrait_resrefs()))
+        options = sorted(looks.appearance_options().items())
         dialog = w.style_dialog(
             IdPickerDialog(field.display, options, value_header=field.display, parent=self)
         )
@@ -736,13 +736,33 @@ class CharacterScreen(QWidget):
         chosen = dialog.selected_id()
         if chosen is None:
             return
-        session = self._window.session()
-        if field.kind == "appearance":
-            session.set_character_field(field.field, int(chosen), where=field.display)
-        else:
-            session.set_character_resref(
-                field.field, looks.portrait_resrefs()[int(chosen)], where=field.display
-            )
+        self._window.session().set_character_field(
+            field.field, int(chosen), where=field.display
+        )
+        self._window.notify_changed()
+
+    def _pick_portrait(self, field, looks) -> None:
+        """Portraits are chosen by looking at them, not by reading ``dw_f_07_``."""
+        from PySide6.QtWidgets import QDialog
+
+        from nwnsaveeditor.ui.dialogs.portrait_picker_dialog import PortraitPickerDialog
+
+        info = self._window.character_info()
+        dialog = w.style_dialog(PortraitPickerDialog(
+            looks.portrait_entries(),
+            self._window.portrait_source(),
+            current=getattr(info, "portrait_resref", "") or "",
+            female=bool(self._window.character_is_female()),
+            parent=self,
+        ))
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        chosen = dialog.selected_resref()
+        if not chosen:
+            return
+        self._window.session().set_character_resref(
+            field.field, chosen, where=field.display
+        )
         self._window.notify_changed()
 
     def _build_skills(self, layout: QVBoxLayout, info) -> None:

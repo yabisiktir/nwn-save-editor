@@ -570,13 +570,21 @@ class _Looks:
     def portrait_resrefs(self):
         return ["po_hu_m_11_", "po_el_f_01_"]
 
+    def portrait_entries(self):
+        from nwnfile.look_tables import PortraitEntry
+
+        return [
+            PortraitEntry("po_hu_m_11_", sex=0, race=6),
+            PortraitEntry("po_el_f_01_", sex=1, race=1),
+        ]
+
     def appearance_name(self, value):
         return self.appearance_options().get(int(value), str(value))
 
 
-def test_the_look_pickers_open_at_all(window, screen, monkeypatch):
-    """They were handed a mapping, which the picker iterates as bare ints — so
-    clicking Appearance or Portrait raised before the dialog ever appeared."""
+def test_the_appearance_picker_opens_at_all(window, screen, monkeypatch):
+    """It was handed a mapping, which the picker iterates as bare ints — so
+    clicking Appearance raised before the dialog ever appeared."""
     monkeypatch.setattr(window, "look_tables", lambda: _Looks())
     window._edit_toggle.setChecked(True)
     fields = {f.field: f for f in window.session().player_fields()}
@@ -589,12 +597,32 @@ def test_the_look_pickers_open_at_all(window, screen, monkeypatch):
     monkeypatch.setattr(
         "nwnsaveeditor.ui.dialogs.id_picker_dialog.IdPickerDialog", _spy
     )
-    for name in ("Appearance_Type", "Portrait"):
-        with pytest.raises(_Stop):
-            screen._pick_look(fields[name])
-
+    with pytest.raises(_Stop):
+        screen._pick_look(fields["Appearance_Type"])
     assert shown["Appearance"] == [(1, "Dwarf male"), (6, "Human male")]
-    assert shown["Portrait"] == [(0, "po_hu_m_11_"), (1, "po_el_f_01_")]
+
+
+def test_the_portrait_picker_shows_pictures_not_a_list_of_resrefs(window, screen, monkeypatch):
+    """"po_hu_m_11_" says nothing about what the portrait looks like, and there
+    are 1,594 of them. The portrait field gets the visual picker instead."""
+    monkeypatch.setattr(window, "look_tables", lambda: _Looks())
+    window._edit_toggle.setChecked(True)
+    fields = {f.field: f for f in window.session().player_fields()}
+    seen = {}
+
+    def _spy(entries, source, **kw):
+        seen["entries"] = list(entries)
+        seen["current"] = kw.get("current")
+        raise _Stop
+
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.dialogs.portrait_picker_dialog.PortraitPickerDialog", _spy
+    )
+    with pytest.raises(_Stop):
+        screen._pick_look(fields["Portrait"])
+    assert [e.resref for e in seen["entries"]] == ["po_hu_m_11_", "po_el_f_01_"]
+    # It opens on whatever the character already wears, so OK is a no-op.
+    assert seen["current"] == "po_hu_m_11_"
 
 
 class _Stop(Exception):

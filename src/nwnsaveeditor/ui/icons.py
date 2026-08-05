@@ -17,6 +17,21 @@ from PySide6.QtGui import QIcon, QImage, QPixmap
 DEFAULT_PORTRAIT_BOX = 128
 
 
+def crop_portrait(pixmap: QPixmap) -> QPixmap:
+    """Trim a portrait's power-of-two padding — the flat shelf under the face.
+
+    The picture is 64x100 inside a 64x128 file; without this every portrait is
+    shown sitting on a band of whatever colour its bottom row happens to be.
+    """
+    from nwnfile.portrait_images import art_height
+
+    height = art_height(pixmap.width(), pixmap.height())
+    return (
+        pixmap if height >= pixmap.height()
+        else pixmap.copy(0, 0, pixmap.width(), height)
+    )
+
+
 def _pixmap(image) -> QPixmap | None:
     """A QPixmap from a decoded image, or ``None`` if it is not usable."""
     if image is None or image.width <= 0 or image.height <= 0:
@@ -34,6 +49,7 @@ def tga_to_pixmap(path: Path, *, box: int = DEFAULT_PORTRAIT_BOX) -> QPixmap | N
     pixmap = _pixmap(TGAReader().read_file(path))
     if pixmap is None:
         return None
+    pixmap = crop_portrait(pixmap)
     return pixmap.scaled(
         box, box,
         Qt.AspectRatioMode.KeepAspectRatio,

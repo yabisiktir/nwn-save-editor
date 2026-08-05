@@ -470,6 +470,23 @@ class SaveEditorWindow(QMainWindow):
             dirs += [root / "ovr", root / "override", root / "portraits"]
         return [d for d in dirs if d is not None and d.is_dir()]
 
+    def portrait_source(self):
+        """Where portrait pictures come from, for the current install.
+
+        Portraits live in three different places under two different naming
+        conventions — see :mod:`nwnfile.portrait_images`.
+        """
+        from nwnfile.portrait_images import portrait_source_for
+
+        try:
+            return portrait_source_for(
+                self._game_root(),
+                tuple(self.portrait_dirs(self.save)),
+                self._hak_dir(),
+            )
+        except Exception:
+            return None
+
     def look_tables(self):
         """appearance.2da / portraits.2da options for the current install."""
         from nwnfile.look_tables import LookTables

@@ -77,6 +77,13 @@ Six tabs.
   portrait. Race, appearance and portrait are pickers. A PRC race is badged and warns
   before staging, because PRC builds its races from scripts and the creature skin,
   not from the stored byte alone.
+
+  **Portrait is a grid of the actual pictures**, because `dw_f_07_` tells you nothing
+  and there are 1,594 of them. It opens on the ones that fit this character — only 275
+  of the base game's portraits are of people at all, the rest being creatures and
+  scenery — with **Male**, **Female** and **Everything** a click away and a name filter
+  beside them. Whatever the character already wears stays on screen even when the
+  filter excludes it, so OK never confirms something you cannot see.
 - **Skills** — rank and the computed total (rank + key ability + equipped-item
   bonuses), sortable and filterable.
 - **Feats** — add and remove. PRC feats are badged: PRC regenerates them onto the

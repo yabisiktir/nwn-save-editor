@@ -8,6 +8,7 @@ present (both tables are commonly extended by custom content).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from nwnfile.cache import by_install
@@ -18,6 +19,31 @@ from nwnfile.item_property_tables import parse_2da
 _2DA_RESTYPE = 2017
 #: haks (in the user hak folder) that commonly override appearance/portraits.
 _LOOK_HAKS = ("prc8_2das.hak", "cep2_add_cc.hak", "cep2_core5.hak")
+
+#: ``portraits.2da`` Sex codes. 4 is the catch-all the table gives creatures
+#: and placeables — 1,318 of the base game's 1,594 rows.
+SEX_MALE, SEX_FEMALE = 0, 1
+
+
+@dataclass(frozen=True)
+class PortraitEntry:
+    """One portrait: its base resref and who ``portraits.2da`` says it is for."""
+
+    resref: str
+    sex: int | None = None
+    race: int | None = None
+
+    @property
+    def humanoid(self) -> bool:
+        """Whether this is a portrait for a person rather than a beast or a barrel."""
+        return self.sex in (SEX_MALE, SEX_FEMALE)
+
+
+def _as_int(raw) -> int | None:
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 class LookTables:
@@ -30,6 +56,7 @@ class LookTables:
         self._cache: dict[str, dict[int, dict[str, str]] | None] = {}
         self._appearance: dict[int, str] | None = None
         self._portraits: list[str] | None = None
+        self._portrait_entries: list[PortraitEntry] | None = None
 
     @classmethod
     @by_install
@@ -54,6 +81,30 @@ class LookTables:
 
     def appearance_name(self, appearance_id: int) -> str:
         return self.appearance_options().get(appearance_id, f"#{appearance_id}")
+
+    def portrait_entries(self) -> list[PortraitEntry]:
+        """Every portrait with the two things worth narrowing 1,594 of them by.
+
+        ``portraits.2da`` carries a ``Sex`` and a ``Race`` per row, and they matter
+        more than they look: of the base game's 1,594 portraits only **275** are
+        humanoid at all (``Sex`` 0 or 1) — the other 1,318 are creatures and
+        placeables, which nobody is picking for a player character. Offering the
+        raw list makes the useful ones a needle in the rest.
+        """
+        if self._portrait_entries is None:
+            table = self._read("portraits")
+            seen: set[str] = set()
+            out: list[PortraitEntry] = []
+            for row in (table or {}).values():
+                ref = row.get("BaseResRef", "****")
+                if ref in ("", "****") or ref.lower() in seen:
+                    continue
+                seen.add(ref.lower())
+                out.append(PortraitEntry(
+                    resref=ref, sex=_as_int(row.get("Sex")), race=_as_int(row.get("Race"))
+                ))
+            self._portrait_entries = out
+        return self._portrait_entries
 
     def portrait_resrefs(self) -> list[str]:
         """Distinct portrait ``BaseResRef`` values (a valid portrait list)."""
