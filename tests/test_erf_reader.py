@@ -9,12 +9,14 @@ from __future__ import annotations
 import struct
 from pathlib import Path
 
+from tests import real_data
+
 from nwnfile.formats.erf_reader import (
     ErfReader,
     extension_for_res_type,
 )
 
-NIT_STORE = Path("/Users/example/Documents/NIT Store")
+NIT_STORE = real_data.nit_store()
 
 
 def _build_erf(resources: list[tuple[str, int, bytes]], tag: bytes = b"HAK ") -> bytes:
@@ -104,14 +106,16 @@ def test_extension_fallback_for_unknown_type() -> None:
 
 def test_real_hak_resources() -> None:
     """Validate against a real CEP hak: resource count, resref, type→extension."""
+    import pytest
+
+    if NIT_STORE is None:
+        pytest.skip(real_data.REASON)
     hak = (
         NIT_STORE
         / "Profiles/Enhanced Edition Mods/CEP v2.x/.Mod Installer/hak/cep2_add_rules.hak"
     )
     if not hak.is_file():
-        import pytest
-
-        pytest.skip("NIT Store CEP hak not present")
+        pytest.skip("that store has no CEP hak to compare against")
 
     reader = ErfReader()
     info = reader.read_info(hak)
@@ -125,14 +129,16 @@ def test_real_hak_resources() -> None:
 
 def test_real_hak_type_mapping() -> None:
     """Spot-check the restype→extension registry against a mixed real hak."""
+    import pytest
+
+    if NIT_STORE is None:
+        pytest.skip(real_data.REASON)
     hak = (
         NIT_STORE
         / "Profiles/Enhanced Edition Mods/CEP v2.x/.Mod Installer/hak/cep2_top_v21.hak"
     )
     if not hak.is_file():
-        import pytest
-
-        pytest.skip("NIT Store CEP hak not present")
+        pytest.skip("that store has no CEP hak to compare against")
 
     exts = {r.extension for r in ErfReader().list_resources(hak)}
     # This hak holds 2DA and item-palette (itp) resources.
