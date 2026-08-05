@@ -83,6 +83,16 @@ knowing if you move between machines:
 | Windows | `%USERPROFILE%\Documents\Neverwinter Nights` |
 | Linux | `~/.local/share/Neverwinter Nights` — **not** `Documents` |
 
+### Item icons
+
+An item's picture is worked out from the game's own files. **Custom content keeps
+its icons in haks** — CEP's Robes of Sesustris has one that exists nowhere else —
+so the user's hak folder is searched too, and that is **on by default**: without
+it every custom item falls back to its type's generic picture, which looks broken
+rather than unconfigured. The cost is one index the first time an icon is wanted,
+measured at about a second over 112 haks. Both this and "work each item's own icon
+out" can be turned off under **Settings…**.
+
 ### The settings file
 
 | Platform | Path |
@@ -94,6 +104,8 @@ knowing if you move between machines:
 ```json
 {
   "save_editor_theme": "dark",
+  "hak_item_icons": true,
+  "exact_item_icons": true,
   "game_root": "/path/to/Neverwinter Nights",
   "game_user_dir": "/path/to/Documents/Neverwinter Nights"
 }

@@ -729,6 +729,16 @@ class SaveEditorWindow(QMainWindow):
         self._icons = _icon_source(self._controller)
         self._build_ui()
 
+    def reload_icons(self) -> None:
+        """Rebuild after the icon options changed.
+
+        The source caches what it has already decoded and, with hak search on,
+        an index of every hak — so it is replaced rather than asked again, and
+        the shell rebuilt because screens hold the pixmaps it produced.
+        """
+        self._icons = _icon_source(self._controller)
+        self._build_ui()
+
     def _set_theme(self, name: str) -> None:
         """Switch the editor's palette and rebuild the window in it.
 

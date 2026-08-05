@@ -63,6 +63,19 @@ class SettingsDialog(QDialog):
             "and the names come from the game's 2DAs and dialog.tlk.",
         ))
 
+        if self.icons_editable():
+            column.addWidget(w.hline())
+            column.addWidget(w.cap_label("Item icons"))
+            column.addWidget(self._icon_toggle(
+                "exact_item_icons", "Show each item's own icon",
+                "Off, every item of a type shows that type's one picture.",
+            ))
+            column.addWidget(self._icon_toggle(
+                "hak_item_icons", "Look in your haks too",
+                "Custom content keeps its icons in haks — without this a CEP or PRC "
+                "item falls back to a generic picture. Costs about a second, once.",
+            ))
+
         column.addWidget(w.hline())
         column.addWidget(w.cap_label("Appearance"))
         theme = w.SegmentedControl((("dark", "Dark"), ("light", "Light")))
@@ -89,6 +102,40 @@ class SettingsDialog(QDialog):
     def editable(self) -> bool:
         """Whether the paths are the editor's to change."""
         return hasattr(self._host, "set_game_paths")
+
+    def icons_editable(self) -> bool:
+        """Whether the icon options are the editor's to change.
+
+        Same rule as the folders: a host offering its own icon settings owns
+        them, and a toggle here would write somewhere the editor never reads.
+        """
+        return hasattr(self._host, "set_item_icon_options")
+
+    def _icon_toggle(self, key: str, label: str, blurb: str) -> QWidget:
+        from PySide6.QtWidgets import QCheckBox
+
+        holder = QWidget()
+        holder.setStyleSheet("background:transparent;")
+        row = QVBoxLayout(holder)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(2)
+        settings = self._host._settings() if hasattr(self._host, "_settings") else None
+        box = QCheckBox(label)
+        box.setChecked(bool(getattr(settings, key, True)))
+        box.setStyleSheet(
+            f"color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:13px;"
+        )
+        box.toggled.connect(lambda on, k=key: self._set_icon_option(k, on))
+        row.addWidget(box)
+        note = w.body(blurb, t.TEXT_3, 11.5)
+        note.setWordWrap(True)
+        row.addWidget(note)
+        return holder
+
+    def _set_icon_option(self, key: str, value: bool) -> None:
+        """Apply at once — an icon toggle has nothing to validate or cancel."""
+        self._host.set_item_icon_options(**{key: value})
+        self._window.reload_icons()
 
     def _host_name(self) -> str:
         """Whatever opened the editor, named as well as it can be."""

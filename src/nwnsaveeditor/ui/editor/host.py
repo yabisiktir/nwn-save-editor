@@ -78,8 +78,25 @@ class _Context:
 
 
 class _Settings:
-    def __init__(self, save_editor_theme: str) -> None:
+    def __init__(
+        self,
+        save_editor_theme: str,
+        hak_item_icons: bool = True,
+        exact_item_icons: bool = True,
+    ) -> None:
         self.save_editor_theme = save_editor_theme
+        #: Search the user's haks for item icons as well as the game's own files.
+        #:
+        #: **On by default here**, unlike in a host that offers its own setting.
+        #: Custom content keeps its icons in haks — the picture for CEP's Robes of
+        #: Sesustris exists nowhere else — so with this off, every custom item
+        #: falls back to its type's generic picture and the inventory looks wrong
+        #: rather than looking unconfigured. The cost is one lazy index the first
+        #: time an icon is wanted: measured at 0.96s over 112 haks and 19.8 GB,
+        #: after which a lookup is a third of a millisecond.
+        self.hak_item_icons = hak_item_icons
+        #: Work each item's own icon out, rather than showing one picture per type.
+        self.exact_item_icons = exact_item_icons
 
 
 class StandaloneHost:
@@ -105,6 +122,8 @@ class StandaloneHost:
         self._theme = saved.get("save_editor_theme", "dark")
         if self._theme not in THEMES:
             self._theme = "dark"
+        self._hak_item_icons = bool(saved.get("hak_item_icons", True))
+        self._exact_item_icons = bool(saved.get("exact_item_icons", True))
 
         root = game_root or _saved_dir(saved, "game_root") or default_game_root()
         user = game_user_dir or _saved_dir(saved, "game_user_dir") or default_user_dir()
@@ -113,12 +132,27 @@ class StandaloneHost:
 
     # -- the protocol ------------------------------------------------------- #
     def _settings(self) -> _Settings:
-        return _Settings(self._theme)
+        return _Settings(self._theme, self._hak_item_icons, self._exact_item_icons)
 
     def set_save_editor_theme(self, name: str) -> None:
         if name not in THEMES:
             return
         self._theme = name
+        self._write()
+
+    def set_item_icon_options(
+        self, *, hak_item_icons: bool | None = None, exact_item_icons: bool | None = None
+    ) -> None:
+        """Change how item icons are looked up, and remember it.
+
+        Offered for the same reason ``set_game_paths`` is: its presence tells the
+        settings screen these are the editor's to change. A host with its own
+        icon settings does not offer it, and the screen leaves them alone.
+        """
+        if hak_item_icons is not None:
+            self._hak_item_icons = bool(hak_item_icons)
+        if exact_item_icons is not None:
+            self._exact_item_icons = bool(exact_item_icons)
         self._write()
 
     def set_game_paths(
@@ -150,7 +184,11 @@ class StandaloneHost:
         return data if isinstance(data, dict) else {}
 
     def _write(self) -> None:
-        payload = {"save_editor_theme": self._theme}
+        payload = {
+            "save_editor_theme": self._theme,
+            "hak_item_icons": self._hak_item_icons,
+            "exact_item_icons": self._exact_item_icons,
+        }
         for key, value in (("game_root", self.ctx.game_root),
                            ("game_user_dir", self.ctx.game_user_dir)):
             if value is not None:

@@ -299,3 +299,72 @@ def test_the_window_shows_it(qtbot, tmp_path):
     window = SaveEditorWindow([_make_char_save(tmp_path)], _Host())
     qtbot.addWidget(window)
     assert window._wordmark.text() == "SOMETHING ELSE"
+
+
+# -- item icons, standalone -------------------------------------------------- #
+def test_hak_icons_are_on_by_default_when_the_editor_runs_alone(tmp_path):
+    """Off, every custom item falls back to its type's generic picture.
+
+    The owner installed the standalone build and reported that CEP's Robes of
+    Sesustris showed the wrong image "again" — its icon, ipm_robe171, exists only
+    inside a hak, and the standalone host carried no such setting so the lookup
+    defaulted to skipping haks entirely.
+    """
+    from nwnsaveeditor.ui.editor.host import StandaloneHost
+
+    settings = StandaloneHost(settings_dir=tmp_path)._settings()
+    assert settings.hak_item_icons is True
+    assert settings.exact_item_icons is True
+
+
+def test_the_icon_options_are_remembered(tmp_path):
+    from nwnsaveeditor.ui.editor.host import StandaloneHost
+
+    host = StandaloneHost(settings_dir=tmp_path)
+    host.set_item_icon_options(hak_item_icons=False)
+    assert StandaloneHost(settings_dir=tmp_path)._settings().hak_item_icons is False
+
+    host = StandaloneHost(settings_dir=tmp_path)
+    host.set_item_icon_options(hak_item_icons=True, exact_item_icons=False)
+    reloaded = StandaloneHost(settings_dir=tmp_path)._settings()
+    assert reloaded.hak_item_icons is True
+    assert reloaded.exact_item_icons is False
+
+
+def test_the_setting_actually_reaches_the_icon_lookup(tmp_path):
+    """The setting is only worth anything if it changes where icons are searched."""
+    from nwnsaveeditor.ui.editor.host import StandaloneHost
+    from nwnsaveeditor.ui.icons import item_icon_source
+
+    user = tmp_path / "user"
+    (user / "hak").mkdir(parents=True)
+    host = StandaloneHost(game_root=tmp_path / "NWN", game_user_dir=user,
+                          settings_dir=tmp_path)
+
+    host.set_item_icon_options(hak_item_icons=True)
+    assert item_icon_source(host)._hak_dir == user / "hak"
+
+    host.set_item_icon_options(hak_item_icons=False)
+    assert item_icon_source(host)._hak_dir is None
+
+
+def test_a_host_that_owns_the_setting_is_not_second_guessed(tmp_path):
+    """Same rule as the folders: no toggle that would write where nothing reads."""
+    from types import SimpleNamespace
+
+    from nwnsaveeditor.ui.editor.settings import SettingsDialog
+
+    class _Owns:
+        ctx = SimpleNamespace(game_root=None, game_user_dir=None)
+
+        def _settings(self):
+            return SimpleNamespace(save_editor_theme="dark", hak_item_icons=False)
+
+    dialog = SettingsDialog.__new__(SettingsDialog)
+    dialog._host = _Owns()
+    assert not dialog.icons_editable()
+
+    from nwnsaveeditor.ui.editor.host import StandaloneHost
+
+    dialog._host = StandaloneHost(settings_dir=tmp_path)
+    assert dialog.icons_editable()
