@@ -51,7 +51,9 @@ def test_hak_lookup_finds_custom_icon(tmp_path):
     source._base_items = {52: ("it_ring", "iit_ring", 0)}  # candidates -> ring_100
     assert source.icon_bytes(52, 100) == b"CUSTOM-RING-TGA"
     # Cached + index built once.
-    assert source._hak_index is not None and "iit_ring_100" in source._hak_index
+    # Keyed by (resref, type): the same name can exist as a TGA and as a PLT.
+    assert source._hak_index is not None
+    assert ("iit_ring_100", 3) in source._hak_index
     # A resref no hak carries stays unresolved.
     assert source.icon_bytes(52, 7) is None
 
@@ -152,3 +154,46 @@ def test_two_suits_of_armour_do_not_share_one_cached_picture():
     source._reader = _FakeReader({})
     assert source.icon_image(16, 0, armor_torso=28) == "image:ipm_chest028"
     assert source.icon_image(16, 0, armor_torso=33) == "image:ipm_chest033"
+
+
+def test_a_custom_icon_stored_as_a_plt_is_found_in_a_hak(tmp_path):
+    """CEP's ``ipm_robe171`` — the Robes of Sesustris — is a PLT, not a TGA.
+
+    Indexing only TGAs made every such item unreachable however well its resref
+    was worked out, and it fell back to the generic breastplate.
+    """
+    hak_dir = tmp_path / "hak"
+    hak_dir.mkdir()
+    (hak_dir / "cep.hak").write_bytes(
+        _build_erf([("ipm_robe171", ItemIconSource.PLT_RES_TYPE, b"PLT-ROBE")])
+    )
+    source = ItemIconSource(None, hak_dir=hak_dir)
+    assert source._hak_bytes("ipm_robe171", ItemIconSource.PLT_RES_TYPE) == b"PLT-ROBE"
+    # A TGA of the same name is a different entry, and absent here.
+    assert source._hak_bytes("ipm_robe171") is None
+
+
+def test_a_composite_item_is_its_three_parts_drawn_over_one_another():
+    """Potions, boots, rods and weapons are all ModelType 2.
+
+    ModelPart1 alone names only the bottom of three, so a shelf of different
+    potions all showed the same generic bottle.
+    """
+    source = ItemIconSource(None)
+    source._base_items = {49: ("it_potion", "iit_potion", 2)}
+    asked: list[str] = []
+    source._first_image = lambda names: asked.extend(names) or None
+    source.icon_image(49, 12, model_part2=11, model_part3=21)
+    assert asked[:3] == ["iit_potion_b_012", "iit_potion_m_011", "iit_potion_t_021"]
+    # Having found none of them it falls back, which is the honest answer.
+    assert "iit_potion" in asked
+
+
+def test_default_only_mode_asks_for_nothing_but_the_type_icon():
+    """The setting: uniform per-type pictures, no per-variant search at all."""
+    source = ItemIconSource(None, exact=False)
+    source._base_items = {49: ("it_potion", "iit_potion", 2), 16: _ARMOUR}
+    assert source._candidates(49, 12, model_part2=11) == ["iit_potion"]
+    assert source._candidates(16, 0, armor_torso=29) == ["iit_chest"]
+    # And no composite layering is attempted either.
+    assert source._composite_image(49, 12, {"model_part2": 11}) is None

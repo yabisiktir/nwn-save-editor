@@ -115,6 +115,10 @@ class EditableItem:
     base_item: int
     model_part: int
     properties: list[EditableProperty]
+    #: Composite items are three parts drawn over one another; ``model_part``
+    #: alone names only the bottom of the three.
+    model_part2: int = 0
+    model_part3: int = 0
     #: Armour has no ``ModelPart1``; its inventory picture comes from the torso
     #: part (or the robe, when it wears one). See :mod:`nwnfile.item_icons`.
     armor_torso: int = 0
@@ -1000,6 +1004,8 @@ class SaveEditor:
             name_strref=name_strref, resref=resref,
             base_item=struct.get("BaseItem") or -1,
             model_part=struct.get("ModelPart1") or 0,
+            model_part2=struct.get("ModelPart2") or 0,
+            model_part3=struct.get("ModelPart3") or 0,
             armor_torso=struct.get("ArmorPart_Torso") or 0,
             armor_robe=struct.get("ArmorPart_Robe") or 0,
             properties=props,

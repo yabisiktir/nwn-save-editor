@@ -54,6 +54,8 @@ def load_item_icon(source, item, *, female: bool = False) -> QIcon | None:
     pixmap = _pixmap(source.icon_image(
         item.base_item,
         item.model_part,
+        model_part2=getattr(item, "model_part2", 0),
+        model_part3=getattr(item, "model_part3", 0),
         armor_torso=getattr(item, "armor_torso", 0),
         armor_robe=getattr(item, "armor_robe", 0),
         female=female,
@@ -65,7 +67,9 @@ def item_icon_source(host):
     """An ``ItemIconSource`` over the host's game install.
 
     With the host's ``hak_item_icons`` setting on, the user's hak folder is
-    searched too — opt-in, because the first lookup scans every hak.
+    searched too — opt-in, because the first lookup scans every hak. With
+    ``exact_item_icons`` off, no per-variant icon is worked out at all and every
+    item of a type shows that type's one default picture.
     """
     from nwnfile.item_icons import icon_source_for
 
@@ -79,4 +83,5 @@ def item_icon_source(host):
             hak_dir = user_dir / "hak"
     # Keyed on the install: it indexes the game's KEY/BIF (and every hak when
     # the setting is on), which is much too slow to redo per window.
-    return icon_source_for(game_root, hak_dir)
+    exact = getattr(settings, "exact_item_icons", True)
+    return icon_source_for(game_root, hak_dir, exact)
