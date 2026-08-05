@@ -368,3 +368,14 @@ def test_a_host_that_owns_the_setting_is_not_second_guessed(tmp_path):
 
     dialog._host = StandaloneHost(settings_dir=tmp_path)
     assert dialog.icons_editable()
+
+
+def test_the_guide_credits_the_formats_work_it_was_built_on():
+    """The readers for GFF, ERF, TGA and the character record were ported from
+    the NWN Installer Tool. That belongs where a user can see it, not only in a
+    module docstring."""
+    from nwnsaveeditor.ui.editor.guide import _help_html
+
+    html = _help_html()
+    assert "LazWorks" in html
+    assert "NWN Installer Tool" in html

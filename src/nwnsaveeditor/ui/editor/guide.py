@@ -107,6 +107,10 @@ load, so an edit there may not stick — the editor warns before staging one.</p
 </ul>
 <p><b>Test an edited save in-game before relying on it</b>, especially anything
 PRC-related.</p>
+
+<h3>Thanks</h3>
+<p>To <b>Louis (LazWorks)</b>, author of the <i>NWN Installer Tool</i>. Its
+file-format code, converted to Python, is part of what this editor is built on.</p>
 """
 
 

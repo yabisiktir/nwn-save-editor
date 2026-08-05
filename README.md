@@ -168,6 +168,13 @@ folder before swapping. See [docs/save_game_editor.md](docs/save_game_editor.md)
 [Vaultkeeper](https://github.com/yabisiktir/vaultkeeper), an NWN mod installer and
 manager, embeds this editor and ships it inside its own application.
 
+## Thanks
+
+To **Louis (LazWorks)**, author of the *NWN Installer Tool*. Its file-format code,
+converted to Python, is part of what this is built on — NWN's formats are not
+documented by BioWare, and having a known-correct implementation to work from is
+why this reads real saves rather than an approximation of them.
+
 ## Licence
 
 GPL-3.0-or-later.
