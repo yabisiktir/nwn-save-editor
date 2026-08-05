@@ -93,3 +93,30 @@ def test_the_result_is_tga_shaped_so_callers_need_no_new_path():
     assert (image.width, image.height) == (3, 2)
     assert image.has_alpha
     assert len(image.to_rgba()) == 3 * 2 * 4
+
+
+# -- orientation ------------------------------------------------------------ #
+def test_the_image_comes_out_the_right_way_up():
+    """PLT rows run bottom-to-top; everything that displays one wants top-down.
+
+    Never flipping them is why armour, helms and cloaks — the parts that ship as
+    PLT rather than TGA — were all upside down, while TGA items looked right
+    because the TGA reader has always flipped its own.
+    """
+    # Two rows, distinguishable by value: the file's first row is the BOTTOM one.
+    plt = read_plt(_plt(2, 2, [(200, 0), (200, 0), (10, 0), (10, 0)]))
+    image = colour_plt(plt, {LAYER_PALETTES[0]: _palette()})
+    rgba = image.to_rgba()
+    row_width = image.width * 4
+    top, bottom = rgba[:row_width], rgba[row_width:]
+    # The palette encodes the value in the red channel, so the row is identifiable.
+    assert top[0] == 10, "the file's LAST row must end up at the top"
+    assert bottom[0] == 200, "the file's FIRST row is the bottom of the picture"
+
+
+def test_flipping_does_not_mirror_the_image_sideways():
+    """Only the row order changes; a column stays where it is."""
+    # One row of four, each pixel a different value.
+    plt = read_plt(_plt(4, 1, [(1, 0), (2, 0), (3, 0), (4, 0)]))
+    rgba = colour_plt(plt, {LAYER_PALETTES[0]: _palette()}).to_rgba()
+    assert [rgba[i * 4] for i in range(4)] == [1, 2, 3, 4]

@@ -16,7 +16,10 @@ offset       meaning
 24           ``width * height`` pairs of ``(value, layer)`` bytes
 ===========  ======================================================
 
-Rows run bottom-to-top, as in TGA.
+Rows run bottom-to-top, as in TGA — and as with TGA they are **flipped on the way
+out**, so what this returns is top-down like every consumer expects. Knowing the
+fact was not enough: the note was here while the flip was not, and every armour,
+helm and cloak in the editor was displayed upside down.
 
 The result is deliberately :class:`~nwnfile.formats.tga_reader.TGAImage`
 shaped so callers that already know how to show a TGA need no new path, and this
@@ -89,17 +92,25 @@ def colour_plt(plt: Plt, palettes: dict[str, object], tints: dict[int, int] | No
 
     out = bytearray(plt.width * plt.height * 4)
     for index, (value, layer) in enumerate(zip(plt.values, plt.layers, strict=False)):
+        # PLT rows run bottom-to-top; every consumer here wants top-to-bottom, so
+        # each pixel is written into the mirrored row. Without this armour, helms
+        # and cloaks — the parts that ship as PLT rather than TGA — all came out
+        # upside down, while TGA items looked right because the TGA reader has
+        # always flipped its own.
+        y, x = divmod(index, plt.width)
+        target = ((plt.height - 1 - y) * plt.width + x) * 4
+
         name = LAYER_PALETTES[layer] if layer < len(LAYER_PALETTES) else None
         entry = rows.get(name) if name else None
         if entry is None:
             # No palette for this layer: fall back to greyscale from the value, so
             # the artwork still reads rather than vanishing.
-            out[index * 4:index * 4 + 4] = bytes((value, value, value, 255))
+            out[target:target + 4] = bytes((value, value, value, 255))
             continue
         pixels, width, height = entry
         row = min(tints.get(layer, 0), height - 1)
         offset = ((row * width) + min(value, width - 1)) * 4
-        out[index * 4:index * 4 + 4] = pixels[offset:offset + 4]
+        out[target:target + 4] = pixels[offset:offset + 4]
 
     return TGAImage(
         width=plt.width, height=plt.height, pixel_data=bytes(out), has_alpha=True
