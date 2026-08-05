@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QPushButton, QSpinBox
 
 from nwnsaveeditor.ui.editor.window import SaveEditorWindow
@@ -157,3 +158,47 @@ def test_it_refreshes_with_the_screen_only_while_shown(window, monkeypatch):
     monkeypatch.setattr(raw._reference, "refresh", lambda: calls.append(1))
     raw.refresh()
     assert not calls, "a hidden panel must not pay for every tree rebuild"
+
+
+def test_typing_in_the_filter_does_not_throw_you_out_of_the_box(window, qtbot):
+    """Filtering rebuilds the list on every keystroke.
+
+    A search box built *inside* refresh() is destroyed by the very keystroke
+    being typed into it — focus and caret go with it, and the next letter lands
+    nowhere. So the box has to survive a refresh, keep its focus, and keep the
+    text and cursor position the user typed.
+    """
+    from nwnsaveeditor.ui.editor.screens.property_reference import (
+        PropertyReferenceScreen,
+    )
+
+    # Shown on its own: the panel is hidden inside Raw Data by default, and a
+    # child of a hidden parent can never take focus.
+    screen = PropertyReferenceScreen(window)
+    qtbot.addWidget(screen)
+    screen.show()
+    qtbot.waitExposed(screen)
+    box = screen._search
+    box.setFocus()
+    qtbot.waitUntil(lambda: box.hasFocus(), timeout=2000)
+
+    qtbot.keyClicks(box, "skill")
+    assert box.text() == "skill"
+    assert box.hasFocus()
+    assert box.cursorPosition() == len("skill")
+    assert screen._filter == "skill"
+    assert "Ability" not in _texts(screen)
+
+    # And backspacing is the same story in reverse.
+    qtbot.keyClick(box, Qt.Key.Key_Backspace)
+    assert box.text() == "skil"
+    assert box.hasFocus()
+    assert box.cursorPosition() == len("skil")
+
+
+def test_the_filter_box_is_the_same_widget_across_a_refresh(screen):
+    """The identity is the fix: a rebuilt box is a different, unfocused widget."""
+    before = screen._search
+    screen.refresh()
+    assert screen._search is before
+    assert screen._search.parent() is not None  # still in the layout, not orphaned

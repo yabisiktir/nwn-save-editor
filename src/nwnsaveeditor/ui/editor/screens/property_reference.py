@@ -53,6 +53,24 @@ class PropertyReferenceScreen(QWidget):
         self._left.setSpacing(8)
         outer.addWidget(left)
 
+        # The heading, the search box and the list's scroll area are built once
+        # and never rebuilt. Typing in the box calls refresh() on every keystroke,
+        # so a box built *inside* refresh() is destroyed under the user's hands —
+        # focus and caret go with it. Keeping it alive but re-attaching would not
+        # help either: setParent(None) clears focus on the way past.
+        self._left.addWidget(w.heading("Properties"))
+        self._search = QLineEdit()
+        self._search.setPlaceholderText("Filter by name or id…")
+        self._search.setStyleSheet(_input_qss())
+        self._search.textChanged.connect(self._set_filter)
+        self._left.addWidget(self._search)
+
+        self._list_scroll = QScrollArea()
+        self._list_scroll.setWidgetResizable(True)
+        self._list_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        self._list_scroll.setStyleSheet(w.scroll_area_qss())
+        self._left.addWidget(self._list_scroll, 1)
+
         self._detail_scroll = QScrollArea()
         self._detail_scroll.setWidgetResizable(True)
         self._detail_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
@@ -89,26 +107,20 @@ class PropertyReferenceScreen(QWidget):
 
     # -- rebuilding -------------------------------------------------------- #
     def refresh(self) -> None:
-        _clear(self._left)
+        """Rebuild only the property list; the heading, search box and scroll
+        area are the screen's furniture and are left exactly where they are."""
         tables = self._tables()
-        self._left.addWidget(w.heading("Properties"))
         if tables is None or not tables.available:
-            self._left.addWidget(w.body(
+            self._search.setVisible(False)
+            w.set_scroll_widget(self._list_scroll, w.body(
                 "The game's iprp_* tables could not be read. Set the game folder "
                 "in Settings and reopen the editor.",
                 t.TEXT_3, 12.5,
             ))
-            self._left.addStretch(1)
             self._show_detail(None)
             return
 
-        search = QLineEdit()
-        search.setPlaceholderText("Filter by name or id…")
-        search.setText(self._filter)
-        search.setStyleSheet(_input_qss())
-        search.textChanged.connect(self._set_filter)
-        self._left.addWidget(search)
-
+        self._search.setVisible(True)
         needle = self._filter.strip().lower()
         ids = [
             pid for pid in tables.property_ids()
@@ -128,7 +140,7 @@ class PropertyReferenceScreen(QWidget):
         for pid in ids:
             column.addWidget(self._row(pid, tables, pid in carried))
         column.addStretch(1)
-        self._left.addWidget(_scroll(holder), 1)
+        w.set_scroll_widget(self._list_scroll, holder)
         self._show_detail(self._selected)
 
     def _row(self, property_id: int, tables, mine: bool) -> QWidget:
@@ -260,25 +272,6 @@ def _input_qss() -> str:
         f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};"
         f"font-size:12px;padding:6px 9px;}}"
     )
-
-
-def _scroll(body: QWidget) -> QScrollArea:
-    area = QScrollArea()
-    area.setWidgetResizable(True)
-    area.setFrameShape(QScrollArea.Shape.NoFrame)
-    area.setStyleSheet(w.scroll_area_qss())
-    area.setWidget(body)
-    return area
-
-
-def _clear(layout) -> None:
-    while layout.count():
-        item = layout.takeAt(0)
-        widget = item.widget()
-        if widget is not None:
-            w.retire(widget)
-        elif item.layout() is not None:
-            _clear(item.layout())
 
 
 def _left_click(action):

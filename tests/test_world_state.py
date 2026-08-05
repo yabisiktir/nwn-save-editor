@@ -145,3 +145,73 @@ def test_a_module_field_the_save_lacks_is_rejected(editor):
     editor._module_tree().root.fields.pop("Mod_MaxHenchmen", None)
     with pytest.raises(SaveEditError, match="has no Mod_MaxHenchmen"):
         editor.set_module_field("Mod_MaxHenchmen", 4)
+
+
+# -- the screen's search box ------------------------------------------------- #
+def test_typing_in_the_search_does_not_throw_you_out_of_the_box(qtbot, tmp_path):
+    """Searching rebuilds the variable list on every keystroke.
+
+    A box built *inside* refresh() is destroyed by the very keystroke being typed
+    into it — focus and the caret go with it, so the next letter lands nowhere.
+    The box has to outlive a refresh, keep focus, and keep the cursor where the
+    user left it. Owner-reported against Quests & World State.
+    """
+    from types import SimpleNamespace
+
+    from PySide6.QtCore import Qt
+
+    from nwnsaveeditor.ui.editor.screens.quests import QuestsScreen
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+    seed = SaveEditor(_make_char_save_with_details(tmp_path))
+    seed._module_tree().root.fields["VarTable"] = GffField(GffType.LIST, GffList([
+        _var("QUEST_STAGE", INT, GffType.INT, 3),
+        _var("PLAYER_TITLE", STRING, GffType.CEXOSTRING, "Hero"),
+    ]))
+    seed.set_character_field("Gold", 1, where="Gold")
+    saved = seed.save_as(tmp_path / "with-vars-ui")
+
+    window = SaveEditorWindow([saved], _Ctrl())
+    qtbot.addWidget(window)
+    screen = QuestsScreen(window)  # shown on its own so it can take focus
+    qtbot.addWidget(screen)
+    screen.show()
+    qtbot.waitExposed(screen)
+
+    box = screen._search
+    box.setFocus()
+    qtbot.waitUntil(lambda: box.hasFocus(), timeout=2000)
+
+    qtbot.keyClicks(box, "quest")
+    assert box.text() == "quest"
+    assert box.hasFocus()
+    assert box.cursorPosition() == len("quest")
+    assert screen._filter == "quest"
+
+    qtbot.keyClick(box, Qt.Key.Key_Backspace)
+    assert box.text() == "ques"
+    assert box.hasFocus()
+    assert box.cursorPosition() == len("ques")
+
+
+def test_the_search_box_survives_a_refresh_as_the_same_widget(qtbot, tmp_path):
+    """The identity is the fix: a rebuilt box is a different, unfocused widget."""
+    from types import SimpleNamespace
+
+    from nwnsaveeditor.ui.editor.screens.quests import QuestsScreen
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+    window = SaveEditorWindow([_make_char_save_with_details(tmp_path)], _Ctrl())
+    qtbot.addWidget(window)
+    screen = QuestsScreen(window)
+    qtbot.addWidget(screen)
+    before = screen._search
+    screen.refresh()
+    assert screen._search is before
+    assert screen._search.parent() is not None  # still in the layout, not orphaned

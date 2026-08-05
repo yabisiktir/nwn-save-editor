@@ -64,12 +64,37 @@ class QuestsScreen(QWidget):
         self._pages.addWidget(self._variables_page)
         outer.addWidget(self._pages, 1)
 
-        # One scroll area for the life of the screen: rebuilding it would throw
-        # the view back to the top on every edit and every "Show more".
+        # Everything above the list is built once and never rebuilt. Filtering
+        # calls refresh() on every keystroke, so anything refresh() re-creates is
+        # re-created *under the user's hands* — for the search box that meant the
+        # widget being typed into was destroyed mid-keystroke, losing focus and
+        # the caret with it. Re-attaching a kept-alive widget is not enough
+        # either: setParent(None) clears focus on the way past. The fix is for
+        # refresh() not to touch this region at all.
+        header = QHBoxLayout()
+        self._count_label = w.cap_label("")
+        header.addWidget(self._count_label)
+        header.addStretch(1)
+        self._variables_layout.addLayout(header)
+
+        self._search = QLineEdit()
+        self._search.setPlaceholderText("Search by name or value…")
+        self._search.setStyleSheet(
+            f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
+            f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};"
+            f"font-size:12px;padding:6px 9px;}}"
+        )
+        self._search.textChanged.connect(self._set_filter)
+        self._variables_layout.addWidget(self._search)
+
+        # One scroll area for the life of the screen, for the same reason:
+        # rebuilding it would throw the view back to the top on every edit and
+        # every "Show more".
         self._list_scroll = QScrollArea()
         self._list_scroll.setWidgetResizable(True)
         self._list_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         self._list_scroll.setStyleSheet(w.scroll_area_qss())
+        self._variables_layout.addWidget(self._list_scroll, 1)
 
         self.refresh()
 
@@ -87,36 +112,25 @@ class QuestsScreen(QWidget):
 
     # -- rebuilding --------------------------------------------------------- #
     def refresh(self) -> None:
-        self._variables_layout.removeWidget(self._list_scroll)
-        self._list_scroll.setParent(None)  # kept alive by self, not by the layout
-        _clear(self._variables_layout)
+        """Rebuild only the list. The caption, the search box and the scroll area
+        are the screen's furniture and are left exactly where they are."""
         variables = self._variables()
         if not variables:
-            self._variables_layout.addWidget(w.body(
+            self._count_label.setText("")
+            self._search.setVisible(False)
+            w.set_scroll_widget(self._list_scroll, w.body(
                 "This module keeps no persistent variables.", t.TEXT_2, 13
             ))
-            self._variables_layout.addStretch(1)
             self._show_tab()
             return
 
+        self._search.setVisible(True)
         visible = [v for v in variables if matches(v, self._filter)]
-        header = QHBoxLayout()
-        header.addWidget(w.cap_label(
-            f"Module variables — {len(visible)} of {len(variables)}"
-        ))
-        header.addStretch(1)
-        self._variables_layout.addLayout(header)
-
-        search = QLineEdit()
-        search.setPlaceholderText("Search by name or value…")
-        search.setText(self._filter)
-        search.setStyleSheet(
-            f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
-            f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};"
-            f"font-size:12px;padding:6px 9px;}}"
+        # cap_label upper-cases what it is *built* with; setText afterwards does
+        # not, so do it here rather than rely on the literal being typed in caps.
+        self._count_label.setText(
+            f"Module variables — {len(visible)} of {len(variables)}".upper()
         )
-        search.textChanged.connect(self._set_filter)
-        self._variables_layout.addWidget(search)
 
         pending = self._pending_keys()
         body = QWidget()
@@ -143,7 +157,6 @@ class QuestsScreen(QWidget):
             column.addWidget(holder)
         column.addStretch(1)
         w.set_scroll_widget(self._list_scroll, body)
-        self._variables_layout.addWidget(self._list_scroll, 1)
         self._show_tab()
 
     def _row(self, variable, dirty: bool) -> QWidget:
@@ -216,20 +229,3 @@ class QuestsScreen(QWidget):
         self._window.notify_changed()
 
 
-def _scroll(body: QWidget) -> QScrollArea:
-    area = QScrollArea()
-    area.setWidgetResizable(True)
-    area.setFrameShape(QScrollArea.Shape.NoFrame)
-    area.setStyleSheet(w.scroll_area_qss())
-    area.setWidget(body)
-    return area
-
-
-def _clear(layout) -> None:
-    while layout.count():
-        item = layout.takeAt(0)
-        widget = item.widget()
-        if widget is not None:
-            w.retire(widget)
-        elif item.layout() is not None:
-            _clear(item.layout())
