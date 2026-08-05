@@ -17,7 +17,7 @@ than from us guessing:
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import (
     QDialog,
@@ -40,6 +40,13 @@ from nwnsaveeditor.ui.icons import crop_portrait
 #: How many portraits to build at once. A page of this many decodes in well under
 #: a tenth of a second; the whole humanoid set takes about a second and a half.
 PAGE = 60
+
+#: Portraits decoded per turn of the event loop while filling the grid in. Small
+#: enough that a turn stays imperceptible, large enough to finish in good time.
+FILL_PER_TICK = 12
+
+#: Distinguishes "not decoded yet" from "decoded, and there is no picture".
+_UNREAD = object()
 
 #: Cell geometry. A portrait's *picture* is 64x100 — the 64x128 file is padded to
 #: a power of two, and :func:`crop_portrait` trims that off — so the cell reserves
@@ -64,6 +71,16 @@ class PortraitPickerDialog(QDialog):
         self._filter = ""
         self._who = "fits"
         self._shown = PAGE
+        #: resref -> QPixmap or None, decoded at most once each.
+        self._pixmaps: dict[str, object] = {}
+        #: Cells still waiting for their picture, and which grid they belong to.
+        self._pending: list[tuple[QLabel, str]] = []
+        #: resref -> (cell, name label), so the highlight can move without a rebuild.
+        self._cells: dict[str, tuple[QWidget, QLabel]] = {}
+        self._generation = 0
+        self._filling = QTimer(self)
+        self._filling.setInterval(0)  # between events, so the window stays alive
+        self._filling.timeout.connect(self._fill_some)
         self.setWindowTitle("Choose a Portrait")
         self.resize(760, 640)
 
@@ -144,6 +161,69 @@ class PortraitPickerDialog(QDialog):
         self._shown += PAGE
         self._render()
 
+    def _show_all(self, total: int) -> None:
+        self._shown = total
+        self._render()
+
+    # -- filling the pictures in ------------------------------------------- #
+    def _queue_picture(self, label, resref: str) -> None:
+        """Show this cell's portrait now if it is known, or line it up to be read.
+
+        Building the cells is free — 1,594 of them take 0.04s — but decoding their
+        pictures takes about three and a half seconds, so **Show all** would freeze
+        the window for as long if it did the work up front. Instead the grid appears
+        at once and fills in behind, a few per turn of the event loop.
+        """
+        cached = self._pixmaps.get(resref, _UNREAD)
+        if cached is not _UNREAD:
+            self._apply(label, cached)
+            return
+        self._pending.append((label, resref))
+        if not self._filling.isActive():
+            self._filling.start(0)
+
+    def _fill_some(self) -> None:
+        """Decode a few queued portraits, preferring the ones being looked at."""
+        generation = self._generation
+        done = 0
+        while self._pending and done < FILL_PER_TICK:
+            index = self._next_to_fill()
+            label, resref = self._pending.pop(index)
+            pixmap = self._pixmaps.setdefault(resref, self._read(resref))
+            if generation != self._generation:
+                return  # the grid was rebuilt under us; those labels are gone
+            self._apply(label, pixmap)
+            done += 1
+        if not self._pending:
+            self._filling.stop()
+
+    def _next_to_fill(self) -> int:
+        """The queued cell worth doing first — one that is actually on screen.
+
+        Without this, scrolling to the bottom of "everything" means waiting for the
+        fill to walk there from the top.
+        """
+        for index, (label, _resref) in enumerate(self._pending[:200]):
+            try:
+                if not label.visibleRegion().isEmpty():
+                    return index
+            except RuntimeError:  # the label was deleted by a rebuild
+                return index
+        return 0
+
+    def _apply(self, label, pixmap) -> None:
+        try:
+            if pixmap is None:
+                label.setText("no\nimage")
+                label.setStyleSheet(
+                    f"color:{t.TEXT_3};font-family:{t.UI_FAMILY};font-size:10px;"
+                    f"border:1px dashed {t.hairline(0.16)};border-radius:4px;"
+                )
+            else:
+                label.setPixmap(pixmap)
+        except RuntimeError:
+            pass  # rebuilt away mid-flight; the new cell will ask again
+
     # -- the grid ---------------------------------------------------------- #
     def _render(self) -> None:
         visible = self.visible_entries()
@@ -160,6 +240,11 @@ class PortraitPickerDialog(QDialog):
             + (f" — showing {len(shown)}" if len(shown) < len(visible) else "")
         )
 
+        # Anything queued or tracked belongs to the grid about to be thrown away.
+        self._generation += 1
+        self._pending.clear()
+        self._cells.clear()
+
         body = QWidget()
         body.setStyleSheet("background:transparent;")
         grid = QGridLayout(body)
@@ -171,21 +256,28 @@ class PortraitPickerDialog(QDialog):
         for index, entry in enumerate(shown):
             grid.addWidget(self._cell(entry), index // columns, index % columns)
         if len(visible) > self._shown:
+            row = QHBoxLayout()
             more = w.ghost_button(f"Show {min(PAGE, len(visible) - self._shown)} more")
             more.clicked.connect(self._show_more)
-            grid.addWidget(more, len(shown) // columns + 1, 0, 1, columns)
+            row.addWidget(more)
+            # 1,594 portraits sixty at a time is twenty-six clicks. The pictures
+            # fill in behind, so this costs a rebuild rather than a freeze.
+            total = len(visible)
+            rest = w.ghost_button(f"Show all {total}")
+            rest.setToolTip("Build every remaining cell now; the pictures fill in")
+            rest.clicked.connect(lambda _=False, n=total: self._show_all(n))
+            row.addWidget(rest)
+            row.addStretch(1)
+            holder = QWidget()
+            holder.setStyleSheet("background:transparent;")
+            holder.setLayout(row)
+            grid.addWidget(holder, len(shown) // columns + 1, 0, 1, columns)
         grid.setRowStretch(grid.rowCount(), 1)
         w.set_scroll_widget(self._scroll, body)
 
     def _cell(self, entry) -> QWidget:
-        selected = entry.resref == self._chosen
         cell = QWidget()
         cell.setFixedSize(_THUMB_W + 12, _THUMB_H + 30)
-        cell.setStyleSheet(
-            f"background:{t.gold_tint(0.18) if selected else 'transparent'};"
-            f"border:1px solid {t.GOLD if selected else t.hairline(0.12)};"
-            f"border-radius:6px;"
-        )
         cell.setCursor(Qt.CursorShape.PointingHandCursor)
         column = QVBoxLayout(cell)
         column.setContentsMargins(5, 5, 5, 4)
@@ -194,21 +286,15 @@ class PortraitPickerDialog(QDialog):
         picture = QLabel()
         picture.setFixedSize(_THUMB_W, _THUMB_H)
         picture.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        pixmap = self._pixmap(entry.resref)
-        if pixmap is not None:
-            picture.setPixmap(pixmap)
-        else:
-            picture.setText("no\nimage")
-            picture.setStyleSheet(
-                f"color:{t.TEXT_3};font-family:{t.UI_FAMILY};font-size:10px;"
-                f"border:1px dashed {t.hairline(0.16)};border-radius:4px;"
-            )
+        self._queue_picture(picture, entry.resref)
         column.addWidget(picture, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        name = w.body(entry.resref.rstrip("_"), t.GOLD if selected else t.TEXT_2, 9.5)
+        name = w.body(entry.resref.rstrip("_"), t.TEXT_2, 9.5)
         name.setAlignment(Qt.AlignmentFlag.AlignCenter)
         name.setToolTip(entry.resref)
         column.addWidget(name)
+        self._cells[entry.resref] = (cell, name)
+        self._style_cell(entry.resref, entry.resref == self._chosen)
 
         cell.mousePressEvent = _left_click(lambda r=entry.resref: self._choose(r))
         cell.mouseDoubleClickEvent = _left_click(
@@ -216,7 +302,13 @@ class PortraitPickerDialog(QDialog):
         )
         return cell
 
-    def _pixmap(self, resref: str):
+    def _read(self, resref: str):
+        """Decode one portrait. Called once per resref — the result is cached.
+
+        Without the cache every click re-decoded the whole grid, because choosing
+        rebuilds it: a fifth of a second per click at sixty cells, and two seconds
+        once everything is shown.
+        """
         from nwnfile.formats.tga_reader import TGAReader
 
         try:
@@ -237,9 +329,36 @@ class PortraitPickerDialog(QDialog):
         )
 
     # -- choosing ---------------------------------------------------------- #
+    def _style_cell(self, resref: str, selected: bool) -> None:
+        entry = self._cells.get(resref)
+        if entry is None:
+            return
+        cell, name = entry
+        try:
+            cell.setStyleSheet(
+                f"background:{t.gold_tint(0.18) if selected else 'transparent'};"
+                f"border:1px solid {t.GOLD if selected else t.hairline(0.12)};"
+                f"border-radius:6px;"
+            )
+            name.setStyleSheet(
+                name.styleSheet().rsplit("color:", 1)[0]
+                + f"color:{t.GOLD if selected else t.TEXT_2};"
+            )
+        except RuntimeError:
+            self._cells.pop(resref, None)  # rebuilt away
+
     def _choose(self, resref: str) -> None:
-        self._chosen = resref
-        self._render()
+        """Move the highlight, without rebuilding the grid to do it.
+
+        Selecting used to re-render, which at sixty cells cost a fifth of a second
+        and with everything shown nearly a whole one — every click. Only two cells
+        actually change.
+        """
+        previous, self._chosen = self._chosen, resref
+        if previous == resref:
+            return
+        self._style_cell(previous, False)
+        self._style_cell(resref, True)
 
     def _choose_and_accept(self, resref: str) -> None:
         self._chosen = resref

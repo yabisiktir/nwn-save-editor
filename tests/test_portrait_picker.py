@@ -134,3 +134,82 @@ def test_the_source_looks_past_the_portraits_folder(tmp_path):
     source = PortraitSource(None, [folder], None)
     assert source.image_bytes("custom_", "m") == b"TGA-ISH"
     assert source.image_bytes("nothing_", "m") is None
+
+
+# -- getting to all of them ------------------------------------------------- #
+def _many(count: int) -> list[PortraitEntry]:
+    return [PortraitEntry(f"hu_m_{n:03d}_", sex=0, race=6) for n in range(count)]
+
+
+class _CountingSource:
+    """Counts decodes, so a re-render doing them again is visible."""
+
+    def __init__(self):
+        self.reads = 0
+
+    def image_bytes(self, _resref, _size="m"):
+        self.reads += 1
+        return None
+
+
+def test_show_all_exists_because_sixty_at_a_time_is_twenty_six_clicks(qtbot):
+    dialog = PortraitPickerDialog(_many(200), _Source(), female=False)
+    qtbot.addWidget(dialog)
+    assert len(dialog.visible_entries()) == 200
+
+    dialog._show_all(200)
+    assert dialog._shown == 200
+    # Everything is now built, so neither button is offered any more.
+    assert "showing" not in dialog._count.text()
+
+
+def test_show_more_still_advances_a_page_at_a_time(qtbot):
+    dialog = PortraitPickerDialog(_many(200), _Source(), female=False)
+    qtbot.addWidget(dialog)
+    before = dialog._shown
+    dialog._show_more()
+    assert dialog._shown == before + 60
+
+
+def test_pictures_are_decoded_once_each_not_once_per_render(qtbot):
+    """Choosing used to rebuild the grid, re-reading every visible portrait.
+
+    At sixty cells that is a fifth of a second per click; with everything shown,
+    nearly a whole one.
+    """
+    source = _CountingSource()
+    dialog = PortraitPickerDialog(_many(10), source, female=False)
+    qtbot.addWidget(dialog)
+    dialog._fill_some()
+    dialog._fill_some()
+    first_pass = source.reads
+    assert first_pass > 0
+
+    dialog._render()          # a rebuild
+    dialog._fill_some()
+    dialog._fill_some()
+    assert source.reads == first_pass  # served from the cache, not re-read
+
+
+def test_choosing_does_not_rebuild_the_grid(qtbot):
+    """Only two cells change, so only two are restyled."""
+    dialog = PortraitPickerDialog(_many(10), _Source(), female=False)
+    qtbot.addWidget(dialog)
+    generation = dialog._generation
+    cells = dict(dialog._cells)
+
+    dialog._choose("hu_m_003_")
+    assert dialog.selected_resref() == "hu_m_003_"
+    assert dialog._generation == generation      # no re-render happened
+    assert dialog._cells == cells                # and the same widgets are in place
+
+
+def test_a_queued_picture_is_dropped_when_the_grid_is_rebuilt(qtbot):
+    """Its label is gone; filling it would touch a deleted widget."""
+    dialog = PortraitPickerDialog(_many(100), _Source(), female=False)
+    qtbot.addWidget(dialog)
+    assert dialog._pending
+    dialog._render()
+    # The queue belongs to the grid that was just thrown away.
+    assert all(resref for _label, resref in dialog._pending)
+    dialog._fill_some()  # must not raise on the old labels

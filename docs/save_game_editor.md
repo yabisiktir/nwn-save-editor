@@ -84,6 +84,11 @@ Six tabs.
   scenery — with **Male**, **Female** and **Everything** a click away and a name filter
   beside them. Whatever the character already wears stays on screen even when the
   filter excludes it, so OK never confirms something you cannot see.
+
+  **Show all** puts every match on screen at once — sixty at a time through 1,594 is
+  twenty-six clicks. The cells appear immediately and the pictures fill in behind,
+  a few per turn of the event loop, so the window stays usable while it catches up;
+  scroll anywhere and the portraits you are looking at are read first.
 - **Skills** — rank and the computed total (rank + key ability + equipped-item
   bonuses), sortable and filterable.
 - **Feats** — add and remove. PRC feats are badged: PRC regenerates them onto the
