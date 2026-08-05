@@ -115,6 +115,10 @@ class EditableItem:
     base_item: int
     model_part: int
     properties: list[EditableProperty]
+    #: Armour has no ``ModelPart1``; its inventory picture comes from the torso
+    #: part (or the robe, when it wears one). See :mod:`nwnfile.item_icons`.
+    armor_torso: int = 0
+    armor_robe: int = 0
     #: True when the item carries its own ``LocalizedName``. Without this a
     #: caller cannot tell a real name from the ``(unnamed: …)`` placeholder, and
     #: a module's "Robes of Sesustris" gets displayed under whatever its
@@ -996,6 +1000,8 @@ class SaveEditor:
             name_strref=name_strref, resref=resref,
             base_item=struct.get("BaseItem") or -1,
             model_part=struct.get("ModelPart1") or 0,
+            armor_torso=struct.get("ArmorPart_Torso") or 0,
+            armor_robe=struct.get("ArmorPart_Robe") or 0,
             properties=props,
         )
 

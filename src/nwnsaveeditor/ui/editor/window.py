@@ -372,6 +372,14 @@ class SaveEditorWindow(QMainWindow):
         """``"strict"`` or ``"free"`` — the toolbar's rule-mode choice."""
         return self._rule_mode.value()
 
+    def character_is_female(self) -> bool:
+        """Whether the character is a woman — armour is pictured as worn, so a
+        suit has a different inventory icon on each body."""
+        from nwnfile.formats.bic_reader import Gender
+
+        info = self.character_info()
+        return info is not None and info.gender is Gender.FEMALE
+
     def character_info(self):
         """The selected save's parsed character record, or ``None``.
 

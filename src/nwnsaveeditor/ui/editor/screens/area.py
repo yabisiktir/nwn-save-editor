@@ -342,6 +342,11 @@ class AreaScreen(QWidget):
         return node
 
     # -- selection --------------------------------------------------------- #
+    def _female(self) -> bool:
+        """Armour is drawn as worn, so its icon differs by the wearer's body."""
+        getter = getattr(self._window, "character_is_female", None)
+        return bool(getter()) if callable(getter) else False
+
     def _icon(self, item):
         icons = getattr(self._window, "_icons", None)
         if icons is None:
@@ -349,7 +354,7 @@ class AreaScreen(QWidget):
         from nwnsaveeditor.ui.icons import load_item_icon
 
         try:
-            return load_item_icon(icons, item)
+            return load_item_icon(icons, item, female=self._female())
         except Exception:
             return None
 

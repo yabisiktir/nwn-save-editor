@@ -173,6 +173,10 @@ class InventoryItem:
     description: str
     #: ``ModelPart1`` — the item's icon/model variant (indexes the base item's icon).
     model_part: int = 0
+    #: Armour has no ``ModelPart1`` at all: it is a set of body-part models, and its
+    #: inventory picture comes from the torso (or the robe, when it wears one).
+    armor_torso: int = 0
+    armor_robe: int = 0
     #: ``LocalizedName`` StrRef when the name is not stored inline (base items name
     #: themselves via ``dialog.tlk``); ``-1`` when a name is present inline.
     name_strref: int = -1
@@ -606,6 +610,8 @@ class BicFileReader:
             stolen=bool(value("Stolen", 0)),
             description=description,
             model_part=value("ModelPart1", 0) if isinstance(value("ModelPart1"), int) else 0,
+            armor_torso=value("ArmorPart_Torso", 0),
+            armor_robe=value("ArmorPart_Robe", 0),
             name_strref=name_strref,
             properties=properties,
             contents=contents,

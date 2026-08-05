@@ -249,6 +249,17 @@ class TestRealBic:
                 yield from _walk(it.contents)
         assert any(it.name_strref >= 0 for it in _walk(info.inventory_items))
 
+        # Armour carries no ModelPart1 at all — it is a set of body-part models,
+        # and ArmorPart_Torso is what its inventory picture is drawn from. Without
+        # this every suit fell back to one generic breastplate.
+        everything = list(_walk(info.inventory_items)) + [
+            e.item for e in info.equipped_items
+        ]
+        armour = [it for it in everything if it.base_item == 16]
+        if armour:  # this character may not be carrying any
+            assert all(it.model_part == 0 for it in armour)
+            assert all(it.armor_torso > 0 for it in armour)
+
         # Character-sheet scalars decode (raw race id kept; combat + bio present).
         assert isinstance(info.race_id, int)
         assert info.base_attack_bonus > 0

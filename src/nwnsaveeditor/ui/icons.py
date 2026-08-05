@@ -41,13 +41,23 @@ def tga_to_pixmap(path: Path, *, box: int = DEFAULT_PORTRAIT_BOX) -> QPixmap | N
     )
 
 
-def load_item_icon(source, item) -> QIcon | None:
+def load_item_icon(source, item, *, female: bool = False) -> QIcon | None:
     """An item's inventory icon as a QIcon (``None`` if unavailable).
 
     The source handles both formats — a plain TGA, or a PLT coloured through the
     game's palette textures, which cloaks and other tintable parts ship instead.
+
+    Armour is pictured as the torso it puts on the wearer, so it needs the parts
+    off the item *and* whose body they are drawn on — pass ``female`` for a woman's
+    character, or every suit shows the man's cut of it.
     """
-    pixmap = _pixmap(source.icon_image(item.base_item, item.model_part))
+    pixmap = _pixmap(source.icon_image(
+        item.base_item,
+        item.model_part,
+        armor_torso=getattr(item, "armor_torso", 0),
+        armor_robe=getattr(item, "armor_robe", 0),
+        female=female,
+    ))
     return None if pixmap is None else QIcon(pixmap)
 
 

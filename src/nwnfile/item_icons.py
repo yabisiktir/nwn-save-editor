@@ -1,11 +1,19 @@
 """Resolve an item's inventory icon (a TGA) from the installed game data.
 
-An item's picture is derived from its ``BaseItem`` (baseitems.2da row) and its
-``ModelPart1``. Simple items (``ModelType`` 0 — rings, potions, containers …) have a
-per-variant icon ``i<ItemClass>_<ModelPart1:03d>``; anything else (weapons, armour)
-uses the base item's ``DefaultIcon`` (a per-type picture). Both are TGA resources in
-the base game's BIF archives, read with :class:`KeyBifReader` (so this needs the
-install; it degrades to "no icon" without it).
+An item's picture is derived from its ``BaseItem`` (baseitems.2da row) and the
+variant fields it carries. Most items name their icon ``i<ItemClass>_<ModelPart1>``.
+Two kinds do not, and both used to fall through to the base item's ``DefaultIcon``
+— a single per-*type* picture, which is why every suit of armour looked alike:
+
+* **Armour** (``ModelType`` 3) has no ``ModelPart1`` at all. It is a set of body-part
+  models, and the inventory picture is the torso as worn: ``ipm_chest029`` for a man,
+  ``ipf_chest029`` for a woman, or ``ip?_robe0NN`` when the suit wears a robe.
+* **Cloaks** number their variants inside ``DefaultIcon`` (``icloak_m_001``) rather
+  than after the item class, so the number there is what has to be swapped.
+
+The resources are TGA or PLT in the base game's BIF archives, read with
+:class:`KeyBifReader` (so this needs the install; it degrades to "no icon" without
+it).
 
 Custom content (CEP/PRC) ships its own item-icon variants inside haks — also TGA.
 When a ``hak_dir`` is given (opt-in, it is slower), those haks are indexed once and
@@ -17,6 +25,7 @@ Returns raw TGA bytes — the Qt conversion to a pixmap lives in the UI.
 
 from __future__ import annotations
 
+import re
 import shlex
 from pathlib import Path
 
@@ -84,17 +93,66 @@ class ItemIconSource:
     #: colour, only a palette index per pixel. See nwnfile.formats.plt_reader.
     PLT_RES_TYPE = 6
 
-    def _candidates(self, base_item: int, model_part: int) -> list[str]:
+    #: ``ModelType`` 3 in baseitems.2da — armour, which is not one model but a set
+    #: of body parts. Its inventory picture is the *torso* part, drawn on the
+    #: wearer's body: ``ipm_chest029`` / ``ipf_chest029``. Nothing about that is
+    #: reachable from ``ItemClass`` (``AArCl``) or ``DefaultIcon`` (``iit_chest``,
+    #: one generic breastplate for every suit in the game).
+    _ARMOUR_MODEL_TYPE = 3
+
+    #: ``ModelType`` 0 (simple) and 1 (layered) are one model with one variant
+    #: number, so ``i<ItemClass>_<ModelPart1>`` names their icon. Composite weapons
+    #: (2) are not: theirs is assembled from three pieces and named for all of them
+    #: (``iwswss_b_011``), which nothing here attempts — they keep the generic
+    #: per-type picture they have always had.
+    _SINGLE_PART_TYPES = (0, 1)
+
+    #: A trailing variant number on a ``DefaultIcon``, e.g. ``icloak_m_001``.
+    _TRAILING_NUMBER = re.compile(r"(\d+)$")
+
+    def _candidates(
+        self,
+        base_item: int,
+        model_part: int,
+        *,
+        armor_torso: int = 0,
+        armor_robe: int = 0,
+        female: bool = False,
+    ) -> list[str]:
+        """Icon resrefs to try for an item, best guess first.
+
+        Every one of these is a per-variant picture; ``DefaultIcon`` comes last and
+        is a per-*type* one. Falling back to it is why every suit of armour showed
+        the same breastplate and every cloak the same red cloak.
+        """
         row = self._base_items.get(base_item)
         if row is None:
             return []
         item_class, default_icon, model_type = row
         candidates: list[str] = []
-        if model_type == 0 and item_class:
+
+        if model_type == self._ARMOUR_MODEL_TYPE:
+            # Both genders, ours first: the picture is the armour as worn, and a
+            # suit whose own gender's part is missing still has the other's.
+            part = ("robe", armor_robe) if armor_robe else ("chest", armor_torso)
+            for prefix in (("ipf", "ipm") if female else ("ipm", "ipf")):
+                candidates.append(f"{prefix}_{part[0]}{part[1]:03d}")
+        elif model_type in self._SINGLE_PART_TYPES and item_class:
+            # Simple (0) and layered (1) alike: i<ItemClass>_<variant>. Helms are
+            # layered, and were falling through to the generic ``ihelm`` for it.
             candidates.append(f"i{item_class}_{model_part:03d}")
+
+        # Cloaks are numbered inside their DefaultIcon (``icloak_m_001``) rather
+        # than after the item class, so swapping that number is what finds them —
+        # and it costs nothing for the base items whose icon carries no number.
+        if default_icon and model_type != self._ARMOUR_MODEL_TYPE:
+            swapped = self._TRAILING_NUMBER.sub(f"{model_part:03d}", default_icon)
+            if swapped != default_icon:
+                candidates.append(swapped)
+
         if default_icon:
             candidates.append(default_icon)
-        return [c[:_MAX_RESREF] for c in candidates]
+        return [c[:_MAX_RESREF] for c in dict.fromkeys(candidates)]
 
     def _build_hak_index(self) -> None:
         """Index every ``i*`` TGA icon across the hak folder (once, ~0.5s)."""
@@ -126,41 +184,67 @@ class ItemIconSource:
         except Exception:  # noqa: BLE001
             return None
 
-    def icon_image(self, base_item: int, model_part: int):
+    def icon_image(self, base_item: int, model_part: int, **variant):
         """An item's icon as a decoded ``TGAImage``, or ``None``.
 
-        Handles both of the formats the game uses: a plain TGA, or a PLT that has
-        to be coloured through the palette textures first.
-        """
-        from nwnfile.formats.tga_reader import TGAReader
+        ``variant`` carries what distinguishes one suit of armour from another —
+        see :meth:`_candidates`.
 
-        key = (base_item, model_part)
+        **Each candidate is tried in both formats before moving on to the next.**
+        The game stores some icons as TGA and some as PLT, and which one a picture
+        uses says nothing about how good a match it is: the *right* icon for a suit
+        of armour (``ipm_chest028``) is a PLT while the generic fallback
+        (``iit_chest``) is a TGA. Asking for every TGA first therefore handed back
+        the fallback every time, and the correct icon was never reached — which
+        looked exactly like the resrefs being wrong.
+        """
+        key = self._key(base_item, model_part, variant)
         if key not in self._image_cache:
-            image = None
-            data = self.icon_bytes(base_item, model_part)
-            if data is not None:
-                image = TGAReader().read_bytes(data)
-            if image is None:
-                image = self._plt_image(base_item, model_part)
-            self._image_cache[key] = image
+            self._image_cache[key] = self._first_image(
+                self._candidates(base_item, model_part, **variant)
+            )
         return self._image_cache[key]
 
-    def _plt_image(self, base_item: int, model_part: int):
-        """Decode and colour the PLT icon for an item, if it has one."""
+    @staticmethod
+    def _key(base_item: int, model_part: int, variant: dict) -> tuple:
+        """A cache key. The variant has to be in it, or every suit of armour after
+        the first would be served the first one's picture."""
+        return (base_item, model_part, tuple(sorted(variant.items())))
+
+    def _first_image(self, candidates: list[str]):
+        """The first candidate that resolves, as either a TGA or a PLT."""
+        from nwnfile.formats.tga_reader import TGAReader
+
+        for resref in candidates:
+            data = self._resource(resref, _TGA_RES_TYPE)
+            image = TGAReader().read_bytes(data) if data is not None else None
+            if image is not None:
+                return image
+            image = self._plt_image(resref)
+            if image is not None:
+                return image
+        return None
+
+    def _plt_image(self, resref: str):
+        """Decode and colour one PLT icon, if that resref is a PLT."""
         from nwnfile.formats.plt_reader import (
             LAYER_PALETTES,
             colour_plt,
             read_plt,
         )
 
-        if self._reader is None:
+        raw = self._resource(resref, self.PLT_RES_TYPE)
+        plt = read_plt(raw) if raw else None
+        if plt is None:
             return None
-        for resref in self._candidates(base_item, model_part):
-            raw = self._reader.read(resref, self.PLT_RES_TYPE)
-            plt = read_plt(raw) if raw else None
-            if plt is not None:
-                return colour_plt(plt, self._palettes(LAYER_PALETTES))
-        return None
+        return colour_plt(plt, self._palettes(LAYER_PALETTES))
+
+    def _resource(self, resref: str, res_type: int) -> bytes | None:
+        """One resource from the base game, falling back to the haks."""
+        data = self._reader.read(resref, res_type) if self._reader is not None else None
+        if data is None and res_type == _TGA_RES_TYPE:
+            data = self._hak_bytes(resref)
+        return data
 
     def _palettes(self, names) -> dict:
         """The palette textures a PLT needs, decoded once."""
@@ -173,21 +257,18 @@ class ItemIconSource:
                 self._palette_cache[name] = TGAReader().read_bytes(raw) if raw else None
         return self._palette_cache
 
-    def icon_bytes(self, base_item: int, model_part: int) -> bytes | None:
+    def icon_bytes(self, base_item: int, model_part: int, **variant) -> bytes | None:
         """Raw TGA bytes for an item's icon (cached), or ``None`` if not found.
 
         Each candidate resref is tried in the base game first, then (if a hak
         folder was supplied) in the haks — so a custom per-variant icon beats the
         generic base fallback.
         """
-        key = (base_item, model_part)
+        key = self._key(base_item, model_part, variant)
         if key not in self._cache:
             data = None
-            for resref in self._candidates(base_item, model_part):
-                if self._reader is not None:
-                    data = self._reader.read(resref, _TGA_RES_TYPE)
-                if data is None:
-                    data = self._hak_bytes(resref)
+            for resref in self._candidates(base_item, model_part, **variant):
+                data = self._resource(resref, _TGA_RES_TYPE)
                 if data is not None:
                     break
             self._cache[key] = data
