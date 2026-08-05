@@ -544,3 +544,43 @@ def test_an_ordinary_property_gets_no_such_note(screen):
         properties=[SimpleNamespace(index=0, prop=ItemProperty(0, 1, 1, 4, 255, 0))],
     )
     assert "OnActivateItem" not in _labels(PlayerItemPanel(screen, item))
+
+
+def test_the_panel_names_a_cost_value_from_the_screens_tables(screen, monkeypatch):
+    """The owner saw the same unnamed text here and on the Character screen.
+
+    Both go through describe_property, so both need the game's tables — the panel
+    gets them from the screen it belongs to.
+    """
+    from types import SimpleNamespace
+
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    class _Tables:
+        def cost_options(self, cost_table):
+            return {216: "Flesh to Stone"} if cost_table == 16 else {}
+
+    monkeypatch.setattr(screen, "property_tables", lambda: _Tables())
+    item = SimpleNamespace(
+        path=(("ItemList", 0),), name="Skin", base_item=52, resref="skin", tag="skin",
+        model_part=0, named=True, name_strref=-1,
+        properties=[SimpleNamespace(index=0, prop=ItemProperty(53, 0xFFFF, 16, 216, 255, 0))],
+    )
+    text = _labels(PlayerItemPanel(screen, item))
+    assert "Flesh to Stone" in text
+    assert "+216" not in text
+
+
+def test_the_panel_still_works_with_no_game_install(screen, monkeypatch):
+    """No tables to ask means the raw number, not a crash and not a wrong guess."""
+    from types import SimpleNamespace
+
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    monkeypatch.setattr(screen, "property_tables", lambda: None)
+    item = SimpleNamespace(
+        path=(("ItemList", 0),), name="Skin", base_item=52, resref="skin", tag="skin",
+        model_part=0, named=True, name_strref=-1,
+        properties=[SimpleNamespace(index=0, prop=ItemProperty(53, 0xFFFF, 16, 216, 255, 0))],
+    )
+    assert "+216" in _labels(PlayerItemPanel(screen, item))

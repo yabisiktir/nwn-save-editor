@@ -80,6 +80,22 @@ class _PanelBase(QWidget):
             return window.item_name(item)
         return getattr(item, "name", "") or ""
 
+    def _describe(self, prop) -> str:
+        """A property line, named from the game's tables when they can be read.
+
+        Without them a ``CostValue`` that names a thing is rendered as a magnitude:
+        "Immunity Specific Spell +216" for Flesh to Stone, "Light +2" for Low (10m).
+        The number is still shown when there is no install to ask.
+        """
+        screen = getattr(self, "_screen", None)
+        tables = None
+        if screen is not None and hasattr(screen, "property_tables"):
+            try:
+                tables = screen.property_tables()
+            except Exception:  # noqa: BLE001 — no install just means no names
+                tables = None
+        return describe_property(prop, None, tables=tables)
+
     def _empty(self, message: str) -> None:
         self._body.addWidget(w.body(message, t.TEXT_3, 12.5))
         self._body.addStretch(1)
@@ -123,11 +139,11 @@ class PlayerItemPanel(_PanelBase):
         # read as a decoding bug.
         seen: dict[str, int] = {}
         for prop in item.properties:
-            label = describe_property(prop.prop, None)
+            label = self._describe(prop.prop)
             seen[label] = seen.get(label, 0) + 1
         shown: set[str] = set()
         for prop in item.properties:
-            label = describe_property(prop.prop, None)
+            label = self._describe(prop.prop)
             key = (tuple(item.path), prop.index)
             dirty, is_new = key in pending, key in added
             if seen[label] > 1 and not screen.editing and not (dirty or is_new):
@@ -154,7 +170,7 @@ class PlayerItemPanel(_PanelBase):
         line.setSpacing(8)
         if dirty or is_new:
             line.addWidget(w.status_dot())
-        label = describe_property(prop.prop, None)
+        label = self._describe(prop.prop)
         if repeats > 1:
             label = f"{repeats}×  {label}"
         text = w.body(label, t.GOLD if (dirty or is_new) else t.TEXT, 12.5)
@@ -231,7 +247,7 @@ class PlayerItemPanel(_PanelBase):
     def _remove_property(self, prop) -> None:
         confirm = QMessageBox.question(
             self, "Remove property",
-            f"Remove “{describe_property(prop.prop, None)}” from {self._item.name}?",
+            f"Remove “{self._describe(prop.prop)}” from {self._item.name}?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if confirm != QMessageBox.StandardButton.Yes:
@@ -313,7 +329,7 @@ class AreaItemPanel(_PanelBase):
         line = QHBoxLayout(row)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(6)
-        line.addWidget(w.body(describe_property(prop, None), t.TEXT_2, 12.5), 1)
+        line.addWidget(w.body(self._describe(prop), t.TEXT_2, 12.5), 1)
         if self._editable():
             edit = w.small_ghost("Edit…")
             edit.clicked.connect(lambda _=False, i=index, p=prop: self._edit_property(i, p))
@@ -347,19 +363,19 @@ class AreaItemPanel(_PanelBase):
             return
         self._area_edit(
             "set_area_property", index,
-            label=describe_property(prop, None), **edits
+            label=self._describe(prop), **edits
         )
 
     def _remove_property(self, index: int, prop) -> None:
         confirm = QMessageBox.question(
             self, "Remove property",
-            f"Remove “{describe_property(prop, None)}” from {self._item.name}?\n\n"
+            f"Remove “{self._describe(prop)}” from {self._item.name}?\n\n"
             f"This changes the area itself, not your inventory.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if confirm != QMessageBox.StandardButton.Yes:
             return
-        self._area_edit("remove_area_property", index, label=describe_property(prop, None))
+        self._area_edit("remove_area_property", index, label=self._describe(prop))
 
     def _add_property(self) -> None:
         from nwnsaveeditor.ui.dialogs.add_property_dialog import AddPropertyDialog

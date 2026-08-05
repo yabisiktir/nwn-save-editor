@@ -1097,7 +1097,11 @@ class CharacterScreen(QWidget):
         except Exception:
             items, feats = [], []
         return active_bonuses.compute(
-            items, feats, info, self._read_effects(), name_of=self._window.item_name,
+            items, feats, info, self._read_effects(),
+            name_of=self._window.item_name,
+            # Without the game's tables a CostValue that names a thing renders
+            # as a magnitude — "Immunity Specific Spell +216" for Flesh to Stone.
+            tables=self._window.property_tables(),
         )
 
     def _read_effects(self) -> list[dict]:

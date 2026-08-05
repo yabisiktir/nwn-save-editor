@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -260,8 +261,46 @@ def _skills() -> dict[int, str]:
     return _skill_subtypes
 
 
-def describe_property(prop: ItemProperty, names: dict[int, str] | None = None) -> str:
-    """A readable one-line description of an item property (name + subtype + magnitude)."""
+#: A cost-table label that is a magnitude rather than the name of something.
+#: ``Random`` is row 0 of every magnitude table (a toolset-only "roll one").
+_MAGNITUDE_LABEL = re.compile(r"^(random|[+-]?\d+(\.\d+)?%?)$", re.IGNORECASE)
+
+
+def cost_label(prop: ItemProperty, tables) -> str:
+    """The game's own name for this ``CostValue``, when it names a thing.
+
+    Some properties keep their *subject* in ``CostValue`` rather than in
+    ``Subtype``: "Immunity: Specific Spell" leaves ``Subtype`` unset and puts the
+    spell in ``CostValue``, indexed through ``iprp_spellcost.2da``. Rendered as a
+    magnitude that reads "Immunity Specific Spell +216", which is not a quantity of
+    anything — it is Flesh to Stone.
+
+    Answered from the game's own tables rather than a bundled guess, because the
+    row numbers are **not** interchangeable between tables: row 216 is Flesh to
+    Stone in ``iprp_spellcost`` and Protection from Elements in ``iprp_spells``.
+    Naming it from the wrong one would be confidently wrong, which is worse than
+    the number. Returns ``""`` when there is no install to ask, or when the label
+    really is a magnitude.
+    """
+    if tables is None:
+        return ""
+    try:
+        options = tables.cost_options(prop.cost_table)
+    except Exception:  # noqa: BLE001 — a missing/odd table just means no name
+        return ""
+    label = ((options or {}).get(prop.cost_value) or "").strip()
+    return "" if not label or _MAGNITUDE_LABEL.match(label) else label
+
+
+def describe_property(
+    prop: ItemProperty, names: dict[int, str] | None = None, *, tables=None
+) -> str:
+    """A readable one-line description of an item property (name + subtype + magnitude).
+
+    ``tables`` is an optional :class:`~nwnfile.item_property_tables.ItemPropertyTables`.
+    Given one, properties that keep their subject in ``CostValue`` are named instead
+    of being rendered as a bogus ``+N`` — see :func:`cost_label`.
+    """
     names = default_property_names() if names is None else names
     name = names.get(prop.property_name, f"Property {prop.property_name}")
     pid = prop.property_name
@@ -322,6 +361,12 @@ def describe_property(prop: ItemProperty, names: dict[int, str] | None = None) -
         base = f"{name}: {subtype}" if subtype is not None and prop.subtype != 0xFFFF else name
         return with_cost(base) if is_bonus else base
 
+    named = cost_label(prop, tables)
+    if named:  # the CostValue is a subject, not a quantity
+        # Some of these labels carry their own colon ("Content Weight: -100%"),
+        # and "Weight Reduction: Content Weight: -100%" reads as a stutter.
+        separator = " — " if ":" in named else ": "
+        return f"{name}{separator}{named}"
     return with_cost(name)
 
 

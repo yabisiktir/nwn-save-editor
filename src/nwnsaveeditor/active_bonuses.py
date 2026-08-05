@@ -254,7 +254,7 @@ def _amount(prop) -> int | None:
     return -value if prop.property_name in _PENALTY_PROPS else value
 
 
-def item_contributions(items, name_of=None) -> list[BonusGroup]:
+def item_contributions(items, name_of=None, tables=None) -> list[BonusGroup]:
     """Group every property of every *equipped* item by what it affects."""
     groups: dict[tuple[str, str], BonusGroup] = {}
     for item in items:
@@ -272,7 +272,8 @@ def item_contributions(items, name_of=None) -> list[BonusGroup]:
             key = (category, subject)
             group = groups.setdefault(key, BonusGroup(category=category, subject=subject))
             group.contributions.append(Contribution(
-                source=source, detail=describe_property(prop, None), amount=_amount(prop),
+                source=source, detail=describe_property(prop, None, tables=tables),
+                amount=_amount(prop),
             ))
     return [_collapse(group) for group in groups.values()]
 
@@ -321,7 +322,7 @@ def spell_effects(effects, spell_name=None) -> list[SpellEffect]:
     return out
 
 
-def compute(items, feats, info, effects=(), name_of=None) -> ActiveBonuses:
+def compute(items, feats, info, effects=(), name_of=None, tables=None) -> ActiveBonuses:
     """Build the whole view from what the save records.
 
     ``items`` are :meth:`SaveEditor.player_items` rows, ``feats`` the
@@ -330,7 +331,7 @@ def compute(items, feats, info, effects=(), name_of=None) -> ActiveBonuses:
     name (strrefs), matching what the rest of the editor shows.
     """
     result = ActiveBonuses()
-    result.groups = _ordered(item_contributions(items, name_of))
+    result.groups = _ordered(item_contributions(items, name_of, tables))
     result.feat_count = len(feats or ())
     result.spell_effects = spell_effects(effects)
 

@@ -213,3 +213,26 @@ def test_a_save_nothing_applies_to_reports_none():
 
     groups = [BonusGroup("saves", "Fortitude save", [Contribution("Ring", "+5", 5)])]
     assert gear_bonus_for_save(groups, "Will") is None
+
+
+def test_the_tables_reach_the_gear_rows(monkeypatch):
+    """The Character screen's "Spell immunity" group showed "+216" for Flesh to
+    Stone — the same text the inventory panel showed, from the same function."""
+    from types import SimpleNamespace
+
+    from nwnfile.formats.bic_reader import ItemProperty
+    from nwnsaveeditor.active_bonuses import item_contributions
+
+    class _Tables:
+        def cost_options(self, cost_table):
+            return {216: "Flesh to Stone"} if cost_table == 16 else {}
+
+    item = SimpleNamespace(
+        slot=1, name="Creature skin", properties=[
+            SimpleNamespace(prop=ItemProperty(53, 0xFFFF, 16, 216, 255, 0)),
+        ],
+    )
+    groups = item_contributions([item], lambda i: i.name, _Tables())
+    details = [c.detail for g in groups for c in g.contributions]
+    assert any("Flesh to Stone" in d for d in details)
+    assert not any("+216" in d for d in details)

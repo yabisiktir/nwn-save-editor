@@ -5,6 +5,7 @@ from __future__ import annotations
 from nwnfile.formats.bic_reader import ItemProperty
 from nwnfile.item_properties import (
     activation_note,
+    cost_label,
     default_property_names,
     describe_properties,
     describe_property,
@@ -175,3 +176,68 @@ def test_the_note_names_the_tag_because_the_tag_is_the_effect():
     # Still says something useful for an item with no tag at all.
     assert "OnActivateItem" in activation_note("")
     assert "“”" not in activation_note("")
+
+
+# -- properties whose CostValue names a thing rather than counting one ------- #
+class _Tables:
+    """Two cost tables: one of magnitudes, one of names — as the game has."""
+
+    #: 1 is a magnitude table (iprp_bonuscost); 16 names spells (iprp_spellcost).
+    _TABLES = {
+        1: {0: "Random", 1: "+1", 2: "+2"},
+        16: {32: "Darkness", 216: "Flesh to Stone"},
+        6: {5: "Content Weight: -100%"},
+    }
+
+    def cost_options(self, cost_table):
+        return self._TABLES.get(cost_table, {})
+
+
+def _costed(pid: int, cost_table: int, cost_value: int) -> ItemProperty:
+    return ItemProperty(pid, 0xFFFF, cost_table, cost_value, 255, 0)
+
+
+def test_a_cost_value_that_names_a_spell_is_named_not_counted():
+    """"Immunity Specific Spell +216" is not a quantity of anything.
+
+    Property 53 leaves Subtype unset and puts the spell in CostValue, indexed
+    through iprp_spellcost. 216 is Flesh to Stone.
+    """
+    prop = _costed(53, 16, 216)
+    assert describe_property(prop, {53: "Immunity Specific Spell"}) == (
+        "Immunity Specific Spell +216"  # no tables: the raw number stands
+    )
+    assert describe_property(
+        prop, {53: "Immunity Specific Spell"}, tables=_Tables()
+    ) == "Immunity Specific Spell: Flesh to Stone"
+
+
+def test_a_genuine_magnitude_is_left_as_a_magnitude():
+    """The rule is driven by the label, not by a list of property ids."""
+    prop = _costed(999, 1, 2)  # cost table 1 labels its rows "+1", "+2"
+    assert describe_property(prop, {999: "Some Bonus"}, tables=_Tables()) == (
+        "Some Bonus +2"
+    )
+
+
+def test_a_label_carrying_its_own_colon_does_not_stutter():
+    prop = _costed(32, 6, 5)
+    assert describe_property(
+        prop, {32: "Enhanced Container Weight Reduction"}, tables=_Tables()
+    ) == "Enhanced Container Weight Reduction — Content Weight: -100%"
+
+
+def test_cost_label_reports_only_names():
+    assert cost_label(_costed(53, 16, 216), _Tables()) == "Flesh to Stone"
+    assert cost_label(_costed(999, 1, 2), _Tables()) == ""  # "+2" is a magnitude
+    assert cost_label(_costed(999, 1, 0), _Tables()) == ""  # "Random" is not a name
+    assert cost_label(_costed(53, 16, 999), _Tables()) == ""  # no such row
+    assert cost_label(_costed(53, 16, 216), None) == ""  # no install to ask
+
+
+def test_a_broken_table_is_survived_not_raised():
+    class _Angry:
+        def cost_options(self, _table):
+            raise RuntimeError("no install")
+
+    assert cost_label(_costed(53, 16, 216), _Angry()) == ""
