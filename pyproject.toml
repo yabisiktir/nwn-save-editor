@@ -20,6 +20,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-qt>=4.4",
+    "pyyaml>=6.0",   # test_ci_workflow.py parses the workflow
     "ruff>=0.6",
     "mypy>=1.11",
 ]
@@ -54,7 +55,12 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+# "." as well as "src": several test modules share fixtures via
+# `from tests.test_save_editor import ...`, which needs the repo root importable.
+# `python -m pytest` puts the working directory on sys.path and the `pytest`
+# console script does not — so without this the suite passes one way and dies
+# collecting the other, which is exactly how it reached CI green-looking.
+pythonpath = [".", "src"]
 addopts = "-ra"
 markers = [
     "unit: fast isolated unit test",

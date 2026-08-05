@@ -97,3 +97,32 @@ def test_linux_gets_the_libraries_qt_needs(workflow):
     steps = str(workflow["jobs"]["build"]["steps"])
     for library in ("libegl1", "libxkbcommon-x11-0", "libxcb-cursor0"):
         assert library in steps
+
+
+def test_the_suite_does_not_depend_on_how_pytest_was_invoked():
+    """`python -m pytest` puts the working directory on sys.path; `pytest` does not.
+
+    Several test modules share fixtures through `from tests.test_save_editor
+    import ...`, so under the bare console script — which is what CI runs — they
+    failed to import and the whole collection was interrupted. The suite passed
+    locally the whole time because it was being run the other way.
+    """
+    import tomllib
+    from pathlib import Path
+
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    config = tomllib.loads(pyproject.read_text())["tool"]["pytest"]["ini_options"]
+    assert "." in config["pythonpath"], (
+        "the repo root must be importable, or `pytest` and `python -m pytest` "
+        "disagree about whether the suite even collects"
+    )
+
+
+def test_the_workflow_tests_can_actually_run_in_ci():
+    """This module needs PyYAML. Undeclared, it skipped exactly where it matters."""
+    import tomllib
+    from pathlib import Path
+
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    dev = tomllib.loads(pyproject.read_text())["project"]["optional-dependencies"]["dev"]
+    assert any(name.lower().startswith("pyyaml") for name in dev), dev
