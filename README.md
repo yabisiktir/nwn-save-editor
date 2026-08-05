@@ -132,8 +132,11 @@ provides; an application supplies its own and opens `SaveEditorWindow`.
 and verifies to a staging folder first, then archives the old save to a timestamped
 folder before swapping. See [docs/save_game_editor.md](docs/save_game_editor.md).
 
-## History
+## Used by
 
-Split out of [Vaultkeeper](../vaultkeeper), an NWN mod installer, where this code
-began. Commits touching these files came with it, so `git log` and `git blame`
-reach back past the split; anything about the installer stayed behind.
+[Vaultkeeper](https://github.com/yabisiktir/vaultkeeper), an NWN mod installer and
+manager, embeds this editor and ships it inside its own application.
+
+## Licence
+
+GPL-3.0-or-later.
