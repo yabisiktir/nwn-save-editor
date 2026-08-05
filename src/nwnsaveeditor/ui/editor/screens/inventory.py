@@ -83,6 +83,14 @@ class InventoryScreen(QWidget):
         self._window = window
         self._selected: tuple | None = None  # the selected item's GFF path
         self._sort = "type"  # matches the game's own inventory grouping
+        #: Where to scroll after the next rebuild: ``("section"|"cell", path)``.
+        #: The jump cannot happen at click time because selecting rebuilds the
+        #: whole page, and the widget to scroll to does not exist until it has.
+        self._jump: tuple[str, tuple] | None = None
+        #: Rebuilt every refresh: a container's "Inside …" header, and each item's
+        #: own cell, so either end of the round trip can be scrolled to.
+        self._sections: dict[tuple, QWidget] = {}
+        self._cells: dict[tuple, QWidget] = {}
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
@@ -183,7 +191,10 @@ class InventoryScreen(QWidget):
         carried_header.addWidget(order)
         carried_header.addStretch(1)
         column.addLayout(carried_header)
-        column.addWidget(self._build_bag(self._sorted(loose)))
+        counts = {path: len(contents) for path, contents in inside.items()}
+        self._sections = {}
+        self._cells = {}
+        column.addWidget(self._build_bag(self._sorted(loose), counts))
         # A character can carry several identically-named bags, so number the
         # repeats — "Inside Bag of Holding" seven times tells you nothing.
         seen: dict[str, int] = {}
@@ -199,11 +210,80 @@ class InventoryScreen(QWidget):
             )
             if total > 1:
                 label = f"{label} #{seen[label]}"
-            column.addWidget(w.cap_label(f"Inside {label} ({len(contents)})"))
-            column.addWidget(self._build_bag(self._sorted(contents)))
+            header = self._section_header(label, len(contents), parent_path)
+            self._sections[parent_path] = header
+            column.addWidget(header)
+            column.addWidget(self._build_bag(self._sorted(contents), counts))
         column.addStretch(1)
         w.set_scroll_widget(self._scroll, content)  # takes ownership; the old widget is dropped
         self._show_detail(by_path.get(self._selected))
+        self._run_jump()
+
+    def _section_header(self, label: str, count: int, container_path: tuple) -> QWidget:
+        """An "Inside <bag>" caption that leads back up to the bag itself.
+
+        The trip has to work both ways: having jumped down to a bag's contents,
+        the way back is otherwise scrolling and hunting for the icon you came from.
+        """
+        holder = QWidget()
+        holder.setStyleSheet("background:transparent;")
+        row = QHBoxLayout(holder)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        row.addWidget(w.cap_label(f"Inside {label} ({count})"))
+        back = w.small_ghost("Show the bag")
+        back.setToolTip("Scroll back to this container and select it")
+        back.clicked.connect(lambda _=False, p=container_path: self._jump_to_cell(p))
+        row.addWidget(back)
+        row.addStretch(1)
+        return holder
+
+    # -- jumping between a container and its contents ---------------------- #
+    def _open_container(self, path: tuple) -> None:
+        """Double-clicking a bag: select it, then scroll to what is inside it."""
+        self._selected = path
+        self._jump = ("section", path)
+        self.refresh()
+
+    def _jump_to_cell(self, path: tuple) -> None:
+        self._selected = path
+        self._jump = ("cell", path)
+        self.refresh()
+
+    def _run_jump(self) -> None:
+        """Scroll to whatever the last click asked for, once it has been laid out.
+
+        Deferred to the event loop for the same reason ``set_scroll_widget`` defers
+        its own restore: until the new content is measured the scrollbar range is
+        still 0 and scrolling anywhere is a no-op. This runs after that restore
+        because it is queued after it.
+        """
+        from PySide6.QtCore import QTimer
+
+        if self._jump is None:
+            return
+        kind, path = self._jump
+        self._jump = None
+        target = (self._sections if kind == "section" else self._cells).get(path)
+        if target is None:
+            return
+        QTimer.singleShot(0, lambda: self._scroll_to_top_of(target))
+
+    def _scroll_to_top_of(self, target: QWidget) -> None:
+        """Put ``target`` at the top of the view, not merely on screen.
+
+        ``ensureWidgetVisible`` scrolls the least it can get away with, which for a
+        jump downwards leaves the thing you asked for on the last line with its
+        contents still below the fold — the opposite of the point.
+        """
+        from PySide6.QtCore import QPoint
+
+        content = self._scroll.widget()
+        if content is None or target.parent() is None:
+            return
+        top = target.mapTo(content, QPoint(0, 0)).y()
+        bar = self._scroll.verticalScrollBar()
+        bar.setValue(min(max(top - 12, bar.minimum()), bar.maximum()))
 
     def _build_paperdoll(self, equipped: dict) -> QWidget:
         doll = Paperdoll()
@@ -289,7 +369,7 @@ class InventoryScreen(QWidget):
         cell.mousePressEvent = _left_click(lambda p=tuple(item.path): self._select(p))
         return cell
 
-    def _build_bag(self, carried: list) -> QWidget:
+    def _build_bag(self, carried: list, counts: dict | None = None) -> QWidget:
         holder = QWidget()
         holder.setStyleSheet("background:transparent;")
         # A widget carrying its own layout can still be squeezed below its
@@ -304,14 +384,26 @@ class InventoryScreen(QWidget):
         if not carried:
             grid.addWidget(w.body("Nothing carried.", t.TEXT_3, 12), 0, 0)
             return holder
+        counts = counts or {}
         for index, item in enumerate(carried):
             name = self._name(item)
+            path = tuple(item.path)
+            held = counts.get(path, 0)
+            tooltip = name
+            if held:
+                tooltip = f"{name}\nHolds {held} item(s) — double-click to see them"
             cell = item_cell(
                 _code(name), filled=True,
-                selected=tuple(item.path) == self._selected,
-                tooltip=name, icon=self._icon(item),
+                selected=path == self._selected,
+                tooltip=tooltip, icon=self._icon(item),
+                badge=str(held) if held else "",
             )
-            cell.mousePressEvent = _left_click(lambda p=tuple(item.path): self._select(p))
+            cell.mousePressEvent = _left_click(lambda p=path: self._select(p))
+            if held:
+                cell.mouseDoubleClickEvent = _left_click(
+                    lambda p=path: self._open_container(p)
+                )
+            self._cells[path] = cell
             grid.addWidget(cell, index // columns, index % columns)
         grid.setColumnStretch(columns, 1)
         return holder

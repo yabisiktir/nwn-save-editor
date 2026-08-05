@@ -438,12 +438,17 @@ class AreaItemPanel(_PanelBase):
 
 
 def item_cell(
-    label: str, *, filled: bool, selected: bool, tooltip: str = "", icon=None
+    label: str, *, filled: bool, selected: bool, tooltip: str = "", icon=None,
+    badge: str = "",
 ) -> QLabel:
     """One 62px inventory/equipment cell.
 
     Empty cells are dashed with their slot name; filled cells get a solid gold
     border, and the selected one is brighter still.
+
+    ``badge`` puts a small count in the corner. A bag looks exactly like any other
+    item in a grid of icons, so the number of things inside it is what says it is
+    a bag at all — and it is the thing worth knowing before opening one.
     """
     cell = QLabel(label)
     cell.setFixedSize(t.ITEM_CELL, t.ITEM_CELL)
@@ -470,6 +475,18 @@ def item_cell(
         cell.setText("")
     if filled:
         cell.setCursor(Qt.CursorShape.PointingHandCursor)
+    if badge:
+        count = QLabel(badge, cell)
+        count.setStyleSheet(
+            f"background:{t.GOLD};color:{t.APP_BG};border-radius:7px;"
+            f"font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;padding:0 4px;"
+        )
+        count.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        count.adjustSize()
+        width = max(count.width(), 14)
+        count.setGeometry(
+            t.ITEM_CELL - width - 3, t.ITEM_CELL - 17, width, 14
+        )
     return cell
 
 

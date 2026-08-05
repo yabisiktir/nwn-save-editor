@@ -93,6 +93,13 @@ Six tabs.
 A paperdoll of the worn slots, the carried bag grouped by container, and a detail
 panel for the selected item.
 
+**Bags carry a count in the corner** — that gold number is how many things are
+inside, and it is what tells a bag apart from anything else in a grid of icons.
+**Double-click one** to jump to its contents, which sit further down the same page
+under an "Inside …" heading; **Show the bag** on that heading scrolls back to the
+bag itself. Nothing is hidden or collapsed, so a search of the page still finds
+everything — the jump only saves the scrolling.
+
 Item properties are edited from the game's own `iprp_*` tables, so every value you
 can pick is one the engine recognises. **Add a property…** offers every property type
 the game defines — around 200 on a full install — with a searchable picker when the

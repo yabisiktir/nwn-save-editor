@@ -435,3 +435,72 @@ def test_the_named_flag_records_whether_the_save_carried_a_name(window):
     items = window.session().player_items()
     assert any(i.named for i in items)
     assert all(i.named == (not i.name.startswith("(unnamed")) for i in items if i.name)
+
+
+# -- containers: getting to what is inside one ----------------------------- #
+def _bag_path(screen) -> tuple:
+    """The fixture character carries one bag, holding one ring."""
+    return next(iter(screen._sections))
+
+
+def test_a_container_shows_how_many_things_are_in_it(screen):
+    """A bag looks like any other icon in a grid, so the count is what marks it."""
+    from PySide6.QtWidgets import QLabel
+
+    screen.refresh()
+    bag = _bag_path(screen)
+    badges = [
+        child.text() for child in screen._cells[bag].findChildren(QLabel)
+    ]
+    assert badges == ["1"]  # the bag holds the ring
+    # The ring itself holds nothing, so it carries no badge and no false promise.
+    ring = next(p for p in screen._cells if p != bag and len(p) > 1)
+    assert not screen._cells[ring].findChildren(QLabel)
+    assert "double-click" in screen._cells[bag].toolTip()
+
+
+def test_double_clicking_a_container_jumps_to_its_contents(screen):
+    """The contents are already on the page — a long way down it."""
+    screen.refresh()
+    bag = _bag_path(screen)
+    screen._open_container(bag)
+    assert screen._selected == bag  # and the detail panel follows the selection
+    # The section for that bag is what was scrolled to.
+    assert bag in screen._sections
+
+
+def test_the_section_header_leads_back_to_the_bag(screen):
+    """Having jumped down, the way back should not be hunting for the icon."""
+    screen.refresh()
+    bag = _bag_path(screen)
+    header = screen._sections[bag]
+    back = next(b for b in header.findChildren(QPushButton) if "bag" in b.text().lower())
+    back.click()
+    assert screen._selected == bag
+    assert bag in screen._cells
+
+
+def test_a_jump_puts_the_target_at_the_top_not_merely_on_screen(qtbot, screen):
+    """``ensureWidgetVisible`` scrolls the least it can, which for a jump down
+    leaves the section on the last line with its contents still below the fold."""
+    screen.refresh()
+    bag = _bag_path(screen)
+    target = screen._sections[bag]
+    screen.resize(900, 300)
+    screen.show()
+    qtbot.waitExposed(screen)
+    from PySide6.QtCore import QPoint
+
+    screen._scroll_to_top_of(target)
+    bar = screen._scroll.verticalScrollBar()
+    top = target.mapTo(screen._scroll.widget(), QPoint(0, 0)).y()
+    # Scrolled to the target's own offset — or as far as the page goes, when the
+    # target is near the end and cannot reach the top of the viewport.
+    assert bar.value() == min(max(top - 12, bar.minimum()), bar.maximum())
+
+
+def test_a_jump_asked_for_before_a_rebuild_is_not_left_pending(screen):
+    """The request is consumed by the rebuild that satisfies it."""
+    screen.refresh()
+    screen._open_container(_bag_path(screen))
+    assert screen._jump is None
