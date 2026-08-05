@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from nwnfile.formats.bic_reader import ItemProperty
 from nwnfile.item_properties import (
+    activation_note,
     default_property_names,
     describe_properties,
     describe_property,
+    is_script_activated,
     load_property_names,
 )
 
@@ -122,3 +124,54 @@ def test_bundled_property_names_loaded():
     assert names[0] == "Ability Bonus"
     assert names[6] == "Enhancement Bonus"
     assert names[75] == "Freedom of Movement"
+
+
+# -- properties whose effect is not in the item ----------------------------- #
+def _cast(subtype: int, uses: int = 8) -> ItemProperty:
+    """A Cast Spell property (id 15) with the given spell subtype."""
+    return ItemProperty(
+        property_name=15, subtype=subtype, cost_table=0, cost_value=uses,
+        param1=0, param1_value=0,
+    )
+
+
+def test_unique_power_is_named_the_way_the_game_names_it():
+    """The bundled subtype table has the raw 2da label, ``ACTIVATE ITEM SELF``.
+
+    "Cast Spell: ACTIVATE ITEM SELF (level 1, …)" describes nothing: no spell is
+    cast and the level is meaningless. The game's own name for the row is
+    "Unique Power Self Only".
+    """
+    assert describe_property(_cast(335)) == "Unique Power (self only) — 1 use/day"
+    assert describe_property(_cast(329, uses=1)) == "Unique Power — single use"
+    assert describe_property(_cast(521)) == "Sequencer (1 spell) — 1 use/day"
+    # No "level 1", which was true of the table and false of the item.
+    assert "level" not in describe_property(_cast(335))
+
+
+def test_an_ordinary_cast_spell_is_untouched():
+    text = describe_property(_cast(100))
+    assert text.startswith("Cast Spell: ")
+    assert "level" in text
+
+
+def test_script_activated_properties_are_recognisable():
+    assert is_script_activated(_cast(335))
+    assert is_script_activated(_cast(329))
+    assert not is_script_activated(_cast(100))
+    # Not every Cast Spell — and not a different property that shares a subtype id.
+    assert not is_script_activated(
+        ItemProperty(property_name=1, subtype=335, cost_table=0, cost_value=1,
+                     param1=0, param1_value=0)
+    )
+
+
+def test_the_note_names_the_tag_because_the_tag_is_the_effect():
+    """The module's script switches on the tag, so it is the only identifying
+    thing the save actually holds."""
+    note = activation_note("ems_uberheal")
+    assert "ems_uberheal" in note
+    assert "OnActivateItem" in note
+    # Still says something useful for an item with no tag at all.
+    assert "OnActivateItem" in activation_note("")
+    assert "“”" not in activation_note("")

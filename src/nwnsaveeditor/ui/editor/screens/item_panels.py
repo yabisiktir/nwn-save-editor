@@ -29,7 +29,11 @@ from PySide6.QtWidgets import (
 )
 
 from nwnfile.item_names import base_item_type
-from nwnfile.item_properties import describe_property
+from nwnfile.item_properties import (
+    activation_note,
+    describe_property,
+    is_script_activated,
+)
 from nwnsaveeditor.ui.editor import tokens as t
 from nwnsaveeditor.ui.editor import widgets as w
 
@@ -162,6 +166,16 @@ class PlayerItemPanel(_PanelBase):
             )
         line.addWidget(text, 1)
         column.addLayout(line)
+
+        # "Unique Power" and its kin name no effect at all, and every item carrying
+        # one does something different — so the row on its own raises a question it
+        # cannot answer. Say where the answer actually lives.
+        if is_script_activated(prop.prop):
+            note = w.body(
+                activation_note(getattr(self._item, "tag", "")), t.TEXT_3, 11.5
+            )
+            note.setWordWrap(True)
+            column.addWidget(note)
 
         if self._screen.editing:
             actions = QHBoxLayout()

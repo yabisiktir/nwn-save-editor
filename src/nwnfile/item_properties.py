@@ -52,6 +52,49 @@ DAMAGE_SUBTYPES: dict[int, str] = {
     11: "Negative Energy", 12: "Positive Energy", 13: "Sonic",
 }
 #: iprp_chargecost.2da CostValue -> uses/day (from base_2da.bif; Cast Spell charges).
+#: The "Cast Spell" subtypes that cast no spell at all.
+#:
+#: These are the ``ACTIVATE_ITEM`` rows of ``iprp_spells.2da``. Using one fires the
+#: **module's** ``OnActivateItem`` event and a script there decides what happens,
+#: recognising the item by its **tag** — so the effect is not stored on the item,
+#: is not in the save at all, and two items carrying the same property do entirely
+#: unrelated things. In one of the owner's saves this one property covers a healing
+#: item, a teleport stone, a key and a quest artefact.
+#:
+#: Named as the game names them (``iprp_spells.2da``'s ``Name`` strref through
+#: dialog.tlk) rather than as the 2da labels them: the bundled subtype table has the
+#: raw ``ACTIVATE ITEM SELF`` for these, which says nothing to anyone.
+ACTIVATE_ITEM_SUBTYPES: dict[int, str] = {
+    329: "Unique Power",
+    335: "Unique Power (self only)",
+    344: "Manipulate Portal Stone",
+    359: "Activate Item",
+    513: "Activate Item (long range)",
+    521: "Sequencer (1 spell)",
+    522: "Sequencer (2 spells)",
+    523: "Sequencer (3 spells)",
+    537: "Activate Item (touch)",
+}
+
+#: What to tell someone looking at one of the above.
+ACTIVATE_ITEM_NOTE = (
+    "The module's own script decides what this does — it is not recorded on the "
+    "item or anywhere in the save. Using the item fires the module's "
+    "OnActivateItem event, which recognises it by its tag{tag}. Two items with "
+    "this property can do entirely unrelated things."
+)
+
+
+def is_script_activated(prop: ItemProperty) -> bool:
+    """Whether a property's effect lives in the module's scripts, not in the item."""
+    return prop.property_name == _SPELL_PROP and prop.subtype in ACTIVATE_ITEM_SUBTYPES
+
+
+def activation_note(tag: str = "") -> str:
+    """The explanation for a script-activated property, naming the tag if known."""
+    return ACTIVATE_ITEM_NOTE.format(tag=f" — “{tag}”" if tag else "")
+
+
 SPELL_USES: dict[int, str] = {
     1: "single use", 2: "5 charges/use", 3: "4 charges/use", 4: "3 charges/use",
     5: "2 charges/use", 6: "1 charge/use", 7: "0 charges/use", 8: "1 use/day",
@@ -253,6 +296,12 @@ def describe_property(prop: ItemProperty, names: dict[int, str] | None = None) -
         subtype = _feats().get(prop.subtype)
         return f"{name}: {subtype}" if subtype else name
     if pid == _SPELL_PROP:  # Cast Spell: <spell> (level N, uses/day)
+        if prop.subtype in ACTIVATE_ITEM_SUBTYPES:
+            # No spell is cast and no level applies — see the table's own comment.
+            uses = SPELL_USES.get(prop.cost_value, "")
+            label = ACTIVATE_ITEM_SUBTYPES[prop.subtype]
+            # An em-dash, not another bracket: the label already ends in one.
+            return f"{label} — {uses}" if uses else label
         spell = _spells().get(prop.subtype)
         if not spell:
             return name

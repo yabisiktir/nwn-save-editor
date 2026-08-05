@@ -115,6 +115,9 @@ class EditableItem:
     base_item: int
     model_part: int
     properties: list[EditableProperty]
+    #: The item's ``Tag``. For a script-activated property this is the whole
+    #: story: it is what the module's OnActivateItem script switches on.
+    tag: str = ""
     #: Composite items are three parts drawn over one another; ``model_part``
     #: alone names only the bottom of the three.
     model_part2: int = 0
@@ -1003,6 +1006,7 @@ class SaveEditor:
             named=bool(name),
             name_strref=name_strref, resref=resref,
             base_item=struct.get("BaseItem") or -1,
+            tag=struct.get("Tag") or "",
             model_part=struct.get("ModelPart1") or 0,
             model_part2=struct.get("ModelPart2") or 0,
             model_part3=struct.get("ModelPart3") or 0,

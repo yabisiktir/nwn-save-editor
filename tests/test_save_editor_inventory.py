@@ -504,3 +504,43 @@ def test_a_jump_asked_for_before_a_rebuild_is_not_left_pending(screen):
     screen.refresh()
     screen._open_container(_bag_path(screen))
     assert screen._jump is None
+
+
+# -- properties whose effect lives in the module's scripts ------------------ #
+def _labels(panel) -> str:
+    from PySide6.QtWidgets import QLabel
+
+    return "\n".join(label.text() for label in panel.findChildren(QLabel))
+
+
+def test_a_unique_power_says_where_its_effect_actually_lives(screen):
+    """"Cast Spell: ACTIVATE ITEM SELF" answers nothing — the item has no effect
+    recorded on it, and the module's script identifies it by its tag."""
+    from types import SimpleNamespace
+
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    item = SimpleNamespace(
+        path=(("ItemList", 0),), name="Stone of Recall", base_item=52, resref="stone",
+        tag="NW_IT_RECALL", model_part=0, named=True, name_strref=-1,
+        properties=[SimpleNamespace(index=0, prop=ItemProperty(15, 335, 0, 8, 255, 0))],
+    )
+    panel = PlayerItemPanel(screen, item)
+    text = _labels(panel)
+    assert "Unique Power (self only)" in text
+    assert "ACTIVATE" not in text  # the raw 2da label is gone
+    assert "OnActivateItem" in text
+    assert "NW_IT_RECALL" in text  # the tag, because the tag is the effect
+
+
+def test_an_ordinary_property_gets_no_such_note(screen):
+    from types import SimpleNamespace
+
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    item = SimpleNamespace(
+        path=(("ItemList", 0),), name="Ring", base_item=52, resref="ring", tag="ring",
+        model_part=0, named=True, name_strref=-1,
+        properties=[SimpleNamespace(index=0, prop=ItemProperty(0, 1, 1, 4, 255, 0))],
+    )
+    assert "OnActivateItem" not in _labels(PlayerItemPanel(screen, item))

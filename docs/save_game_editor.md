@@ -100,6 +100,14 @@ under an "Inside …" heading; **Show the bag** on that heading scrolls back to 
 bag itself. Nothing is hidden or collapsed, so a search of the page still finds
 everything — the jump only saves the scrolling.
 
+**"Unique Power"** (and Sequencer, and the other Activate Item rows) is the one
+property that describes no effect. The item does nothing by itself: using it fires
+the *module's* `OnActivateItem` event, and a script there decides what happens,
+recognising the item by its **tag**. That is why two items with this same property
+do completely unrelated things, and why nothing in the save can tell you what
+either of them does. The panel says so, and names the tag — which is the only part
+of the answer the save actually holds.
+
 Item properties are edited from the game's own `iprp_*` tables, so every value you
 can pick is one the engine recognises. **Add a property…** offers every property type
 the game defines — around 200 on a full install — with a searchable picker when the
