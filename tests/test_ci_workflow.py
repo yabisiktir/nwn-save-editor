@@ -126,3 +126,45 @@ def test_the_workflow_tests_can_actually_run_in_ci():
     pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
     dev = tomllib.loads(pyproject.read_text())["project"]["optional-dependencies"]["dev"]
     assert any(name.lower().startswith("pyyaml") for name in dev), dev
+
+
+def test_no_test_module_calls_a_posix_only_function_while_importing():
+    """One such call takes down the entire job, not just its own test.
+
+    `os.geteuid()` sat in a `@pytest.mark.skipif(...)` decorator — evaluated at
+    import time — and does not exist on Windows. Collection died there, so every
+    other test in the suite went unrun and the failure looked nothing like its
+    cause. Guard the call, do not merely skip the test.
+    """
+    import ast
+    from pathlib import Path
+
+    posix_only = {
+        "geteuid", "getuid", "getgid", "getegid", "getgroups",
+        "fork", "chown", "symlink", "mkfifo", "setuid", "setgid",
+    }
+    offenders = []
+    for path in sorted(Path(__file__).resolve().parent.glob("test_*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in tree.body:  # module level only — that is what import runs
+            for call in ast.walk(node):
+                if not isinstance(call, ast.Call):
+                    continue
+                func = call.func
+                name = getattr(func, "attr", None) or getattr(func, "id", None)
+                if name in posix_only and not _is_guarded(node):
+                    offenders.append(f"{path.name}:{call.lineno} {name}()")
+    assert not offenders, (
+        "called at import time, so Windows dies collecting: " + ", ".join(offenders)
+    )
+
+
+def _is_guarded(node) -> bool:
+    """Whether the statement checks availability before calling."""
+    import ast
+
+    return any(
+        isinstance(inner, ast.Call)
+        and getattr(inner.func, "id", None) == "hasattr"
+        for inner in ast.walk(node)
+    )

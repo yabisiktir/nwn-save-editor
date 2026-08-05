@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -43,7 +44,24 @@ def test_an_undecodable_save_is_corrupt(tmp_path):
     assert not state.openable
 
 
-@pytest.mark.skipif(os.geteuid() == 0, reason="root ignores the write bit")
+#: Whether clearing a folder's write bit actually stops anything here.
+#:
+#: The check under test is ``os.access(folder, W_OK)``, a POSIX permission
+#: question. Windows has no directory write bit for ``chmod`` to clear and
+#: answers that call True however the folder is marked, so the test could only
+#: fail there — and root ignores the bit as well. Evaluated defensively because
+#: ``os.geteuid`` **does not exist** on Windows, and this runs at import time:
+#: calling it unguarded took the whole module down before collection, which is
+#: how one platform-specific line failed an entire CI job.
+_WRITE_BIT_MEANS_SOMETHING = not sys.platform.startswith("win") and not (
+    hasattr(os, "geteuid") and os.geteuid() == 0
+)
+
+
+@pytest.mark.skipif(
+    not _WRITE_BIT_MEANS_SOMETHING,
+    reason="needs a filesystem where clearing a folder's write bit denies writing",
+)
 def test_an_unwritable_save_folder_is_readonly(tmp_path):
     from tests.test_save_editor import _make_char_save
 
