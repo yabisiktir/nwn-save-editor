@@ -159,6 +159,14 @@ Browse an area's stores, creatures and containers.
   puts a *copy* of one of yours into it.
 - **Add a copy to my inventory** takes a copy the other way and leaves the world
   alone.
+- **Variables** — the area's own script state, the same kind Quests & World State
+  shows for the module and edited the same way (**Edit Variable…**). Object and
+  location variables are read-only here for the same reason they are there.
+
+The **factions** listed under an area are the *module's*, not that area's, so they
+read the same whichever area you are looking at — and saves of the same module share
+them. A reputation marked *(default)* is one the module never customised: `RepList`
+stores only the pairs that were changed, and an unlisted pair is neutral.
 
 Editing any of these changes the *area*. Removing an item renumbers everything after
 it in the same list, and anything already staged against one of those follows the

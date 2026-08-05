@@ -410,3 +410,84 @@ def _find_node(screen, predicate):
         if hit is not None:
             return hit
     return None
+
+
+# -- the area's own script variables --------------------------------------- #
+def test_an_areas_variables_are_read_like_the_modules(tmp_path):
+    """An area's .git carries a VarTable of exactly the module's shape.
+
+    38 of the owner's 65 areas hold some — quest counters, PRC's
+    per-area teleport blocks, "have I run this once" flags — and none of it was
+    visible while the module's identical table was both shown and editable.
+    """
+    from tests.test_save_editor import _make_char_save_with_git
+
+    from nwnsaveeditor.save_editor import SaveEditor
+
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    variables = editor.area_variables("area1")
+    assert [v.name for v in variables] == ["AREA_VISITS", "AREA_GUARD"]
+    assert variables[0].editable
+    assert not variables[1].editable  # an object handle points at nothing once saved
+
+
+def test_an_unknown_area_simply_has_no_variables(tmp_path):
+    from tests.test_save_editor import _make_char_save_with_git
+
+    from nwnsaveeditor.save_editor import SaveEditor
+
+    assert SaveEditor(_make_char_save_with_git(tmp_path)).area_variables("nope") == []
+
+
+def test_setting_an_area_variable_stages_and_survives_a_save(tmp_path):
+    from tests.test_save_editor import _make_char_save_with_git
+
+    from nwnsaveeditor.save_editor import SaveEditor
+
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    editor.set_area_variable("area1", 0, 11, where="AREA_VISITS")
+    staged = editor.pending_changes()
+    assert [c.kind for c in staged] == ["area-variable"]
+    assert "11" in staged[0].summary
+
+    saved = SaveEditor(editor.save_as(tmp_path / "out"))
+    assert [v.value for v in saved.area_variables("area1")][0] == 11
+
+
+def test_an_object_variable_is_refused_rather_than_written(tmp_path):
+    """Same rule as the module's: an object id points at nothing after a reload."""
+    from tests.test_save_editor import _make_char_save_with_git
+
+    from nwnsaveeditor.save_editor import SaveEditError, SaveEditor
+
+    editor = SaveEditor(_make_char_save_with_git(tmp_path))
+    with pytest.raises(SaveEditError):
+        editor.set_area_variable("area1", 1, 42, where="AREA_GUARD")
+
+
+def test_the_screen_lists_the_variables_and_gates_the_edit_button(window, screen):
+    from PySide6.QtCore import Qt
+
+    labels = _tree_labels(screen)
+    assert "Variables (2)" in labels
+    assert "AREA_VISITS = 3" in labels
+    assert any(label.startswith("AREA_GUARD") and "read-only" in label for label in labels)
+
+    tree = screen._tree
+    node = next(
+        tree.topLevelItem(i) for i in range(tree.topLevelItemCount())
+        if tree.topLevelItem(i).text(0).startswith("Variables")
+    )
+    editable, locked = node.child(0), node.child(1)
+    # Read-only mode: nothing is offered, whatever is selected.
+    tree.setCurrentItem(editable)
+    screen._on_select(editable)
+    assert not screen._variable_button.isEnabled()
+
+    window._edit_toggle.setChecked(True)
+    screen._on_select(editable)
+    assert screen._variable_button.isEnabled()
+    # ...but never for a variable whose type cannot be written safely.
+    screen._on_select(locked)
+    assert not screen._variable_button.isEnabled()
+    assert locked.data(0, Qt.ItemDataRole.UserRole)[0] == "variable"

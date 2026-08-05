@@ -1712,6 +1712,51 @@ class SaveEditor:
 
         return read_variables(self._module_tree())
 
+    def area_variables(self, area_resref: str) -> list:
+        """One area's persistent script variables.
+
+        The same kind of state as :meth:`module_variables`, one scope down: an
+        area's ``.git`` carries its own ``VarTable``, and campaigns use it for
+        exactly the same things (``PRC_DISABLE_TELEPORTATION_IN_AREA``, quest
+        counters, "have I run this once" flags). It reads through the identical
+        parser because the table has the identical shape.
+        """
+        from nwnsaveeditor.world_state import read_variables
+
+        try:
+            return read_variables(self._area_tree(area_resref))
+        except Exception:  # noqa: BLE001 — an unreadable area simply has none
+            return []
+
+    @_records(lambda area, index, *_a, **_k: ("area-variable", area.lower(), index))
+    def set_area_variable(
+        self, area_resref: str, index: int, value, *, where: str = ""
+    ) -> None:
+        """Set one area variable's value, keeping its stored type."""
+        from nwnsaveeditor.world_state import EDITABLE_TYPES
+
+        entry_field = self._area_tree(area_resref).root.fields.get("VarTable")
+        table = entry_field.value if entry_field is not None else None
+        if table is None or index >= len(table.structs):
+            raise SaveEditError("no such area variable")
+        struct = table.structs[index]
+        type_code = int(struct.fields["Type"].value)
+        if type_code not in EDITABLE_TYPES:
+            raise SaveEditError("this variable's type cannot be edited safely")
+
+        entry = struct.fields["Value"]
+        try:
+            entry.value = type(entry.value)(value)
+        except (TypeError, ValueError) as exc:
+            raise SaveEditError(f"{value!r} does not fit this variable") from exc
+
+        self._area_dirty(area_resref)
+        name = str(struct.fields["Name"].value)
+        self._stage(
+            "area-variable", (area_resref.lower(), index),
+            where or f"{area_resref}: {name}", f"→{entry.value}",
+        )
+
     @_records(lambda index, *_a, **_k: ("variable", index))
     def set_variable(self, index: int, value, *, where: str = "") -> None:
         """Set a module variable's value, keeping its stored type."""

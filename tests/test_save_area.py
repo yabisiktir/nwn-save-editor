@@ -90,3 +90,49 @@ def test_real_save_factions_decode():
     factions = read_factions(save.sav_path)
     assert factions  # every module ships the standard faction table
     assert any(f.name == "Commoner" for f in factions)
+
+
+# -- faction standings ------------------------------------------------------ #
+def test_a_faction_the_module_never_customised_reads_as_neutral(tmp_path):
+    """``RepList`` stores only the pairs a module changed.
+
+    One of the owner's saves lists rows (0,1) and (0,5)..(0,17) but omits (0,2),
+    (0,3) and (0,4) — Commoner, Merchant, Defender. Absent is not "unknown": the
+    engine treats an unlisted pair as neutral, and rendering a blank said less
+    than the game does.
+    """
+    from tests.test_save_editor import _make_erf
+
+    from nwnfile.formats.gff import Gff, GffField, GffList, GffStruct, GffType, write_gff
+    from nwnsaveeditor.save_area import DEFAULT_REPUTATION
+
+    def _faction(name):
+        return GffStruct(struct_type=0, fields={
+            "FactionName": GffField(GffType.CEXOSTRING, name),
+            "FactionGlobal": GffField(GffType.BYTE, 0),
+        })
+
+    def _rep(f1, f2, value):
+        return GffStruct(struct_type=0, fields={
+            "FactionID1": GffField(GffType.DWORD, f1),
+            "FactionID2": GffField(GffType.DWORD, f2),
+            "FactionRep": GffField(GffType.DWORD, value),
+        })
+
+    fac = Gff("FAC ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "FactionList": GffField(GffType.LIST, GffList(
+            [_faction("PC"), _faction("Hostile"), _faction("Commoner")]
+        )),
+        # Only the Hostile pair is stored; Commoner is left to the default.
+        "RepList": GffField(GffType.LIST, GffList([_rep(0, 1, 0)])),
+    }))
+    path = tmp_path / "x.sav"
+    path.write_bytes(_make_erf([("repute", 2038, write_gff(fac))]))
+
+    factions = {f.name: f for f in read_factions(path)}
+    assert factions["Hostile"].reputation_to_pc == 0
+    assert not factions["Hostile"].reputation_is_default
+    # The one nobody customised: neutral, and flagged as the default rather than
+    # presented as something the module chose.
+    assert factions["Commoner"].reputation_to_pc == DEFAULT_REPUTATION
+    assert factions["Commoner"].reputation_is_default

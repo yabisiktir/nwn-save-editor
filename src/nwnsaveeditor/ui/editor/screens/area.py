@@ -107,6 +107,14 @@ class AreaScreen(QWidget):
         )
         self._place_button.clicked.connect(self._place_item)
         buttons.addWidget(self._place_button)
+        self._variable_button = w.ghost_button("Edit Variable…")
+        self._variable_button.setEnabled(False)
+        self._variable_button.setToolTip(
+            "Change this area's stored script value, as Quests & World State does "
+            "for the module's own"
+        )
+        self._variable_button.clicked.connect(self._edit_variable)
+        buttons.addWidget(self._variable_button)
         buttons.addStretch(1)
         self._middle.addLayout(buttons)
         outer.addWidget(middle, 1)
@@ -312,16 +320,33 @@ class AreaScreen(QWidget):
         for kind, count in sorted(area.counts.items()):
             meta.addChild(QTreeWidgetItem([f"{kind}: {count}"]))
 
+        # The area's own VarTable — the same state Quests & World State shows for
+        # the module, one scope down. 38 of the owner's 65 areas carry some.
+        variables = self.session().area_variables(self._area_resref or "")
+        if variables:
+            node = QTreeWidgetItem([f"Variables ({len(variables)})"])
+            self._tree.addTopLevelItem(node)
+            for variable in variables:
+                child = QTreeWidgetItem([
+                    f"{variable.name} = {variable.value}"
+                    + ("" if variable.editable else f"  ({variable.type_name}, read-only)")
+                ])
+                child.setData(0, _ROLE, ("variable", variable))
+                if not variable.editable:
+                    child.setToolTip(0, variable.why_locked)
+                node.addChild(child)
+
         save = self._window.save
         factions = read_factions(save.sav_path) if save and save.sav_path else []
         if factions:
             node = QTreeWidgetItem([f"Factions ({len(factions)})"])
             self._tree.addTopLevelItem(node)
             for faction in factions:
-                standing = (
-                    f" — PC reputation {faction.reputation_to_pc}"
-                    if faction.reputation_to_pc is not None else ""
-                )
+                # Always a number now. A faction the module never customised is
+                # neutral, and saying nothing read as though we could not tell.
+                standing = f" — PC reputation {faction.reputation_to_pc}"
+                if faction.reputation_is_default:
+                    standing += " (default)"
                 node.addChild(QTreeWidgetItem([f"{faction.name}{standing}"]))
 
         if self._tree.topLevelItemCount() == 0:
@@ -363,6 +388,9 @@ class AreaScreen(QWidget):
         self._store_button.setEnabled(bool(role) and role[0] == "store" and self.editing)
         holder = current.data(0, _HOLDER) if current is not None else None
         self._place_button.setEnabled(bool(holder) and self.editing)
+        self._variable_button.setEnabled(
+            bool(role) and role[0] == "variable" and role[1].editable and self.editing
+        )
         if role and role[0] == "item":
             self._show_detail(role[1])
         else:
@@ -375,6 +403,50 @@ class AreaScreen(QWidget):
             if widget is not None:
                 w.retire(widget)
         layout.addWidget(AreaItemPanel(self, item, self._area_resref or ""))
+
+    # -- the area's own script variables ------------------------------------ #
+    def _edit_variable(self) -> None:
+        """Edit the selected area variable, exactly as the Quests screen does.
+
+        Same prompt, same staging, same ledger — the only difference is which
+        ``VarTable`` it writes to.
+        """
+        from PySide6.QtWidgets import QDialog, QMessageBox
+
+        current = self._tree.currentItem()
+        role = current.data(0, _ROLE) if current is not None else None
+        if not role or role[0] != "variable":
+            return
+        variable = role[1]
+
+        if isinstance(variable.value, str):
+            text, ok = w.prompt_text(
+                self, "Edit Variable", variable.name, str(variable.value)
+            )
+            if not ok:
+                return
+            new_value = text
+        else:
+            from nwnsaveeditor.ui.dialogs.property_edit_dialog import PropertyEditDialog
+
+            dialog = w.style_dialog(PropertyEditDialog(
+                variable.name, f"{variable.type_name}:", int(variable.value),
+                minimum=-2_147_483_648, maximum=2_147_483_647,
+                title="Edit Value", parent=self,
+            ))
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            new_value = dialog.value()
+
+        try:
+            self.session().set_area_variable(
+                self._area_resref or "", variable.index, new_value,
+                where=f"{self._area_resref}: {variable.name}",
+            )
+        except Exception as exc:  # SaveEditError and friends
+            QMessageBox.critical(self, "Edit failed", str(exc))
+            return
+        self._window.notify_changed()
 
     # -- placing one of your items in the world ----------------------------- #
     def _place_item(self) -> None:

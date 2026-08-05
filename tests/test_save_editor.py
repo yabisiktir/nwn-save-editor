@@ -560,6 +560,19 @@ def _make_char_save_with_git(tmp_path, name="000000 - test") -> SaveGame:
     })
     git = Gff("GIT ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
         "StoreList": GffField(GffType.LIST, GffList([store])),
+        # An area's own script state — the same shape as the module's VarTable.
+        "VarTable": GffField(GffType.LIST, GffList([
+            GffStruct(struct_type=0, fields={
+                "Name": GffField(GffType.CEXOSTRING, "AREA_VISITS"),
+                "Type": GffField(GffType.DWORD, 1),   # int
+                "Value": GffField(GffType.INT, 3),
+            }),
+            GffStruct(struct_type=0, fields={
+                "Name": GffField(GffType.CEXOSTRING, "AREA_GUARD"),
+                "Type": GffField(GffType.DWORD, 4),   # object -> not editable
+                "Value": GffField(GffType.DWORD, 6915),
+            }),
+        ])),
     }))
     bic = Gff("BIC ", "V3.2", _character())
     folder = tmp_path / name

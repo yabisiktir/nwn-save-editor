@@ -133,13 +133,27 @@ class AreaContents:
         return ", ".join(parts) or "exterior"
 
 
+#: Standing toward a faction that ``RepList`` does not mention.
+#:
+#: ``RepList`` stores only the pairs a module has customised — one of the owner's
+#: saves lists rows (0,1) and (0,5)..(0,17) but simply omits (0,2), (0,3) and (0,4),
+#: the three stock Bioware factions. Absent is not "unknown": the engine treats an
+#: unlisted pair as neutral, so reporting nothing at all said less than the game does.
+DEFAULT_REPUTATION = 50
+
+
 @dataclass
 class Faction:
     """A faction in the module and (when known) its standing toward the player."""
 
     name: str = ""
     global_faction: bool = False
-    reputation_to_pc: int | None = None
+    #: Standing toward the player, 0-100. Never ``None``: an absent pair is the
+    #: neutral default, not an unknown — see :data:`DEFAULT_REPUTATION`.
+    reputation_to_pc: int = DEFAULT_REPUTATION
+    #: False when the pair was actually stored, True when we are reporting the
+    #: default because ``RepList`` does not mention it.
+    reputation_is_default: bool = True
 
 
 # --------------------------------------------------------------------------- #
@@ -390,7 +404,8 @@ def read_factions(sav_path: Path) -> list[Faction]:
             Faction(
                 name=name or f"Faction {index}",
                 global_faction=globals_[index] if index < len(globals_) else False,
-                reputation_to_pc=rep_to_pc.get(index),
+                reputation_to_pc=rep_to_pc.get(index, DEFAULT_REPUTATION),
+                reputation_is_default=index not in rep_to_pc,
             )
         )
     return factions
