@@ -23,7 +23,7 @@ import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path, PurePath
+from pathlib import Path, PurePosixPath
 
 from nwnfile.editions import Edition
 
@@ -96,7 +96,12 @@ def is_network_path(path: os.PathLike[str] | str) -> bool:
     s = str(path)
     if s.startswith(("\\\\", "//")):  # Windows UNC
         return True
-    parts = PurePath(s).parts
+    # PurePosixPath, not PurePath: this asks whether a *string* looks like a POSIX
+    # network mount, which does not depend on the machine asking. PurePath is
+    # PureWindowsPath on Windows, where the root part is "\\" rather than "/" — so
+    # the check below silently matched nothing there and every /Volumes, /mnt,
+    # /media and /net path was reported as local.
+    parts = PurePosixPath(s).parts
     # POSIX network mount roots: /Volumes (macOS SMB/AFP), /mnt & /media (Linux),
     # /net (autofs).
     network_roots = {"Volumes", "mnt", "media", "net"}
