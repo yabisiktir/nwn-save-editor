@@ -49,10 +49,9 @@ def test_the_app_icon_offers_several_sizes(qtbot):
 
 
 def test_the_window_wears_it(qtbot, tmp_path):
-    from tests.test_save_editor import _make_char_save
-
     from nwnsaveeditor.ui.editor.host import StandaloneHost
     from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+    from tests.test_save_editor import _make_char_save
 
     window = SaveEditorWindow(
         [_make_char_save(tmp_path)],

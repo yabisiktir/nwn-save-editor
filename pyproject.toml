@@ -21,7 +21,11 @@ dev = [
     "pytest>=8.0",
     "pytest-qt>=4.4",
     "pyyaml>=6.0",   # test_ci_workflow.py parses the workflow
-    "ruff>=0.6",
+    # Pinned, not floated: CI installs the newest match, and a ruff release
+    # that changes a rule turns a green repository red with no commit behind
+    # it — which is exactly how "clean locally, I001 in CI" happened. Bump
+    # this deliberately, with the fixes in the same commit.
+    "ruff==0.16.1",
     "mypy>=1.11",
 ]
 
@@ -41,6 +45,13 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+# Both packages here are ours. Stated rather than inferred, because ruff versions
+# disagreed about how to classify them when Vaultkeeper imports them from a
+# sibling checkout — the same file came out clean under one and I001 under
+# another, each wanting the opposite fix.
+known-first-party = ["nwnfile", "nwnsaveeditor", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 # Salvaged binary-format readers, kept close to their working original pending a

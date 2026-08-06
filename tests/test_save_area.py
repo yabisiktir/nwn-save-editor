@@ -101,10 +101,9 @@ def test_a_faction_the_module_never_customised_reads_as_neutral(tmp_path):
     engine treats an unlisted pair as neutral, and rendering a blank said less
     than the game does.
     """
-    from tests.test_save_editor import _make_erf
-
     from nwnfile.formats.gff import Gff, GffField, GffList, GffStruct, GffType, write_gff
     from nwnsaveeditor.save_area import DEFAULT_REPUTATION
+    from tests.test_save_editor import _make_erf
 
     def _faction(name):
         return GffStruct(struct_type=0, fields={

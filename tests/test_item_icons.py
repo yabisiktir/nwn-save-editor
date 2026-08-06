@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from tests.test_erf_reader import _build_erf
-
 from nwnfile.item_icons import ItemIconSource
+from tests.test_erf_reader import _build_erf
 
 
 def test_icon_candidate_derivation():

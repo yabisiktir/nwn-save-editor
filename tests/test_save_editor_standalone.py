@@ -28,9 +28,8 @@ def test_the_standalone_host_satisfies_the_protocol(tmp_path):
 
 
 def test_the_editor_opens_with_nothing_but_a_host(qtbot, tmp_path):
-    from tests.test_save_editor import _make_char_save
-
     from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+    from tests.test_save_editor import _make_char_save
 
     host = StandaloneHost(game_root=None, game_user_dir=None, settings_dir=tmp_path)
     window = SaveEditorWindow([_make_char_save(tmp_path)], host)
@@ -144,9 +143,8 @@ def test_a_settings_file_is_read_leniently(tmp_path, payload):
 
 # -- portraits --------------------------------------------------------------- #
 def _portrait_window(qtbot, tmp_path, user_dir):
-    from tests.test_save_editor import _make_char_save
-
     from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+    from tests.test_save_editor import _make_char_save
 
     # An explicit empty game root: passing None makes StandaloneHost go looking
     # for a real install, which would make these depend on the machine.

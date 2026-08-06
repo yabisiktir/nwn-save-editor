@@ -9,12 +9,11 @@ from __future__ import annotations
 import struct
 from pathlib import Path
 
-from tests import real_data
-
 from nwnfile.formats.erf_reader import (
     ErfReader,
     extension_for_res_type,
 )
+from tests import real_data
 
 NIT_STORE = real_data.nit_store()
 

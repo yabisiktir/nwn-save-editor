@@ -288,9 +288,8 @@ def test_a_host_may_put_its_own_name_on_it():
 def test_the_window_shows_it(qtbot, tmp_path):
     from types import SimpleNamespace
 
-    from tests.test_save_editor import _make_char_save
-
     from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+    from tests.test_save_editor import _make_char_save
 
     class _Host:
         wordmark = "SOMETHING ELSE"

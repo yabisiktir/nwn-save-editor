@@ -420,9 +420,8 @@ def test_an_areas_variables_are_read_like_the_modules(tmp_path):
     per-area teleport blocks, "have I run this once" flags — and none of it was
     visible while the module's identical table was both shown and editable.
     """
-    from tests.test_save_editor import _make_char_save_with_git
-
     from nwnsaveeditor.save_editor import SaveEditor
+    from tests.test_save_editor import _make_char_save_with_git
 
     editor = SaveEditor(_make_char_save_with_git(tmp_path))
     variables = editor.area_variables("area1")
@@ -432,17 +431,15 @@ def test_an_areas_variables_are_read_like_the_modules(tmp_path):
 
 
 def test_an_unknown_area_simply_has_no_variables(tmp_path):
-    from tests.test_save_editor import _make_char_save_with_git
-
     from nwnsaveeditor.save_editor import SaveEditor
+    from tests.test_save_editor import _make_char_save_with_git
 
     assert SaveEditor(_make_char_save_with_git(tmp_path)).area_variables("nope") == []
 
 
 def test_setting_an_area_variable_stages_and_survives_a_save(tmp_path):
-    from tests.test_save_editor import _make_char_save_with_git
-
     from nwnsaveeditor.save_editor import SaveEditor
+    from tests.test_save_editor import _make_char_save_with_git
 
     editor = SaveEditor(_make_char_save_with_git(tmp_path))
     editor.set_area_variable("area1", 0, 11, where="AREA_VISITS")
@@ -456,9 +453,8 @@ def test_setting_an_area_variable_stages_and_survives_a_save(tmp_path):
 
 def test_an_object_variable_is_refused_rather_than_written(tmp_path):
     """Same rule as the module's: an object id points at nothing after a reload."""
-    from tests.test_save_editor import _make_char_save_with_git
-
     from nwnsaveeditor.save_editor import SaveEditError, SaveEditor
+    from tests.test_save_editor import _make_char_save_with_git
 
     editor = SaveEditor(_make_char_save_with_git(tmp_path))
     with pytest.raises(SaveEditError):

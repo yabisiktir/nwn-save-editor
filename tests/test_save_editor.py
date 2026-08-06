@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from tests.test_erf_writer import _make_erf
 
 from nwnfile.formats.erf_reader import ErfReader
 from nwnfile.formats.gff import (
@@ -22,6 +21,7 @@ from nwnfile.item_properties import editable_magnitude, is_cast_spell
 from nwnsaveeditor.save_area import read_area_contents
 from nwnsaveeditor.save_editor import SaveEditError, SaveEditor, _render_raw_path
 from nwnsaveeditor.save_game import SaveGame
+from tests.test_erf_writer import _make_erf
 
 
 def _store_struct(markup=200, markdown=35, gold=-1, black=0):
