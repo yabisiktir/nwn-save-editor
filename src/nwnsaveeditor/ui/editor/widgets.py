@@ -17,6 +17,7 @@ toggle swaps :mod:`~nwnsaveeditor.ui.editor.tokens` live.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
@@ -420,6 +421,38 @@ class TabStrip(QWidget):
             layout.addWidget(button)
         layout.addStretch(1)
         self._group.buttons()[0].setChecked(True)
+        self._reserved = False
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt's spelling
+        super().showEvent(event)
+        if not self._reserved:
+            self._reserved = True
+            self._reserve_checked_width()
+
+    def _reserve_checked_width(self) -> None:
+        """Size every tab for its *checked* label, which is the wider one.
+
+        ``:checked`` bumps the tab from weight 500 to 600, but the button's size
+        hint was measured at 500, so the active label is wider than the button
+        holding it and Qt clips it — at both ends, since the text is centred.
+        "Abilities & Combat" rendered as "bilities & Comba".
+
+        macOS never showed this: its UI font is narrow enough that the bold text
+        still fits. Windows, with Segoe UI, is not. Found by grabbing the real
+        window under a CrossOver bottle.
+
+        Measured here rather than at construction because the stylesheet's font
+        is only applied when Qt polishes the widget, which has happened by the
+        time it is first shown.
+        """
+        for button in self._keys:
+            font = QFont(button.font())
+            font.setWeight(QFont.Weight.DemiBold)  # what font-weight:600 maps to
+            # The label as drawn: _literal() doubles ampersands to escape the
+            # mnemonic, and the doubled one is not painted.
+            text = button.text().replace("&&", "&")
+            padding = 2 * 16  # matches padding:11px 16px in the stylesheet
+            button.setMinimumWidth(QFontMetrics(font).horizontalAdvance(text) + padding)
 
     @property
     def changed(self):

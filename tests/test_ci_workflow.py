@@ -35,11 +35,18 @@ def test_it_builds_on_every_os_it_ships_for(workflow):
     assert any("macOS" in label for label in labels)
 
 
-def test_macos_is_built_for_both_cpus(workflow):
-    """PySide6 wheels are per-arch, so one macOS build serves only one CPU."""
+def test_macos_is_apple_silicon_only(workflow):
+    """One macOS artifact, arm64.
+
+    PySide6 wheels are per-architecture, so a freeze serves exactly one CPU and
+    the arm64 build will not launch on an Intel Mac. Building x86_64 as well was
+    dropped deliberately — nobody asked for it, and it doubled the macOS half of
+    every release. This pins that as a decision rather than a drift: restoring
+    Intel means adding a macos-13 entry *and* changing this test.
+    """
     runners = [m["os"] for m in workflow["jobs"]["build"]["strategy"]["matrix"]["include"]]
     assert "macos-14" in runners, "Apple Silicon"
-    assert "macos-13" in runners, "Intel"
+    assert "macos-13" not in runners, "Intel builds were dropped on purpose"
 
 
 def test_it_runs_the_same_build_script_a_developer_runs(workflow):

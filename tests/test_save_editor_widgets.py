@@ -52,6 +52,41 @@ def test_tab_strip_switches_and_marks_dirty_tabs(qtbot):
     assert strip._dots["skills"].text() == "Skills"
 
 
+def test_a_tab_is_wide_enough_for_its_bold_active_label(qtbot):
+    """The active tab is drawn at weight 600; the button must fit that, not 500.
+
+    It did not, and the label was clipped at both ends — "Abilities & Combat"
+    came out as "bilities & Comba". macOS hid it because its UI font is narrow
+    enough that the bold text still fitted; Windows, with Segoe UI, showed it.
+
+    Asserted against the bold metrics rather than against a screenshot, so it
+    holds on every platform. The measured case: the label is 105px at weight 500
+    and 121px at 600, and the padding is 32px, so the hint of 137 was 16px short
+    of the 153 the active tab needs — 8px clipped at each end.
+
+    The padding matters in this sum. Leaving it out makes the assertion pass
+    against the too-narrow hint, which is how the first version of this test
+    went green on Windows against the very bug it was written for.
+    """
+    from PySide6.QtGui import QFont, QFontMetrics
+
+    strip = w.TabStrip((("abilities", "Abilities & Combat"), ("skills", "Skills")))
+    qtbot.addWidget(strip)
+    strip.show()
+    qtbot.waitExposed(strip)
+
+    for key in ("abilities", "skills"):
+        button = strip._dots[key]
+        bold = QFont(button.font())
+        bold.setWeight(QFont.Weight.DemiBold)
+        text = QFontMetrics(bold).horizontalAdvance(button.text().replace("&&", "&"))
+        needed = text + 2 * 16  # padding:11px 16px, both sides
+        assert button.width() >= needed, (
+            f"{key} clips its own label when active: "
+            f"{button.width()}px wide, needs {needed}px"
+        )
+
+
 def test_nav_row_shows_its_dirty_dot_only_when_asked(qtbot):
     row = w.NavRow("character", "Character", "CH")
     qtbot.addWidget(row)
