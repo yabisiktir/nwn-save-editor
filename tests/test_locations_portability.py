@@ -16,7 +16,7 @@ tells you too late.
 
 from __future__ import annotations
 
-from pathlib import PurePosixPath, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -60,6 +60,22 @@ def test_a_bare_mount_root_counts_as_network(root: str) -> None:
     # and raises an availability warning — and erring towards "network" there
     # costs nothing. Written down so a future change to it is a decision.
     assert is_network_path(root) is True
+
+
+@pytest.mark.parametrize(
+    "path", ["/Volumes/share/NWN", "/mnt/nas/NWN", "/media/usb/NWN", "/net/host/NWN"]
+)
+def test_a_path_object_is_detected_too_not_only_a_string(path: str) -> None:
+    # The second half of the same bug, and the half the string cases above do
+    # not reach. This function takes os.PathLike as well as str, and a Path has
+    # already been normalised to the host's separator by the time we see it:
+    # Path("/Volumes/NAS") stringifies as "\\Volumes\\NAS" on Windows, so the
+    # POSIX parse read it as a single long filename and answered "local".
+    #
+    # Found by running the suite against a real Windows Python under CrossOver;
+    # the macOS run cannot tell these two cases apart, because there Path keeps
+    # the forward slashes.
+    assert is_network_path(Path(path)) is True
 
 
 def test_the_flavours_really_do_disagree() -> None:

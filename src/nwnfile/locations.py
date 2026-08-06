@@ -101,7 +101,14 @@ def is_network_path(path: os.PathLike[str] | str) -> bool:
     # PureWindowsPath on Windows, where the root part is "\\" rather than "/" — so
     # the check below silently matched nothing there and every /Volumes, /mnt,
     # /media and /net path was reported as local.
-    parts = PurePosixPath(s).parts
+    #
+    # The separators are folded first because this accepts a Path as well as a
+    # string, and a Path has already been normalised to the host's separator:
+    # Path("/Volumes/NAS") stringifies as "\\Volumes\\NAS" on Windows, which the
+    # POSIX parse reads as one long filename. Folding costs us nothing real — a
+    # backslash is legal in a POSIX filename, but not in one of these four mount
+    # roots, which is all this looks at.
+    parts = PurePosixPath(s.replace("\\", "/")).parts
     # POSIX network mount roots: /Volumes (macOS SMB/AFP), /mnt & /media (Linux),
     # /net (autofs).
     network_roots = {"Volumes", "mnt", "media", "net"}
