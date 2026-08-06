@@ -29,17 +29,26 @@
 # Wine is not Windows. File locking, ACLs and genuine Win32 API edge cases
 # differ, and case sensitivity here comes from the host filesystem (APFS is
 # case-insensitive by default, which happens to match Windows -- by luck, not by
-# emulation). Qt tests are excluded outright: PySide6 under Wine is a fight with
-# no payoff, and the bugs this hunts are not in the UI.
+# emulation).
 #
 # So this is a third data point that is cheap enough to run every time. It does
 # not replace the Windows CI job.
+#
+# The default run skips the Qt tests, for speed rather than capability: Qt does
+# load under Wine, with its real "windows" platform plugin, and both full suites
+# pass there. Point pytest at the whole tests directory if you want them, or use
+# --shot, which is the part of the UI a headless assertion cannot check anyway.
 #
 # Usage
 # -----
 #   scripts/win_test.sh --setup        # once: create the bottle, install Python
 #   scripts/win_test.sh                # run this repo's non-Qt tests
 #   scripts/win_test.sh -k some_test   # extra args go to pytest
+#   scripts/win_test.sh --shot         # render the main window as Windows draws it
+#
+# --setup also installs PySide6, which is what makes --shot (and the Qt tests,
+# if you point pytest at them) possible: Qt loads under Wine with its native
+# "windows" platform plugin, so the PNG shows genuine Windows text metrics.
 #
 set -uo pipefail
 
@@ -92,15 +101,23 @@ setup() {
     printf 'python%s.zip\n.\nLib\\site-packages\nimport site\n' \
         "${major_minor//./}" > "$BOTTLE_DIR/drive_c/py/python${major_minor//./}._pth"
 
-    echo "installing pip + pytest..."
+    echo "installing pip, pytest and Qt..."
     winrun "$WINPY" 'C:\py\get-pip.py' --no-warn-script-location >/dev/null
-    winrun "$WINPY" -m pip install -q --no-warn-script-location pytest requests >/dev/null
+    # PySide6 is ~200 MB and only --shot and the Qt tests need it, but installing
+    # it here keeps "setup once" true.
+    winrun "$WINPY" -m pip install -q --no-warn-script-location \
+        pytest pytest-qt requests "PySide6>=6.7,<6.9" >/dev/null
 
-    # PYTHONPATH does not survive the CrossOver wine wrapper, so the sibling
-    # checkout goes on the path with a .pth file instead.
-    local sibling="$(dirname "$REPO")/nwn-save-editor/src"
-    if [ -d "$sibling" ] && [ "$sibling" != "$REPO/src" ]; then
-        win_path "$sibling" > "$BOTTLE_DIR/drive_c/py/Lib/site-packages/nwn-dev.pth"
+    # PYTHONPATH does not survive the CrossOver wine wrapper, so nwnfile goes on
+    # the path with a .pth file instead. Written whichever repo you set up from,
+    # so one bottle serves both: Vaultkeeper imports nwnfile from this sibling
+    # checkout, and its own pyproject only puts its own src on the path.
+    local editor_src="$(dirname "$REPO")/nwn-save-editor/src"
+    if [ -d "$editor_src" ]; then
+        win_path "$editor_src" > "$BOTTLE_DIR/drive_c/py/Lib/site-packages/nwn-dev.pth"
+    else
+        echo "note: no nwn-save-editor checkout beside this one; Vaultkeeper runs" \
+             "in this bottle will not find nwnfile" >&2
     fi
 
     echo
@@ -109,11 +126,33 @@ setup() {
 
 if [ "${1:-}" = "--setup" ]; then setup; exit $?; fi
 
-# --------------------------------------------------------------------------- #
-# Run
-# --------------------------------------------------------------------------- #
 [ -x "$CX_ROOT/bin/wine" ] || die "CrossOver not found at $CX_ROOT (set CX_ROOT)"
 [ -d "$BOTTLE_DIR/drive_c/py" ] || die "bottle not provisioned -- run: $0 --setup"
+
+# --------------------------------------------------------------------------- #
+# --shot: render the main window as Windows draws it
+# --------------------------------------------------------------------------- #
+if [ "${1:-}" = "--shot" ]; then
+    shift
+    # Wine cannot follow a bare host path, so the defaults are translated to Z:.
+    # Anything passed explicitly is forwarded untouched -- give those as the
+    # bottle sees them.
+    extra=()
+    if [ $# -eq 0 ]; then
+        user_dir="$HOME/Documents/Neverwinter Nights"
+        game_root="$HOME/Library/Application Support/Steam/steamapps/common/Neverwinter Nights"
+        [ -d "$user_dir" ] && extra+=(--user-dir "$(win_path "$user_dir")")
+        [ -d "$game_root" ] && extra+=(--game-root "$(win_path "$game_root")")
+    fi
+    echo "bottle: $BOTTLE   writing to build/screenshots/"
+    winrun "$WINPY" "$(win_path "$REPO/scripts/window_shot.py")" \
+        --prefix win- "${extra[@]}" "$@"
+    exit $?
+fi
+
+# --------------------------------------------------------------------------- #
+# Run the tests
+# --------------------------------------------------------------------------- #
 
 args=()
 for f in "$REPO"/tests/test_*.py; do
