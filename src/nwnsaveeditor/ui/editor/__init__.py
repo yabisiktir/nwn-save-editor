@@ -1,4 +1,4 @@
-"""The Save Game Editor — the full-window editor from ``docs/design_handoff_save_editor``.
+"""The Save Game Editor — the full-window editor.
 
 It replaced an earlier tree-and-right-click dialog that grew editing onto a
 read-only viewer. Two surfaces over one

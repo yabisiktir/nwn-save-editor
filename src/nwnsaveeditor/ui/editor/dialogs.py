@@ -1,6 +1,6 @@
 """The Save Game Editor's two dialogs: Open Save, and Save.
 
-Both follow ``docs/design_handoff_save_editor``. The save states the Open dialog
+The save states the Open dialog
 shows are measured, not decorative: *read-only* means the folder really cannot be
 written, and *corrupt* means the ``.sav``'s ``module.ifo`` would not decode — so
 the disabled Open button reflects a save that genuinely cannot be opened.

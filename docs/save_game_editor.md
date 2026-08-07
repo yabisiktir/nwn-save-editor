@@ -1,16 +1,12 @@
 # Save Game Editor — Guide
 
-**Tools → Save Game Editor** opens a full window: a sidebar of sections on the left,
-the section you picked in the middle, and a detail panel on the right where the
-section has one.
+The editor opens as a full window: a sidebar of sections on the left, the section
+you picked in the middle, and a detail panel on the right where the section has
+one. Run it on its own with `nwn-save-editor`, or from inside Vaultkeeper with
+**Tools → Save Game Editor**.
 
 Your original save is never modified in place unless you explicitly ask for it, and
 even then it is archived first. Editing is safe to experiment with.
-
-It replaced an earlier dialog also called the Save Game Viewer, which had grown
-editing onto a read-only tree. Two surfaces over one engine meant every fix needed
-doing twice — and more than one was only ever done once — so that dialog is gone
-and this is the only save editor.
 
 ## Running it on its own
 

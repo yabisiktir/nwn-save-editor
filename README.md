@@ -150,6 +150,38 @@ Nothing is signed. macOS Gatekeeper will ask for right-click → Open the first
 time, and Windows SmartScreen will warn; the hooks for adding certificates are
 marked in `packaging/nwn-save-editor.spec`.
 
+## Development
+
+```bash
+pytest                 # ~890 headless tests; no display needed
+ruff check src tests   # lint
+```
+
+Tests run offscreen (`QT_QPA_PLATFORM=offscreen`) and need neither a display nor a
+real game install; the few that want real game files skip themselves unless you
+point `NWN_TEST_NIT_STORE` at some. CI runs the suite on Linux, Windows and macOS
+and builds each platform's artifact on every push.
+
+### Checking Windows behaviour from a Mac
+
+A suite cannot catch a platform assumption it shares with the code that made it,
+and CI only says so after a push. If CrossOver is installed, `scripts/win_test.sh`
+runs the tests against a real Windows Python inside a bottle — genuine `os.name ==
+"nt"`, cp1252 as the locale encoding, and `ntpath` as the path flavour:
+
+```bash
+scripts/win_test.sh --setup   # once: create the bottle, install Python and Qt
+scripts/win_test.sh           # run the tests as Windows sees them
+scripts/win_test.sh --shot    # render the main window as Windows draws it
+```
+
+`scripts/window_shot.py` is that last one, and it runs natively too, so the same
+command on two platforms gives two screenshots of the same window to compare. It
+is what caught a tab label clipped by Windows' wider UI font.
+
+Wine is not Windows — file locking, ACLs and Win32 edge cases differ — so this is
+a third cheap signal, not a replacement for the Windows CI job.
+
 ## Embedding it
 
 Everything the editor asks of a host is one small protocol —

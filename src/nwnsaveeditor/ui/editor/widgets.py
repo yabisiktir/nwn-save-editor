@@ -1,7 +1,7 @@
 """The Save Game Editor's shared widget vocabulary.
 
 Every screen is built from these, so the design stays consistent and each screen
-file stays about *its* content rather than about styling. The handoff asks for
+file stays about *its* content rather than about styling. The design asks for
 high fidelity but says to "prefer the native control that carries the same meaning
 over a pixel-exact reproduction" — so these are ordinary Qt widgets wearing the
 design's colours, not custom-painted lookalikes.

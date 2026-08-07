@@ -20,7 +20,7 @@ class Section:
     advanced: bool = False
 
 
-#: Sidebar order from the handoff — Area Contents sits after Party & Campaign, and
+#: Sidebar order as designed — Area Contents sits after Party & Campaign, and
 #: the advanced screens are grouped under their own ``ADVANCED`` cap label.
 SECTIONS: tuple[Section, ...] = (
     Section("character", "Character", "CH"),

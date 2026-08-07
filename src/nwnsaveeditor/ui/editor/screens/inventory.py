@@ -1,7 +1,7 @@
 """The Inventory & Equipment screen — equipment grid, carried bag, item detail.
 
 The equipment slots reproduce the game's own inventory panel, slot for slot and
-position for position (nwn.fandom.com/wiki/Inventory_slot). The handoff asked
+position for position (nwn.fandom.com/wiki/Inventory_slot). The design asked
 for a humanoid arrangement instead and that is what this screen had, but a
 layout that matches nothing forces anyone checking a character against the
 running game to hunt for each slot; fidelity won.

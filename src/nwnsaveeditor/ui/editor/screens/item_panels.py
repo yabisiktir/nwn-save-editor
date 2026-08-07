@@ -1,6 +1,6 @@
 """The item detail panels — one per context, deliberately not shared.
 
-The handoff is explicit about this: an item selected in *your* inventory gets a
+The design is explicit about this: an item selected in *your* inventory gets a
 different panel from one selected in a store, creature or container. They are
 separate classes rather than one panel with a flag, so an edit meant for one
 context has nowhere to be typed in the other.

@@ -1,6 +1,6 @@
 """The Save Game Editor's global shell — toolbar, sidebar, content, pending footer.
 
-This is the frame from ``docs/design_handoff_save_editor``; the screens that fill
+This is the frame the editor was designed around; the screens that fill
 it live in :mod:`nwnsaveeditor.ui.editor.screens` and are added one at a time.
 Sections with no screen yet render the design's centred empty-state card.
 

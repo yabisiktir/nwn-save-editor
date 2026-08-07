@@ -50,7 +50,7 @@ def test_every_section_has_a_nav_row_and_a_screen(window):
 
 def test_advanced_sections_are_grouped_last():
     """The assertion is that the advanced screens come last, not that there are
-    exactly two — the set has grown and shrunk since the handoff."""
+    exactly two — the set has grown and shrunk since the original design."""
     keys = [s.key for s in sec.SECTIONS]
     advanced = [s.key for s in sec.SECTIONS if s.advanced]
     assert {"raw", "backups"} <= set(advanced)
@@ -58,7 +58,7 @@ def test_advanced_sections_are_grouped_last():
 
 
 def test_area_contents_sits_after_party_in_the_sidebar():
-    """A review note in the handoff moved Area Contents below Party & Campaign."""
+    """A design review moved Area Contents below Party & Campaign."""
     keys = [s.key for s in sec.SECTIONS]
     assert keys.index("area") > keys.index("party")
 

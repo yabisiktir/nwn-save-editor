@@ -1,15 +1,13 @@
 """The Character screen — the core character record, as a skinned NWN sheet.
 
-Layout follows the handoff prototype's latest pass: a header (portrait, name,
+Layout follows the design prototype's last pass: a header (portrait, name,
 class/alignment/deity/gold, XP bar, sheet-skin switcher) above a tab strip of
 ``Abilities & Combat`` / ``Skills`` / ``Feats`` / ``Effects`` / ``Biography``.
-(The handoff README describes an earlier ``Sheet`` / ``Abilities & Saves`` split;
-the prototype is the later iteration, so it wins.)
 
 Derived numbers — AC, attack bonus, saving throws, max HP — are shown but never
 editable: the engine recomputes them from abilities, feats and gear on load, so
-the screen points at the *source* to edit instead. That is the rule
-``docs/save_game_editor.md`` sets, and the handoff defers to it.
+the screen points at the *source* to edit instead. That rule is set out in
+``docs/save_game_editor.md``.
 """
 
 from __future__ import annotations

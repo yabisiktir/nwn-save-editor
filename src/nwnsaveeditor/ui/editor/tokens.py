@@ -1,10 +1,9 @@
 """Design tokens for the Save Game Editor.
 
-The dark set is the one from ``docs/design_handoff_save_editor/README.md``
-("Design Tokens"), which authors colour in OKLCH. Qt stylesheets have no
+The dark set comes from the original design, which authored colour in OKLCH. Qt stylesheets have no
 ``oklch()``, so each value is converted to sRGB hex once, here, and referenced by
-name everywhere else — the handoff's OKLCH source is kept in the comment beside
-each token so it can be re-derived if the design moves.
+name everywhere else. The OKLCH source is kept in the comment beside each token,
+so a value can be re-derived rather than guessed at if the design moves.
 
 The editor also offers a **light** set. It is not a second design: it is the same
 layout lit from the other side, anchored on the application palette in
@@ -34,7 +33,7 @@ THEMES = ("dark", "light")
 # --------------------------------------------------------------------------- #
 # palettes
 # --------------------------------------------------------------------------- #
-#: The handoff's dark, gold-accented look — the editor's default.
+#: The designed dark, gold-accented look — the editor's default.
 DARK: dict[str, Any] = {
     # -- Surfaces --------------------------------------------------------- #
     "APP_BG": "#0d0805",  # oklch(0.14 0.012 55)  near-black warm brown
@@ -225,5 +224,5 @@ RADIUS_ROW = 8
 RADIUS_PANEL = 10
 RADIUS_SHEET = 12
 
-#: Reference window size from the handoff (resizable; sidebar fixed, content scrolls).
+#: Reference window size from the design (resizable; sidebar fixed, content scrolls).
 WINDOW_W, WINDOW_H = 1400, 900
