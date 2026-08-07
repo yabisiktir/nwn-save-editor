@@ -4,11 +4,15 @@ Ported from VB.NET for NWN portrait support
 
 NWN uses TGA format for portraits with the following conventions:
 - Filename format: <resref><size>.tga
-  - h = huge (256x256)
-  - l = large (128x128)
-  - m = medium (96x96)
-  - s = small (64x64)
-  - t = tiny (32x32)
+  - h = huge   (256x512)
+  - l = large  (128x256)
+  - m = medium  (64x128)
+  - s = small   (32x64)
+  - t = tiny    (16x32)
+
+Portraits are twice as tall as they are wide; the sizes above are the ones the
+game requires, from the original tool's ``Defs.PortraitInfo``. (They were listed
+here as squares — 256x256 and so on — which no NWN portrait has ever been.)
 """
 
 import struct
@@ -46,6 +50,26 @@ class TGAImage:
                 b = self.pixel_data[i + 2]
                 rgba.extend([r, g, b, 255])  # Add full alpha
             return bytes(rgba)
+
+
+def read_tga_size(path: Path) -> tuple[int, int]:
+    """``(width, height)`` from a TGA's header, without decoding the image.
+
+    The header is 18 bytes and carries the dimensions at offsets 12-15, so this
+    reads 18 bytes rather than the whole file. That matters when the caller is
+    checking a folder of portraits: validating a thousand images by decoding each
+    one is slow enough to need a progress dialog, which is why the original tool
+    ran it on a background worker.
+
+    Raises ``OSError`` if the file cannot be read, ``ValueError`` if it is too
+    short to be a TGA.
+    """
+    with path.open("rb") as handle:
+        header = handle.read(18)
+    if len(header) < 18:
+        raise ValueError(f"{path.name} is too short to be a TGA file")
+    width, height = struct.unpack_from("<HH", header, 12)
+    return width, height
 
 
 class TGAReader:

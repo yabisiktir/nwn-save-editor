@@ -114,3 +114,47 @@ class TestTGAIntegration:
         # Test RGBA conversion
         rgba_data = result.to_rgba()
         assert len(rgba_data) == 4  # 1 pixel * 4 bytes
+
+
+# --------------------------------------------------------------------------- #
+# Header-only size read
+# --------------------------------------------------------------------------- #
+def _tga_header(width: int, height: int) -> bytes:
+    """An 18-byte TGA header for an uncompressed 24-bit image of this size."""
+    header = bytearray(18)
+    header[2] = 2  # uncompressed true-colour
+    header[12] = width & 0xFF
+    header[13] = width >> 8
+    header[14] = height & 0xFF
+    header[15] = height >> 8
+    header[16] = 24
+    return bytes(header)
+
+
+def test_read_tga_size_reads_only_the_header(tmp_path):
+    """Dimensions without decoding: validating a folder of portraits needs it."""
+    from nwnfile.formats.tga_reader import read_tga_size
+
+    path = tmp_path / "po_heroh.tga"
+    path.write_bytes(_tga_header(256, 512) + bytes(256 * 512 * 3))
+    assert read_tga_size(path) == (256, 512)
+
+
+def test_read_tga_size_does_not_read_the_pixels(tmp_path):
+    # A header that claims a big image, with no pixel data behind it. Decoding
+    # would fail; reading the size must not, because the caller only wants the
+    # dimensions and the file may be large.
+    from nwnfile.formats.tga_reader import read_tga_size
+
+    path = tmp_path / "truncated.tga"
+    path.write_bytes(_tga_header(256, 512))
+    assert read_tga_size(path) == (256, 512)
+
+
+def test_read_tga_size_rejects_a_file_too_short_to_be_a_tga(tmp_path):
+    from nwnfile.formats.tga_reader import read_tga_size
+
+    path = tmp_path / "stub.tga"
+    path.write_bytes(b"nope")
+    with pytest.raises(ValueError):
+        read_tga_size(path)
