@@ -202,7 +202,7 @@ manager, embeds this editor and ships it inside its own application.
 
 ## Thanks
 
-To **Louis (LazWorks)**, author of the *NWN Installer Tool*. Its file-format code,
+To **Surazal**, author of the *NWN Installer Tool*. Its file-format code,
 converted to Python, is part of what this is built on — NWN's formats are not
 documented by BioWare, and having a known-correct implementation to work from is
 why this reads real saves rather than an approximation of them.

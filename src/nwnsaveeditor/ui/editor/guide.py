@@ -109,7 +109,7 @@ load, so an edit there may not stick — the editor warns before staging one.</p
 PRC-related.</p>
 
 <h3>Thanks</h3>
-<p>To <b>Louis (LazWorks)</b>, author of the <i>NWN Installer Tool</i>. Its
+<p>To <b>Surazal</b>, author of the <i>NWN Installer Tool</i>. Its
 file-format code, converted to Python, is part of what this editor is built on.</p>
 """
 
