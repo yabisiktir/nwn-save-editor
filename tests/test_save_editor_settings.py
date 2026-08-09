@@ -376,5 +376,8 @@ def test_the_guide_credits_the_formats_work_it_was_built_on():
     from nwnsaveeditor.ui.editor.guide import _help_html
 
     html = _help_html()
-    assert "LazWorks" in html
+    # Surazal, by his own stated preference — not "Louis (LazWorks)", which is
+    # what this asserted until the rename, and what CI caught a commit later.
+    assert "Surazal" in html
+    assert "LazWorks" not in html
     assert "NWN Installer Tool" in html
