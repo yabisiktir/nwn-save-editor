@@ -458,7 +458,7 @@ def test_base_saves_are_editable_when_the_record_carries_them(window, screen):
     window._edit_toggle.setChecked(True)
     screen.refresh()
     text = _text_of(_page(screen, "details"))
-    assert "Base Fortitude save" in text
+    assert "Fortitude save" in text
 
 
 # -- skills ------------------------------------------------------------------ #
@@ -636,27 +636,17 @@ def _abilities_page(screen):
     return screen._pages.currentWidget()
 
 
-def test_the_combat_numbers_say_they_are_the_stored_bases(window, screen):
-    """A "Fortitude +12" that Details also edits reads as a total; it is not."""
+def test_the_saving_throws_are_shown_as_stored_values(window, screen):
+    """The field holds the number the game shows (verified against the owner's
+    save: an in-game Fortitude of 70 is a stored 70), so the saves are presented
+    as stored — like Base Attack Bonus — not decomposed into a base plus ability
+    and gear that would imply a larger total than the game ever displays."""
     text = _labels(_abilities_page(screen)).lower()  # the stat captions uppercase
-    assert "base fortitude" in text
-    assert "base reflex" in text
-    assert "base will" in text
+    assert "fortitude save" in text
+    assert "reflex save" in text
+    assert "will save" in text
     assert "base attack bonus" in text
-    assert "the one details edits" in text
-
-
-def test_a_save_shows_the_ability_that_adds_to_it(window, screen):
-    text = _labels(_abilities_page(screen))
-    assert "Con" in text and "Dex" in text and "Wis" in text
-
-
-def test_gear_is_credited_when_an_item_grants_the_save(window, screen, monkeypatch):
-    monkeypatch.setattr(
-        screen, "_save_gear_bonuses", lambda: {"Fortitude": 3, "Reflex": None, "Will": None}
-    )
-    screen.refresh()
-    assert "+3 gear" in _labels(_abilities_page(screen))
+    assert "stored" in text
 
 
 def test_it_says_what_the_save_does_not_record_at_all(window, screen):
@@ -665,13 +655,6 @@ def test_it_says_what_the_save_does_not_record_at_all(window, screen):
     text = _labels(_abilities_page(screen))
     assert "Attacks per round and off-hand attacks are not stored" in text
     assert "never what they do" in text, "and feats are unattributed for a reason"
-
-
-def test_gear_bonuses_survive_an_unreadable_session(window, screen, monkeypatch):
-    monkeypatch.setattr(
-        window, "session", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
-    )
-    assert screen._save_gear_bonuses() == {}
 
 
 # -- where an ability score comes from --------------------------------------- #
@@ -729,20 +712,6 @@ def test_an_unreadable_session_costs_nothing(window, screen, monkeypatch):
         window, "session", lambda: (_ for _ in ()).throw(RuntimeError("boom"))
     )
     assert screen._ability_gear() == {}
-
-
-def test_saving_throws_use_the_score_in_play(window, screen, monkeypatch):
-    """Fortitude read "+2 Con" off a stored 14 while the row above said 55."""
-    monkeypatch.setattr(
-        screen, "_ability_gear",
-        lambda: {"Con": _total("Con", 14, [("Bralani", 6, "race"), ("Belt", 35, "item")])},
-    )
-    info = window.character_info()
-    stored = info.abilities.get("Con", 10)
-    screen.refresh()
-    text = _labels(_page(screen, "abilities"))
-    assert f"{(stored + 41 - 10) // 2:+d} Con" in text
-    assert f"{(stored - 10) // 2:+d} Con" not in text, "the stored score must not be used"
 
 
 def test_one_source_of_truth_for_every_derived_number(window, screen, monkeypatch):

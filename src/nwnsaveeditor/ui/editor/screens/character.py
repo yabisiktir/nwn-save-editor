@@ -432,8 +432,8 @@ class CharacterScreen(QWidget):
             "Each ability shows the base score the save stores — the one Details "
             "edits — then the score in play after your race, any PRC templates and "
             "everything you are wearing. Hover a total to see every part of it. "
-            "The saving throws and initiative below are derived from those same "
-            "scores.",
+            "Initiative is derived from Dexterity; the saving throws below are the "
+            "values the record stores outright, the same numbers the game shows.",
             t.TEXT_3, 11.5,
         ))
         panel = w.Panel(padding=16)
@@ -444,33 +444,30 @@ class CharacterScreen(QWidget):
         # a Constitution of 14 in the save is 55 on the character, +2 against +22.
         in_play = self._scores_in_play(info)
         dex = ability_modifier(in_play.get("Dex", 10))
-        gear = self._save_gear_bonuses()
         rows = [
             ("Base attack bonus", _signed(info.base_attack_bonus), "stored"),
             ("Initiative", _signed(dex), f"{_signed(dex)} Dex (derived)"),
+            # The saving throws are stored outright, like BAB. They are NOT a class
+            # base with ability and gear still to add: on a real character the
+            # field holds the number the game itself shows (verified against the
+            # owner's own save — an in-game Fortitude of 70 is a stored 70, not a
+            # base of 43). So it is shown as it stands, not decomposed into parts
+            # that would imply a larger total than the game ever displays.
+            ("Fortitude save", _signed(info.save_fortitude), "stored"),
+            ("Reflex save", _signed(info.save_reflex), "stored"),
+            ("Will save", _signed(info.save_will), "stored"),
         ]
-        for kind, ability, stored in (
-            ("Fortitude", "Con", info.save_fortitude),
-            ("Reflex", "Dex", info.save_reflex),
-            ("Will", "Wis", info.save_will),
-        ):
-            modifier = ability_modifier(in_play.get(ability, 10))
-            parts = [f"{_signed(modifier)} {ability}"]
-            if gear.get(kind) is not None:
-                parts.append(f"{_signed(gear[kind])} gear")
-            rows.append((f"Base {kind}", _signed(stored), " · ".join(parts)))
         for label, value, source in rows:
             stats.addWidget(_combat_stat(label, value, source))
         stats.addStretch(1)
         panel.body_layout().addLayout(stats)
         column.addWidget(panel)
         column.addWidget(w.body(
-            "Gear is the largest single bonus that applies, since NWN does not "
-            "stack same-type bonuses; what each feat adds is not shown, because "
-            "the save records which feats you have and never what they do. "
-            "Attacks per round and off-hand attacks are not stored at all — a feat "
-            "like Perfect Two-Weapon Fighting changes them in the running game "
-            "only, so there is nothing here for it to appear as.",
+            "What each feat adds is not shown, because the save records which feats "
+            "you have and never what they do. Attacks per round and off-hand "
+            "attacks are not stored at all — a feat like Perfect Two-Weapon "
+            "Fighting changes them in the running game only, so there is nothing "
+            "here for it to appear as.",
             t.TEXT_3, 11,
         ))
         return holder
@@ -532,28 +529,13 @@ class CharacterScreen(QWidget):
                 scores[field] += row.added
         return scores
 
-    def _save_gear_bonuses(self) -> dict[str, int | None]:
-        """The largest equipped-gear bonus applying to each saving throw."""
-        from nwnsaveeditor.active_bonuses import gear_bonus_for_save, item_contributions
-
-        try:
-            groups = item_contributions(
-                self._window.session().player_items(), self._window.item_name
-            )
-        except Exception:
-            return {}
-        return {
-            kind: gear_bonus_for_save(groups, kind)
-            for kind in ("Fortitude", "Reflex", "Will")
-        }
-
     # -- Skills ------------------------------------------------------------ #
     def _build_details(self, layout: QVBoxLayout, info) -> None:
         """Every editable field on the character record.
 
         The sheet card carries the ability scores; everything else the record
-        stores — gold, XP, alignment, age, current HP, the base saves, the name and
-        the character's look — lives here, so no editable field is unreachable.
+        stores — gold, XP, alignment, age, current HP, the saving throws, the name
+        and the character's look — lives here, so no editable field is unreachable.
         """
         layout.setSpacing(12)
         try:

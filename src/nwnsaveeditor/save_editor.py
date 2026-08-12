@@ -91,11 +91,13 @@ _CHARACTER_FIELDS: tuple[tuple[str, str, int, int], ...] = (
     ("LawfulChaotic", "Lawful–Chaotic (100 = Lawful)", 0, 100),
     ("Age", "Age", 0, 100_000),
     ("CurrentHitPoints", "Current HP", 0, 32_000),
-    # The stored *base* saves. The engine adds ability modifiers and gear on top,
-    # so these are the sources, not the totals shown on the character sheet.
-    ("FortSaveThrow", "Base Fortitude save", -128, 127),
-    ("RefSaveThrow", "Base Reflex save", -128, 127),
-    ("WillSaveThrow", "Base Will save", -128, 127),
+    # The stored saving throws. Nominally NWN's "base" saves, but on a real
+    # character the field holds the value the game shows (an in-game Fortitude of
+    # 70 is a stored 70), so they are labelled plainly rather than as bases with
+    # ability and gear still to add.
+    ("FortSaveThrow", "Fortitude save", -128, 127),
+    ("RefSaveThrow", "Reflex save", -128, 127),
+    ("WillSaveThrow", "Will save", -128, 127),
 )
 #: editable name fields (CExoLocString).
 _CHARACTER_NAMES: tuple[tuple[str, str], ...] = (

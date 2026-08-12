@@ -84,10 +84,12 @@ explicitly choose <b>Overwrite…</b> — which keeps a timestamped backup first
 </ul>
 
 <h3>What the game recomputes</h3>
-<p>Armour class, attack bonus, the final saving throws and maximum hit points are
-worked out by the engine when the save loads. Editing your abilities, feats, gear
-or the <i>base</i> saves changes them; there is nothing to edit in the totals
-themselves, so the editor does not pretend otherwise.</p>
+<p>Armour class, attack bonus and maximum hit points are worked out by the engine
+when the save loads. Editing your abilities, feats and gear changes them; there is
+nothing to edit in the totals themselves, so the editor does not pretend
+otherwise. The saving throws are different — the record stores them outright (on a
+real character the field holds the number the game shows, not a base with more to
+add), so Details edits them directly.</p>
 
 <h3 class="warn">PRC</h3>
 <p>If your game uses the PRC, it manages much of the character through its own
