@@ -189,6 +189,34 @@ def test_save_as_new_writes_a_new_save_and_leaves_the_original(window, monkeypat
     assert window._pending_caption.text() == "PENDING CHANGES (0)"
 
 
+def _overwrite_message(window, monkeypatch, *, backup: bool) -> str:
+    from PySide6.QtWidgets import QMessageBox
+
+    shown: list[str] = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: shown.append(a[2]))
+    _stub_save_dialog(monkeypatch, backup=backup)
+    window._edit_toggle.setChecked(True)
+    window._ensure_session().set_character_field("Gold", 7)
+    window._refresh_pending()
+    window._overwrite_current()
+    assert shown, "the overwrite reported nothing"
+    return shown[0]
+
+
+def test_overwrite_with_backup_reports_where_it_is(window, monkeypatch):
+    message = _overwrite_message(window, monkeypatch, backup=True)
+    assert "previous version is in" in message
+    assert "vaultkeeper_backups" in message
+
+
+def test_overwrite_without_backup_does_not_name_a_backup(window, monkeypatch):
+    """Backup unticked: no backup is made, so the message must not point at one."""
+    message = _overwrite_message(window, monkeypatch, backup=False)
+    assert "No backup was kept" in message
+    assert "previous version is in" not in message
+    assert "vaultkeeper_backups" not in message
+
+
 def _stub_save_dialog(monkeypatch, *, name: str = "Edited", backup: bool = True):
     """Stand in for the modal Save dialog.
 

@@ -893,18 +893,23 @@ class SaveEditorWindow(QMainWindow):
             if dialog.review_requested:
                 self._ledger.toggle()
             return
+        keep_backup = dialog.backup_wanted()
         try:
             self._session.save_as(
                 save.folder, overwrite=True,
-                backup_dir=backup_dir if dialog.backup_wanted() else None,
+                backup_dir=backup_dir if keep_backup else None,
             )
         except (SaveEditError, OSError) as exc:
             QMessageBox.critical(self, "Overwrite failed", str(exc))
             return
-        QMessageBox.information(
-            self, "Saved",
-            f"“{save.name}” was replaced.\nThe previous version is in:\n{backup_dir}",
-        )
+        if keep_backup:
+            message = f"“{save.name}” was replaced.\nThe previous version is in:\n{backup_dir}"
+        else:
+            message = (
+                f"“{save.name}” was replaced.\nNo backup was kept — the previous "
+                "version is gone."
+            )
+        QMessageBox.information(self, "Saved", message)
         self._session = None
         self._refresh_pending()
 
