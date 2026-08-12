@@ -96,6 +96,23 @@ add), so Details edits them directly.</p>
 scripts and a hidden <i>skin</i> item. Base-game feats, skills and spells edit
 cleanly. Anything marked <b>(PRC)</b> is rebuilt by PRC on rest, level-up or area
 load, so an edit there may not stick — the editor warns before staging one.</p>
+<p>Whether an added PRC feat's <i>effect</i> actually works depends on how PRC
+implements that feat:</p>
+<ul>
+  <li><b>Passive feats</b> PRC reads live (e.g. Master's Gift) — these
+      <b>work from the edit</b>.</li>
+  <li><b>On-hit / on-equip feats</b> (e.g. Dragonfire Strike) — PRC wires these
+      when it re-evaluates you, so <b>add the feat, then re-enter the module and
+      re-equip your weapon</b>.</li>
+  <li><b>Class features</b> (e.g. Skullclan Hunter's Divine Strike vs. undead) —
+      need the <b>class levels</b>, not just the feat.</li>
+  <li><b>Spellbook abilities</b> (e.g. Archivist / Mystic Darkfire) — built at
+      level-up from the class spell list into PRC's own spellbook, so a feat-add
+      can't grant them. <b>Gain them in-game.</b></li>
+</ul>
+<p>In short: an edit reliably grants a PRC ability only when PRC reads the feat
+live or rebuilds it from your feat list; abilities PRC builds at level-up from a
+<i>class</i> live in state the save does not hold, and are best gained in-game.</p>
 
 <h3>Committing</h3>
 <ul>
