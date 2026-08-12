@@ -132,3 +132,48 @@ def test_the_rule_mode_survives_a_theme_change(window):
     window._rule_mode.set_value("free")
     window._set_theme("light")
     assert window._rule_mode.value() == "free"
+
+
+# -- inheriting an embedding host's theme (Vaultkeeper) --------------------- #
+def test_an_embedding_host_can_dictate_the_theme(qtbot, tmp_path):
+    """A host with editor_theme() opens the editor matching it, not its own
+    remembered choice — Vaultkeeper passing its resolved light/dark down."""
+    from tests.test_save_editor import _make_char_save_with_details
+
+    save = _make_char_save_with_details(tmp_path)
+
+    class _HostCtrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def set_save_editor_theme(self, name):
+            pass
+
+        def _settings(self):
+            return SimpleNamespace(save_editor_theme="dark")  # would be dark…
+
+        def editor_theme(self):
+            return "light"  # …but the host says light, and the host wins
+
+    editor = SaveEditorWindow([save], _HostCtrl())
+    qtbot.addWidget(editor)
+    assert t.active_theme() == "light"
+
+
+def test_without_the_host_hook_the_saved_theme_still_wins(qtbot, tmp_path):
+    """Standalone, or any host without editor_theme(), uses save_editor_theme."""
+    from tests.test_save_editor import _make_char_save_with_details
+
+    save = _make_char_save_with_details(tmp_path)
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def set_save_editor_theme(self, name):
+            pass
+
+        def _settings(self):
+            return SimpleNamespace(save_editor_theme="light")
+
+    editor = SaveEditorWindow([save], _Ctrl())
+    qtbot.addWidget(editor)
+    assert t.active_theme() == "light"

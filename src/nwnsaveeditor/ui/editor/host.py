@@ -11,6 +11,11 @@ portraits the editor cannot find on its own — ones its mod installs put down, 
 ones extracted out of haks. Without it the editor searches NWN's own portrait
 folders, which is enough to show the portrait of a normal character.
 
+Likewise optional is ``editor_theme() -> "dark" | "light"``: a host that has its
+own light/dark theme returns it so the editor opens matching the application it
+was launched from, instead of its own remembered choice. Without it the editor
+uses ``_settings().save_editor_theme``, which is what a standalone run wants.
+
 Stating the surface as a protocol is what makes running the editor on its own
 possible without a second implementation drifting from the first: Vaultkeeper's
 own controller already satisfies it, and :class:`StandaloneHost` is the whole of

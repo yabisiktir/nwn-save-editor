@@ -76,7 +76,22 @@ class _LazyScreens(dict):
 
 
 def _saved_theme(controller) -> str:
-    """The editor's remembered light/dark choice, defaulting to dark."""
+    """The theme the editor should open with.
+
+    An embedding host may dictate the theme through an optional ``editor_theme()``
+    (the same opt-in pattern as ``portrait_path``): Vaultkeeper returns its own
+    light/dark so the editor matches the app it was launched from rather than
+    looking out of place. Standalone — or any host without it — falls back to the
+    editor's own remembered light/dark choice, defaulting to dark.
+    """
+    host_theme = getattr(controller, "editor_theme", None)
+    if callable(host_theme):
+        try:
+            value = host_theme()
+            if value in ("dark", "light"):
+                return value
+        except Exception:
+            pass
     try:
         return controller._settings().save_editor_theme
     except Exception:
