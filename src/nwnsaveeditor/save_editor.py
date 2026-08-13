@@ -470,6 +470,8 @@ class SaveEditor:
         self._char_field_originals: dict[str, object] = {}
         #: the character's feat ids at load, captured on the first feat op.
         self._feat_originals: set[int] | None = None
+        #: original {class id: level} at load, captured on the first class op.
+        self._class_originals: dict[int, int] | None = None
         #: original spell ids per (class_index, list_field), first spell op.
         self._spell_originals: dict[tuple[int, str], set[int]] = {}
         #: applied edits, in order — the undo log.
@@ -669,6 +671,7 @@ class SaveEditor:
         self._skill_originals.clear()
         self._char_field_originals.clear()
         self._feat_originals = None
+        self._class_originals = None
         self._spell_originals.clear()
         self._raw_originals.clear()
         self._raw_trees.clear()
@@ -1567,6 +1570,97 @@ class SaveEditor:
                     where=ref.feat_name(fid), summary=f"{verb} feat{note}",
                 )
 
+    # -- class level editing (opt-in; the caller supplies computed gains) --- #
+    def player_classes(self) -> list[tuple[int, int]]:
+        """The character's classes as ``(class id, level)``, in ClassList order."""
+        return _class_levels(self._class_list(self._module_tree()))
+
+    @_records()
+    def add_class_level(
+        self, class_id: int, gains, *, con_modifier: int = 0,
+        hp_rule: str = "max", where: str = "",
+    ) -> None:
+        """Stage adding one level in ``class_id``.
+
+        Bumps ClassList and applies the deterministic gains from ``gains`` (a
+        :class:`nwnfile.level_up.LevelGains` computed for the resulting class level
+        and total): hit points, base attack, saving throws, and the XP floor for
+        the new total level. Skill points and the every-third feat / every-fourth
+        ability point are *choices* the caller surfaces separately — this does not
+        spend them, nor add the class's granted feats (the caller stages those
+        through the feat editor so their PRC caveats still show).
+        """
+        self._ensure_class_originals()
+        hp = gains.hit_points(con_modifier, rule=hp_rule)
+        for tree in self._targets():
+            self._bump_class(tree, class_id)
+            self._add_to_field(tree, "MaxHitPoints", hp)
+            self._add_to_field(tree, "CurrentHitPoints", hp)
+            self._add_to_field(tree, "HitPoints", hp)
+            self._add_to_field(tree, "BaseAttackBonus", gains.bab_gain)
+            self._add_to_field(tree, "FortSaveThrow", gains.fort_gain)
+            self._add_to_field(tree, "RefSaveThrow", gains.ref_gain)
+            self._add_to_field(tree, "WillSaveThrow", gains.will_gain)
+        total = sum(level for _cid, level in self.player_classes())
+        for tree in self._targets():
+            self._raise_field(tree, "Experience", _xp_for_level(total))
+        self._char_dirty = True
+        self._recompute_class_changes()
+
+    def _class_list(self, tree):
+        field = self._player_struct(tree).fields.get("ClassList")
+        return field.value if field is not None and field.type == GffType.LIST else None
+
+    def _bump_class(self, tree, class_id: int) -> None:
+        classes = self._class_list(tree)
+        if classes is None:
+            return
+        for struct in classes.structs:
+            if struct.get("Class") == class_id:
+                field = struct.fields.get("ClassLevel")
+                if field is not None:
+                    field.value = int(field.value) + 1
+                return
+        # not multiclassed into it yet: add the class at level 1.
+        struct_type = classes.structs[0].struct_type if classes.structs else 2
+        classes.structs.append(GffStruct(struct_type=struct_type, fields={
+            "Class": GffField(GffType.INT, class_id),
+            "ClassLevel": GffField(GffType.SHORT, 1),
+        }))
+
+    def _add_to_field(self, tree, field: str, delta: int) -> None:
+        if not delta:
+            return
+        f = self._player_struct(tree).fields.get(field)
+        if f is not None:
+            f.value = int(f.value) + int(delta)
+
+    def _raise_field(self, tree, field: str, minimum: int) -> None:
+        f = self._player_struct(tree).fields.get(field)
+        if f is not None and int(f.value) < minimum:
+            f.value = int(minimum)
+
+    def _ensure_class_originals(self) -> None:
+        if self._class_originals is None:
+            self._class_originals = dict(
+                _class_levels(self._class_list(self._module_tree()))
+            )
+
+    def _recompute_class_changes(self) -> None:
+        from nwnfile.character import class_name
+
+        current = dict(_class_levels(self._class_list(self._module_tree())))
+        original = self._class_originals or {}
+        for key in [k for k in self._changes if k[0] == "class"]:
+            del self._changes[key]
+        for class_id, level in current.items():
+            added = level - original.get(class_id, 0)
+            if added > 0:
+                self._changes[("class", class_id)] = PendingChange(
+                    kind="class", key=class_id, where=class_name(class_id),
+                    summary=f"+{added} level{'s' if added != 1 else ''}",
+                )
+
     # -- spell editing ---------------------------------------------------- #
     def player_spellbook(self) -> list[ClassSpellbook]:
         """The character's spellbook: each caster class's Known/Memorized lists."""
@@ -2153,3 +2247,21 @@ class SaveEditor:
             path = new_save.folder / name
             if not path.is_file() or path.read_bytes() != expected:
                 raise SaveEditError(f"verify failed: {name} differs after write")
+
+
+def _class_levels(class_list) -> list[tuple[int, int]]:
+    """``[(class id, level), …]`` from a ClassList, in order; empty if absent."""
+    if class_list is None:
+        return []
+    out: list[tuple[int, int]] = []
+    for struct in class_list.structs:
+        class_id = struct.get("Class")
+        level = struct.get("ClassLevel")
+        if class_id is not None and level is not None:
+            out.append((int(class_id), int(level)))
+    return out
+
+
+def _xp_for_level(level: int) -> int:
+    """The NWN experience needed to be ``level``: ``1000 * level*(level-1)/2``."""
+    return 1000 * level * (level - 1) // 2
