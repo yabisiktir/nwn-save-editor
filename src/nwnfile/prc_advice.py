@@ -201,21 +201,11 @@ class PrcAdvisor:
                 "Edits cleanly and takes effect when the save loads; PRC is not "
                 "involved.",
             )
-        self._build_membership()
-
-        if feat_id in (self._spellbook_feats or {}):
-            cls = self._spellbook_feats[feat_id]
-            return FeatAdvice(
-                feat_id, label, "spellbook", cls, active,
-                f"Spellbook ability, cast through the {cls} spellbook.",
-                "A feat-add can't grant this. PRC builds the spellbook at level-up "
-                "from the class's spell list, into its own persistent store — the "
-                f"feat list never populates it. Gain it in-game via the {cls} class.",
-            )
-
         # Feat-driven (read by the general machinery via GetHasFeat) beats
         # class-granted: a class may list the feat, but it still works from the
-        # feat list, so it is not gated on the class.
+        # feat list, so it is not gated on the class. Checked *before* the class
+        # membership scan because it is cheap (a source grep) and settles most
+        # standalone feats without the expensive per-class table walk.
         driven = self._feat_driven(feat_id)
         if driven == "passive":
             return FeatAdvice(
@@ -230,6 +220,21 @@ class PrcAdvisor:
                 "On-hit / on-equip feat wired by PRC on re-evaluation.",
                 "Works from your feat list, but PRC wires the effect when it "
                 "re-evaluates you — re-enter the module and re-equip your weapon.",
+            )
+
+        # Only now, for feats that are neither base nor feat-driven, pay for the
+        # per-class membership scan that separates class features from spellbook
+        # abilities.
+        self._build_membership()
+
+        if feat_id in (self._spellbook_feats or {}):
+            cls = self._spellbook_feats[feat_id]
+            return FeatAdvice(
+                feat_id, label, "spellbook", cls, active,
+                f"Spellbook ability, cast through the {cls} spellbook.",
+                "A feat-add can't grant this. PRC builds the spellbook at level-up "
+                "from the class's spell list, into its own persistent store — the "
+                f"feat list never populates it. Gain it in-game via the {cls} class.",
             )
 
         if feat_id in (self._class_feats or {}):
