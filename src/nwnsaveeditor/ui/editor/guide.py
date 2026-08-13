@@ -113,11 +113,15 @@ implements that feat:</p>
 <p>In short: an edit reliably grants a PRC ability only when PRC reads the feat
 live or rebuilds it from your feat list; abilities PRC builds at level-up from a
 <i>class</i> live in state the save does not hold, and are best gained in-game.</p>
-<p>To make an edit take effect without replaying, PRC's DM/debug chat commands can
-force a re-evaluation: in DM mode, type <code>~~dm_relevel &lt;level&gt;</code> to
-re-level (keeping XP) and rebuild PRC's managed state, or <code>~~dm_exec
-&lt;script&gt;</code> to run a script. Edit here, then <code>~~dm_relevel</code>
-in-game.</p>
+<p>To make an edit take effect without replaying, force a re-evaluation in-game:
+type <code>/relevel</code> in chat, then <code>/relevel</code> again to confirm.
+PRC drops you to level 1 and re-levels back to your current XP, rebuilding its
+managed state (feats, skin, spellbook). It <b>keeps your XP but clears PRC spell
+choices</b>, so you re-pick spells on the way back up (<code>/resetSpells</code>
+clears just spells). So: edit here, load the save, then <code>/relevel</code>
+twice. <i>(The older <code>~~dm_relevel</code> command only runs in a DEBUG build
+of PRC — not a normal release, even as a DM — which is why it usually reports
+"only works if DEBUG = TRUE".)</i></p>
 
 <h3>Committing</h3>
 <ul>

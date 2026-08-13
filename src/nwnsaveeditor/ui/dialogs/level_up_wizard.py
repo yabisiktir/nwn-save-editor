@@ -131,8 +131,9 @@ class LevelUpWizard(QWizard):
             box.addWidget(_note(
                 "This is a PRC class. The numbers above apply to the save, but its "
                 "script-managed features (a prestige spellbook, on-hit or skin "
-                "abilities) are rebuilt in-game — re-level once in play (a DM can run "
-                "~~dm_relevel) to wake them up.",
+                "abilities) are rebuilt in-game — once in play, type /relevel in "
+                "chat (again to confirm) to re-level and wake them up. It preserves "
+                "XP but clears PRC spell choices, so you re-pick spells.",
             ))
         if new_total_level > 40:
             box.addWidget(_note(

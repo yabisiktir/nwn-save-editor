@@ -96,23 +96,29 @@ game — the same haks the editor reads for item icons and 2da lookups.
 ## Forcing the re-evaluation in-game (better than re-equip / re-enter)
 
 For buckets 2–4, the effect only appears once PRC re-evaluates the character.
-Re-entering the module and re-equipping triggers the on-hit/on-equip path, but PRC
-also ships **DM/debug chat commands** (`include/prc_inc_chat_dm.nss`) that force it
-directly. They are typed in chat with a `~~` or `..` prefix and only run in **DM
-mode** (or a PRC build with `DEBUG = TRUE`):
+Re-entering the module and re-equipping triggers the on-hit/on-equip path, but the
+thorough way is to force a full re-level. Use the **player chat command** (no DM,
+no debug build needed), handled in `scripts/prc_onplayerchat.nss`:
 
-- **`~~dm_relevel <level>`** — re-levels the character from `<level>`, keeping the
-  same XP but *reselecting feats, skills, spells and re-running the level-up*. This
-  rebuilds PRC's managed state (the spellbook, the skin bonuses, the event hooks),
-  so it is the thorough way to make an edited feat or class level take proper
-  effect. `~~dm_relevel 1` rebuilds from scratch.
-- **`~~dm_execute <script>`** (abbreviable to `~~dm_exec`) — runs any script on you
-  via `ExecuteScript`, e.g. to force a specific evaluation.
+- **`/relevel`** — type it once and PRC asks you to confirm; type **`/relevel`
+  again** and it drops you to level 1 and re-levels back to your current XP
+  (`ResetCharacterXPAndRemoveSpells`: `SetXP(1)` then `SetXP(oldXP)`). Re-running
+  the level-up rebuilds PRC's managed state — the spellbook, the skin bonuses, the
+  event hooks. It **keeps your XP but clears PRC spell selections**, so you re-pick
+  spells as you re-level.
+- **`/resetSpells`** (also type twice) — clears just the PRC spell choices without
+  re-leveling, when spells are all you need rebuilt.
 
 So the practical workflow with this editor: **edit the feat or class level here,
-then `~~dm_relevel` in-game** — the edit provides the character data and the
-relevel makes PRC evaluate it, which is exactly the gap the buckets describe.
-`~~dm_relevel` reselects choices, so treat it as a re-level, not a silent refresh.
+load the save, then `/relevel` twice in-game** — the edit provides the character
+data and the relevel makes PRC evaluate it, which is exactly the gap the buckets
+describe. Treat it as a re-level (you re-pick spells), not a silent refresh.
+
+> **Not `~~dm_relevel`.** PRC also has a `~~dm_relevel <level>` DM/debug command
+> (`include/prc_inc_chat_dm.nss`), but its branch is gated on the compile-time
+> `DEBUG` constant *only* — being a DM does **not** enable it — so in a normal
+> release build it just replies "This command only works if DEBUG = TRUE". That is
+> why typing it does nothing. Use `/relevel` instead.
 
 ## Rule of thumb
 
