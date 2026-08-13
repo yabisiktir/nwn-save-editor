@@ -93,6 +93,27 @@ The compiled `.ncs` bytecode would be opaque, but PRC bundles the readable sourc
 next to its data, so the classification is derivable entirely from the installed
 game — the same haks the editor reads for item icons and 2da lookups.
 
+## Forcing the re-evaluation in-game (better than re-equip / re-enter)
+
+For buckets 2–4, the effect only appears once PRC re-evaluates the character.
+Re-entering the module and re-equipping triggers the on-hit/on-equip path, but PRC
+also ships **DM/debug chat commands** (`include/prc_inc_chat_dm.nss`) that force it
+directly. They are typed in chat with a `~~` or `..` prefix and only run in **DM
+mode** (or a PRC build with `DEBUG = TRUE`):
+
+- **`~~dm_relevel <level>`** — re-levels the character from `<level>`, keeping the
+  same XP but *reselecting feats, skills, spells and re-running the level-up*. This
+  rebuilds PRC's managed state (the spellbook, the skin bonuses, the event hooks),
+  so it is the thorough way to make an edited feat or class level take proper
+  effect. `~~dm_relevel 1` rebuilds from scratch.
+- **`~~dm_execute <script>`** (abbreviable to `~~dm_exec`) — runs any script on you
+  via `ExecuteScript`, e.g. to force a specific evaluation.
+
+So the practical workflow with this editor: **edit the feat or class level here,
+then `~~dm_relevel` in-game** — the edit provides the character data and the
+relevel makes PRC evaluate it, which is exactly the gap the buckets describe.
+`~~dm_relevel` reselects choices, so treat it as a re-level, not a silent refresh.
+
 ## Rule of thumb
 
 > A save-edit reliably grants a PRC ability only when PRC reads the feat **live**

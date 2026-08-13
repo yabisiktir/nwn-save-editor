@@ -113,6 +113,11 @@ implements that feat:</p>
 <p>In short: an edit reliably grants a PRC ability only when PRC reads the feat
 live or rebuilds it from your feat list; abilities PRC builds at level-up from a
 <i>class</i> live in state the save does not hold, and are best gained in-game.</p>
+<p>To make an edit take effect without replaying, PRC's DM/debug chat commands can
+force a re-evaluation: in DM mode, type <code>~~dm_relevel &lt;level&gt;</code> to
+re-level (keeping XP) and rebuild PRC's managed state, or <code>~~dm_exec
+&lt;script&gt;</code> to run a script. Edit here, then <code>~~dm_relevel</code>
+in-game.</p>
 
 <h3>Committing</h3>
 <ul>
