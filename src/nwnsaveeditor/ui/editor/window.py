@@ -153,6 +153,9 @@ class SaveEditorWindow(QMainWindow):
         self._char_cache_for: Path | None = None
         self._rebuilding = False
         self._icons = _icon_source(controller)
+        self._prc_advisor = None  # built + cached on first PRC-feat classification
+        self._prc_cache_path = None
+        self._prc_prewarm = None  # background thread building the membership index
         # Set the theme first: everything below reads token colours as it builds.
         t.set_theme(_saved_theme(controller))
 
@@ -530,6 +533,92 @@ class SaveEditorWindow(QMainWindow):
         except Exception:
             return None
         return HakStack.for_module(names, self._hak_dir(), self._game_root())
+
+    def _prc_cache_dir(self):
+        """Where the PRC feat-index cache lives (regenerable, editor-owned)."""
+        from pathlib import Path
+
+        from nwnsaveeditor.ui.editor.host import default_settings_dir
+
+        return Path(default_settings_dir()) / "prc_cache"
+
+    def _prc_advisor_for(self):
+        """The PrcAdvisor for the open save, seeded from the on-disk index if cached."""
+        if self._prc_advisor is not None:
+            return self._prc_advisor
+        stack = self.hak_stack()
+        if stack is None:
+            return None
+        from nwnfile.prc_advice import (
+            PrcAdvisor,
+            hak_fingerprint,
+            load_membership_index,
+        )
+
+        advisor = PrcAdvisor(stack)
+        fingerprint = hak_fingerprint(stack.haks)
+        self._prc_cache_path = self._prc_cache_dir() / f"prc_feat_index_{fingerprint}.json"
+        cached = load_membership_index(self._prc_cache_path)
+        if cached is not None:
+            advisor.seed_membership(cached)
+        self._prc_advisor = advisor
+        return advisor
+
+    def prewarm_prc_index(self) -> None:
+        """Build the PRC membership index in the background, so the add-feat confirm
+        never blocks. A no-op once it is ready or already building."""
+        advisor = self._prc_advisor_for()
+        if advisor is None or advisor.membership_ready():
+            return
+        if self._prc_prewarm is not None and self._prc_prewarm.is_alive():
+            return
+        import threading
+
+        cache_path = self._prc_cache_path
+
+        def build() -> None:
+            from nwnfile.prc_advice import save_membership_index
+
+            try:
+                index = advisor.membership_index()  # the expensive scan, off the UI
+            except Exception:
+                return
+            if cache_path is not None:
+                save_membership_index(cache_path, index)
+
+        self._prc_prewarm = threading.Thread(target=build, daemon=True)
+        self._prc_prewarm.start()
+
+    def prc_advise(self, feat_id: int):
+        """Classify a PRC feat for the add-feat confirm, or ``None`` if unreadable.
+
+        Fast for base/standalone feats; a class/spellbook feat needs the membership
+        index, which :meth:`prewarm_prc_index` builds in the background and this
+        caches to disk — so only the very first classification on a new install
+        ever waits (under a wait cursor), and it is remembered thereafter.
+        """
+        advisor = self._prc_advisor_for()
+        if advisor is None:
+            return None
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QApplication
+
+        from nwnfile.prc_advice import save_membership_index
+
+        building = not advisor.membership_ready()
+        if building:
+            QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            advice = advisor.advise(feat_id)
+        finally:
+            if building:
+                QApplication.restoreOverrideCursor()
+        # If reaching the verdict built the index (a class/spellbook feat, no
+        # prewarm done yet), persist it. The lock makes a concurrent prewarm safe.
+        if building and advisor.membership_ready() and self._prc_cache_path is not None:
+            save_membership_index(self._prc_cache_path, advisor.membership_index())
+        return advice
 
     def race_table(self):
         """``racialtypes.2da`` for this save, giving each race's ability adjustment."""

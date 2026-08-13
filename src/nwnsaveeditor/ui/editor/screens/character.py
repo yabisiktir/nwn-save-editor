@@ -874,6 +874,9 @@ class CharacterScreen(QWidget):
             add = w.small_ghost("+ Add a feat…")
             add.clicked.connect(self._add_feat)
             header.addWidget(add)
+            # Warm the PRC feat-index in the background now, so the add-feat
+            # confirm can classify a class/spellbook feat without a stall.
+            self._window.prewarm_prc_index()
         layout.addLayout(header)
 
         self._feat_filter = QLineEdit()
@@ -935,8 +938,10 @@ class CharacterScreen(QWidget):
         feat_id = dialog.selected_id()
         if feat_id is None:
             return
-        if not reference.is_base_feat(feat_id) and not _confirm_prc(self, "feat"):
-            return
+        if not reference.is_base_feat(feat_id):
+            advice = self._window.prc_advise(feat_id)
+            if not _confirm_prc_feat(self, advice):
+                return
         self._window.session().add_feat(feat_id)
         self._window.notify_changed()
 
@@ -1579,6 +1584,25 @@ def _confirm_prc(parent, what: str) -> bool:
         f"This {what} is managed by the PRC, which regenerates it from its own data "
         f"on rest, level-up or area load.\n\nThe edit will be staged, but it may not "
         f"stick in-game. Continue?",
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+    )
+    return answer == QMessageBox.StandardButton.Yes
+
+
+def _confirm_prc_feat(parent, advice) -> bool:
+    """Confirm adding a PRC feat, showing what an edit can actually grant.
+
+    ``advice`` is a :class:`nwnfile.prc_advice.FeatAdvice`, or ``None`` when the
+    game data can't be read — then fall back to the generic PRC warning.
+    """
+    if advice is None:
+        return _confirm_prc(parent, "feat")
+    from PySide6.QtWidgets import QMessageBox
+
+    answer = QMessageBox.warning(
+        parent, f"Add PRC feat: {advice.label}",
+        f"{advice.headline}\n\n{advice.direction}\n\n"
+        "The edit will be staged either way. Continue?",
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
     )
     return answer == QMessageBox.StandardButton.Yes

@@ -155,3 +155,41 @@ def test_the_base_set_is_used_when_the_reader_offers_it():
     assert advisor.advise(100).bucket == "base"
     # 14373 is not in the base set -> PRC analysis (spellbook).
     assert advisor.advise(14373).bucket == "spellbook"
+
+
+def test_membership_index_round_trips_through_seed():
+    built = PrcAdvisor(_Reader())
+    index = built.membership_index()  # forces the scan
+    assert "14373" in index["spellbook"] and "2213" in index["class"]
+
+    # A fresh advisor seeded from the index must not scan again.
+    seeded = PrcAdvisor(_Reader())
+    calls: list[str] = []
+    orig = seeded._reader.read_2da
+    seeded._reader.read_2da = lambda n: (calls.append(n), orig(n))[1]  # type: ignore[assignment]
+    seeded.seed_membership(index)
+    assert seeded.membership_ready()
+    assert seeded.advise(14373).bucket == "spellbook"
+    assert "classes" not in calls, "seeding must skip the per-class scan"
+
+
+def test_index_cache_round_trips_on_disk(tmp_path):
+    from nwnfile.prc_advice import load_membership_index, save_membership_index
+
+    path = tmp_path / "idx.json"
+    assert load_membership_index(path) is None  # absent
+    index = PrcAdvisor(_Reader()).membership_index()
+    save_membership_index(path, index)
+    assert load_membership_index(path) == index
+
+
+def test_fingerprint_tracks_the_hak_files(tmp_path):
+    from nwnfile.prc_advice import hak_fingerprint
+
+    a = tmp_path / "a.hak"
+    a.write_bytes(b"one")
+    fp1 = hak_fingerprint([a])
+    assert fp1 == hak_fingerprint([a]), "stable for unchanged files"
+    a.write_bytes(b"a much longer content")  # size changes
+    assert hak_fingerprint([a]) != fp1
+    assert hak_fingerprint([tmp_path / "missing.hak"]), "missing file still hashes"

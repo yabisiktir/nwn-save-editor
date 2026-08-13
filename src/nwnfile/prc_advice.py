@@ -25,8 +25,12 @@ decompilation is needed. Four outcomes, matching ``docs/prc_abilities.md``:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
+import threading
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 
@@ -97,6 +101,9 @@ class PrcAdvisor:
         self._constants: dict[int, str] | None = None
         self._handler_text: dict[str, str] | None = None
         self._base_feats: set[int] | None = None
+        #: Guards the one-time membership scan so a background prewarm and a
+        #: foreground advise cannot both build it at once (the second waits).
+        self._membership_lock = threading.Lock()
 
     def _feat_table(self) -> dict[int, dict[str, str]]:
         if self._feats is None:
@@ -158,6 +165,12 @@ class PrcAdvisor:
     def _build_membership(self) -> None:
         if self._class_feats is not None:
             return
+        with self._membership_lock:
+            if self._class_feats is not None:  # built while we waited for the lock
+                return
+            self._scan_membership()
+
+    def _scan_membership(self) -> None:
         class_feats: dict[int, str] = {}
         spellbook_feats: dict[int, str] = {}
         for row in (self._reader.read_2da("classes") or {}).values():
@@ -181,6 +194,26 @@ class PrcAdvisor:
                         spellbook_feats.setdefault(fid, label)
         self._class_feats = class_feats
         self._spellbook_feats = spellbook_feats
+
+    # -- membership cache (the one expensive part) -------------------------- #
+    def membership_ready(self) -> bool:
+        """Whether the class/spellbook index is built or seeded (no scan needed)."""
+        return self._class_feats is not None
+
+    def membership_index(self) -> dict[str, dict[str, str]]:
+        """Force + return the class/spellbook membership as a JSON-able dict."""
+        self._build_membership()
+        return {
+            "class": {str(k): v for k, v in (self._class_feats or {}).items()},
+            "spellbook": {str(k): v for k, v in (self._spellbook_feats or {}).items()},
+        }
+
+    def seed_membership(self, index: dict[str, dict[str, str]]) -> None:
+        """Populate the membership from a cached index, skipping the per-class scan."""
+        self._class_feats = {int(k): v for k, v in (index.get("class") or {}).items()}
+        self._spellbook_feats = {
+            int(k): v for k, v in (index.get("spellbook") or {}).items()
+        }
 
     def advise(self, feat_id: int) -> FeatAdvice:
         row = self._feat_table().get(feat_id)
@@ -253,3 +286,41 @@ class PrcAdvisor:
             "applies at once; a PRC on-hit or on-equip feat is wired when PRC next "
             "re-evaluates you, so re-enter the module and re-equip your weapon.",
         )
+
+
+# -- persistent index cache (the membership scan is one-time per hak set) ----- #
+def hak_fingerprint(haks) -> str:
+    """A short stable id for a hak set: name + size + mtime of each file.
+
+    The membership index depends only on the installed haks, so it can be cached
+    on disk and reused until a hak changes — at which point the fingerprint, and
+    the cache key, changes with it.
+    """
+    parts: list[str] = []
+    for hak in haks:
+        path = Path(hak)
+        try:
+            stat = path.stat()
+            parts.append(f"{path.name}:{stat.st_size}:{int(stat.st_mtime)}")
+        except OSError:
+            parts.append(f"{path.name}:?")
+    return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
+
+
+def load_membership_index(path) -> dict | None:
+    """Read a cached index, or ``None`` if it is absent or unreadable."""
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def save_membership_index(path, index: dict) -> None:
+    """Write the index to ``path`` (best-effort; a cache miss is not an error)."""
+    try:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(index), encoding="utf-8")
+    except OSError:
+        pass
