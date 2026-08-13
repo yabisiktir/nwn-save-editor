@@ -767,3 +767,20 @@ def test_level_wizard_base_class_has_no_caveat_or_cap(screen):
     text = _summary_text(wizard)
     assert "PRC class" not in text
     assert "passes the base cap" not in text
+
+
+# -- staged edits show live ------------------------------------------------- #
+def test_character_summary_reflects_a_staged_edit_before_saving(window):
+    """An edit is staged in the session, not written to disk — the summary must
+    still move, or an added level/ability looks like it did nothing."""
+    window._set_edit_mode(True)
+    session = window.session()
+    before = window.character_info().abilities["Str"]
+
+    session.set_character_field("Str", before + 4, where="Str")
+    window.notify_changed()
+    assert window.character_info().abilities["Str"] == before + 4  # staged view
+
+    session.discard()
+    window.notify_changed()
+    assert window.character_info().abilities["Str"] == before  # back to the file

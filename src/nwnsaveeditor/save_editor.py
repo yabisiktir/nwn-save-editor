@@ -1142,6 +1142,26 @@ class SaveEditor:
                     names.append(name)
         return names
 
+    @property
+    def has_character_edits(self) -> bool:
+        """Cheap: is a character-facing edit staged? (drives a live re-read)."""
+        return self._char_dirty
+
+    def staged_character_bytes(self) -> bytes | None:
+        """The staged ``player.bic`` serialised, for a live re-read of the
+        character summary. ``None`` when no character edit is pending — the file
+        on disk is still accurate, so the UI can read that and cache it.
+
+        Character edits (abilities, saves, skills, class levels …) are written to
+        both the authoritative ``module.ifo`` record and this mirror, so the mirror
+        reflects them all; re-parsing it is how the screen shows an edit before the
+        save is written out.
+        """
+        if not self._char_dirty:
+            return None
+        bic = self._bic_tree()
+        return write_gff(bic) if bic is not None else None
+
     def _bic_tree(self) -> Gff | None:
         if not self._bic_loaded:
             self._bic_loaded = True

@@ -94,3 +94,17 @@ def test_discard_reverts_everything(tmp_path):
     player = ed._player_struct(ed._module_tree())
     assert player.fields["MaxHitPoints"].value == 50  # back to original
     assert player.fields["BaseAttackBonus"].value == 6
+
+
+def test_staged_bytes_reflect_the_added_level_for_a_live_reread(tmp_path):
+    """The screen re-reads the character from these bytes, so the new level must
+    be visible before the save is written."""
+    from nwnfile.formats.bic_reader import BicFileReader
+
+    ed = SaveEditor(_save(tmp_path))
+    assert ed.staged_character_bytes() is None  # nothing staged -> read the file
+    ed.add_class_level(1, _gains(), con_modifier=2)
+    data = ed.staged_character_bytes()
+    assert data is not None and ed.has_character_edits
+    info = BicFileReader().read_bytes(data)
+    assert (1, 9) in info.classes  # Bard 8 -> 9 shows in the re-parsed record

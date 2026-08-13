@@ -150,7 +150,8 @@ class SaveEditorWindow(QMainWindow):
         self._save_rows: list[_SaveRow] = []
         self._screens: dict[str, QWidget] = {}
         self._char_cache = None  # CharacterInfo for _char_cache_for
-        self._char_cache_for: Path | None = None
+        self._char_cache_for = None  # cache key: (save.folder, edit-token-or-None)
+        self._char_edit_token = 0  # bumps on every staged change, invalidating above
         self._rebuilding = False
         self._icons = _icon_source(controller)
         self._prc_advisor = None  # built + cached on first PRC-feat classification
@@ -409,20 +410,31 @@ class SaveEditorWindow(QMainWindow):
         """The selected save's parsed character record, or ``None``.
 
         Read from ``player.bic``, which the save keeps as a mirror of the
-        authoritative ``module.ifo`` record, and cached per save because parsing
-        walks the whole inventory.
+        authoritative ``module.ifo`` record, and cached because parsing walks the
+        whole inventory. When a character edit is staged, the record is re-parsed
+        from the *staged* mirror instead of the file on disk, so an added class
+        level (or ability, save, skill…) shows on the screen before it is written
+        out. The cache is keyed on the edit token, which moves on every change.
         """
         from nwnfile.formats.bic_reader import BicFileReader
 
         save = self._current
         if save is None or save.player_bic is None:
             return None
-        if self._char_cache_for != save.folder:
-            info = BicFileReader().read_file(save.player_bic)
+        dirty = self._session is not None and self._session.has_character_edits
+        key = (save.folder, self._char_edit_token if dirty else None)
+        if self._char_cache_for != key:
+            reader = BicFileReader()
+            staged = self._session.staged_character_bytes() if dirty else None
+            info = (
+                reader.read_bytes(staged, save.player_bic)
+                if staged is not None
+                else reader.read_file(save.player_bic)
+            )
             if info is not None:
                 self._resolver().resolve_character(info)
             self._char_cache = info
-            self._char_cache_for = save.folder
+            self._char_cache_for = key
         return self._char_cache
 
     def _resolver(self):
@@ -677,6 +689,7 @@ class SaveEditorWindow(QMainWindow):
 
     def notify_changed(self) -> None:
         """A screen staged an edit: refresh the footer, the dots and the screens."""
+        self._char_edit_token += 1  # invalidate the cached character summary
         self._refresh_pending()
         self._refresh_screens()
 

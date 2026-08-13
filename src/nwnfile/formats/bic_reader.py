@@ -298,6 +298,17 @@ class BicFileReader:
             logger.error(f"Error reading BIC file {file_path}: {e}")
             return self._placeholder(file_path, error=str(e))
 
+    def read_bytes(self, data: bytes, name: Path | str = "player.bic") -> CharacterInfo | None:
+        """Parse a BIC held in memory — e.g. a staged, not-yet-saved character.
+
+        ``name`` only supplies the display stem used when a field is missing.
+        """
+        try:
+            return self._parse_bic(data, Path(name))
+        except Exception as e:
+            logger.error(f"Error reading in-memory BIC {name}: {e}")
+            return self._placeholder(Path(name), error=str(e))
+
     @staticmethod
     def _placeholder(file_path: Path, error: str) -> CharacterInfo:
         """An invalid CharacterInfo used when a file cannot be parsed."""
