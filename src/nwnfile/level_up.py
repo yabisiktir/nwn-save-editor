@@ -131,13 +131,21 @@ class LevelUpCalculator:
     def _granted_feats(
         self, feats_table: str, level: int
     ) -> tuple[tuple[int, str], ...]:
-        """Feats the class grants automatically at exactly this class level."""
+        """Feats the class grants *automatically* at exactly this class level.
+
+        Only ``List == 3`` rows are auto-grants (e.g. a Barbarian's Uncanny Dodge);
+        ``List`` 0/1 are the class's *selectable* general- and bonus-feat pools —
+        the epic weapon-focus menu, say — which are choices, not grants, and would
+        otherwise flood the display with hundreds of options.
+        """
         table = self._table(feats_table)
         if not table:
             return ()
         out: list[tuple[int, str]] = []
         for row in table.values():
             if _to_int(_col(row, "GrantedOnLevel"), -1) != level:
+                continue
+            if _col(row, "List") != "3":  # 3 = auto-granted; 0/1 = selectable
                 continue
             feat_id = _to_int(_col(row, "FeatIndex"), -1)
             if feat_id < 0:

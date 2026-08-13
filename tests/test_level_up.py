@@ -38,8 +38,11 @@ class _Reader:
             "feat": {2213: {"LABEL": "Skullclan_DivineStrike"}},
             "cls_feat_barb": {},
             "cls_feat_sklcln": {
+                # List 3 = auto-granted; a selectable row (List 1) must be ignored.
                 0: {"FeatLabel": "Skullclan_DivineStrike", "FeatIndex": "2213",
-                    "GrantedOnLevel": "3"},
+                    "List": "3", "GrantedOnLevel": "3"},
+                1: {"FeatLabel": "SomeBonusFeat", "FeatIndex": "9001",
+                    "List": "1", "GrantedOnLevel": "3"},
             },
         }
 
@@ -98,6 +101,7 @@ def test_an_ability_point_is_due_every_fourth_character_level():
 def test_class_granted_feats_appear_at_their_level():
     g = _calc().gains(190, 3, character_level=3)  # uses CLS_FEAT_SKLCLN in the fixture
     assert (2213, "Skullclan DivineStrike") in g.granted_feats
+    assert 9001 not in {fid for fid, _n in g.granted_feats}, "List 1 is selectable, not granted"
     assert _calc().gains(190, 2, character_level=2).granted_feats == ()
 
 

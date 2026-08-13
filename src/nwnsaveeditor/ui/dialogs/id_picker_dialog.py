@@ -38,8 +38,11 @@ class IdPickerDialog(QDialog):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        from nwnsaveeditor.ui.editor import widgets as w
+
         self.setWindowTitle(title)
         self.resize(480, 520)
+        self.setStyleSheet(w.dialog_qss())  # wear the editor's theme, not the app palette
         layout = QVBoxLayout(self)
 
         self._filter = QLineEdit()
@@ -67,6 +70,7 @@ class IdPickerDialog(QDialog):
         if self._tree.topLevelItemCount():
             self._tree.setCurrentItem(self._tree.topLevelItem(0))  # always a selection
         self._tree.itemDoubleClicked.connect(lambda *_: self.accept())
+        w.apply_tree_palette(self._tree)  # gold selection, themed base
         layout.addWidget(self._tree, 1)
 
         buttons = QDialogButtonBox(
