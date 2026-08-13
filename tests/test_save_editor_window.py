@@ -242,3 +242,44 @@ def _stub_save_dialog(monkeypatch, *, name: str = "Edited", backup: bool = True)
 
     monkeypatch.setattr("nwnsaveeditor.ui.editor.dialogs.SaveDialog", _Dialog)
     return _Dialog
+
+
+# -- keyboard shortcuts --------------------------------------------------- #
+def _shortcut_keys(window) -> set[str]:
+    from PySide6.QtGui import QShortcut
+
+    return {sc.key().toString() for sc in window.findChildren(QShortcut)}
+
+
+def test_editor_registers_the_vaultkeeper_style_shortcuts(window):
+    keys = _shortcut_keys(window)
+    assert {"Ctrl+O", "Ctrl+E", "Ctrl+S", "Ctrl+Shift+S", "Ctrl+Z", "F1"} <= keys
+    assert {"Ctrl+Shift+Z", "Ctrl+Y", "Ctrl+,"} <= keys  # redo idioms + preferences
+
+
+def test_save_shortcuts_are_inert_until_there_is_something_to_save(window, monkeypatch):
+    calls: list[str] = []
+    monkeypatch.setattr(window, "_save_as_new", lambda: calls.append("new"))
+    monkeypatch.setattr(window, "_overwrite_current", lambda: calls.append("over"))
+
+    window._save_new_btn.setEnabled(False)
+    window._overwrite_btn.setEnabled(False)
+    window._shortcut_save_new()
+    window._shortcut_overwrite()
+    assert calls == []  # disabled buttons -> the keys do nothing
+
+    window._save_new_btn.setEnabled(True)
+    window._overwrite_btn.setEnabled(True)
+    window._shortcut_save_new()
+    window._shortcut_overwrite()
+    assert calls == ["new", "over"]
+
+
+def test_toggle_edit_needs_an_open_save(window):
+    window._current = None
+    window._toggle_edit()
+    assert window._editing is False  # no save selected -> nothing to edit
+
+    window._select_save(window._saves[0])
+    window._toggle_edit()
+    assert window._editing is True  # flips the Edit pill on

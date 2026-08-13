@@ -164,6 +164,7 @@ class SaveEditorWindow(QMainWindow):
             self._select_save(self._saves[0])
         self._set_section("character")
         self._sync_edit_state()
+        self._install_shortcuts()
 
     def _build_ui(self) -> None:
         """Build the whole window from the current palette.
@@ -229,14 +230,15 @@ class SaveEditorWindow(QMainWindow):
         layout.addStretch(1)
 
         self._open_btn = w.ghost_button("Open Save…")
+        self._open_btn.setToolTip("Open another save  (Ctrl+O)")
         self._open_btn.clicked.connect(self._choose_save)
         layout.addWidget(self._open_btn)
         guide = w.ghost_button("Guide…")
-        guide.setToolTip("How the save editor works")
+        guide.setToolTip("How the save editor works  (F1)")
         guide.clicked.connect(self._show_guide)
         layout.addWidget(guide)
         settings = w.ghost_button("Settings…")
-        settings.setToolTip("Which game folders the editor is reading")
+        settings.setToolTip("Which game folders the editor is reading  (Ctrl+,)")
         settings.clicked.connect(self._show_settings)
         layout.addWidget(settings)
 
@@ -249,9 +251,9 @@ class SaveEditorWindow(QMainWindow):
         layout.addWidget(self._rule_mode)
 
         self._undo_btn = w.ghost_button("Undo")
-        self._undo_btn.setToolTip("Undo the last staged change")
+        self._undo_btn.setToolTip("Undo the last staged change  (Ctrl+Z)")
         self._redo_btn = w.ghost_button("Redo")
-        self._redo_btn.setToolTip("Redo an undone change")
+        self._redo_btn.setToolTip("Redo an undone change  (Ctrl+Shift+Z)")
         self._theme_toggle = w.SegmentedControl((("dark", "Dark"), ("light", "Light")))
         self._theme_toggle.set_value(t.active_theme())
         self._theme_toggle.setToolTip("The editor's colour theme")
@@ -265,13 +267,16 @@ class SaveEditorWindow(QMainWindow):
             layout.addWidget(button)
 
         self._edit_toggle = w.pill_toggle("Edit")
+        self._edit_toggle.setToolTip("Enter or leave edit mode  (Ctrl+E)")
         self._edit_toggle.toggled.connect(self._set_edit_mode)
         layout.addWidget(self._edit_toggle)
 
         self._save_new_btn = w.gold_button("Save as New…")
+        self._save_new_btn.setToolTip("Write the staged changes to a new save folder  (Ctrl+S)")
         self._save_new_btn.clicked.connect(self._save_as_new)
         layout.addWidget(self._save_new_btn)
         self._overwrite_btn = w.ghost_button("Overwrite…")
+        self._overwrite_btn.setToolTip("Replace this save in place, with a backup  (Ctrl+Shift+S)")
         self._overwrite_btn.clicked.connect(self._overwrite_current)
         layout.addWidget(self._overwrite_btn)
         return bar
@@ -763,6 +768,41 @@ class SaveEditorWindow(QMainWindow):
         chosen = dialog.selected_save()
         if chosen is not None:
             self._select_save(chosen)
+
+    # -- keyboard shortcuts ----------------------------------------------- #
+    def _install_shortcuts(self) -> None:
+        """Window-wide keys, in Vaultkeeper's Ctrl-idiom (parented to the window
+        so they survive a theme rebuild of the central widget).
+
+        Only modifier/function keys are bound — a bare printable key would fire
+        ahead of a focused text field (a known Qt trap in this app)."""
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        specs = (
+            ("Ctrl+O", self._choose_save),        # open another save
+            ("Ctrl+E", self._toggle_edit),        # enter/leave edit mode
+            ("Ctrl+S", self._shortcut_save_new),  # save as a new folder (primary)
+            ("Ctrl+Shift+S", self._shortcut_overwrite),  # overwrite this save
+            ("Ctrl+Z", self._undo),
+            ("Ctrl+Shift+Z", self._redo),
+            ("Ctrl+Y", self._redo),               # the Windows redo idiom too
+            ("Ctrl+,", self._show_settings),      # preferences
+            ("F1", self._show_guide),             # help
+        )
+        for keys, handler in specs:
+            QShortcut(QKeySequence(keys), self, activated=handler)
+
+    def _toggle_edit(self) -> None:
+        if self._current is not None:  # clicking runs _set_edit_mode + discard guard
+            self._edit_toggle.click()
+
+    def _shortcut_save_new(self) -> None:
+        if self._save_new_btn.isEnabled():  # only when there is something to save
+            self._save_as_new()
+
+    def _shortcut_overwrite(self) -> None:
+        if self._overwrite_btn.isEnabled():
+            self._overwrite_current()
 
     # -- edit mode -------------------------------------------------------- #
     def _set_edit_mode(self, on: bool) -> None:
