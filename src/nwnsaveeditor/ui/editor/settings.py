@@ -86,6 +86,11 @@ class SettingsDialog(QDialog):
         row.addWidget(theme)
         column.addLayout(row)
 
+        if self.class_editing_available():
+            column.addWidget(w.hline())
+            column.addWidget(w.cap_label("Advanced"))
+            column.addWidget(self._class_editing_toggle())
+
         column.addStretch(1)
         buttons = QHBoxLayout()
         buttons.addStretch(1)
@@ -110,6 +115,34 @@ class SettingsDialog(QDialog):
         them, and a toggle here would write somewhere the editor never reads.
         """
         return hasattr(self._host, "set_item_icon_options")
+
+    def class_editing_available(self) -> bool:
+        """Whether this host offers the (opt-in) class-level editing toggle."""
+        return hasattr(self._host, "set_class_level_editing")
+
+    def _class_editing_toggle(self) -> QWidget:
+        from PySide6.QtWidgets import QCheckBox
+
+        holder = QWidget()
+        holder.setStyleSheet("background:transparent;")
+        row = QVBoxLayout(holder)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(2)
+        settings = self._host._settings() if hasattr(self._host, "_settings") else None
+        box = QCheckBox("Enable class level editing")
+        box.setChecked(bool(getattr(settings, "enable_class_level_editing", False)))
+        box.setStyleSheet(f"color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:13px;")
+        box.toggled.connect(self._host.set_class_level_editing)
+        row.addWidget(box)
+        note = w.body(
+            "Add class levels, applying the hit points, attack, saves and XP a level "
+            "brings. Off by default: a level-up writes several fields, and a PRC "
+            "class level still needs an in-game re-level to set up its features.",
+            t.TEXT_3, 11.5,
+        )
+        note.setWordWrap(True)
+        row.addWidget(note)
+        return holder
 
     def _icon_toggle(self, key: str, label: str, blurb: str) -> QWidget:
         from PySide6.QtWidgets import QCheckBox

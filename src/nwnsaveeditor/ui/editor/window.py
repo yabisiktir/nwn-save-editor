@@ -620,6 +620,14 @@ class SaveEditorWindow(QMainWindow):
             save_membership_index(self._prc_cache_path, advisor.membership_index())
         return advice
 
+    def class_level_editing_enabled(self) -> bool:
+        """Whether the opt-in class-level editing is turned on (default off)."""
+        try:
+            settings = self._controller._settings()
+        except Exception:
+            return False
+        return bool(getattr(settings, "enable_class_level_editing", False))
+
     def race_table(self):
         """``racialtypes.2da`` for this save, giving each race's ability adjustment."""
         from nwnfile.races import RaceTable

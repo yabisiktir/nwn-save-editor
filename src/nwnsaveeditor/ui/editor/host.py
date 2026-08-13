@@ -88,8 +88,13 @@ class _Settings:
         save_editor_theme: str,
         hak_item_icons: bool = True,
         exact_item_icons: bool = True,
+        enable_class_level_editing: bool = False,
     ) -> None:
         self.save_editor_theme = save_editor_theme
+        #: Opt-in: allow editing class levels. Off by default because a class
+        #: level-up writes several derived fields and, for PRC classes, produces a
+        #: character whose script-managed features still need an in-game re-level.
+        self.enable_class_level_editing = enable_class_level_editing
         #: Search the user's haks for item icons as well as the game's own files.
         #:
         #: **On by default here**, unlike in a host that offers its own setting.
@@ -129,6 +134,7 @@ class StandaloneHost:
             self._theme = "dark"
         self._hak_item_icons = bool(saved.get("hak_item_icons", True))
         self._exact_item_icons = bool(saved.get("exact_item_icons", True))
+        self._class_level_editing = bool(saved.get("enable_class_level_editing", False))
 
         root = game_root or _saved_dir(saved, "game_root") or default_game_root()
         user = game_user_dir or _saved_dir(saved, "game_user_dir") or default_user_dir()
@@ -137,12 +143,21 @@ class StandaloneHost:
 
     # -- the protocol ------------------------------------------------------- #
     def _settings(self) -> _Settings:
-        return _Settings(self._theme, self._hak_item_icons, self._exact_item_icons)
+        return _Settings(
+            self._theme, self._hak_item_icons, self._exact_item_icons,
+            self._class_level_editing,
+        )
 
     def set_save_editor_theme(self, name: str) -> None:
         if name not in THEMES:
             return
         self._theme = name
+        self._write()
+
+    def set_class_level_editing(self, enabled: bool) -> None:
+        """Turn class-level editing on or off, and remember it. Its presence tells
+        the settings screen this toggle is the editor's to offer."""
+        self._class_level_editing = bool(enabled)
         self._write()
 
     def set_item_icon_options(
@@ -193,6 +208,7 @@ class StandaloneHost:
             "save_editor_theme": self._theme,
             "hak_item_icons": self._hak_item_icons,
             "exact_item_icons": self._exact_item_icons,
+            "enable_class_level_editing": self._class_level_editing,
         }
         for key, value in (("game_root", self.ctx.game_root),
                            ("game_user_dir", self.ctx.game_user_dir)):

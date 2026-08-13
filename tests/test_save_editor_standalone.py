@@ -316,3 +316,11 @@ def test_a_missing_game_folder_is_explained_rather_than_left_puzzling(
     assert main(["--user-dir", str(tmp_path)]) == 0
     assert told, "a missing game folder must be reported"
     assert "raw numbers" in told[0][2]
+
+
+def test_class_level_editing_is_off_by_default_and_persists(tmp_path):
+    assert StandaloneHost(settings_dir=tmp_path)._settings().enable_class_level_editing is False
+    StandaloneHost(settings_dir=tmp_path).set_class_level_editing(True)
+    assert StandaloneHost(settings_dir=tmp_path)._settings().enable_class_level_editing is True
+    StandaloneHost(settings_dir=tmp_path).set_class_level_editing(False)
+    assert StandaloneHost(settings_dir=tmp_path)._settings().enable_class_level_editing is False
