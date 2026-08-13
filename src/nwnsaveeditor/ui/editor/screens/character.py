@@ -325,6 +325,10 @@ class CharacterScreen(QWidget):
         classes = w.body(_classes_line(info), t.SHEET_TEXT, 14)
         classes.setStyleSheet(classes.styleSheet() + "font-weight:600;")
         stats.addWidget(classes)
+        if self._window.editing and self._window.class_level_editing_enabled():
+            add_level = w.small_ghost("+ Add class level…")
+            add_level.clicked.connect(self._add_class_level)
+            stats.addWidget(add_level)
         stats.addWidget(_sheet_divider())
 
         pending = self._pending_char_fields()
@@ -950,6 +954,94 @@ class CharacterScreen(QWidget):
             return
         self._window.session().remove_feat(feat_id)
         self._window.notify_changed()
+
+    # -- class level editing (opt-in) ------------------------------------- #
+    def _ability_mod(self, field: str) -> int:
+        try:
+            score = self._window.character_info().abilities.get(field, 10)
+        except Exception:
+            score = 10
+        return (int(score) - 10) // 2
+
+    def _add_class_level(self) -> None:
+        from PySide6.QtWidgets import QDialog, QMessageBox
+
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
+
+        stack = self._window.hak_stack()
+        if stack is None:
+            QMessageBox.warning(
+                self, "Add class level",
+                "The class tables can't be read for this save, so a level cannot "
+                "be computed.",
+            )
+            return
+        options = [
+            (class_id, (row.get("Label") or "").replace("_", " "))
+            for class_id, row in sorted((stack.read_2da("classes") or {}).items())
+            if (row.get("Label") or "") not in ("", "****")
+            and (row.get("PlayerClass") or "") == "1"
+        ]
+        dialog = IdPickerDialog(
+            "Add a class level", options, value_header="Class", parent=self
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        class_id = dialog.selected_id()
+        if class_id is None:
+            return
+        from nwnfile.level_up import LevelUpCalculator
+
+        session = self._window.session()
+        current = dict(session.player_classes())
+        gains = LevelUpCalculator(stack).gains(
+            class_id, current.get(class_id, 0) + 1,
+            character_level=sum(current.values()) + 1,
+        )
+        if gains is None:
+            return
+        if not self._confirm_class_level(gains, sum(current.values()) + 1):
+            return
+        session.add_class_level(
+            class_id, gains, con_modifier=self._ability_mod("Con")
+        )
+        self._window.notify_changed()
+
+    def _confirm_class_level(self, gains, new_total: int) -> bool:
+        from PySide6.QtWidgets import QMessageBox
+
+        hp = gains.hit_points(self._ability_mod("Con"))
+        skills = gains.skill_points(self._ability_mod("Int"))
+        parts = [
+            f"+{hp} HP · +{gains.bab_gain} attack · "
+            f"+{gains.fort_gain}/{gains.ref_gain}/{gains.will_gain} Fort/Ref/Will.",
+            f"{skills} skill points to assign"
+            + (", plus a general feat" if gains.general_feat else "")
+            + (", plus an ability point" if gains.ability_increase else "")
+            + ".",
+        ]
+        if gains.granted_feats:
+            parts.append("Grants: " + ", ".join(n for _i, n in gains.granted_feats) + ".")
+        if not gains.is_base_class:
+            parts.append(
+                "This is a PRC class: the stats apply, but its script-managed "
+                "features need an in-game re-level (e.g. ~~dm_relevel)."
+            )
+        if new_total > 40:
+            parts.append(
+                f"Total level {new_total} exceeds the base cap of 40 (PRC extends "
+                "it to 60) — check your module allows it."
+            )
+        parts.append(
+            "Skill points and any feat are assigned in the Skills and Feats tabs. "
+            "Apply this level?"
+        )
+        answer = QMessageBox.question(
+            self, f"Add {gains.class_name} level {gains.class_level}",
+            "\n\n".join(parts),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
 
     # -- Effects ------------------------------------------------------------ #
     def _build_effects(self, layout: QVBoxLayout, info) -> None:

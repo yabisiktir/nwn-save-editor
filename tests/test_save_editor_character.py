@@ -724,3 +724,55 @@ def test_one_source_of_truth_for_every_derived_number(window, screen, monkeypatc
     assert screen._scores_in_play(info)["Dex"] == 30
     screen.refresh()
     assert "+10 Dex" in _labels(_page(screen, "abilities"))
+
+
+# -- class level-up confirm ------------------------------------------------- #
+def _level_gains(**over):
+    from nwnfile.level_up import LevelGains
+
+    base = dict(
+        class_id=0, class_name="Fighter", class_level=2, character_level=2,
+        hit_die=10, bab_gain=1, fort_gain=1, ref_gain=0, will_gain=0,
+        skill_point_base=2, granted_feats=(), general_feat=False,
+        ability_increase=False, is_base_class=True, spellcaster=False,
+    )
+    base.update(over)
+    return LevelGains(**base)
+
+
+def test_class_level_confirm_shows_stats_prc_caveat_and_cap(screen, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    seen: dict[str, str] = {}
+
+    def fake(parent, title, text, *a, **k):
+        seen["title"], seen["text"] = title, text
+        return QMessageBox.StandardButton.Yes
+
+    monkeypatch.setattr(QMessageBox, "question", fake)
+    gains = _level_gains(
+        class_id=500, class_name="Mystic", class_level=6, character_level=45,
+        bab_gain=1, fort_gain=1, will_gain=1, general_feat=True,
+        granted_feats=((123, "Some Feat"),), is_base_class=False, spellcaster=True,
+    )
+    assert screen._confirm_class_level(gains, 45) is True
+    assert "Mystic level 6" in seen["title"]
+    assert "attack" in seen["text"] and "general feat" in seen["text"]
+    assert "PRC class" in seen["text"]  # the PRC-runtime caveat
+    assert "exceeds the base cap" in seen["text"]  # 45 > 40
+    assert "Some Feat" in seen["text"]  # granted feat named
+
+
+def test_class_level_confirm_base_class_has_no_caveat_or_cap(screen, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    seen: dict[str, str] = {}
+
+    def fake(parent, title, text, *a, **k):
+        seen["text"] = text
+        return QMessageBox.StandardButton.No
+
+    monkeypatch.setattr(QMessageBox, "question", fake)
+    assert screen._confirm_class_level(_level_gains(), 2) is False
+    assert "PRC class" not in seen["text"]
+    assert "exceeds the base cap" not in seen["text"]
