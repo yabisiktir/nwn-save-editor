@@ -131,3 +131,27 @@ def test_a_class_feat_absent_from_the_handlers_stays_class_gated():
     advice = PrcAdvisor(_ReaderWithSource()).advise(2213)  # Skullclan, class-only
     assert advice.bucket == "class"
     assert advice.class_name == "SkullclanHunter"
+
+
+def test_a_base_game_feat_reads_as_base_even_if_a_class_can_pick_it():
+    """Alertness (id 100) is a base feat; a class listing it must not gate it."""
+    reader = _Reader()
+    # A class that offers Alertness as a bonus feat — the over-broad case.
+    reader.tables["classes"][10] = {"Label": "Barbarian", "FeatsTable": "CLS_FEAT_BARB"}
+    reader.tables["cls_feat_barb"] = {0: {"FeatLabel": "Alertness", "FeatIndex": "100"}}
+    advice = PrcAdvisor(reader).advise(100)  # no read_base_2da -> id < 1116 fallback
+    assert advice.bucket == "base"
+    assert "engine handles it" in advice.headline
+
+
+class _ReaderWithBase(_Reader):
+    def read_base_2da(self, name: str):
+        # The base feat.2da holds Alertness (100) but not the PRC feats.
+        return {100: {"LABEL": "Alertness"}} if name.lower() == "feat" else None
+
+
+def test_the_base_set_is_used_when_the_reader_offers_it():
+    advisor = PrcAdvisor(_ReaderWithBase())
+    assert advisor.advise(100).bucket == "base"
+    # 14373 is not in the base set -> PRC analysis (spellbook).
+    assert advisor.advise(14373).bucket == "spellbook"

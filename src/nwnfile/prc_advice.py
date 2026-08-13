@@ -14,8 +14,11 @@ decompilation is needed. Four outcomes, matching ``docs/prc_abilities.md``:
   list into PRC's own store; a feat-add can't grant it.
 * **class** — a class feature (its feat id is a ``FeatIndex`` in some
   ``cls_feat_*``). Keyed on the class, so the feat alone is not enough.
-* **standalone** — neither of the above. PRC reads it from the feat list: a
-  passive/base feat applies at once; an on-hit/on-equip one after PRC
+* **base** — a base-game feat (in the base ``feat.2da`` under the haks). The
+  engine handles it, so it edits cleanly; a class listing it as a *selectable*
+  bonus feat does not make it class-gated.
+* **standalone** — a PRC feat neither of the above. PRC reads it from the feat
+  list: a passive one applies at once; an on-hit/on-equip one after PRC
   re-evaluates the character (re-enter the module + re-equip).
 * **unknown** — the id is not in ``feat.2da`` of the current install.
 """
@@ -39,6 +42,11 @@ class _Reader(Protocol):
 _HANDLER_SCRIPTS = {"onhit": "prc_feats", "passive": "prc_effect_inc"}
 _FEAT_CONST_SCRIPT = "prc_feat_const"
 _FEAT_CONST_RE = re.compile(r"const\s+int\s+(FEAT_\w+)\s*=\s*(\d+)\s*;")
+
+#: Base NWN:EE ``feat.2da`` is rows 0-1115; PRC appends its feats above that. Used
+#: only when the base table can't be read outright (no game folder), so a class's
+#: *selectable* base feats aren't mistaken for class-gated PRC features.
+_BASE_FEAT_COUNT = 1116
 
 
 @dataclass(frozen=True)
@@ -88,6 +96,7 @@ class PrcAdvisor:
         self._spellbook_feats: dict[int, str] | None = None
         self._constants: dict[int, str] | None = None
         self._handler_text: dict[str, str] | None = None
+        self._base_feats: set[int] | None = None
 
     def _feat_table(self) -> dict[int, dict[str, str]]:
         if self._feats is None:
@@ -114,6 +123,21 @@ class PrcAdvisor:
                 for kind, script in _HANDLER_SCRIPTS.items()
             }
         return self._handler_text
+
+    def _is_base_feat(self, feat_id: int) -> bool:
+        """Whether the id is a base-game feat (engine-handled, edits cleanly).
+
+        Reads the base ``feat.2da`` from under the haks when the reader can; a
+        class's *selectable* base feats (Alertness, weapon proficiencies …) live in
+        its ``cls_feat_*`` too, and must not be read as class-gated PRC features.
+        """
+        if self._base_feats is None:
+            reader = getattr(self._reader, "read_base_2da", None)
+            table = reader("feat") if callable(reader) else None
+            self._base_feats = set(table) if table else set()
+        if self._base_feats:
+            return feat_id in self._base_feats
+        return feat_id < _BASE_FEAT_COUNT
 
     def _feat_driven(self, feat_id: int) -> str | None:
         """"onhit" / "passive" if the general machinery reads this feat, else None.
@@ -169,6 +193,14 @@ class PrcAdvisor:
             )
         label = _col(row, "LABEL").replace("_", " ")
         active = _is_set(_col(row, "SPELLID"))
+
+        if self._is_base_feat(feat_id):
+            return FeatAdvice(
+                feat_id, label, "base", "", active,
+                "Base-game feat — the engine handles it.",
+                "Edits cleanly and takes effect when the save loads; PRC is not "
+                "involved.",
+            )
         self._build_membership()
 
         if feat_id in (self._spellbook_feats or {}):

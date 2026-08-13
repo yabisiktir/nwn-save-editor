@@ -64,6 +64,19 @@ class HakStack:
         text = self.read_text(name, _2DA_RESTYPE)
         return parse_2da(text)[1] if text else None
 
+    def read_base_2da(self, name: str) -> dict[int, dict[str, str]] | None:
+        """The base game's copy of a 2DA (from KEY/BIF), ignoring the haks.
+
+        The only way to tell base content from custom when a hak ships a full
+        replacement: PRC's ``feat.2da`` shadows the base one, so reading the stack
+        cannot say which feats are base and which PRC added.
+        """
+        reader = KeyBifReader.for_install(self.game_root)
+        if reader is None:
+            return None
+        text = reader.read_2da_text(name)
+        return parse_2da(text)[1] if text else None
+
     def read_script(self, name: str) -> str | None:
         """An ``.nss`` source file. PRC ships 5,415 of them, so its rules are readable."""
         return self.read_text(name, _NSS_RESTYPE, base=False)
