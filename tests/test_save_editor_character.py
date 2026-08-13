@@ -740,39 +740,30 @@ def _level_gains(**over):
     return LevelGains(**base)
 
 
-def test_class_level_confirm_shows_stats_prc_caveat_and_cap(screen, monkeypatch):
-    from PySide6.QtWidgets import QMessageBox
+def _summary_text(wizard) -> str:
+    """Every body label on the wizard's first (summary) page, joined."""
+    from PySide6.QtWidgets import QLabel
 
-    seen: dict[str, str] = {}
+    page = wizard.page(wizard.pageIds()[0])
+    return "  ".join(label.text() for label in page.findChildren(QLabel))
 
-    def fake(parent, title, text, *a, **k):
-        seen["title"], seen["text"] = title, text
-        return QMessageBox.StandardButton.Yes
 
-    monkeypatch.setattr(QMessageBox, "question", fake)
+def test_level_wizard_summary_shows_stats_prc_caveat_and_cap(screen):
     gains = _level_gains(
         class_id=500, class_name="Mystic", class_level=6, character_level=45,
-        bab_gain=1, fort_gain=1, will_gain=1, general_feat=True,
+        bab_gain=1, fort_gain=1, will_gain=1,  # general_feat False -> no feat-list load
         granted_feats=((123, "Some Feat"),), is_base_class=False, spellcaster=True,
     )
-    assert screen._confirm_class_level(gains, 45) is True
-    assert "Mystic level 6" in seen["title"]
-    assert "attack" in seen["text"] and "general feat" in seen["text"]
-    assert "PRC class" in seen["text"]  # the PRC-runtime caveat
-    assert "exceeds the base cap" in seen["text"]  # 45 > 40
-    assert "Some Feat" in seen["text"]  # granted feat named
+    wizard = screen._build_level_wizard(gains, 45)
+    text = _summary_text(wizard)
+    assert "attack bonus" in text
+    assert "PRC class" in text  # the PRC-runtime caveat
+    assert "passes the base cap" in text  # 45 > 40
+    assert "Some Feat" in text  # granted feat named
 
 
-def test_class_level_confirm_base_class_has_no_caveat_or_cap(screen, monkeypatch):
-    from PySide6.QtWidgets import QMessageBox
-
-    seen: dict[str, str] = {}
-
-    def fake(parent, title, text, *a, **k):
-        seen["text"] = text
-        return QMessageBox.StandardButton.No
-
-    monkeypatch.setattr(QMessageBox, "question", fake)
-    assert screen._confirm_class_level(_level_gains(), 2) is False
-    assert "PRC class" not in seen["text"]
-    assert "exceeds the base cap" not in seen["text"]
+def test_level_wizard_base_class_has_no_caveat_or_cap(screen):
+    wizard = screen._build_level_wizard(_level_gains(), 2)
+    text = _summary_text(wizard)
+    assert "PRC class" not in text
+    assert "passes the base cap" not in text

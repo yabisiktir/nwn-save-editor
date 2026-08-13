@@ -994,54 +994,78 @@ class CharacterScreen(QWidget):
 
         session = self._window.session()
         current = dict(session.player_classes())
+        new_total = sum(current.values()) + 1
         gains = LevelUpCalculator(stack).gains(
-            class_id, current.get(class_id, 0) + 1,
-            character_level=sum(current.values()) + 1,
+            class_id, current.get(class_id, 0) + 1, character_level=new_total,
         )
         if gains is None:
             return
-        if not self._confirm_class_level(gains, sum(current.values()) + 1):
+        wizard = self._build_level_wizard(gains, new_total)
+        if wizard.exec() != QDialog.DialogCode.Accepted:
             return
-        session.add_class_level(
-            class_id, gains, con_modifier=self._ability_mod("Con")
-        )
+        self._apply_level(session, class_id, gains, wizard)
         self._window.notify_changed()
 
-    def _confirm_class_level(self, gains, new_total: int) -> bool:
-        from PySide6.QtWidgets import QMessageBox
+    def _build_level_wizard(self, gains, new_total: int):
+        """A :class:`LevelUpWizard` fed the character's own budgets and options."""
+        from nwnsaveeditor.rules import skill_limits
+        from nwnsaveeditor.ui.dialogs.level_up_wizard import LevelUpWizard
 
-        hp = gains.hit_points(self._ability_mod("Con"))
-        skills = gains.skill_points(self._ability_mod("Int"))
-        parts = [
-            f"+{hp} HP · +{gains.bab_gain} attack · "
-            f"+{gains.fort_gain}/{gains.ref_gain}/{gains.will_gain} Fort/Ref/Will.",
-            f"{skills} skill points to assign"
-            + (", plus a general feat" if gains.general_feat else "")
-            + (", plus an ability point" if gains.ability_increase else "")
-            + ".",
-        ]
-        if gains.granted_feats:
-            parts.append("Grants: " + ", ".join(n for _i, n in gains.granted_feats) + ".")
-        if not gains.is_base_class:
-            parts.append(
-                "This is a PRC class: the stats apply, but its script-managed "
-                "features need an in-game re-level (e.g. ~~dm_relevel)."
+        session = self._window.session()
+        try:
+            skills = session.player_skills()
+        except Exception:
+            skills = []
+        cap = skill_limits(
+            strict=self._window.rule_mode() == "strict", level=new_total
+        ).maximum
+        feat_options: list[tuple[int, str]] = []
+        prc_ids: frozenset[int] = frozenset()
+        if gains.general_feat:  # only load the (large) feat list when a feat is due
+            from nwnfile.character_reference import default_reference
+
+            reference = default_reference()
+            feat_options = list(reference.all_feat_ids())
+            prc_ids = frozenset(
+                fid for fid, _n in feat_options if not reference.is_base_feat(fid)
             )
-        if new_total > 40:
-            parts.append(
-                f"Total level {new_total} exceeds the base cap of 40 (PRC extends "
-                "it to 60) — check your module allows it."
+        scores = {
+            f.field: int(f.value)
+            for f in session.player_fields()
+            if f.field in ("Str", "Dex", "Con", "Int", "Wis", "Cha")
+        }
+        return LevelUpWizard(
+            gains,
+            con_modifier=self._ability_mod("Con"),
+            int_modifier=self._ability_mod("Int"),
+            new_total_level=new_total,
+            skills=skills,
+            skill_cap=cap,
+            feat_options=feat_options,
+            prc_feat_ids=prc_ids,
+            ability_scores=scores,
+            parent=self,
+        )
+
+    def _apply_level(self, session, class_id: int, gains, wizard) -> None:
+        """Commit the level and every choice the wizard gathered, in one act."""
+        session.add_class_level(class_id, gains, con_modifier=self._ability_mod("Con"))
+        names = {s.index: s.name for s in session.player_skills()}
+        for index, rank in wizard.skill_allocations().items():
+            session.set_skill_rank(index, rank, where=names.get(index, f"Skill {index}"))
+        feat_id = wizard.chosen_feat()
+        if feat_id is not None:
+            session.add_feat(feat_id)
+        ability = wizard.chosen_ability()
+        if ability is not None:
+            scores = {
+                f.field: int(f.value)
+                for f in session.player_fields()
+                if f.field == ability
+            }
+            session.set_character_field(
+                ability, scores.get(ability, 10) + 1, where=f"{ability} (+1)"
             )
-        parts.append(
-            "Skill points and any feat are assigned in the Skills and Feats tabs. "
-            "Apply this level?"
-        )
-        answer = QMessageBox.question(
-            self, f"Add {gains.class_name} level {gains.class_level}",
-            "\n\n".join(parts),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        return answer == QMessageBox.StandardButton.Yes
 
     # -- Effects ------------------------------------------------------------ #
     def _build_effects(self, layout: QVBoxLayout, info) -> None:
