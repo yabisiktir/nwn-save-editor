@@ -996,23 +996,24 @@ class CharacterScreen(QWidget):
                 "be computed.",
             )
             return
-        options = [
-            (class_id, (row.get("Label") or "").replace("_", " "))
-            for class_id, row in sorted((stack.read_2da("classes") or {}).items())
-            if (row.get("Label") or "") not in ("", "****")
-            and (row.get("PlayerClass") or "") == "1"
-        ]
+        strict = self._window.rule_mode() == "strict"
+        options, non_player = _class_options(stack, strict)
+        # In Free the list widens to every real class; those not meant for players
+        # are marked, and never a class absent from the stack (it isn't in options).
         dialog = IdPickerDialog(
-            "Add a class level", options, value_header="Class", parent=self
+            "Add a class level", options, mark_ids=frozenset(non_player),
+            mark_label="not a player class", value_header="Class", parent=self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         class_id = dialog.selected_id()
         if class_id is None:
             return
+        session = self._window.session()
+        if not self._confirm_class_choice(session, stack, class_id, class_id in non_player):
+            return
         from nwnfile.level_up import LevelUpCalculator
 
-        session = self._window.session()
         current = dict(session.player_classes())
         new_total = sum(current.values()) + 1
         gains = LevelUpCalculator(stack).gains(
@@ -1025,6 +1026,63 @@ class CharacterScreen(QWidget):
             return
         self._apply_level(session, class_id, gains, wizard)
         self._window.notify_changed()
+
+    def _confirm_class_choice(self, session, stack, class_id: int, non_player: bool) -> bool:
+        """Gate a chosen class on its prerequisites (and a non-player warning).
+
+        Strict blocks a class whose requirements the character does not meet; Free
+        warns and lets it through (the save loads either way — the game checks
+        prerequisites at level-up, not on load). Unverifiable requirements (spell
+        level, module script flags) are shown but never block.
+        """
+        from PySide6.QtWidgets import QMessageBox
+
+        from nwnfile.character_reference import default_reference
+        from nwnfile.class_prerequisites import check_prerequisites
+
+        ref = default_reference()
+        result = check_prerequisites(
+            stack, class_id, session.character_snapshot(),
+            feat_name=ref.feat_name, skill_name=ref.skill_name,
+            race_name=self._race_name, class_name=class_name,
+        )
+        strict = self._window.rule_mode() == "strict"
+        name = class_name(class_id)
+        parts: list[str] = []
+        if non_player:
+            parts.append(
+                f"{name} is not a player class. The game may not run its features "
+                "correctly on a PC."
+            )
+        if result.unmet:
+            parts.append("This character does not meet:\n  • " + "\n  • ".join(result.unmet))
+        if result.unverifiable:
+            parts.append(
+                "Cannot be checked from the save (the game may still require them):\n  • "
+                + "\n  • ".join(result.unverifiable)
+            )
+        if not parts:
+            return True  # everything checkable is met, and it is a player class
+
+        if strict and result.unmet:  # Strict refuses an unmet requirement
+            QMessageBox.warning(
+                self, f"Add {name}",
+                "\n\n".join(parts)
+                + "\n\nStrict rule mode blocks this. Switch to Free to override.",
+            )
+            return False
+        answer = QMessageBox.question(  # Free (or only warnings): let the user decide
+            self, f"Add {name}", "\n\n".join(parts) + "\n\nAdd this class anyway?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    def _race_name(self, race_id: int) -> str:
+        table = self._window.race_table()
+        try:
+            return table.label(race_id) if table is not None else f"race #{race_id}"
+        except Exception:
+            return f"race #{race_id}"
 
     def _wizard_skill_caps(self, session, gains, new_total, skills, strict) -> dict[int, int]:
         """Per-skill rank caps for the wizard: in Strict, a class skill of any of
@@ -1378,6 +1436,27 @@ class CharacterScreen(QWidget):
 # --------------------------------------------------------------------------- #
 # small builders
 # --------------------------------------------------------------------------- #
+def _class_options(stack, strict: bool) -> tuple[list[tuple[int, str]], set[int]]:
+    """The class picker's rows and which of them are non-player classes.
+
+    Strict offers only player classes (``PlayerClass == 1``). Free widens to every
+    real ``classes.2da`` row — a class the game can actually resolve — marking the
+    ones not meant for PCs. Never a class id absent from the stack: it isn't a row.
+    """
+    non_player: set[int] = set()
+    options: list[tuple[int, str]] = []
+    for class_id, row in sorted((stack.read_2da("classes") or {}).items()):
+        label = (row.get("Label") or "").replace("_", " ")
+        if label in ("", "****"):
+            continue
+        if (row.get("PlayerClass") or "") != "1":
+            if strict:
+                continue
+            non_player.add(class_id)
+        options.append((class_id, label))
+    return options, non_player
+
+
 def _input_qss() -> str:
     """A field or stepper's chrome, rebuilt per call so it follows the theme."""
     return (

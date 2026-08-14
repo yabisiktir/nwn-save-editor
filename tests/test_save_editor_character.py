@@ -784,3 +784,81 @@ def test_character_summary_reflects_a_staged_edit_before_saving(window):
     session.discard()
     window.notify_changed()
     assert window.character_info().abilities["Str"] == before  # back to the file
+
+
+# -- class picker widening + prerequisite gate ----------------------------- #
+class _Stack:
+    def __init__(self, tables):
+        self._t = tables
+
+    def read_2da(self, name):
+        return self._t.get(name.lower())
+
+
+def _classes_stack():
+    return _Stack({"classes": {
+        1: {"Label": "Bard", "PlayerClass": "1"},
+        32: {"Label": "Champion_Torm", "PlayerClass": "1"},
+        247: {"Label": "Dragon_Disciple_Monster", "PlayerClass": "0"},
+    }})
+
+
+def test_strict_class_picker_lists_only_player_classes():
+    from nwnsaveeditor.ui.editor.screens.character import _class_options
+
+    options, non_player = _class_options(_classes_stack(), strict=True)
+    assert {cid for cid, _n in options} == {1, 32}
+    assert non_player == set()
+
+
+def test_free_class_picker_widens_and_marks_non_player_classes():
+    from nwnsaveeditor.ui.editor.screens.character import _class_options
+
+    options, non_player = _class_options(_classes_stack(), strict=False)
+    assert {cid for cid, _n in options} == {1, 32, 247}
+    assert non_player == {247}  # the PlayerClass=0 row is offered but marked
+
+
+def test_met_player_class_needs_no_confirmation(window, screen, monkeypatch):
+    from nwnfile.class_prerequisites import PrereqResult
+
+    monkeypatch.setattr(
+        "nwnfile.class_prerequisites.check_prerequisites",
+        lambda *a, **k: PrereqResult(),  # everything met
+    )
+    window._edit_toggle.setChecked(True)
+    assert screen._confirm_class_choice(window.session(), _classes_stack(), 32, False)
+
+
+def test_strict_blocks_a_class_with_unmet_prerequisites(window, screen, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    from nwnfile.class_prerequisites import PrereqResult
+
+    monkeypatch.setattr(
+        "nwnfile.class_prerequisites.check_prerequisites",
+        lambda *a, **k: PrereqResult(unmet=("Base attack bonus 7 (have 6)",)),
+    )
+    monkeypatch.setattr(screen._window, "rule_mode", lambda: "strict")
+    warned = {}
+    monkeypatch.setattr(
+        QMessageBox, "warning", lambda *a, **k: warned.setdefault("text", a[2])
+    )
+    window._edit_toggle.setChecked(True)
+    assert screen._confirm_class_choice(window.session(), _classes_stack(), 32, False) is False
+    assert "Base attack bonus 7" in warned["text"] and "Switch to Free" in warned["text"]
+
+
+def test_free_lets_you_override_unmet_prerequisites(window, screen, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    from nwnfile.class_prerequisites import PrereqResult
+
+    monkeypatch.setattr(
+        "nwnfile.class_prerequisites.check_prerequisites",
+        lambda *a, **k: PrereqResult(unmet=("Feat: Mobility",)),
+    )
+    monkeypatch.setattr(screen._window, "rule_mode", lambda: "free")
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
+    window._edit_toggle.setChecked(True)
+    assert screen._confirm_class_choice(window.session(), _classes_stack(), 32, False) is True

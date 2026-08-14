@@ -141,6 +141,24 @@ switch: turn on **Enable class level editing** under **Settings…** (it is off 
 default) and, in edit mode, the Abilities & Combat tab grows a **+ Add class level…**
 button.
 
+The class list follows the rule mode. **Strict** offers only player classes.
+**Free** widens it to every real class the game can resolve, marking the ones not
+meant for PCs — it never offers a class absent from the character's own haks, because
+a class with no table is the one thing that can genuinely stop a save loading; a
+non-player class merely may not behave.
+
+![The Free-mode class picker, widened to every class with the non-player ones marked](images/class-picker-free.png)
+
+**Prerequisites are checked** against the same `CLS_PRES_*` requirement tables the
+game uses — base attack, feats (including "any one of" groups), skill ranks, race,
+and required or forbidden classes. A prestige class's spell-level and module-script
+requirements can't be judged from a save, so they are listed as *unverifiable* rather
+than passed or failed. **Strict blocks** a class whose requirements you don't meet;
+**Free warns and lets you override** — the game checks prerequisites at level-up, not
+on load, so an under-qualified character still loads.
+
+![The prerequisite warning listing a Shadowdancer's unmet requirements, blocked in Strict](images/class-prereqs.png)
+
 Picking a class opens a short **wizard** that works the level out from the game's own
 class tables — base *and* PRC — and gathers the choices it opens up:
 

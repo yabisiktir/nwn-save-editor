@@ -114,7 +114,13 @@ out" can be turned off under **Settings…**.
 
 `enable_class_level_editing` is **off by default**: adding a class level is a real
 level-up, not a field edit, so it stays behind a switch you turn on deliberately in
-**Settings…**. See [docs/save_game_editor.md](docs/save_game_editor.md#class-levels-opt-in).
+**Settings…**. Once on, a wizard works the level out from the game's own class tables
+(base *and* PRC), gathers the skill-point, feat and ability choices it opens up, and
+writes the per-level history (`LvlStatList`) so the character stays consistent.
+Prestige-class **prerequisites are checked** against the game's `CLS_PRES_*` tables —
+Strict blocks a class you don't qualify for, Free warns and lets you override (and
+widens the picker to non-player classes, marked). See
+[docs/save_game_editor.md](docs/save_game_editor.md#class-levels-opt-in).
 
 Edit it by hand or delete it to start over — a missing or malformed file falls
 back to detection rather than failing.

@@ -1599,6 +1599,23 @@ class SaveEditor:
         """The character's classes as ``(class id, level)``, in ClassList order."""
         return _class_levels(self._class_list(self._module_tree()))
 
+    def character_snapshot(self):
+        """The character reduced to what a prestige-class prerequisite is judged
+        against (base attack, feats, skill ranks, race, classes)."""
+        from nwnfile.class_prerequisites import CharacterSnapshot
+
+        tree = self._module_tree()
+        player = self._player_struct(tree)
+        feat_list = self._feat_list(tree)
+        race = player.get("Race")
+        return CharacterSnapshot(
+            bab=int(player.get("BaseAttackBonus") or 0),
+            feats=frozenset(self._feat_ids(feat_list)) if feat_list else frozenset(),
+            skills={s.index: s.rank for s in self.player_skills()},
+            race=int(race) if race is not None else -1,
+            class_ids=frozenset(cid for cid, _lvl in self.player_classes()),
+        )
+
     @_records()
     def add_class_level(
         self, class_id: int, gains, *, con_modifier: int = 0,
