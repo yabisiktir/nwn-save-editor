@@ -58,15 +58,19 @@ _SEMANTIC: dict[str, tuple[int, int, str]] = {
 }
 
 
-def skill_rank_limit(level: int) -> int:
-    """The highest rank a *class* skill can reach at ``level`` — level + 3.
+def skill_rank_limit(level: int, *, class_skill: bool = True) -> int:
+    """The highest rank a skill can reach at ``level``: ``level + 3`` for a class
+    skill, half that for a cross-class one.
 
-    Cross-class skills cap at half that, but a save does not record which skills
-    are class skills for the character's particular class mix, so the generous
-    bound is used: Strict should refuse the impossible, not guess at the merely
-    unlikely.
+    Which skills are class skills is not in the save, but it *is* derivable from
+    the character's classes and the install's ``CLS_SKILL_*`` tables
+    (:func:`nwnfile.class_skills.class_skill_ids`). When that is unknown the caller
+    passes ``class_skill=True`` — the generous bound — so Strict refuses the
+    impossible, never the merely unlikely.
     """
-    return max(3, level + 3)
+    from nwnfile.class_skills import skill_rank_cap
+
+    return skill_rank_cap(level, class_skill=class_skill)
 
 
 def limits_for(
@@ -101,9 +105,14 @@ def limits_for(
     return Limits(low, high)
 
 
-def skill_limits(*, strict: bool, level: int) -> Limits:
-    """The rank range a skill editor should offer."""
+def skill_limits(*, strict: bool, level: int, class_skill: bool = True) -> Limits:
+    """The rank range a skill editor should offer.
+
+    ``class_skill`` narrows the Strict cap: a class skill caps at ``level + 3``, a
+    cross-class skill at half that. Left ``True`` when the class mix is unknown.
+    """
     if not strict:
         return Limits(0, 255, "Free mode — only the field's storable range applies")
-    cap = skill_rank_limit(level)
-    return Limits(0, cap, f"a class skill caps at level + 3 (= {cap})")
+    cap = skill_rank_limit(level, class_skill=class_skill)
+    kind = "a class skill" if class_skill else "a cross-class skill"
+    return Limits(0, cap, f"{kind} caps at {cap} for level {level}")

@@ -67,7 +67,9 @@ save open — the same conditions that enable the buttons.
 The toolbar's rule mode decides how far a value may go.
 
 - **Strict** — the game's own limits. A spell can only be added to a level its class
-  actually casts; a skill cannot exceed its rank cap.
+  actually casts; a skill cannot exceed its rank cap — *level + 3* for a class skill
+  of one of the character's classes, half that for a cross-class skill, worked out
+  from the class tables in the character's own haks.
 - **Free** — only the field's *storable* range applies. That range is a property of
   the file format and binds in both modes; Free says so wherever it widens something.
 
@@ -147,10 +149,10 @@ class tables — base *and* PRC — and gathers the choices it opens up:
    out here (see below), and a total level past 40 warns that the base cap is 40 (PRC
    raises it to 60).
 2. **Skill points** — the exact budget the level grants (class base + Int modifier,
-   ×4 at first level), spent with a live remaining counter. Ranks are capped by the
-   rule mode — **Strict** holds them to *level + 3*, **Free** to the field's range —
-   and the wizard will not finish while you are over budget. Unspent points are simply
-   left unspent.
+   ×4 at first level), spent with a live remaining counter. Ranks are capped per skill
+   by the rule mode — **Strict** holds a class skill to *level + 3* and a cross-class
+   skill to half that, **Free** to the field's range — and the wizard will not finish
+   while you are over budget. Unspent points are simply left unspent.
 3. **A general feat**, only on the levels that grant one (every third character
    level), from the same searchable picker the Feats tab uses.
 4. **An ability point**, only on the levels that grant one (every fourth), as a

@@ -95,6 +95,7 @@ class CharacterScreen(QWidget):
         self._window = window
         self._skin = "leather"
         self._effects_view = "active"
+        self._class_skill_set: set[int] = set()  # filled per Skills-tab build
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
@@ -749,8 +750,26 @@ class CharacterScreen(QWidget):
         )
         self._window.notify_changed()
 
+    def _class_skills_for(self, info) -> set[int]:
+        """The character's class-skill ids, or empty when the tables can't be read
+        — in which case every skill takes the generous class-skill cap."""
+        stack = self._window.hak_stack()
+        if stack is None or info is None:
+            return set()
+        try:
+            from nwnfile.class_skills import class_skill_ids
+
+            return class_skill_ids(stack, [cid for cid, _lvl in getattr(info, "classes", [])])
+        except Exception:
+            return set()
+
+    def _skill_cap_is_class(self, skill_index: int) -> bool:
+        # Unknown class-skill set -> treat as class skill (the generous bound).
+        return not self._class_skill_set or skill_index in self._class_skill_set
+
     def _build_skills(self, layout: QVBoxLayout, info) -> None:
         layout.setSpacing(10)
+        self._class_skill_set = self._class_skills_for(info)
         try:
             skills = self._window.session().player_skills()
         except Exception:
@@ -839,6 +858,7 @@ class CharacterScreen(QWidget):
             limits = skill_limits(
                 strict=self._window.rule_mode() == "strict",
                 level=getattr(info, "level", 0) or 0,
+                class_skill=self._skill_cap_is_class(skill.index),
             )
             box = QSpinBox()
             box.setRange(limits.minimum, limits.maximum)
@@ -1006,6 +1026,23 @@ class CharacterScreen(QWidget):
         self._apply_level(session, class_id, gains, wizard)
         self._window.notify_changed()
 
+    def _wizard_skill_caps(self, session, gains, new_total, skills, strict) -> dict[int, int]:
+        """Per-skill rank caps for the wizard: in Strict, a class skill of any of
+        the character's classes (including the one being added) caps at level + 3,
+        a cross-class skill at half that. Empty in Free — the storable range applies.
+        """
+        if not strict:
+            return {}
+        from nwnfile.class_skills import class_skill_ids, skill_rank_cap
+
+        stack = self._window.hak_stack()
+        class_ids = [cid for cid, _lvl in session.player_classes()] + [gains.class_id]
+        cset = class_skill_ids(stack, class_ids) if stack is not None else set()
+        return {
+            s.index: skill_rank_cap(new_total, class_skill=not cset or s.index in cset)
+            for s in skills
+        }
+
     def _build_level_wizard(self, gains, new_total: int):
         """A :class:`LevelUpWizard` fed the character's own budgets and options."""
         from nwnsaveeditor.rules import skill_limits
@@ -1016,9 +1053,9 @@ class CharacterScreen(QWidget):
             skills = session.player_skills()
         except Exception:
             skills = []
-        cap = skill_limits(
-            strict=self._window.rule_mode() == "strict", level=new_total
-        ).maximum
+        strict = self._window.rule_mode() == "strict"
+        cap = skill_limits(strict=strict, level=new_total).maximum  # Free fallback
+        skill_caps = self._wizard_skill_caps(session, gains, new_total, skills, strict)
         feat_options: list[tuple[int, str]] = []
         prc_ids: frozenset[int] = frozenset()
         if gains.general_feat:  # only load the (large) feat list when a feat is due
@@ -1041,6 +1078,7 @@ class CharacterScreen(QWidget):
             new_total_level=new_total,
             skills=skills,
             skill_cap=cap,
+            skill_caps=skill_caps,
             feat_options=feat_options,
             prc_feat_ids=prc_ids,
             ability_scores=scores,

@@ -65,6 +65,7 @@ class LevelUpWizard(QWizard):
         new_total_level: int,
         skills: Iterable[object] = (),
         skill_cap: int = 255,
+        skill_caps: dict[int, int] | None = None,
         feat_options: Sequence[tuple[int, str]] = (),
         prc_feat_ids: frozenset[int] = frozenset(),
         ability_scores: dict[str, int] | None = None,
@@ -75,7 +76,8 @@ class LevelUpWizard(QWizard):
 
         self._gains = gains
         self._con_mod = con_modifier
-        self._skill_cap = skill_cap
+        self._skill_cap = skill_cap  # fallback cap; skill_caps overrides per skill
+        self._skill_caps = dict(skill_caps or {})
         self._skills = [_Skill(s.index, s.name, s.rank) for s in skills]
         self._ability_scores = dict(ability_scores or {})
         self._skill_boxes: dict[int, QSpinBox] = {}
@@ -164,7 +166,9 @@ class LevelUpWizard(QWizard):
             line = QHBoxLayout()
             line.addWidget(w.body(skill.name, t.TEXT, 13), 1)
             spin = QSpinBox()
-            spin.setRange(skill.rank, max(skill.rank, self._skill_cap))
+            cap = self._skill_caps.get(skill.index, self._skill_cap)
+            spin.setRange(skill.rank, max(skill.rank, cap))
+            spin.setToolTip(f"caps at {cap}")
             spin.setValue(skill.rank)
             spin.setFixedWidth(70)
             spin.valueChanged.connect(self._on_skill_changed)

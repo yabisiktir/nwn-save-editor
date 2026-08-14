@@ -68,7 +68,13 @@ def test_free_lets_alignment_run_to_the_byte_limit():
 def test_skill_rank_caps_at_level_plus_three():
     assert skill_rank_limit(40) == 43
     assert skill_limits(strict=True, level=40).maximum == 43
-    assert "level + 3" in skill_limits(strict=True, level=40).reason
+    assert "class skill" in skill_limits(strict=True, level=40).reason
+
+
+def test_cross_class_skill_caps_at_half():
+    assert skill_rank_limit(40, class_skill=False) == 21  # (40+3)//2
+    assert skill_limits(strict=True, level=40, class_skill=False).maximum == 21
+    assert "cross-class" in skill_limits(strict=True, level=40, class_skill=False).reason
 
 
 def test_a_low_level_character_still_gets_a_sane_skill_cap():
