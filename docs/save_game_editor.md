@@ -132,6 +132,8 @@ because the screen re-reads the staged character rather than the file on disk.
 
 #### Class levels (opt-in)
 
+![The add-class-level wizard's first step: the hit points, attack, saves and feats a Pale Master level grants, with the PRC re-level caveat](images/class-level-wizard.png)
+
 Adding a class level is a genuine level-up, not a single field, so it lives behind a
 switch: turn on **Enable class level editing** under **Settings…** (it is off by
 default) and, in edit mode, the Abilities & Combat tab grows a **+ Add class level…**
