@@ -174,6 +174,13 @@ class RawScreen(QWidget):
         self._note = w.body("", t.TEXT_3, 11.5)
         outer.addWidget(self._note)
 
+        #: what the selected id field refers to (a feat's name, a class, …), so a
+        #: bare "Feat = 2213" reads as something without leaving the tree.
+        self._meaning = w.body("", t.TEXT_2, 12)
+        self._meaning.setWordWrap(True)
+        self._meaning.setVisible(False)
+        outer.addWidget(self._meaning)
+
         self.refresh()
 
     def _targets(self) -> list[str]:
@@ -344,11 +351,17 @@ class RawScreen(QWidget):
         role = current.data(0, _ROLE) if current is not None else None
         if role is None:
             self._path_label.setText("")
+            self._show_meaning(None, None)
             for button in self._buttons.values():
                 button.setEnabled(False)
             return
-        kind, path, _value = role
+        kind, path, value = role
         self._path_label.setText(_render_path(path))
+        # a scalar role carries its GffField; the value we resolve is field.value
+        self._show_meaning(
+            path[-1][0] if kind == "scalar" and path else None,
+            getattr(value, "value", None) if kind == "scalar" else None,
+        )
         editing = self._window.editing
         context = self._list_context(current)
         entry = context is not None and context[1] is not None
@@ -356,6 +369,24 @@ class RawScreen(QWidget):
         self._buttons["blank"].setEnabled(editing and context is not None)
         self._buttons["duplicate"].setEnabled(editing and context is not None and context[2] > 0)
         self._buttons["remove"].setEnabled(editing and entry)
+
+    def _show_meaning(self, field_name: str | None, value) -> None:
+        """Resolve an id field (Feat, Class, Spell, Race…) to a readable line."""
+        meaning = None
+        if field_name is not None:
+            from nwnfile.character_reference import default_reference
+            from nwnfile.field_meaning import field_meaning
+
+            try:
+                meaning = field_meaning(field_name, value, default_reference())
+            except Exception:
+                meaning = None
+        if meaning is None:
+            self._meaning.setVisible(False)
+            return
+        title, description = meaning
+        self._meaning.setText(f"{title}\n{description}" if description else title)
+        self._meaning.setVisible(True)
 
     @staticmethod
     def _list_context(item: QTreeWidgetItem | None) -> tuple[tuple, int | None, int] | None:

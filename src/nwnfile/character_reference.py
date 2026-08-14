@@ -422,6 +422,15 @@ class CharacterReference:
             return prc_name, desc
         return f"Unknown feat {feat_id}", _FEAT_DESC_UNAVAILABLE
 
+    def feat_description(self, feat_id: int) -> str:
+        """A feat's description (base, then PRC), or a placeholder when unknown."""
+        return self._feat_name(feat_id)[1]
+
+    def spell_description(self, spell_id: int) -> str:
+        """A spell's description, or empty when there is no bundled text for it."""
+        rows = self.spells([spell_id])
+        return rows[0][1] if rows else ""
+
     def skill_name(self, skill_id: int) -> str:
         """The name of a skill by its id (base table, then PRC map, then ``Skill N``)."""
         if 0 <= skill_id < len(self.skill_names):

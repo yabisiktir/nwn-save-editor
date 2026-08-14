@@ -301,6 +301,12 @@ ledger.
 
 - Scalars are editable, and a field's type is always preserved — a raw edit can break
   the game's *rules*, not the *file*. **Double-click** a row to edit it.
+- **Id fields read out in plain language.** Selecting a field that holds an id — a
+  `Feat`, `Spell`, `Class`, `Race`, `LvlStatClass`, `LvlStatAbility` — shows what it
+  refers to below the tree, name and description, so `Feat = 2213` reads as "Divine
+  Strike" without opening anything.
+
+  ![Selecting a Feat field shows its name and description below the tree](images/raw-field-meaning.png)
 - A list of structs can gain and lose entries. **Duplicate entry** copies a sibling,
   which is the reliable route: the copy already carries the fields, types and struct
   type the game expects there. **Add blank entry** can only *seed* one — it takes the
