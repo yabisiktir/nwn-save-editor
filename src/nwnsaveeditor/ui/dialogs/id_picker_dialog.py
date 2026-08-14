@@ -35,6 +35,8 @@ class IdPickerDialog(QDialog):
         mark_ids: frozenset[int] = frozenset(),
         mark_label: str = "",
         value_header: str = "Name",
+        categories: tuple[tuple[str, str], ...] = (),
+        category_of: dict[int, str] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -44,6 +46,14 @@ class IdPickerDialog(QDialog):
         self.resize(480, 520)
         self.setStyleSheet(w.dialog_qss())  # wear the editor's theme, not the app palette
         layout = QVBoxLayout(self)
+
+        self._category_of = category_of or {}
+        self._category = categories[0][0] if categories else "all"
+        if categories:  # e.g. All / Applicable / Already taken
+            self._modes = w.SegmentedControl(categories)
+            self._modes.set_value(self._category)
+            self._modes.changed.connect(self._choose_category)
+            layout.addWidget(self._modes)
 
         self._filter = QLineEdit()
         self._filter.setPlaceholderText("Search by name or id…")
@@ -80,18 +90,27 @@ class IdPickerDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+    def _choose_category(self, category: str) -> None:
+        self._category = category
+        self._apply_filter(self._filter.text())
+
+    def _in_category(self, id_) -> bool:
+        return self._category == "all" or self._category_of.get(id_) == self._category
+
     def _apply_filter(self, text: str) -> None:
         needle = text.lower()
         first_visible = None
         for i in range(self._tree.topLevelItemCount()):
             row = self._tree.topLevelItem(i)
             haystack = f"{row.text(0)} {row.text(1)}".lower()  # matches id or name
-            hidden = needle not in haystack
+            hidden = needle not in haystack or not self._in_category(row.data(0, _ID_ROLE))
             row.setHidden(hidden)
             if not hidden and first_visible is None:
                 first_visible = row
         if first_visible is not None:  # keep a visible row selected for OK/Enter
             self._tree.setCurrentItem(first_visible)
+        else:
+            self._tree.setCurrentItem(None)  # nothing matches -> OK/Enter no-ops
 
     def selected_id(self) -> int | None:
         row = self._tree.currentItem()

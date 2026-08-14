@@ -953,9 +953,11 @@ class CharacterScreen(QWidget):
         reference = default_reference()
         feats = reference.all_feat_ids()
         prc = frozenset(fid for fid, _name in feats if not reference.is_base_feat(fid))
+        categories, category_of = self._feat_categories(feats)
         dialog = IdPickerDialog(
             "Add a Feat", feats, mark_ids=prc, mark_label="PRC",
-            value_header="Feat", parent=self,
+            value_header="Feat", categories=categories, category_of=category_of,
+            parent=self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -968,6 +970,47 @@ class CharacterScreen(QWidget):
                 return
         self._window.session().add_feat(feat_id)
         self._window.notify_changed()
+
+    def _feat_categories(self, feats):
+        """Tag every feat id as ``taken`` / ``applicable`` / ``other`` for the
+        picker's filter, or return no categories if the tables can't be read."""
+        stack = self._window.hak_stack()
+        if stack is None:
+            return (), {}
+        from nwnfile.feat_prerequisites import FeatSnapshot, meets_prerequisites
+
+        session = self._window.session()
+        snap = session.character_snapshot()
+        info = self._window.character_info()
+        fields = {  # numeric fields only — player_fields also carries names
+            f.field: int(f.value)
+            for f in session.player_fields()
+            if isinstance(f.value, int)
+        }
+        char = FeatSnapshot(
+            feats=snap.feats, skills=snap.skills, bab=snap.bab,
+            abilities=getattr(info, "abilities", {}) or {},
+            level=getattr(info, "level", 0) or 0,
+            fort_save=fields.get("FortSaveThrow", 0),
+        )
+        # read feat.2da once — the stack does not cache, and this runs over 16k feats
+        feat_table = stack.read_2da("feat") or {}
+
+        class _Cached:
+            def read_2da(self, name):
+                return feat_table if name.lower() == "feat" else stack.read_2da(name)
+
+        reader = _Cached()
+        category_of: dict[int, str] = {}
+        for fid, _name in feats:
+            if fid in snap.feats:
+                category_of[fid] = "taken"
+            elif meets_prerequisites(reader, fid, char):
+                category_of[fid] = "applicable"
+            else:
+                category_of[fid] = "other"
+        categories = (("all", "All"), ("applicable", "Applicable"), ("taken", "Taken"))
+        return categories, category_of
 
     def _remove_feat(self, feat_id: int, is_base: bool) -> None:
         if not is_base and not _confirm_prc(self, "feat"):

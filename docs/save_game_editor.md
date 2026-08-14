@@ -121,6 +121,13 @@ Six tabs.
   (and warmed in the background while you browse), so opening the picker never
   stalls. The buckets are laid out in full in
   [prc_abilities.md](prc_abilities.md).
+
+  ![The Add-a-feat picker filtered to feats the character qualifies for](images/feat-picker-filter.png)
+
+  The Add-a-feat picker filters by **All / Applicable / Taken** — *Applicable* hides
+  feats whose `feat.2da` prerequisites (ability minimums, required feats and "any one
+  of" groups, skill ranks, level, epic) the character doesn't meet; *Taken* shows the
+  ones it already has. The filter combines with the name/id search.
 - **Effects** — what the save's `EffectList` holds, or a switch to **active bonuses**:
   where each number comes from, attributed to the item, class or spell that supplies
   it. What a *feat* contributes is not shown, because the save records which feats

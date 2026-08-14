@@ -73,3 +73,38 @@ def test_prc_ids_are_marked(qtbot):
     names = _names(dialog)
     assert any("Great Cleave" in text and "PRC" in text for text in names)
     assert not any(text == "Cleave" and "PRC" in text for text in names)
+
+
+def test_category_filter_narrows_the_rows(qtbot):
+    items = [(1, "Alertness"), (6, "Cleave"), (391, "Great Cleave")]
+    cats = (("all", "All"), ("applicable", "Applicable"), ("taken", "Taken"))
+    cat_of = {1: "taken", 6: "applicable", 391: "other"}
+    dialog = IdPickerDialog("Pick", items, categories=cats, category_of=cat_of)
+    qtbot.addWidget(dialog)
+
+    def visible():
+        t = dialog._tree
+        return {t.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
+                for i in range(t.topLevelItemCount()) if not t.topLevelItem(i).isHidden()}
+
+    assert visible() == {1, 6, 391}  # All
+    dialog._choose_category("applicable")
+    assert visible() == {6}
+    dialog._choose_category("taken")
+    assert visible() == {1}
+    dialog._choose_category("all")
+    assert visible() == {1, 6, 391}
+
+
+def test_category_and_text_filter_combine(qtbot):
+    items = [(6, "Cleave"), (391, "Great Cleave"), (1, "Alertness")]
+    cats = (("all", "All"), ("applicable", "Applicable"))
+    dialog = IdPickerDialog("Pick", items, categories=cats,
+                            category_of={6: "applicable", 391: "applicable", 1: "taken"})
+    qtbot.addWidget(dialog)
+    dialog._choose_category("applicable")
+    dialog._filter.setText("great")
+    t = dialog._tree
+    shown = {t.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
+             for i in range(t.topLevelItemCount()) if not t.topLevelItem(i).isHidden()}
+    assert shown == {391}  # applicable AND matches "great"
