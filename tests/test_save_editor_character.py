@@ -841,8 +841,9 @@ def test_strict_blocks_a_class_with_unmet_prerequisites(window, screen, monkeypa
     )
     monkeypatch.setattr(screen._window, "rule_mode", lambda: "strict")
     warned = {}
-    monkeypatch.setattr(
-        QMessageBox, "warning", lambda *a, **k: warned.setdefault("text", a[2])
+    monkeypatch.setattr(  # the editor's themed message box (parent, icon, title, text, …)
+        "nwnsaveeditor.ui.editor.widgets.message",
+        lambda *a, **k: warned.setdefault("text", a[3]) or QMessageBox.StandardButton.Ok,
     )
     window._edit_toggle.setChecked(True)
     assert screen._confirm_class_choice(window.session(), _classes_stack(), 32, False) is False
@@ -859,6 +860,9 @@ def test_free_lets_you_override_unmet_prerequisites(window, screen, monkeypatch)
         lambda *a, **k: PrereqResult(unmet=("Feat: Mobility",)),
     )
     monkeypatch.setattr(screen._window, "rule_mode", lambda: "free")
-    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.widgets.message",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
     window._edit_toggle.setChecked(True)
     assert screen._confirm_class_choice(window.session(), _classes_stack(), 32, False) is True

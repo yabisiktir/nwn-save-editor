@@ -137,6 +137,10 @@ def yes(monkeypatch):
     monkeypatch.setattr(
         QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
     )
+    monkeypatch.setattr(  # the raw screen's themed message box (w.message)
+        "nwnsaveeditor.ui.editor.widgets.message",
+        lambda *a, **k: QMessageBox.StandardButton.Yes,
+    )
 
 
 def test_list_buttons_are_gated_on_edit_mode(window, raw):
@@ -193,9 +197,9 @@ def test_removing_an_entry_confirms_first(window, raw, monkeypatch):
     window._edit_toggle.setChecked(True)
     before = _feat_ids(window)
     asked = []
-    monkeypatch.setattr(
-        QMessageBox, "question",
-        lambda *a, **k: asked.append(a[2]) or QMessageBox.StandardButton.No,
+    monkeypatch.setattr(  # w.message(parent, icon, title, text, …) -> text is a[3]
+        "nwnsaveeditor.ui.editor.widgets.message",
+        lambda *a, **k: asked.append(a[3]) or QMessageBox.StandardButton.No,
     )
     node = _find_list(raw, "FeatList")
     raw._tree.setCurrentItem(node.child(0))

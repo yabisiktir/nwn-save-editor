@@ -556,6 +556,26 @@ def style_dialog(dialog):
     return dialog
 
 
+def message(parent, icon, title: str, text: str, buttons, *, default=None):
+    """A QMessageBox in the editor's theme, shown modally; returns the button.
+
+    The static ``QMessageBox.warning/question`` helpers build an *unstyled* box,
+    which inside this self-themed window renders its text light-on-light and is
+    unreadable. Building it here lets the dialog palette reach it.
+    """
+    from PySide6.QtWidgets import QMessageBox
+
+    box = QMessageBox(parent)
+    box.setIcon(icon)
+    box.setWindowTitle(title)
+    box.setText(text)
+    box.setStandardButtons(buttons)
+    if default is not None:
+        box.setDefaultButton(default)
+    box.setStyleSheet(dialog_qss())
+    return box.exec()
+
+
 #: Widgets taken out of the UI but not yet destroyed. See :func:`retire`.
 _RETIRED: list = []
 

@@ -116,7 +116,10 @@ def test_the_footer_counts_changes_and_samples_up_to_three(window):
     session.set_character_name("FirstName", "Kaelen")
     window._refresh_pending()
     assert window._pending_caption.text() == "PENDING CHANGES (4)"
-    assert window._pending_samples.count() == 3, "the design shows at most 3 samples"
+    # three sample chips plus a "+N more" hint, so the count and the strip agree
+    assert window._pending_samples.count() == 4
+    last = window._pending_samples.itemAt(3).widget()
+    assert "+1 more" in last.text()
 
 
 def test_change_kinds_map_onto_real_sections():
@@ -283,3 +286,24 @@ def test_toggle_edit_needs_an_open_save(window):
     window._select_save(window._saves[0])
     window._toggle_edit()
     assert window._editing is True  # flips the Edit pill on
+
+
+def test_one_screens_refresh_failure_does_not_stop_the_others(window, monkeypatch):
+    """A throw in one screen's refresh must not leave the rest (e.g. the raw tree)
+    showing stale state — the others still refresh, the error is just logged."""
+    window._edit_toggle.setChecked(True)
+    refreshed = []
+
+    class _Boom:
+        def refresh(self):
+            raise RuntimeError("boom")
+
+    class _Ok:
+        def refresh(self):
+            refreshed.append(True)
+
+    window._screens.clear()
+    window._screens["a"] = _Boom()
+    window._screens["b"] = _Ok()
+    window._refresh_screens()  # must not raise
+    assert refreshed == [True], "the healthy screen refreshed despite the other failing"

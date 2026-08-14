@@ -990,10 +990,11 @@ class CharacterScreen(QWidget):
 
         stack = self._window.hak_stack()
         if stack is None:
-            QMessageBox.warning(
-                self, "Add class level",
+            w.message(
+                self, QMessageBox.Icon.Warning, "Add class level",
                 "The class tables can't be read for this save, so a level cannot "
                 "be computed.",
+                QMessageBox.StandardButton.Ok,
             )
             return
         strict = self._window.rule_mode() == "strict"
@@ -1065,14 +1066,16 @@ class CharacterScreen(QWidget):
             return True  # everything checkable is met, and it is a player class
 
         if strict and result.unmet:  # Strict refuses an unmet requirement
-            QMessageBox.warning(
-                self, f"Add {name}",
+            w.message(
+                self, QMessageBox.Icon.Warning, f"Add {name}",
                 "\n\n".join(parts)
                 + "\n\nStrict rule mode blocks this. Switch to Free to override.",
+                QMessageBox.StandardButton.Ok,
             )
             return False
-        answer = QMessageBox.question(  # Free (or only warnings): let the user decide
-            self, f"Add {name}", "\n\n".join(parts) + "\n\nAdd this class anyway?",
+        answer = w.message(  # Free (or only warnings): let the user decide
+            self, QMessageBox.Icon.Question, f"Add {name}",
+            "\n\n".join(parts) + "\n\nAdd this class anyway?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         return answer == QMessageBox.StandardButton.Yes

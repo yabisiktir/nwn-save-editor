@@ -402,7 +402,9 @@ class RawScreen(QWidget):
                 where=f"{self._target}: {label}",
             )
         except Exception as exc:
-            QMessageBox.critical(self, "Raw edit failed", str(exc))
+            w.message(self, QMessageBox.Icon.Critical, "Raw edit failed", str(exc),
+                      QMessageBox.StandardButton.Ok)
+            self._window.notify_changed()  # re-sync the tree with the model's truth
             return
         self._window.notify_changed()  # rebuilds the tree: the indices just moved
         self._reveal(path[:-1] + ((path[-1][0], index),))
@@ -419,8 +421,8 @@ class RawScreen(QWidget):
             return
         path, index, count = context
         label = _render_path(path)
-        confirm = QMessageBox.question(
-            self, "Remove entry",
+        confirm = w.message(
+            self, QMessageBox.Icon.Question, "Remove entry",
             f"Remove entry [{index}] of {count} from {label}?\n\n"
             f"Every entry after it moves up one place. Nothing checks that the "
             f"game can still read the result.",
@@ -433,7 +435,9 @@ class RawScreen(QWidget):
                 self._target, path, index, where=f"{self._target}: {label}"
             )
         except Exception as exc:
-            QMessageBox.critical(self, "Raw edit failed", str(exc))
+            w.message(self, QMessageBox.Icon.Critical, "Raw edit failed", str(exc),
+                      QMessageBox.StandardButton.Ok)
+            self._window.notify_changed()  # a stale index can't linger: show the truth
             return
         self._window.notify_changed()
         self._reveal(path)

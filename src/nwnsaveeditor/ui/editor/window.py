@@ -702,7 +702,12 @@ class SaveEditorWindow(QMainWindow):
         for screen in list(self.values_of_built_screens()):
             refresh = getattr(screen, "refresh", None)
             if callable(refresh):
-                self._safely(refresh)
+                try:
+                    self._safely(refresh)
+                except Exception:  # one screen's failure must not leave the rest stale
+                    import traceback
+
+                    traceback.print_exc()
 
     def values_of_built_screens(self):
         """The screens constructed so far, without building any more."""
@@ -981,6 +986,10 @@ class SaveEditorWindow(QMainWindow):
                 chip.text(), Qt.TextElideMode.ElideRight, _CHIP_WIDTH
             ))
             self._pending_samples.addWidget(chip)
+        if len(changes) > 3:  # the strip previews three; say how many it is hiding
+            more = w.body(f"+{len(changes) - 3} more — see Review…", t.TEXT_3, 12)
+            more.setWordWrap(False)
+            self._pending_samples.addWidget(more)
 
         dirty = {section_for_kind(change.kind) for change in changes}
         for key, row in self._nav_rows.items():
