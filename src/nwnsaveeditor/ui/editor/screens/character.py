@@ -1048,15 +1048,30 @@ class CharacterScreen(QWidget):
         )
 
     def _apply_level(self, session, class_id: int, gains, wizard) -> None:
-        """Commit the level and every choice the wizard gathered, in one act."""
-        session.add_class_level(class_id, gains, con_modifier=self._ability_mod("Con"))
-        names = {s.index: s.name for s in session.player_skills()}
-        for index, rank in wizard.skill_allocations().items():
-            session.set_skill_rank(index, rank, where=names.get(index, f"Skill {index}"))
-        feat_id = wizard.chosen_feat()
-        if feat_id is not None:
-            session.add_feat(feat_id)
+        """Commit the level and every choice the wizard gathered, in one act.
+
+        The level and its history entry go first (the history records the choices,
+        and its skill deltas are measured against the ranks before they change);
+        then the choices are applied to the live character through their own
+        editors, so their ledger entries and PRC caveats still show.
+        """
+        skill_ranks = wizard.skill_allocations()
+        chosen_feat = wizard.chosen_feat()
+        granted = [fid for fid, _name in gains.granted_feats]
+        feats_gained = ([chosen_feat] if chosen_feat is not None else []) + granted
         ability = wizard.chosen_ability()
+
+        session.add_class_level(
+            class_id, gains,
+            con_modifier=self._ability_mod("Con"),
+            int_modifier=self._ability_mod("Int"),
+            skill_ranks=skill_ranks, feats=tuple(feats_gained), ability=ability,
+        )
+        names = {s.index: s.name for s in session.player_skills()}
+        for index, rank in skill_ranks.items():
+            session.set_skill_rank(index, rank, where=names.get(index, f"Skill {index}"))
+        for feat_id in feats_gained:  # the picked feat and any the class auto-grants
+            session.add_feat(feat_id)
         if ability is not None:
             scores = {
                 f.field: int(f.value)

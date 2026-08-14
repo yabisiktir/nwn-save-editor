@@ -158,7 +158,10 @@ class tables — base *and* PRC — and gathers the choices it opens up:
 
 Applying writes it all in one act: the class level and its stat gains, the skill
 ranks, the feat and the ability. Experience is raised to fit the new level if it was
-short.
+short. It also appends a matching entry to the character's **level history**
+(`LvlStatList` — the per-level record the game keeps of what each level granted), so
+the history stays consistent with the class totals rather than the totals moving
+under an unchanged history. Discarding the level drops the history entry with it.
 
 > **A PRC prestige level needs an in-game re-level to come alive.** The wizard writes
 > the character *data* correctly, but a PRC class's script-managed features — its

@@ -103,6 +103,10 @@ _CHARACTER_FIELDS: tuple[tuple[str, str, int, int], ...] = (
 _CHARACTER_NAMES: tuple[tuple[str, str], ...] = (
     ("FirstName", "First name"), ("LastName", "Last name"),
 )
+#: the ability a level raised, as stored in LvlStat's LvlStatAbility (0 = Str).
+_ABILITY_INDEX: dict[str, int] = {
+    "Str": 0, "Dex": 1, "Con": 2, "Int": 3, "Wis": 4, "Cha": 5,
+}
 
 
 @dataclass
@@ -1598,21 +1602,38 @@ class SaveEditor:
     @_records()
     def add_class_level(
         self, class_id: int, gains, *, con_modifier: int = 0,
-        hp_rule: str = "max", where: str = "",
+        int_modifier: int = 0, hp_rule: str = "max",
+        skill_ranks: dict[int, int] | None = None,
+        feats: tuple[int, ...] = (), ability: str | None = None,
+        where: str = "",
     ) -> None:
         """Stage adding one level in ``class_id``.
 
         Bumps ClassList and applies the deterministic gains from ``gains`` (a
         :class:`nwnfile.level_up.LevelGains` computed for the resulting class level
         and total): hit points, base attack, saving throws, and the XP floor for
-        the new total level. Skill points and the every-third feat / every-fourth
-        ability point are *choices* the caller surfaces separately — this does not
-        spend them, nor add the class's granted feats (the caller stages those
-        through the feat editor so their PRC caveats still show).
+        the new total level.
+
+        It also appends a matching entry to the character's **level history**
+        (``LvlStatList``) — the per-level record the game keeps of what each level
+        granted — so the history stays consistent with the class totals rather than
+        the totals moving under an unchanged history. The choices that entry records
+        are passed in, because the caller applies them to the *current* character
+        separately (through the skill, feat and ability editors, so their own
+        caveats and ledger entries still show): ``skill_ranks`` is the ``{skill
+        index: new rank}`` the level spent, ``feats`` the ids it granted (the picked
+        feat plus any the class auto-grants), and ``ability`` the score it raised.
+        The skill *deltas* the history stores are worked out here against the ranks
+        before those edits, which is why this runs first.
         """
         self._ensure_class_originals()
-        hp = gains.hit_points(con_modifier, rule=hp_rule)
+        hp = gains.hit_points(con_modifier, rule=hp_rule)  # with Con -> the HP fields
+        hp_roll = gains.hit_points(0, rule=hp_rule)  # without Con -> the history die roll
+        skill_ranks = dict(skill_ranks or {})
+        feats = tuple(int(f) for f in feats)
+        budget = gains.skill_points(int_modifier)
         for tree in self._targets():
+            deltas = self._skill_deltas(tree, skill_ranks)  # before set_skill_rank runs
             self._bump_class(tree, class_id)
             self._add_to_field(tree, "MaxHitPoints", hp)
             self._add_to_field(tree, "CurrentHitPoints", hp)
@@ -1621,11 +1642,72 @@ class SaveEditor:
             self._add_to_field(tree, "FortSaveThrow", gains.fort_gain)
             self._add_to_field(tree, "RefSaveThrow", gains.ref_gain)
             self._add_to_field(tree, "WillSaveThrow", gains.will_gain)
+            new_total = sum(level for _c, level in _class_levels(self._class_list(tree)))
+            self._append_lvlstat(
+                tree, class_id=class_id, hp_roll=hp_roll, epic=new_total > 20,
+                ability=ability, skill_deltas=deltas, feats=feats,
+                skill_points=max(0, budget - sum(deltas.values())),
+            )
         total = sum(level for _cid, level in self.player_classes())
         for tree in self._targets():
             self._raise_field(tree, "Experience", _xp_for_level(total))
         self._char_dirty = True
         self._recompute_class_changes()
+
+    def _skill_deltas(self, tree, skill_ranks: dict[int, int]) -> dict[int, int]:
+        """The rank *increase* per skill this level, from the ranks before it."""
+        skills = self._player_struct(tree).fields.get("SkillList")
+        if not skill_ranks or skills is None or skills.type != GffType.LIST:
+            return {}
+        out: dict[int, int] = {}
+        for index, new_rank in skill_ranks.items():
+            if 0 <= index < len(skills.value.structs):
+                delta = int(new_rank) - int(skills.value.structs[index].get("Rank") or 0)
+                if delta:
+                    out[index] = delta
+        return out
+
+    def _append_lvlstat(
+        self, tree, *, class_id: int, hp_roll: int, epic: bool,
+        ability: str | None, skill_deltas: dict[int, int],
+        feats: tuple[int, ...], skill_points: int,
+    ) -> None:
+        """Append one ``LvlStat`` entry mirroring what this level granted.
+
+        No-op when the character keeps no ``LvlStatList`` (some records do not), so
+        the totals are still right — there is just no history to keep consistent.
+        """
+        player = self._player_struct(tree)
+        field = player.fields.get("LvlStatList")
+        if field is None or field.type != GffType.LIST:
+            return
+        history = field.value
+        prev = history.structs[-1].get("SkillPoints") if history.structs else 0
+        skills = player.fields.get("SkillList")
+        n_skills = (
+            len(skills.value.structs)
+            if skills is not None and skills.type == GffType.LIST else 0
+        )
+        fields = {
+            "LvlStatClass": GffField(GffType.BYTE, int(class_id)),
+            "LvlStatHitDie": GffField(GffType.BYTE, int(hp_roll)),
+            "EpicLevel": GffField(GffType.BYTE, 1 if epic else 0),
+            # the running unspent-skill-point balance, not this level's grant alone
+            "SkillPoints": GffField(GffType.WORD, int(prev or 0) + int(skill_points)),
+            "SkillList": GffField(GffType.LIST, GffList([
+                GffStruct(struct_type=0, fields={
+                    "Rank": GffField(GffType.BYTE, int(skill_deltas.get(i, 0)))
+                })
+                for i in range(n_skills)
+            ])),
+            "FeatList": GffField(GffType.LIST, GffList([
+                GffStruct(struct_type=0, fields={"Feat": GffField(GffType.WORD, fid)})
+                for fid in feats
+            ])),
+        }
+        if ability is not None:  # the field is present only on levels that raise one
+            fields["LvlStatAbility"] = GffField(GffType.BYTE, _ABILITY_INDEX[ability])
+        history.structs.append(GffStruct(struct_type=0, fields=fields))
 
     def _class_list(self, tree):
         field = self._player_struct(tree).fields.get("ClassList")

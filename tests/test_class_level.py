@@ -108,3 +108,96 @@ def test_staged_bytes_reflect_the_added_level_for_a_live_reread(tmp_path):
     assert data is not None and ed.has_character_edits
     info = BicFileReader().read_bytes(data)
     assert (1, 9) in info.classes  # Bard 8 -> 9 shows in the re-parsed record
+
+
+# -- level history (LvlStatList) -------------------------------------------- #
+def _character_with_history(bard_level: int = 8) -> GffStruct:
+    """A character that keeps a SkillList and a one-entry LvlStatList, so an added
+    level has a history to extend."""
+    char = _character()
+    char.fields["ClassList"].value.structs[0].fields["ClassLevel"].value = bard_level
+    skills = [GffStruct(struct_type=0, fields={"Rank": GffField(GffType.SHORT, r)})
+              for r in (2, 0, 4)]
+    char.fields["SkillList"] = GffField(GffType.LIST, GffList(skills))
+    first = GffStruct(struct_type=0, fields={
+        "LvlStatClass": GffField(GffType.BYTE, 1),
+        "LvlStatHitDie": GffField(GffType.BYTE, 6),
+        "EpicLevel": GffField(GffType.BYTE, 0),
+        "SkillPoints": GffField(GffType.WORD, 3),  # 3 unspent carried in
+        "SkillList": GffField(GffType.LIST, GffList([
+            GffStruct(struct_type=0, fields={"Rank": GffField(GffType.BYTE, 0)})
+            for _ in range(3)
+        ])),
+        "FeatList": GffField(GffType.LIST, GffList([])),
+    })
+    char.fields["LvlStatList"] = GffField(GffType.LIST, GffList([first]))
+    return char
+
+
+def _save_with_history(tmp_path, bard_level: int = 8) -> SaveGame:
+    ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Mod_PlayerList": GffField(
+            GffType.LIST, GffList([_character_with_history(bard_level)])),
+    }))
+    bic = Gff("BIC ", "V3.2", _character_with_history(bard_level))
+    folder = tmp_path / "000000 - hist"
+    folder.mkdir()
+    (folder / "x.sav").write_bytes(_make_erf([("module", 2014, write_gff(ifo))]))
+    (folder / "player.bic").write_bytes(write_gff(bic))
+    return SaveGame(folder=folder)
+
+
+def _history(ed):
+    player = ed._player_struct(ed._module_tree())
+    return player.fields["LvlStatList"].value.structs
+
+
+def test_a_level_appends_a_history_entry(tmp_path):
+    ed = SaveEditor(_save_with_history(tmp_path))
+    assert len(_history(ed)) == 1
+    ed.add_class_level(
+        1, _gains(), con_modifier=2, int_modifier=1,
+        skill_ranks={0: 5}, feats=(391,),  # skill 0: 2 -> 5 (delta 3); one feat
+    )
+    hist = _history(ed)
+    assert len(hist) == 2  # a new entry
+    entry = hist[-1]
+    assert entry.get("LvlStatClass") == 1
+    assert entry.get("LvlStatHitDie") == 6  # d6 rolled max, no Con folded in
+    assert entry.get("EpicLevel") == 0  # total level 9
+    assert [s.get("Feat") for s in entry.fields["FeatList"].value.structs] == [391]
+    deltas = [s.get("Rank") for s in entry.fields["SkillList"].value.structs]
+    assert deltas == [3, 0, 0]  # only skill 0 moved, by 3
+    # running unspent balance: 3 carried in + (budget 7 - spent 3) = 7
+    assert entry.get("SkillPoints") == 7
+    assert "LvlStatAbility" not in entry.fields  # no ability raised this level
+
+
+def test_history_records_an_ability_only_when_one_was_raised(tmp_path):
+    ed = SaveEditor(_save_with_history(tmp_path))
+    ed.add_class_level(1, _gains(), con_modifier=0, ability="Con")
+    entry = _history(ed)[-1]
+    assert "LvlStatAbility" in entry.fields
+    assert entry.get("LvlStatAbility") == 2  # Con -> index 2
+
+
+def test_history_entry_reverts_on_discard(tmp_path):
+    ed = SaveEditor(_save_with_history(tmp_path))
+    ed.add_class_level(1, _gains(), con_modifier=0, feats=(391,))
+    assert len(_history(ed)) == 2
+    ed.discard_change(("class", 1))
+    assert len(_history(ed)) == 1  # back to the original single entry
+
+
+def test_history_written_to_both_trees(tmp_path):
+    ed = SaveEditor(_save_with_history(tmp_path))
+    ed.add_class_level(1, _gains(), con_modifier=0)
+    for tree in ed._targets():
+        assert len(ed._player_struct(tree).fields["LvlStatList"].value.structs) == 2
+
+
+def test_a_history_entry_marks_an_epic_level(tmp_path):
+    # start at level 20 so the added level (21) is the character's first epic one
+    ed = SaveEditor(_save_with_history(tmp_path, bard_level=20))
+    ed.add_class_level(1, _gains(class_level=21, character_level=21), con_modifier=0)
+    assert _history(ed)[-1].get("EpicLevel") == 1
