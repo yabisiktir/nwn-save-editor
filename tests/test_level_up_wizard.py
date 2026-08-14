@@ -117,3 +117,56 @@ def test_ability_page_only_when_an_ability_is_due(qtbot):
         if field == "Str":
             btn.setChecked(True)
     assert wiz.chosen_ability() == "Str"
+
+
+# -- spells known step ------------------------------------------------------ #
+def _spell_opts():
+    # {spell level: (budget, [(id, name)])}
+    return {0: (2, [(33, "Cure Minor"), (37, "Daze"), (100, "Light")]),
+            1: (1, [(16, "Charm Person"), (66, "Grease")])}
+
+
+def test_spells_step_appears_only_with_a_budget(qtbot):
+    without = LevelUpWizard(
+        _gains(), con_modifier=0, int_modifier=-9, new_total_level=9, skills=[],
+    )
+    qtbot.addWidget(without)
+    assert without.chosen_spells() == {} and len(without.pageIds()) == 1
+
+    with_spells = LevelUpWizard(
+        _gains(), con_modifier=0, int_modifier=-9, new_total_level=9, skills=[],
+        spells_known_options=_spell_opts(),
+    )
+    qtbot.addWidget(with_spells)
+    assert len(with_spells.pageIds()) == 2  # summary + spells
+
+
+def test_over_budget_blocks_and_choices_are_reported(qtbot):
+    from PySide6.QtCore import Qt
+
+    wiz = LevelUpWizard(
+        _gains(), con_modifier=0, int_modifier=-9, new_total_level=9, skills=[],
+        spells_known_options=_spell_opts(),
+    )
+    qtbot.addWidget(wiz)
+    choice = wiz._spells_choice
+    page = wiz.page(wiz.pageIds()[1])
+
+    lvl0 = choice._parents[0]
+    lvl0.child(0).setCheckState(1, Qt.CheckState.Checked)  # Cure Minor
+    lvl0.child(1).setCheckState(1, Qt.CheckState.Checked)  # Daze -> at budget (2)
+    assert page.isComplete()
+    assert wiz.chosen_spells() == {0: [33, 37]}
+
+    lvl0.child(2).setCheckState(1, Qt.CheckState.Checked)  # Light -> 3 > budget 2
+    assert not page.isComplete()
+
+
+def test_zero_budget_levels_are_dropped(qtbot):
+    wiz = LevelUpWizard(
+        _gains(), con_modifier=0, int_modifier=-9, new_total_level=9, skills=[],
+        spells_known_options={0: (0, [(1, "None")]), 1: (1, [(16, "Charm")])},
+    )
+    qtbot.addWidget(wiz)
+    # level 0 has budget 0 -> not offered; only level 1 shows
+    assert set(wiz._spells_choice._parents) == {1}

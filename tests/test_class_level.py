@@ -201,3 +201,50 @@ def test_a_history_entry_marks_an_epic_level(tmp_path):
     ed = SaveEditor(_save_with_history(tmp_path, bard_level=20))
     ed.add_class_level(1, _gains(class_level=21, character_level=21), con_modifier=0)
     assert _history(ed)[-1].get("EpicLevel") == 1
+
+
+# -- known spells (caster levels) ------------------------------------------- #
+def _known(cstruct, spell_level):
+    f = cstruct.fields.get(f"KnownList{spell_level}")
+    return [s.get("Spell") for s in f.value.structs] if f else None
+
+
+def test_known_spells_go_to_the_spellbook_and_the_history(tmp_path):
+    ed = SaveEditor(_save_with_history(tmp_path))
+    ed.add_class_level(
+        1, _gains(), con_modifier=0,
+        spells_known={0: [33, 37], 1: [16]},  # two cantrips + one 1st-level
+    )
+    player = ed._player_struct(ed._module_tree())
+    bard = player.fields["ClassList"].value.structs[0]  # class 1
+    assert _known(bard, 0) == [33, 37]  # spellbook KnownList0
+    assert _known(bard, 1) == [16]      # spellbook KnownList1
+    entry = _history(ed)[-1]
+    assert [s.get("Spell") for s in entry.fields["KnownList0"].value.structs] == [33, 37]
+    assert [s.get("Spell") for s in entry.fields["KnownList1"].value.structs] == [16]
+
+
+def test_known_spells_append_to_an_existing_list_without_duplicates(tmp_path):
+    ed = SaveEditor(_save_with_history(tmp_path))
+    bard = ed._player_struct(ed._module_tree()).fields["ClassList"].value.structs[0]
+    bard.fields["KnownList0"] = GffField(GffType.LIST, GffList([
+        GffStruct(struct_type=3, fields={"Spell": GffField(GffType.WORD, 33)}),
+    ]))
+    ed.add_class_level(1, _gains(), con_modifier=0, spells_known={0: [33, 37]})
+    bard = ed._player_struct(ed._module_tree()).fields["ClassList"].value.structs[0]
+    assert _known(bard, 0) == [33, 37]  # 33 not duplicated, 37 appended
+
+
+def test_no_known_spells_writes_no_knownlist(tmp_path):
+    ed = SaveEditor(_save_with_history(tmp_path))
+    ed.add_class_level(1, _gains(), con_modifier=0)
+    entry = _history(ed)[-1]
+    assert not any(k.startswith("KnownList") for k in entry.fields)
+
+
+def test_known_spells_revert_on_discard(tmp_path):
+    ed = SaveEditor(_save_with_history(tmp_path))
+    ed.add_class_level(1, _gains(), con_modifier=0, spells_known={0: [33]})
+    ed.discard_change(("class", 1))
+    bard = ed._player_struct(ed._module_tree()).fields["ClassList"].value.structs[0]
+    assert _known(bard, 0) is None  # the KnownList0 we created is gone

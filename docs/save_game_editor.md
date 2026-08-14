@@ -175,13 +175,20 @@ class tables — base *and* PRC — and gathers the choices it opens up:
    level), from the same searchable picker the Feats tab uses.
 4. **An ability point**, only on the levels that grant one (every fourth), as a
    +1 to the score you choose.
+5. **Spells learned**, for a spontaneous caster (Bard, Sorcerer and the like) on a
+   level that grants new *known* spells. The budget per spell level comes from the
+   class's `SpellKnownTable`, and you pick from what the class can cast at that level,
+   with a live per-level counter that won't let you go over.
+
+![The Learn spells step: new known spells grouped by spell level, each with its budget](images/class-level-spells.png)
 
 Applying writes it all in one act: the class level and its stat gains, the skill
-ranks, the feat and the ability. Experience is raised to fit the new level if it was
-short. It also appends a matching entry to the character's **level history**
-(`LvlStatList` — the per-level record the game keeps of what each level granted), so
-the history stays consistent with the class totals rather than the totals moving
-under an unchanged history. Discarding the level drops the history entry with it.
+ranks, the feat, the ability, and the learned spells (into both the class's spellbook
+and its history). Experience is raised to fit the new level if it was short. It also
+appends a matching entry to the character's **level history** (`LvlStatList` — the
+per-level record the game keeps of what each level granted, including the spells known
+it added), so the history stays consistent with the class totals rather than the
+totals moving under an unchanged history. Discarding the level drops the whole entry.
 
 > **A PRC prestige level needs an in-game re-level to come alive.** The wizard writes
 > the character *data* correctly, but a PRC class's script-managed features — its

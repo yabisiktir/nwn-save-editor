@@ -1622,6 +1622,7 @@ class SaveEditor:
         int_modifier: int = 0, hp_rule: str = "max",
         skill_ranks: dict[int, int] | None = None,
         feats: tuple[int, ...] = (), ability: str | None = None,
+        spells_known: dict[int, list[int]] | None = None,
         where: str = "",
     ) -> None:
         """Stage adding one level in ``class_id``.
@@ -1648,10 +1649,12 @@ class SaveEditor:
         hp_roll = gains.hit_points(0, rule=hp_rule)  # without Con -> the history die roll
         skill_ranks = dict(skill_ranks or {})
         feats = tuple(int(f) for f in feats)
+        spells_known = {lvl: list(ids) for lvl, ids in (spells_known or {}).items() if ids}
         budget = gains.skill_points(int_modifier)
         for tree in self._targets():
             deltas = self._skill_deltas(tree, skill_ranks)  # before set_skill_rank runs
             self._bump_class(tree, class_id)
+            self._add_known_spells(tree, class_id, spells_known)
             self._add_to_field(tree, "MaxHitPoints", hp)
             self._add_to_field(tree, "CurrentHitPoints", hp)
             self._add_to_field(tree, "HitPoints", hp)
@@ -1664,6 +1667,7 @@ class SaveEditor:
                 tree, class_id=class_id, hp_roll=hp_roll, epic=new_total > 20,
                 ability=ability, skill_deltas=deltas, feats=feats,
                 skill_points=max(0, budget - sum(deltas.values())),
+                spells_known=spells_known,
             )
         total = sum(level for _cid, level in self.player_classes())
         for tree in self._targets():
@@ -1684,10 +1688,40 @@ class SaveEditor:
                     out[index] = delta
         return out
 
+    def _class_index(self, tree, class_id: int) -> int:
+        classes = self._class_list(tree)
+        if classes is None:
+            return -1
+        for i, struct in enumerate(classes.structs):
+            if struct.get("Class") == class_id:
+                return i
+        return -1
+
+    def _add_known_spells(self, tree, class_id: int, spells_known: dict[int, list[int]]) -> None:
+        """Add spells to the caster's own ``KnownList<level>`` on its ClassList
+        struct (creating the list if the class had none at that level yet)."""
+        if not spells_known:
+            return
+        index = self._class_index(tree, class_id)
+        if index < 0:
+            return
+        cstruct = self._class_list(tree).structs[index]
+        for spell_level, ids in spells_known.items():
+            name = f"KnownList{spell_level}"
+            field = cstruct.fields.get(name)
+            if field is None or field.type != GffType.LIST:
+                field = GffField(GffType.LIST, GffList([]))
+                cstruct.fields[name] = field
+            have = {s.get("Spell") for s in field.value.structs}
+            for sid in ids:
+                if sid not in have:
+                    field.value.structs.append(self._new_spell_struct(field.value, sid))
+
     def _append_lvlstat(
         self, tree, *, class_id: int, hp_roll: int, epic: bool,
         ability: str | None, skill_deltas: dict[int, int],
         feats: tuple[int, ...], skill_points: int,
+        spells_known: dict[int, list[int]] | None = None,
     ) -> None:
         """Append one ``LvlStat`` entry mirroring what this level granted.
 
@@ -1724,6 +1758,11 @@ class SaveEditor:
         }
         if ability is not None:  # the field is present only on levels that raise one
             fields["LvlStatAbility"] = GffField(GffType.BYTE, _ABILITY_INDEX[ability])
+        for spell_level, ids in (spells_known or {}).items():  # spells learned this level
+            fields[f"KnownList{spell_level}"] = GffField(GffType.LIST, GffList([
+                GffStruct(struct_type=0, fields={"Spell": GffField(GffType.WORD, int(sid))})
+                for sid in ids
+            ]))
         history.structs.append(GffStruct(struct_type=0, fields=fields))
 
     def _class_list(self, tree):

@@ -69,6 +69,7 @@ class LevelUpWizard(QWizard):
         feat_options: Sequence[tuple[int, str]] = (),
         prc_feat_ids: frozenset[int] = frozenset(),
         ability_scores: dict[str, int] | None = None,
+        spells_known_options: dict[int, tuple[int, Sequence[tuple[int, str]]]] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -78,6 +79,7 @@ class LevelUpWizard(QWizard):
         self._con_mod = con_modifier
         self._skill_cap = skill_cap  # fallback cap; skill_caps overrides per skill
         self._skill_caps = dict(skill_caps or {})
+        self._spells_choice: _SpellsKnownChoice | None = None
         self._skills = [_Skill(s.index, s.name, s.rank) for s in skills]
         self._ability_scores = dict(ability_scores or {})
         self._skill_boxes: dict[int, QSpinBox] = {}
@@ -100,6 +102,10 @@ class LevelUpWizard(QWizard):
         if gains.ability_increase:
             self._ability_choice = _AbilityChoice(self._ability_scores)
             self.addPage(self._ability_page())
+        options = {lvl: opt for lvl, opt in (spells_known_options or {}).items() if opt[0] > 0}
+        if options:
+            self._spells_choice = _SpellsKnownChoice(options)
+            self.addPage(self._spells_page())
 
     # -- pages ------------------------------------------------------------- #
     def _summary_page(self, new_total_level: int):
@@ -198,6 +204,14 @@ class LevelUpWizard(QWizard):
         self._ability_choice.build(page)
         return page
 
+    def _spells_page(self):
+        assert self._spells_choice is not None
+        page = _CompletePage(self._spells_choice.is_complete)
+        page.setTitle("Learn spells")
+        page.setSubTitle("This level lets the class know new spells. Pick up to the budget.")
+        self._spells_choice.build(page)
+        return page
+
     # -- live budget ------------------------------------------------------- #
     def _on_skill_changed(self, _value: int) -> None:
         self._refresh_remaining()
@@ -237,6 +251,10 @@ class LevelUpWizard(QWizard):
 
     def chosen_ability(self) -> str | None:
         return self._ability_choice.chosen() if self._ability_choice else None
+
+    def chosen_spells(self) -> dict[int, list[int]]:
+        """``{spell level: [spell ids]}`` the player chose to learn (may be empty)."""
+        return self._spells_choice.chosen() if self._spells_choice else {}
 
 
 class _BudgetPage(QWizardPage):
@@ -311,6 +329,91 @@ class _FeatChoice:
             return None
         row = self._tree.currentItem()
         return row.data(0, _ID_ROLE) if row is not None else None
+
+
+class _SpellsKnownChoice:
+    """Pick spells to learn, grouped by spell level, each capped by a budget.
+
+    A tree of ``Level N (chosen/budget)`` parents with checkable spell children;
+    over-budget on any level keeps the page incomplete.
+    """
+
+    def __init__(self, options: dict[int, tuple[int, object]]) -> None:
+        self._options = options  # {spell_level: (budget, [(id, name)])}
+        self._tree: QTreeWidget | None = None
+        self._page: QWizardPage | None = None
+        self._parents: dict[int, QTreeWidgetItem] = {}
+
+    def build(self, page: QWizardPage) -> None:
+        from nwnsaveeditor.ui.editor import widgets as w
+
+        self._page = page
+        box = QVBoxLayout(page)
+        self._filter = QLineEdit()
+        self._filter.setPlaceholderText("Filter spells by name or id…")
+        self._filter.textChanged.connect(self._apply_filter)
+        box.addWidget(self._filter)
+        tree = QTreeWidget()
+        tree.setColumnCount(2)
+        tree.setHeaderLabels(["ID", "Spell"])
+        tree.setUniformRowHeights(True)
+        for level in sorted(self._options):
+            budget, spells = self._options[level]
+            parent = QTreeWidgetItem([f"Level {level}", f"0 of {budget} chosen"])
+            parent.setData(0, _ID_ROLE, ("hdr", level, budget))
+            parent.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            tree.addTopLevelItem(parent)
+            self._parents[level] = parent
+            for sid, name in spells:
+                child = QTreeWidgetItem([str(sid), name])
+                child.setData(0, _ID_ROLE, ("spell", level, sid))
+                child.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+                child.setCheckState(1, Qt.CheckState.Unchecked)
+                parent.addChild(child)
+            parent.setExpanded(True)
+        tree.itemChanged.connect(self._on_item_changed)
+        w.apply_tree_palette(tree)
+        box.addWidget(tree, 1)
+        self._tree = tree
+
+    def _on_item_changed(self, _item, _col) -> None:
+        for level, parent in self._parents.items():
+            budget = self._options[level][0]
+            chosen = self._count(level)
+            over = "  — over budget" if chosen > budget else ""
+            parent.setText(1, f"{chosen} of {budget} chosen{over}")
+        if self._page is not None:
+            self._page.completeChanged.emit()
+
+    def _count(self, level: int) -> int:
+        parent = self._parents[level]
+        return sum(
+            parent.child(i).checkState(1) == Qt.CheckState.Checked
+            for i in range(parent.childCount())
+        )
+
+    def _apply_filter(self, text: str) -> None:
+        needle = text.strip().lower()
+        assert self._tree is not None
+        for parent in self._parents.values():
+            for i in range(parent.childCount()):
+                row = parent.child(i)
+                row.setHidden(needle not in f"{row.text(0)} {row.text(1)}".lower())
+
+    def is_complete(self) -> bool:
+        return all(self._count(lvl) <= self._options[lvl][0] for lvl in self._options)
+
+    def chosen(self) -> dict[int, list[int]]:
+        out: dict[int, list[int]] = {}
+        for level, parent in self._parents.items():
+            ids = [
+                parent.child(i).data(0, _ID_ROLE)[2]
+                for i in range(parent.childCount())
+                if parent.child(i).checkState(1) == Qt.CheckState.Checked
+            ]
+            if ids:
+                out[level] = ids
+        return out
 
 
 class _AbilityChoice:

@@ -1129,6 +1129,10 @@ class CharacterScreen(QWidget):
             for f in session.player_fields()
             if f.field in ("Str", "Dex", "Con", "Int", "Wis", "Cha")
         }
+        current = dict(session.player_classes())
+        spells = self._spells_known_options(
+            gains.class_id, current.get(gains.class_id, 0), gains.class_level
+        )
         return LevelUpWizard(
             gains,
             con_modifier=self._ability_mod("Con"),
@@ -1140,8 +1144,43 @@ class CharacterScreen(QWidget):
             feat_options=feat_options,
             prc_feat_ids=prc_ids,
             ability_scores=scores,
+            spells_known_options=spells,
             parent=self,
         )
+
+    def _spells_known_options(self, class_id, prev_class_level, new_class_level):
+        """``{spell level: (budget, [(id, name)])}`` for a spontaneous caster level.
+
+        Empty unless the class has a ``SpellKnownTable`` granting new spells and its
+        castable list is known (``spells.2da``) — PRC classes it can't list are left
+        to the spellbook editor.
+        """
+        from nwnfile.character_reference import default_reference
+        from nwnfile.spells_known import spells_known_gained
+        from nwnsaveeditor.spell_levels import SpellLevels
+
+        stack = self._window.hak_stack()
+        if stack is None:
+            return {}
+        budget = spells_known_gained(stack, class_id, prev_class_level, new_class_level)
+        if not budget:
+            return {}
+        user = getattr(getattr(self._window._controller, "ctx", None), "game_user_dir", None)
+        levels = SpellLevels.for_install(
+            self._window.game_root(), (user / "hak") if user else None
+        )
+        if not levels.describes(class_id):
+            return {}  # can't list this class's spells (e.g. a PRC caster)
+        ref = default_reference()
+        options: dict[int, tuple[int, list[tuple[int, str]]]] = {}
+        for spell_level, count in budget.items():
+            available = [
+                (sid, ref.spell_name(sid))
+                for sid in sorted(levels.spells_at(class_id, spell_level))
+            ]
+            if available:
+                options[spell_level] = (count, available)
+        return options
 
     def _apply_level(self, session, class_id: int, gains, wizard) -> None:
         """Commit the level and every choice the wizard gathered, in one act.
@@ -1162,6 +1201,7 @@ class CharacterScreen(QWidget):
             con_modifier=self._ability_mod("Con"),
             int_modifier=self._ability_mod("Int"),
             skill_ranks=skill_ranks, feats=tuple(feats_gained), ability=ability,
+            spells_known=wizard.chosen_spells(),
         )
         names = {s.index: s.name for s in session.player_skills()}
         for index, rank in skill_ranks.items():
