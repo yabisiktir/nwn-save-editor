@@ -44,6 +44,24 @@ to the app's.
 
 **Discard All** drops every staged change.
 
+## Keyboard shortcuts
+
+The toolbar actions have keys, in the same idiom as Vaultkeeper. Each is also shown
+in its button's tooltip.
+
+| Key | Action |
+|---|---|
+| `Ctrl`+`O` | Open another save |
+| `Ctrl`+`E` | Enter or leave edit mode |
+| `Ctrl`+`S` | Save as a new save folder |
+| `Ctrl`+`Shift`+`S` | Overwrite this save (with a backup) |
+| `Ctrl`+`Z` / `Ctrl`+`Shift`+`Z` | Undo / redo the last staged change (`Ctrl`+`Y` also redoes) |
+| `Ctrl`+`,` | Settings |
+| `F1` | This guide |
+
+The save keys do nothing until there is something to save, and `Ctrl`+`E` needs a
+save open — the same conditions that enable the buttons.
+
 ## Strict and Free
 
 The toolbar's rule mode decides how far a value may go.
@@ -92,13 +110,61 @@ Six tabs.
 - **Skills** — rank and the computed total (rank + key ability + equipped-item
   bonuses), sortable and filterable.
 - **Feats** — add and remove. PRC feats are badged: PRC regenerates them onto the
-  creature skin, so an edit to one may not stick in-game. Base-game feats do.
+  creature skin, so an edit to one may not stick in-game. Base-game feats do. When
+  you add a PRC feat the confirm **tells you what a save-edit can actually grant**,
+  worked out from the installed PRC's own scripts and 2das — whether the feat is one
+  PRC reads live (works from the edit), one it rebuilds from your feat list on
+  re-evaluation, one gated on a *class* you also need, or a spellbook ability built
+  at level-up that a feat-add cannot conjure. The verdict is computed once and cached
+  (and warmed in the background while you browse), so opening the picker never
+  stalls. The buckets are laid out in full in
+  [prc_abilities.md](prc_abilities.md).
 - **Effects** — what the save's `EffectList` holds, or a switch to **active bonuses**:
   where each number comes from, attributed to the item, class or spell that supplies
   it. What a *feat* contributes is not shown, because the save records which feats
   you have and never what any of them does.
 - **Biography** — the written biography, with the name shown read-only. Details is
   the one place it is edited.
+
+Every character edit shows on the sheet **as you make it** — an added level, a raised
+ability or save moves the numbers in the summary immediately, before you save,
+because the screen re-reads the staged character rather than the file on disk.
+
+#### Class levels (opt-in)
+
+Adding a class level is a genuine level-up, not a single field, so it lives behind a
+switch: turn on **Enable class level editing** under **Settings…** (it is off by
+default) and, in edit mode, the Abilities & Combat tab grows a **+ Add class level…**
+button.
+
+Picking a class opens a short **wizard** that works the level out from the game's own
+class tables — base *and* PRC — and gathers the choices it opens up:
+
+1. **Summary** — the hit points, base attack and Fortitude/Reflex/Will the level
+   grants, plus any feats the class auto-grants at that level. A PRC class is called
+   out here (see below), and a total level past 40 warns that the base cap is 40 (PRC
+   raises it to 60).
+2. **Skill points** — the exact budget the level grants (class base + Int modifier,
+   ×4 at first level), spent with a live remaining counter. Ranks are capped by the
+   rule mode — **Strict** holds them to *level + 3*, **Free** to the field's range —
+   and the wizard will not finish while you are over budget. Unspent points are simply
+   left unspent.
+3. **A general feat**, only on the levels that grant one (every third character
+   level), from the same searchable picker the Feats tab uses.
+4. **An ability point**, only on the levels that grant one (every fourth), as a
+   +1 to the score you choose.
+
+Applying writes it all in one act: the class level and its stat gains, the skill
+ranks, the feat and the ability. Experience is raised to fit the new level if it was
+short.
+
+> **A PRC prestige level needs an in-game re-level to come alive.** The wizard writes
+> the character *data* correctly, but a PRC class's script-managed features — its
+> spellbook, on-hit and skin abilities — are rebuilt by PRC at level-up, not stored
+> in the save. Load the edited save, then type **`/relevel`** in chat and `/relevel`
+> again to confirm: PRC drops you to level 1 and re-levels back to your XP, rebuilding
+> that state (it keeps your XP but clears PRC spell picks, so you re-choose spells).
+> Base-class levels need none of this.
 
 ### Inventory & Equipment
 
@@ -225,9 +291,17 @@ character is script-managed, through PRC's own scripts and the character's hidde
 - **Races** are built from scripts and the skin, not from the stored byte alone.
 - **Prestige spellbooks** are rebuilt by PRC.
 - **Natural weapons** are recorded on the character and equipped by script.
+- **Prestige class levels** — the numbers write correctly, but the level's
+  script-managed features are rebuilt in-game.
 
 Base-game edits stick. PRC ones may revert at the next rest, level-up or area load —
 which is why each is flagged before it stages, not after it fails.
+
+To make PRC rebuild its managed state after an edit, load the save and type
+**`/relevel`** in chat, then `/relevel` again to confirm. It re-levels you from 1 back
+to your current XP (keeping XP, clearing PRC spell picks), which is the reliable way
+to wake an added feat, class level or spellbook ability. (The older `~~dm_relevel`
+command only runs in a debug build of PRC, so on a normal release it does nothing.)
 
 ## Safety model
 

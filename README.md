@@ -106,10 +106,15 @@ out" can be turned off under **Settings…**.
   "save_editor_theme": "dark",
   "hak_item_icons": true,
   "exact_item_icons": true,
+  "enable_class_level_editing": false,
   "game_root": "/path/to/Neverwinter Nights",
   "game_user_dir": "/path/to/Documents/Neverwinter Nights"
 }
 ```
+
+`enable_class_level_editing` is **off by default**: adding a class level is a real
+level-up, not a field edit, so it stays behind a switch you turn on deliberately in
+**Settings…**. See [docs/save_game_editor.md](docs/save_game_editor.md#class-levels-opt-in).
 
 Edit it by hand or delete it to start over — a missing or malformed file falls
 back to detection rather than failing.
@@ -153,7 +158,7 @@ marked in `packaging/nwn-save-editor.spec`.
 ## Development
 
 ```bash
-pytest                 # ~890 headless tests; no display needed
+pytest                 # ~940 headless tests; no display needed
 ruff check src tests   # lint
 ```
 
@@ -188,6 +193,12 @@ Everything the editor asks of a host is one small protocol —
 `nwnsaveeditor.ui.editor.host.EditorHost`: where the game is, and how to remember
 the light/dark choice. `StandaloneHost` is the whole of what a bare launcher
 provides; an application supplies its own and opens `SaveEditorWindow`.
+
+The extras are opt-in: a host that offers `set_game_paths` makes the game folders
+editable, `portrait_path` lends its portrait cache, and `set_class_level_editing`
+surfaces the class-level toggle. Absent any of them, the editor hides the feature
+rather than writing somewhere it never reads — so the standalone and embedded
+Settings screens show exactly what that host actually controls.
 
 ## Your saves are safe
 
