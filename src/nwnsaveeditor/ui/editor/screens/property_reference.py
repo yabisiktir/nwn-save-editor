@@ -114,6 +114,25 @@ class PropertyReferenceScreen(QWidget):
         self._decoded = prop
         self.refresh()
 
+    def _offer(self, label) -> bool:
+        """Whether a row is worth offering as a choice: Strict hides reserved and
+        placeholder rows (``bio_reserved``, ``DELETED``, ``****`` …); Free shows all."""
+        from nwnfile.reserved import is_reserved_label
+
+        if self._window.rule_mode() != "strict":
+            return True
+        return not is_reserved_label(label)
+
+    def _usable(self, options, keep) -> dict:
+        """``options`` with reserved rows dropped (Strict), but never the row the
+        value currently holds — a stored reserved value is still shown."""
+        if options is None:
+            return options
+        return {
+            row: label for row, label in options.items()
+            if row == keep or self._offer(label)
+        }
+
     # -- rebuilding -------------------------------------------------------- #
     def refresh(self) -> None:
         """Rebuild only the property list; the heading, search box and scroll
@@ -131,11 +150,15 @@ class PropertyReferenceScreen(QWidget):
 
         self._search.setVisible(True)
         needle = self._filter.strip().lower()
+        pinned = self._decoded.property_name if self._decoded is not None else None
         ids = [
             pid for pid in tables.property_ids()
-            if not needle
-            or needle in (tables.property_name_label(pid) or "").lower()
-            or needle == str(pid)
+            if (pid == pinned or self._offer(tables.property_name_label(pid)))
+            and (
+                not needle
+                or needle in (tables.property_name_label(pid) or "").lower()
+                or needle == str(pid)
+            )
         ]
         if self._decoded is not None:  # the tree selection pins the property
             self._selected = self._decoded.property_name
@@ -226,7 +249,7 @@ class PropertyReferenceScreen(QWidget):
                 if len(uses) > SHOWN:
                     column.addWidget(w.body(f"… and {len(uses) - SHOWN} more", t.TEXT_3, 11))
 
-        subtypes = tables.subtype_options(property_id)
+        subtypes = self._usable(tables.subtype_options(property_id), highlight_subtype)
         column.addWidget(self._options_block(
             "Subtypes", subtypes,
             "What the property applies to — which ability, skill, damage type or spell.",
@@ -235,12 +258,12 @@ class PropertyReferenceScreen(QWidget):
         cost_table = tables.cost_table_for(property_id)
         values = tables.cost_options(cost_table) if cost_table is not None else {}
         column.addWidget(self._options_block(
-            "Values", values or None,
+            "Values", self._usable(values, highlight_cost) or None,
             "The magnitudes the game accepts. A property's stored CostValue is a "
             "row in this table, not the number itself.",
             highlight=highlight_cost,
         ))
-        params = tables.param1_options(property_id)
+        params = self._usable(tables.param1_options(property_id), highlight_param)
         if params:
             column.addWidget(self._options_block(
                 "Parameters", params, "", highlight=highlight_param

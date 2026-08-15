@@ -73,6 +73,12 @@ The toolbar's rule mode decides how far a value may go.
 - **Free** — only the field's *storable* range applies. That range is a property of
   the file format and binds in both modes; Free says so wherever it widens something.
 
+Strict also hides **reserved and placeholder 2DA rows** — `bio_reserved`,
+`cep_reserved`, `DELETED`, `padding`, the empty `****` — from selectable choices,
+because they are held-back ids, not real values; Free shows them. A value that
+already *stores* one is still shown and named either way, so it can be read and
+corrected.
+
 ## Sections
 
 ### Character

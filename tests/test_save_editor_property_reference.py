@@ -224,3 +224,26 @@ def test_browse_mode_keeps_the_reverse_index(screen):
     text = _texts(screen._detail_scroll.widget())
     assert "your items" in text.lower()
     assert "THIS ENTRY" not in text
+
+
+def test_strict_hides_reserved_choices_but_keeps_a_stored_one(window, screen, monkeypatch):
+    """Reserved rows are not offered as picks in Strict, but a value that actually
+    stores one is still shown, so it can be read and corrected."""
+    class _T(_Tables):
+        def subtype_options(self, pid):
+            return {0: "Fire", 1: "cep_reserved", 2: "Cold"}
+
+    monkeypatch.setattr(window, "property_tables", lambda: _T())
+    monkeypatch.setattr(window, "rule_mode", lambda: "strict")
+
+    from nwnfile.formats.bic_reader import ItemProperty
+    # nothing stored on the reserved row -> it is dropped from the choices
+    screen.inspect_property(ItemProperty(0, 0, 1, 0, 0, 0))
+    text = _texts(screen._detail_scroll.widget())
+    assert "Fire" in text and "Cold" in text
+    assert "reserved" not in text.lower()
+
+    # the value *is* the reserved row -> it stays, marked as the current entry
+    screen.inspect_property(ItemProperty(0, 1, 1, 0, 0, 0))
+    text = _texts(screen._detail_scroll.widget())
+    assert "reserved" in text.lower()
