@@ -47,6 +47,44 @@ def _combo_qss() -> str:
     )
 
 
+class _BranchArrowStyle:
+    """Paints a clear expand/collapse triangle on rows that have children.
+
+    Qt's default branch arrow is nearly invisible in the light theme, and a
+    ``::branch`` image in the stylesheet does not render (Qt does not resolve a
+    data-URI SVG there), so the indicator is drawn directly. Not a subclass at
+    import time — it is built lazily so a QApplication need not exist to import
+    this module (the headless ``nwnfile`` tests never make one).
+    """
+
+    def __new__(cls, base):
+        from PySide6.QtCore import QPoint
+        from PySide6.QtGui import QColor, QPainter, QPolygon
+        from PySide6.QtWidgets import QProxyStyle, QStyle
+
+        class _Style(QProxyStyle):
+            def drawPrimitive(self, element, option, painter, widget=None):  # noqa: N802
+                branch = QStyle.PrimitiveElement.PE_IndicatorBranch
+                has_children = option.state & QStyle.StateFlag.State_Children
+                if element == branch and has_children:
+                    r = option.rect
+                    cx, cy, s = r.center().x(), r.center().y(), 3
+                    if option.state & QStyle.StateFlag.State_Open:
+                        pts = [QPoint(cx - s, cy - 2), QPoint(cx + s, cy - 2), QPoint(cx, cy + 2)]
+                    else:
+                        pts = [QPoint(cx - 1, cy - s), QPoint(cx - 1, cy + s), QPoint(cx + 3, cy)]
+                    painter.save()
+                    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                    painter.setPen(QColor(t.TEXT_2))
+                    painter.setBrush(QColor(t.TEXT_2))
+                    painter.drawPolygon(QPolygon(pts))
+                    painter.restore()
+                    return
+                super().drawPrimitive(element, option, painter, widget)
+
+        return _Style(base)
+
+
 def _tree_qss() -> str:
     """The GFF tree's chrome, rebuilt per call so it follows the theme."""
     return f"""
@@ -58,9 +96,8 @@ QTreeWidget {{
 QTreeWidget::item {{ padding:3px 4px; border:none; }}
 QTreeWidget::item:selected {{ background:{t.gold_tint(0.22)}; color:{t.GOLD}; }}
 QTreeWidget::item:hover {{ background:{t.hairline(0.05)}; }}
-/* ::branch is deliberately NOT styled: styling it makes Qt stop drawing the
-   expand/collapse arrow, so a collapsed node looks like a leaf. The blue
-   selection stripe it would otherwise leave is handled by apply_tree_palette. */
+/* The expand/collapse arrow is painted by _BranchArrowStyle, not styled here:
+   Qt's default is invisible in the light theme and a ::branch image won't load. */
 QHeaderView::section {{
     background:{t.SURFACE}; color:{t.TEXT_2}; border:none;
     border-bottom:1px solid {t.hairline(0.08)}; padding:6px 8px;
@@ -123,6 +160,7 @@ class RawScreen(QWidget):
         self._tree.setColumnCount(3)
         self._tree.setHeaderLabels(["Field", "Type", "Value"])
         self._tree.setStyleSheet(_tree_qss() + w.scrollbar_qss())
+        self._tree.setStyle(_BranchArrowStyle(self._tree.style()))  # a visible arrow
         w.apply_tree_palette(self._tree)
         self._tree.itemExpanded.connect(self._on_expand)
         self._tree.currentItemChanged.connect(self._on_select)
