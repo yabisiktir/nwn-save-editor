@@ -49,3 +49,36 @@ def test_base_item_resolves_to_its_type():
 
 def test_an_unknown_base_item_is_none():
     assert field_meaning("BaseItem", 999999, _Ref()) is None
+
+
+class _Stack:
+    def __init__(self, tables):
+        self._t = tables
+
+    def read_2da(self, name):
+        return self._t.get(name.lower())
+
+
+def test_appearance_resolves_from_the_stack():
+    stack = _Stack({"appearance": {6: {"LABEL": "Human", "STRING_REF": "1"}}})
+    title, _ = field_meaning("Appearance_Type", 6, _Ref(), stack)
+    assert title == "Appearance #6: Human"
+
+
+def test_a_2da_field_without_a_stack_is_none():
+    assert field_meaning("Appearance_Type", 6, _Ref(), None) is None
+
+
+def test_gender_is_an_enum():
+    assert field_meaning("Gender", 0, _Ref())[0] == "Gender: Male"
+    assert field_meaning("Gender", 1, _Ref())[0] == "Gender: Female"
+
+
+def test_alignment_axes_read_out_as_words():
+    assert "Good" in field_meaning("GoodEvil", 100, _Ref())[0]
+    assert "Chaotic" in field_meaning("LawfulChaotic", 0, _Ref())[0]
+
+
+def test_labelled_2da_underscores_become_spaces():
+    stack = _Stack({"soundset": {222: {"LABEL": "NeurikM_PCV"}}})
+    assert field_meaning("SoundSetFile", 222, _Ref(), stack)[0].endswith("NeurikM PCV")

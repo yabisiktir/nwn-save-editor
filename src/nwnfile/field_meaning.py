@@ -12,16 +12,48 @@ from __future__ import annotations
 _ABILITIES = (
     "Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma",
 )
+_GENDERS = ("Male", "Female", "Both", "Other", "None")
+#: fields that are a row in a 2DA, resolved to that row's Label from the hak stack.
+_LABELLED_2DA = {
+    "Appearance_Type": ("appearance", "Appearance"),
+    "SoundSetFile": ("soundset", "Sound set"),
+    "Phenotype": ("phenotype", "Phenotype"),
+    "CreatureSize": ("creaturesize", "Creature size"),
+}
 
 
-def field_meaning(field_name: str, value, reference) -> tuple[str, str] | None:
+def _stack_label(stack, table: str, row_id: int) -> str | None:
+    row = (stack.read_2da(table) or {}).get(row_id) if stack is not None else None
+    if row is None:
+        return None
+    label = next((v for k, v in row.items() if k.lower() == "label"), None)
+    return label.replace("_", " ") if label and label not in ("", "****") else None
+
+
+def field_meaning(field_name: str, value, reference, stack=None) -> tuple[str, str] | None:
     """``(title, description)`` for an id-bearing raw field, or ``None``.
 
     ``reference`` is a ``CharacterReference`` (feat/spell names + descriptions);
-    class and race names come from the ``nwnfile.character`` tables.
+    class and race names come from the ``nwnfile.character`` tables; ``stack`` (a
+    hak stack, when available) resolves 2DA-backed fields like appearance and
+    soundset against the character's own haks.
     """
     if not isinstance(value, int):
         return None
+    if field_name in _LABELLED_2DA:
+        table, noun = _LABELLED_2DA[field_name]
+        label = _stack_label(stack, table, value)
+        return (f"{noun} #{value}: {label}", "") if label else None
+    if field_name == "Gender" and 0 <= value < len(_GENDERS):
+        return f"Gender: {_GENDERS[value]}", ""
+    if field_name == "GoodEvil":
+        from nwnfile.character import _good_evil_word
+
+        return f"Good–Evil {value}: {_good_evil_word(value)}", ""
+    if field_name == "LawfulChaotic":
+        from nwnfile.character import _lawful_chaotic_word
+
+        return f"Law–Chaos {value}: {_lawful_chaotic_word(value)}", ""
     if field_name == "Feat":
         return f"Feat #{value}: {reference.feat_name(value)}", reference.feat_description(value)
     if field_name == "Spell":

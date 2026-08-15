@@ -378,7 +378,9 @@ class RawScreen(QWidget):
             from nwnfile.field_meaning import field_meaning
 
             try:
-                meaning = field_meaning(field_name, value, default_reference())
+                meaning = field_meaning(
+                    field_name, value, default_reference(), self._window.hak_stack()
+                )
             except Exception:
                 meaning = None
         if meaning is None:
