@@ -259,15 +259,18 @@ def test_click_to_set_writes_via_the_editor_in_edit_mode(window, screen, monkeyp
     monkeypatch.setattr(window, "property_tables", lambda: _T())
     window._editing = True  # the read-only `editing` property reads this
     calls = []
-    screen.inspect_property(ItemProperty(0, 0, 1, 0, 0, 0), editor=lambda f, v: calls.append((f, v)))
+    screen.inspect_property(
+        ItemProperty(0, 0, 1, 0, 0, 0), editor=lambda f, v: calls.append((f, v))
+    )
 
     # find the Subtypes block's rows and click one
+    from PySide6.QtCore import QEvent, QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
     from PySide6.QtWidgets import QWidget
+
     rows = [w for w in screen._detail_scroll.widget().findChildren(QWidget)
             if w.cursor().shape().name == "PointingHandCursor"]
     assert rows, "settable rows should have a pointing cursor in edit mode"
-    from PySide6.QtGui import QMouseEvent
-    from PySide6.QtCore import QEvent, QPointF, Qt
     ev = QMouseEvent(QEvent.Type.MouseButtonPress, QPointF(1, 1), Qt.MouseButton.LeftButton,
                      Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
     rows[0].mousePressEvent(ev)
