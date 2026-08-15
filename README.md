@@ -194,9 +194,20 @@ marked in `packaging/nwn-save-editor.spec`.
 ## Development
 
 ```bash
-pytest                 # ~940 headless tests; no display needed
-ruff check src tests   # lint
+scripts/check.sh                # everything CI checks: ruff, then pytest
+ruff check src tests scripts    # just the lint (what CI lints)
+pytest                          # ~1000 headless tests; no display needed
 ```
+
+`scripts/check.sh` runs exactly what the pipeline does, in the same order, so a
+green run there is a green run in CI. To catch lint before it is even committed:
+
+```bash
+git config core.hooksPath .githooks   # once, per clone
+```
+
+which installs `.githooks/pre-commit` — a fast `ruff check src tests scripts` on
+every commit (the full suite stays with `check.sh` and CI, so commits are quick).
 
 Tests run offscreen (`QT_QPA_PLATFORM=offscreen`) and need neither a display nor a
 real game install; the few that want real game files skip themselves unless you

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fast gate on every commit: lint exactly as CI does (the full suite is left to
+# scripts/check.sh / CI, so commits stay quick). Activate once with:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+RUFF=$([ -x .venv/bin/ruff ] && echo .venv/bin/ruff || echo ruff)
+"$RUFF" check src tests scripts
