@@ -4,6 +4,36 @@ Read and edit **Neverwinter Nights** save games — and the file formats behind 
 
 ![The character sheet: abilities as stored and as played, with every bonus attributed](docs/images/character.png)
 
+## What it can edit
+
+Every change is staged first — nothing touches the save until you **Save as New**
+(a new folder; the original is never modified) or **Overwrite** (written and verified
+to the side, the old save archived first) — and anything staged can be undone, redone
+or discarded. **Strict** mode holds you to the game's rules; **Free** lets you break
+them. The full walkthrough is in [docs/save_game_editor.md](docs/save_game_editor.md).
+
+- **The character sheet** — abilities, HP, saving throws, alignment, age, gold, XP,
+  name, race, appearance, and a portrait picker that shows the actual pictures.
+- **Skills** — ranks, capped per skill by whether it's a class or cross-class skill.
+- **Feats** — add and remove, filterable to the ones you actually qualify for; PRC
+  feats are badged, and the editor tells you whether a save-edit can even grant one.
+- **Spells** — the known / memorized spellbook, per caster class and level.
+- **Class levels** *(opt-in)* — a step-by-step **wizard** levels you up from the
+  game's own class tables, base *and* PRC: hit points, attack and saves, the
+  skill-point budget, a feat and an ability point when they're due, and spells for a
+  spontaneous caster — checking the class's prerequisites and writing the per-level
+  history, so the character stays internally consistent. See
+  [Class levels](docs/save_game_editor.md#class-levels-opt-in).
+- **Items** — every magical property, edited straight from the game's `iprp_*` tables
+  so only values the engine accepts are offered; add a copy of one of your items, or
+  clone one out of a store, creature or container.
+- **Area contents** — store pricing and stock, creature gear, container loot, and the
+  module's factions and script variables.
+- **Raw GFF** *(advanced)* — the save's whole decoded tree, any field editable. Id
+  fields (a feat, a class, an item property) read out in plain language and edit **by
+  name** — pick "Fire" or "Whirlwind Attack", not a raw number (you can still type one).
+  See [Raw Data](docs/save_game_editor.md#raw-data-gff--advanced).
+
 Two packages:
 
 - **`nwnfile`** — the formats (GFF, ERF, 2DA, TLK, KEY/BIF, TGA, PLT) and the game
@@ -16,6 +46,12 @@ The arrows point one way and tests hold them there: `nwnfile` never imports
 `nwnsaveeditor`, and never imports Qt.
 
 ## A look at it
+
+Adding a class level is a real level-up, worked out from the game's own class tables
+and gathered by a wizard — here the first step, with the hit points, attack, saves and
+feats the level grants, and the PRC re-level caveat:
+
+![The add-class-level wizard: the gains a Pale Master level grants](docs/images/class-level-wizard.png)
 
 Inventory and equipment, with each item's real in-game icon — worked out from the
 game's own files, including the ones custom content adds:
@@ -113,15 +149,8 @@ out" can be turned off under **Settings…**.
 ```
 
 `enable_class_level_editing` is **off by default**: adding a class level is a real
-level-up, not a field edit, so it stays behind a switch you turn on deliberately in
-**Settings…**. Once on, a wizard works the level out from the game's own class tables
-(base *and* PRC), gathers the skill-point, feat, ability and (for spontaneous casters)
-spells-known choices it opens up, and writes the per-level history (`LvlStatList`),
-spells and all, so the character stays consistent.
-Prestige-class **prerequisites are checked** against the game's `CLS_PRES_*` tables —
-Strict blocks a class you don't qualify for, Free warns and lets you override (and
-widens the picker to non-player classes, marked). See
-[docs/save_game_editor.md](docs/save_game_editor.md#class-levels-opt-in).
+level-up, not a field edit, so the class-level wizard (above) stays behind a switch
+you turn on deliberately in **Settings…**.
 
 Edit it by hand or delete it to start over — a missing or malformed file falls
 back to detection rather than failing.
