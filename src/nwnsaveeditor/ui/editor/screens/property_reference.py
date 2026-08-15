@@ -39,6 +39,9 @@ class PropertyReferenceScreen(QWidget):
         self._window = window
         self._selected: int | None = None
         self._filter = ""
+        #: the item property the raw tree currently has selected, decoded — the
+        #: panel leads with *this* rather than a context-free catalog when set.
+        self._decoded = None
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
@@ -105,6 +108,12 @@ class PropertyReferenceScreen(QWidget):
                 out.append((_source_label(item, self._window.item_name(item)), slot, entry.prop))
         return out
 
+    def inspect_property(self, prop) -> None:
+        """Lead with the item property the raw tree just selected, decoded — or
+        pass ``None`` to fall back to browsing the catalog."""
+        self._decoded = prop
+        self.refresh()
+
     # -- rebuilding -------------------------------------------------------- #
     def refresh(self) -> None:
         """Rebuild only the property list; the heading, search box and scroll
@@ -128,7 +137,9 @@ class PropertyReferenceScreen(QWidget):
             or needle in (tables.property_name_label(pid) or "").lower()
             or needle == str(pid)
         ]
-        if self._selected not in ids:
+        if self._decoded is not None:  # the tree selection pins the property
+            self._selected = self._decoded.property_name
+        elif self._selected not in ids:
             self._selected = ids[0] if ids else None
 
         holder = QWidget()
@@ -184,6 +195,15 @@ class PropertyReferenceScreen(QWidget):
             return
 
         label = tables.property_name_label(property_id) or f"#{property_id}"
+        decoded = self._decoded if (
+            self._decoded is not None and self._decoded.property_name == property_id
+        ) else None
+        highlight_subtype = decoded.subtype if decoded else None
+        highlight_cost = decoded.cost_value if decoded else None
+        highlight_param = decoded.param1_value if decoded else None
+
+        if decoded is not None:  # this is the exact property selected in the tree
+            column.addWidget(self._decoded_header(decoded, tables))
         column.addWidget(w.heading(label, 18))
         column.addWidget(w.mono(f"property id {property_id}", t.TEXT_3, 11.5))
 
@@ -206,6 +226,7 @@ class PropertyReferenceScreen(QWidget):
         column.addWidget(self._options_block(
             "Subtypes", subtypes,
             "What the property applies to — which ability, skill, damage type or spell.",
+            highlight=highlight_subtype,
         ))
         cost_table = tables.cost_table_for(property_id)
         values = tables.cost_options(cost_table) if cost_table is not None else {}
@@ -213,15 +234,51 @@ class PropertyReferenceScreen(QWidget):
             "Values", values or None,
             "The magnitudes the game accepts. A property's stored CostValue is a "
             "row in this table, not the number itself.",
+            highlight=highlight_cost,
         ))
         params = tables.param1_options(property_id)
         if params:
-            column.addWidget(self._options_block("Parameters", params, ""))
+            column.addWidget(self._options_block(
+                "Parameters", params, "", highlight=highlight_param
+            ))
 
         column.addStretch(1)
         w.set_scroll_widget(self._detail_scroll, body)
 
-    def _options_block(self, title: str, options, blurb: str) -> QWidget:
+    def _decoded_header(self, prop, tables) -> QWidget:
+        """The selected property, spelled out — the one-line description plus the
+        exact row each coded value points at, so a raw struct reads as English."""
+        holder = QWidget()
+        holder.setObjectName("Decoded")
+        holder.setStyleSheet(
+            f"#Decoded{{background:{t.gold_tint(0.12)};border:1px solid "
+            f"{t.gold_border(0.4)};border-radius:8px;}}"
+        )
+        column = QVBoxLayout(holder)
+        column.setContentsMargins(12, 10, 12, 10)
+        column.setSpacing(4)
+        column.addWidget(w.cap_label("This entry"))
+        line = w.body(describe_property(prop, None, tables=tables), t.GOLD, 14)
+        line.setWordWrap(True)
+        column.addWidget(line)
+
+        def named(options, key):
+            return (options or {}).get(key)
+
+        pid = prop.property_name
+        cost_table = tables.cost_table_for(pid)
+        costs = tables.cost_options(cost_table) if cost_table is not None else {}
+        bits = [
+            _coded("Subtype", prop.subtype, named(tables.subtype_options(pid), prop.subtype)),
+            _coded("CostValue", prop.cost_value, named(costs, prop.cost_value)),
+        ]
+        params = tables.param1_options(pid)
+        if params:
+            bits.append(_coded("Param1Value", prop.param1_value, named(params, prop.param1_value)))
+        column.addWidget(w.body("   ".join(bits), t.TEXT_2, 12))
+        return holder
+
+    def _options_block(self, title: str, options, blurb: str, *, highlight=None) -> QWidget:
         holder = QWidget()
         holder.setStyleSheet("background:transparent;")
         column = QVBoxLayout(holder)
@@ -238,8 +295,13 @@ class PropertyReferenceScreen(QWidget):
             return holder
         panel = w.Panel(padding=0)
         panel.body_layout().setSpacing(0)
-        for row, text in list(options.items())[:SHOWN]:
-            panel.body_layout().addWidget(_kv(str(text), f"row {row}"))
+        # Put the highlighted row (the current value) first so it is not lost past
+        # the SHOWN cap, then the rest in table order.
+        rows = list(options.items())
+        if highlight is not None and highlight in options:
+            rows.sort(key=lambda kv: kv[0] != highlight)
+        for row, text in rows[:SHOWN]:
+            panel.body_layout().addWidget(_kv(str(text), f"row {row}", current=row == highlight))
         column.addWidget(panel)
         if count > SHOWN:
             column.addWidget(w.body(f"… and {count - SHOWN} more", t.TEXT_3, 11))
@@ -255,15 +317,23 @@ class PropertyReferenceScreen(QWidget):
         self.refresh()
 
 
-def _kv(label: str, value: str) -> QWidget:
+def _kv(label: str, value: str, *, current: bool = False) -> QWidget:
     row = QWidget()
-    row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
+    bg = t.gold_tint(0.16) if current else "transparent"
+    row.setStyleSheet(f"background:{bg};border-bottom:1px solid {t.hairline(0.06)};")
     line = QHBoxLayout(row)
     line.setContentsMargins(12, 6, 12, 6)
     line.setSpacing(10)
-    line.addWidget(w.body(label, t.TEXT, 12), 1)
+    line.addWidget(w.body(label, t.GOLD if current else t.TEXT, 12), 1)
+    if current:
+        line.addWidget(w.body("this entry", t.GOLD, 11))
     line.addWidget(w.mono(value, t.TEXT_3, 11))
     return row
+
+
+def _coded(field: str, value: int, name) -> str:
+    """``CostValue 2 = 1d6`` — a coded field's raw number and what it names."""
+    return f"{field} {value}" + (f" = {name}" if name else "")
 
 
 def _input_qss() -> str:

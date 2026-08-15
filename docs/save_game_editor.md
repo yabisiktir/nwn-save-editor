@@ -318,10 +318,13 @@ ledger.
   to fill it in. The line under the buttons says which you got.
 - Removing an entry renumbers every entry after it, and staged changes follow.
 - The tree keeps its open nodes, selection and scroll position across an edit.
-- **Property reference ›** folds out beside the tree: what every item property means,
-  the values it accepts, and which of your items carry it — so a raw `CostValue` can
-  be read without leaving the tree. A stored `CostValue` is a *row* in a cost table,
-  not the number itself.
+- **Property reference ›** folds out beside the tree and **follows your selection**.
+  Click any field inside an item's `PropertiesList[n]` and it leads with that entry
+  decoded — "Immunity: Mind-Affecting Spells" — spelling out what each coded value
+  means (`Subtype 2 = Mind-Affecting Spells`, `CostValue 0`) and highlighting the row
+  each points at in the value tables. When you're not on a property it browses the
+  catalog: what every property means, the values it accepts, and which of your items
+  carry it. A stored `CostValue` is a *row* in a cost table, not the number itself.
 
 Raw edits touch **one resource only**: editing `module.ifo` does not mirror into
 `player.bic` the way the friendly editors do.

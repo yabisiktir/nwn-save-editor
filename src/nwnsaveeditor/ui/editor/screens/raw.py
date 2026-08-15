@@ -362,6 +362,8 @@ class RawScreen(QWidget):
             path[-1][0] if kind == "scalar" and path else None,
             getattr(value, "value", None) if kind == "scalar" else None,
         )
+        if not self._reference.isHidden():  # lead the reference with what's selected
+            self._reference.inspect_property(self._enclosing_property(current))
         editing = self._window.editing
         context = self._list_context(current)
         entry = context is not None and context[1] is not None
@@ -369,6 +371,19 @@ class RawScreen(QWidget):
         self._buttons["blank"].setEnabled(editing and context is not None)
         self._buttons["duplicate"].setEnabled(editing and context is not None and context[2] > 0)
         self._buttons["remove"].setEnabled(editing and entry)
+
+    def _enclosing_property(self, item):
+        """The ``ItemProperty`` for the ``PropertiesList[n]`` entry the selection
+        sits inside, or ``None`` — so the reference can decode it."""
+        node = item
+        while node is not None:
+            role = node.data(0, _ROLE)
+            if role is not None and role[0] == "struct":
+                _kind, path, struct = role
+                if path and path[-1][0] == "PropertiesList" and path[-1][1] is not None:
+                    return _item_property_from_struct(struct)
+            node = node.parent()
+        return None
 
     def _show_meaning(self, field_name: str | None, value) -> None:
         """Resolve an id field (Feat, Class, Spell, Race…) to a readable line."""
@@ -545,6 +560,21 @@ class RawScreen(QWidget):
         for index in range(self._tree.topLevelItemCount()):
             node = self._tree.topLevelItem(index)
             node.setHidden(needle not in node.text(0).lower())
+
+
+def _item_property_from_struct(struct):
+    """An :class:`ItemProperty` from a raw ``PropertiesList`` entry's fields."""
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    def field(name):
+        f = struct.fields.get(name)
+        return int(f.value) if f is not None else 0
+
+    return ItemProperty(
+        property_name=field("PropertyName"), subtype=field("Subtype"),
+        cost_table=field("CostTable"), cost_value=field("CostValue"),
+        param1=field("Param1"), param1_value=field("Param1Value"),
+    )
 
 
 def _children(node: QTreeWidgetItem) -> list[QTreeWidgetItem]:
