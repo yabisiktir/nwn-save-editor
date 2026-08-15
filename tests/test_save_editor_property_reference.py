@@ -202,3 +202,25 @@ def test_the_filter_box_is_the_same_widget_across_a_refresh(screen):
     screen.refresh()
     assert screen._search is before
     assert screen._search.parent() is not None  # still in the layout, not orphaned
+
+
+def test_decoded_mode_leads_with_the_entry_and_hides_the_reverse_index(screen):
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    prop = ItemProperty(
+        property_name=0, subtype=1, cost_table=1, cost_value=2, param1=0, param1_value=0,
+    )
+    screen.inspect_property(prop)
+    text = _texts(screen._detail_scroll.widget())
+    assert "THIS ENTRY" in text, "the decode header leads"
+    assert "your items" not in text.lower(), "the reverse index is hidden while decoding"
+    # the current subtype (row 1 = Dexterity) and value (row 2 = +2) are marked
+    assert text.lower().count("this entry") >= 2  # header + at least one highlighted row
+
+
+def test_browse_mode_keeps_the_reverse_index(screen):
+    screen.inspect_property(None)  # back to catalog browsing
+    screen._choose(0)
+    text = _texts(screen._detail_scroll.widget())
+    assert "your items" in text.lower()
+    assert "THIS ENTRY" not in text

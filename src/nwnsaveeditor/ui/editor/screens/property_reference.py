@@ -207,20 +207,24 @@ class PropertyReferenceScreen(QWidget):
         column.addWidget(w.heading(label, 18))
         column.addWidget(w.mono(f"property id {property_id}", t.TEXT_3, 11.5))
 
-        uses = self._uses(property_id)
-        column.addWidget(w.cap_label(f"On your items ({len(uses)})"))
-        if not uses:
-            column.addWidget(w.body("None of your items carry this.", t.TEXT_3, 12.5))
-        else:
-            panel = w.Panel(padding=0)
-            panel.body_layout().setSpacing(0)
-            for where, slot, prop in uses[:SHOWN]:
-                panel.body_layout().addWidget(
-                    _kv(f"{where}  ·  {slot}", describe_property(prop, None))
-                )
-            column.addWidget(panel)
-            if len(uses) > SHOWN:
-                column.addWidget(w.body(f"… and {len(uses) - SHOWN} more", t.TEXT_3, 11))
+        # The reverse index ("which of my items carry this") answers a browsing
+        # question — it is noise when we are decoding one specific entry the tree
+        # selected, so it shows only in catalog mode.
+        if decoded is None:
+            uses = self._uses(property_id)
+            column.addWidget(w.cap_label(f"On your items ({len(uses)})"))
+            if not uses:
+                column.addWidget(w.body("None of your items carry this.", t.TEXT_3, 12.5))
+            else:
+                panel = w.Panel(padding=0)
+                panel.body_layout().setSpacing(0)
+                for where, slot, prop in uses[:SHOWN]:
+                    panel.body_layout().addWidget(
+                        _kv(f"{where}  ·  {slot}", describe_property(prop, None))
+                    )
+                column.addWidget(panel)
+                if len(uses) > SHOWN:
+                    column.addWidget(w.body(f"… and {len(uses) - SHOWN} more", t.TEXT_3, 11))
 
         subtypes = tables.subtype_options(property_id)
         column.addWidget(self._options_block(
