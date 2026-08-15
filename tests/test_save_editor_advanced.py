@@ -561,3 +561,37 @@ def test_the_raw_view_survives_a_theme_change(window):
     assert not raw2._reference.isHidden(), "the reference stayed open"
     current = raw2._tree.currentItem()
     assert current is not None and current.data(0, _ROLE)[1] == before
+
+
+# -- export a subtree to a GFF file ----------------------------------------- #
+def test_export_button_enables_for_a_struct_or_list_not_a_scalar(window, raw):
+    node = next(
+        raw._tree.topLevelItem(i) for i in range(raw._tree.topLevelItemCount())
+        if raw._tree.topLevelItem(i).text(0) == "Mod_PlayerList"
+    )
+    raw._tree.setCurrentItem(node)  # a list
+    assert raw._buttons["export"].isEnabled()
+    raw._tree.setCurrentItem(_find_scalar(raw, "Gold"))  # a scalar
+    assert not raw._buttons["export"].isEnabled()
+
+
+def test_exporting_a_struct_writes_a_readable_gff(window, raw, monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QFileDialog
+
+    from nwnfile.formats.gff import read_gff
+
+    node = next(
+        raw._tree.topLevelItem(i) for i in range(raw._tree.topLevelItemCount())
+        if raw._tree.topLevelItem(i).text(0) == "Mod_PlayerList"
+    )
+    node.setExpanded(True)
+    entry = node.child(0)  # Mod_PlayerList[0] — the character struct
+    raw._tree.setCurrentItem(entry)
+
+    out = tmp_path / "char.gff"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(out), ""))
+    raw._export_selected()
+
+    assert out.exists() and "Exported" in raw._note.text()
+    gff = read_gff(out.read_bytes())
+    assert "FeatList" in gff.root.fields  # the character struct came through

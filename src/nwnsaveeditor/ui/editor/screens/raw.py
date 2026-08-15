@@ -9,6 +9,8 @@ that would change a field's type — a raw edit should be able to break the
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QComboBox,
@@ -156,6 +158,7 @@ class RawScreen(QWidget):
         row.addWidget(self._reference_button)
         self._buttons: dict[str, object] = {}
         for key, text, handler in (
+            ("export", "Export…", self._export_selected),
             ("blank", "Add blank entry", self._add_blank),
             ("duplicate", "Duplicate entry", self._duplicate),
             ("remove", "Remove entry…", self._remove_selected),
@@ -392,6 +395,8 @@ class RawScreen(QWidget):
         self._buttons["blank"].setEnabled(editing and context is not None)
         self._buttons["duplicate"].setEnabled(editing and context is not None and context[2] > 0)
         self._buttons["remove"].setEnabled(editing and entry)
+        # Export is read-only, so it needs no edit mode — only something to export.
+        self._buttons["export"].setEnabled(kind in ("struct", "list"))
 
     def _enclosing_property(self, item):
         """``(ItemProperty, path)`` for the ``PropertiesList[n]`` entry the selection
@@ -624,6 +629,31 @@ class RawScreen(QWidget):
             return None
         return dialog.selected_id()
 
+    def _export_selected(self) -> None:
+        """Write the selected struct or list to a standalone GFF file."""
+        from PySide6.QtWidgets import QFileDialog
+
+        from nwnfile.gff_transfer import export_bytes, export_extension
+
+        current = self._tree.currentItem()
+        role = current.data(0, _ROLE) if current is not None else None
+        if role is None or role[0] not in ("struct", "list"):
+            return
+        kind, path, value = role
+        suggested = _export_name(path) + export_extension(value, kind)
+        chosen, _filter = QFileDialog.getSaveFileName(
+            self, "Export to a GFF file", suggested, "GFF files (*.gff *.uti *.utc);;All files (*)"
+        )
+        if not chosen:
+            return
+        try:
+            Path(chosen).write_bytes(export_bytes(value, kind))
+        except (OSError, ValueError) as exc:
+            w.message(self, QMessageBox.Icon.Critical, "Export failed", str(exc),
+                      QMessageBox.StandardButton.Ok)
+            return
+        self._note.setText(f"Exported {_render_path(path)} to {Path(chosen).name}.")
+
     def _edit_selected(self) -> None:
         from nwnsaveeditor.ui.dialogs.property_edit_dialog import PropertyEditDialog
 
@@ -671,6 +701,15 @@ class RawScreen(QWidget):
         for index in range(self._tree.topLevelItemCount()):
             node = self._tree.topLevelItem(index)
             node.setHidden(needle not in node.text(0).lower())
+
+
+def _export_name(path: tuple) -> str:
+    """A filesystem-safe default filename from a node's path (its last segment)."""
+    if not path:
+        return "export"
+    label, index = path[-1]
+    stem = label if index is None else f"{label}_{index}"
+    return "".join(c if c.isalnum() or c in "_-" else "_" for c in stem) or "export"
 
 
 def _row_label(row: dict) -> str:

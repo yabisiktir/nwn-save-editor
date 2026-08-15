@@ -328,6 +328,10 @@ ledger.
   first sibling's field set and zeroes the values, so you get the right shape and have
   to fill it in. The line under the buttons says which you got.
 - Removing an entry renumbers every entry after it, and staged changes follow.
+- **Export…** writes the selected struct or list to a standalone GFF file — an item
+  comes out as a `.uti` (the blueprint form the toolset makes), a whole inventory or
+  equipped list as a `.gff`. It is a faithful copy, `ObjectId` and all. Export is
+  read-only, so it works outside edit mode. (Reading one back into a save is coming.)
 - The tree keeps its open nodes, selection and scroll position across an edit.
 - **Property reference ›** folds out beside the tree and **follows your selection**.
   Click any field inside an item's `PropertiesList[n]` and it leads with that entry
