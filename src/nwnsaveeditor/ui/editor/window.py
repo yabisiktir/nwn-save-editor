@@ -149,6 +149,7 @@ class SaveEditorWindow(QMainWindow):
         self._nav_rows: dict[str, w.NavRow] = {}
         self._save_rows: list[_SaveRow] = []
         self._screens: dict[str, QWidget] = {}
+        self._restore_states: dict = {}  # per-screen state kept across a theme rebuild
         self._char_cache = None  # CharacterInfo for _char_cache_for
         self._char_cache_for = None  # cache key: (save.folder, edit-token-or-None)
         self._char_edit_token = 0  # bumps on every staged change, invalidating above
@@ -928,6 +929,14 @@ class SaveEditorWindow(QMainWindow):
         )
         rule_mode = self._rule_mode.value()
         editing = self._editing
+        # Screens bake token colours, so they are rebuilt rather than restyled —
+        # snapshot the state worth keeping (which resource, tree place) so a theme
+        # change does not throw you back to the top of a fresh Raw Data tree.
+        self._restore_states = {
+            key: screen.capture_state()
+            for key, screen in dict.items(self._screens)
+            if hasattr(screen, "capture_state")
+        }
 
         self._build_ui()
 
@@ -1010,6 +1019,9 @@ class SaveEditorWindow(QMainWindow):
             row.setChecked(nav_key == key)
         screen = self._screens[key]  # builds on first display
         self._stack.setCurrentWidget(screen)
+        state = self._restore_states.pop(key, None)  # kept across a theme rebuild
+        if state is not None and hasattr(screen, "restore_state"):
+            self._safely(lambda: screen.restore_state(state))
 
     # -- committing ------------------------------------------------------- #
     def _save_as_new(self) -> None:

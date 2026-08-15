@@ -230,6 +230,25 @@ class RawScreen(QWidget):
         if not self._reference.isHidden():
             self._reference.refresh()
 
+    # -- surviving a theme rebuild ----------------------------------------- #
+    def capture_state(self) -> dict:
+        """What to restore after the window is rebuilt for a theme change: the
+        open resource, the tree's place, and whether the reference is showing."""
+        opened, current, scrolled = self._tree_state()
+        return {
+            "target": self._target, "opened": opened, "current": current,
+            "scrolled": scrolled, "reference_open": not self._reference.isHidden(),
+        }
+
+    def restore_state(self, state: dict) -> None:
+        self._target = state.get("target", self._target)
+        if state.get("reference_open") and self._reference.isHidden():
+            self._toggle_reference()  # reopen it before refresh repopulates it
+        self.refresh()
+        self._restore_tree_state(
+            state.get("opened", set()), state.get("current"), state.get("scrolled", 0)
+        )
+
     # -- keeping your place ------------------------------------------------- #
     def _tree_state(self) -> tuple[set, tuple | None, int]:
         """Which nodes are open, which is selected, and where the view sits.
@@ -363,7 +382,9 @@ class RawScreen(QWidget):
             getattr(value, "value", None) if kind == "scalar" else None,
         )
         if not self._reference.isHidden():  # lead the reference with what's selected
-            self._reference.inspect_property(self._enclosing_property(current))
+            prop, prop_path = self._enclosing_property(current)
+            editor = self._property_value_editor(prop_path) if prop_path else None
+            self._reference.inspect_property(prop, editor=editor)
         editing = self._window.editing
         context = self._list_context(current)
         entry = context is not None and context[1] is not None
@@ -373,17 +394,35 @@ class RawScreen(QWidget):
         self._buttons["remove"].setEnabled(editing and entry)
 
     def _enclosing_property(self, item):
-        """The ``ItemProperty`` for the ``PropertiesList[n]`` entry the selection
-        sits inside, or ``None`` — so the reference can decode it."""
+        """``(ItemProperty, path)`` for the ``PropertiesList[n]`` entry the selection
+        sits inside, or ``(None, None)`` — the path lets the reference edit its fields."""
         node = item
         while node is not None:
             role = node.data(0, _ROLE)
             if role is not None and role[0] == "struct":
                 _kind, path, struct = role
                 if path and path[-1][0] == "PropertiesList" and path[-1][1] is not None:
-                    return _item_property_from_struct(struct)
+                    return _item_property_from_struct(struct), path
             node = node.parent()
-        return None
+        return None, None
+
+    def _property_value_editor(self, prop_path):
+        """A callback the reference uses to set a coded field on the selected
+        property (Subtype/CostValue/Param1Value), written as a raw edit."""
+        def edit(field_name: str, new_value: int) -> None:
+            field_path = prop_path + ((field_name, None),)
+            try:
+                self._window.session().set_raw_field(
+                    self._target, field_path, int(new_value),
+                    where=f"{self._target}: {_render_path(field_path)}",
+                )
+            except Exception as exc:
+                w.message(self, QMessageBox.Icon.Critical, "Raw edit failed",
+                          str(exc), QMessageBox.StandardButton.Ok)
+                return
+            self._window.notify_changed()  # re-decodes with the new value
+
+        return edit
 
     def _show_meaning(self, field_name: str | None, value) -> None:
         """Resolve an id field (Feat, Class, Spell, Race…) to a readable line."""
@@ -528,7 +567,8 @@ class RawScreen(QWidget):
     def _value_options(self, field_name, value, item):
         """``(title, {value: label})`` of named choices for a coded/id scalar, or
         ``None``. Strict drops reserved rows (never the current value)."""
-        found = self._raw_value_options(field_name, value, self._enclosing_property(item))
+        prop, _path = self._enclosing_property(item)
+        found = self._raw_value_options(field_name, value, prop)
         if found is None:
             return None
         title, options = found

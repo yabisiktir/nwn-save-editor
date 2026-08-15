@@ -527,9 +527,37 @@ def test_strict_filters_reserved_but_keeps_the_current_value(raw, monkeypatch):
 
     monkeypatch.setattr(raw._window, "property_tables", lambda: _T())
     monkeypatch.setattr(raw._window, "rule_mode", lambda: "strict")
-    monkeypatch.setattr(raw, "_enclosing_property", lambda _item: ItemProperty(0, 0, 0, 0, 0, 0))
+    monkeypatch.setattr(
+        raw, "_enclosing_property",
+        lambda _item: (ItemProperty(0, 0, 0, 0, 0, 0), (("PropertiesList", 0),)),
+    )
 
     _title, offered = raw._value_options("Subtype", 0, object())
     assert set(offered) == {0, 2}, "reserved row dropped when not the current value"
     _title, keep = raw._value_options("Subtype", 1, object())
     assert 1 in keep, "the current reserved value is kept so it can be seen"
+
+
+def test_the_raw_view_survives_a_theme_change(window):
+    """Changing the theme rebuilds the shell; the Raw Data resource, selection,
+    expansion and open reference must not be thrown back to defaults."""
+    window._set_section("raw")
+    raw = window._screens["raw"]
+    if raw._reference.isHidden():
+        raw._toggle_reference()
+    top = next(
+        raw._tree.topLevelItem(i) for i in range(raw._tree.topLevelItemCount())
+        if raw._tree.topLevelItem(i).text(0) == "Mod_PlayerList"
+    )
+    top.setExpanded(True)
+    raw._tree.setCurrentItem(top.child(0))
+    before = raw._tree.currentItem().data(0, _ROLE)[1]
+
+    other = "dark" if window._theme_toggle.value() == "light" else "light"
+    window._set_theme(other)
+
+    raw2 = window._screens["raw"]
+    assert raw2._target == "module.ifo"
+    assert not raw2._reference.isHidden(), "the reference stayed open"
+    current = raw2._tree.currentItem()
+    assert current is not None and current.data(0, _ROLE)[1] == before

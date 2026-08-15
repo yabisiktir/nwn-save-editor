@@ -333,9 +333,12 @@ ledger.
   Click any field inside an item's `PropertiesList[n]` and it leads with that entry
   decoded — "Immunity: Mind-Affecting Spells" — spelling out what each coded value
   means (`Subtype 2 = Mind-Affecting Spells`, `CostValue 0`) and highlighting the row
-  each points at in the value tables. When you're not on a property it browses the
-  catalog: what every property means, the values it accepts, and which of your items
-  carry it. A stored `CostValue` is a *row* in a cost table, not the number itself.
+  each points at in the value tables. **In edit mode those rows are click-to-set**:
+  click "Fire" in the Subtypes list, or "+3" in the Values list, and it writes that
+  field on the property in place, the decode updating live — no need to know the raw
+  number. When you're not on a property it browses the catalog: what every property
+  means, the values it accepts, and which of your items carry it. A stored `CostValue`
+  is a *row* in a cost table, not the number itself.
 
 Raw edits touch **one resource only**: editing `module.ifo` does not mirror into
 `player.bic` the way the friendly editors do.

@@ -42,6 +42,7 @@ class PropertyReferenceScreen(QWidget):
         #: the item property the raw tree currently has selected, decoded — the
         #: panel leads with *this* rather than a context-free catalog when set.
         self._decoded = None
+        self._editor = None  # editor(field, value) set by inspect_property, in edit mode
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
@@ -108,10 +109,12 @@ class PropertyReferenceScreen(QWidget):
                 out.append((_source_label(item, self._window.item_name(item)), slot, entry.prop))
         return out
 
-    def inspect_property(self, prop) -> None:
+    def inspect_property(self, prop, editor=None) -> None:
         """Lead with the item property the raw tree just selected, decoded — or
-        pass ``None`` to fall back to browsing the catalog."""
+        pass ``None`` to fall back to browsing the catalog. ``editor(field, value)``,
+        when given and editing, makes the option rows click-to-set."""
         self._decoded = prop
+        self._editor = editor
         self.refresh()
 
     def _offer(self, label) -> bool:
@@ -249,11 +252,13 @@ class PropertyReferenceScreen(QWidget):
                 if len(uses) > SHOWN:
                     column.addWidget(w.body(f"… and {len(uses) - SHOWN} more", t.TEXT_3, 11))
 
+        # In edit mode, decoding a specific entry, the rows set that entry's field.
+        can_edit = decoded is not None and self._editor is not None and self._window.editing
         subtypes = self._usable(tables.subtype_options(property_id), highlight_subtype)
         column.addWidget(self._options_block(
             "Subtypes", subtypes,
             "What the property applies to — which ability, skill, damage type or spell.",
-            highlight=highlight_subtype,
+            highlight=highlight_subtype, field="Subtype" if can_edit else None,
         ))
         cost_table = tables.cost_table_for(property_id)
         values = tables.cost_options(cost_table) if cost_table is not None else {}
@@ -261,12 +266,13 @@ class PropertyReferenceScreen(QWidget):
             "Values", self._usable(values, highlight_cost) or None,
             "The magnitudes the game accepts. A property's stored CostValue is a "
             "row in this table, not the number itself.",
-            highlight=highlight_cost,
+            highlight=highlight_cost, field="CostValue" if can_edit else None,
         ))
         params = self._usable(tables.param1_options(property_id), highlight_param)
         if params:
             column.addWidget(self._options_block(
-                "Parameters", params, "", highlight=highlight_param
+                "Parameters", params, "", highlight=highlight_param,
+                field="Param1Value" if can_edit else None,
             ))
 
         column.addStretch(1)
@@ -305,14 +311,16 @@ class PropertyReferenceScreen(QWidget):
         column.addWidget(w.body("   ".join(bits), t.TEXT_2, 12))
         return holder
 
-    def _options_block(self, title: str, options, blurb: str, *, highlight=None) -> QWidget:
+    def _options_block(self, title: str, options, blurb: str, *, highlight=None,
+                       field=None) -> QWidget:
         holder = QWidget()
         holder.setStyleSheet("background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(6)
         count = len(options) if options else 0
-        column.addWidget(w.cap_label(f"{title} ({count})"))
+        cap = f"{title} ({count})" + ("  ·  click to set" if field else "")
+        column.addWidget(w.cap_label(cap))
         if blurb:
             column.addWidget(w.body(blurb, t.TEXT_3, 11.5))
         if not options:
@@ -328,7 +336,10 @@ class PropertyReferenceScreen(QWidget):
         if highlight is not None and highlight in options:
             rows.sort(key=lambda kv: kv[0] != highlight)
         for row, text in rows[:SHOWN]:
-            panel.body_layout().addWidget(_kv(str(text), f"row {row}", current=row == highlight))
+            on_click = (lambda r=row: self._editor(field, r)) if field else None
+            panel.body_layout().addWidget(
+                _kv(str(text), f"row {row}", current=row == highlight, on_click=on_click)
+            )
         column.addWidget(panel)
         if count > SHOWN:
             column.addWidget(w.body(f"… and {count - SHOWN} more", t.TEXT_3, 11))
@@ -344,7 +355,9 @@ class PropertyReferenceScreen(QWidget):
         self.refresh()
 
 
-def _kv(label: str, value: str, *, current: bool = False) -> QWidget:
+def _kv(label: str, value: str, *, current: bool = False, on_click=None) -> QWidget:
+    from PySide6.QtCore import Qt
+
     row = QWidget()
     bg = t.gold_tint(0.16) if current else "transparent"
     row.setStyleSheet(f"background:{bg};border-bottom:1px solid {t.hairline(0.06)};")
@@ -355,6 +368,9 @@ def _kv(label: str, value: str, *, current: bool = False) -> QWidget:
     if current:
         line.addWidget(w.body("this entry", t.GOLD, 11))
     line.addWidget(w.mono(value, t.TEXT_3, 11))
+    if on_click is not None:  # a settable row — click writes the value
+        row.setCursor(Qt.CursorShape.PointingHandCursor)
+        row.mousePressEvent = _left_click(on_click)
     return row
 
 

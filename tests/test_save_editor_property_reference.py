@@ -247,3 +247,38 @@ def test_strict_hides_reserved_choices_but_keeps_a_stored_one(window, screen, mo
     screen.inspect_property(ItemProperty(0, 1, 1, 0, 0, 0))
     text = _texts(screen._detail_scroll.widget())
     assert "reserved" in text.lower()
+
+
+def test_click_to_set_writes_via_the_editor_in_edit_mode(window, screen, monkeypatch):
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    class _T(_Tables):
+        def subtype_options(self, pid):
+            return {0: "Fire", 1: "Cold", 2: "Acid"}
+
+    monkeypatch.setattr(window, "property_tables", lambda: _T())
+    window._editing = True  # the read-only `editing` property reads this
+    calls = []
+    screen.inspect_property(ItemProperty(0, 0, 1, 0, 0, 0), editor=lambda f, v: calls.append((f, v)))
+
+    # find the Subtypes block's rows and click one
+    from PySide6.QtWidgets import QWidget
+    rows = [w for w in screen._detail_scroll.widget().findChildren(QWidget)
+            if w.cursor().shape().name == "PointingHandCursor"]
+    assert rows, "settable rows should have a pointing cursor in edit mode"
+    from PySide6.QtGui import QMouseEvent
+    from PySide6.QtCore import QEvent, QPointF, Qt
+    ev = QMouseEvent(QEvent.Type.MouseButtonPress, QPointF(1, 1), Qt.MouseButton.LeftButton,
+                     Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
+    rows[0].mousePressEvent(ev)
+    assert calls and calls[0][0] == "Subtype"
+
+
+def test_rows_are_not_clickable_without_an_editor(window, screen):
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    screen.inspect_property(ItemProperty(0, 0, 1, 0, 0, 0), editor=None)
+    from PySide6.QtWidgets import QWidget
+    clickable = [w for w in screen._detail_scroll.widget().findChildren(QWidget)
+                 if w.cursor().shape().name == "PointingHandCursor"]
+    assert not clickable
