@@ -38,4 +38,9 @@ def field_meaning(field_name: str, value, reference) -> tuple[str, str] | None:
         return f"Ability raised at this level: {_ABILITIES[value]}", ""
     if field_name == "Skill":  # some lists store a skill id directly
         return f"Skill #{value}: {reference.skill_name(value)}", ""
+    if field_name == "BaseItem":  # an item's type, from baseitems.2da
+        from nwnfile.item_names import base_item_type
+
+        name = base_item_type(value)
+        return (f"Base item #{value}: {name}", "") if name else None
     return None

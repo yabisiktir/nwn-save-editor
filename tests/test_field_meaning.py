@@ -39,3 +39,13 @@ def test_lvlstat_ability_names_the_score():
 def test_an_unremarkable_field_is_none():
     assert field_meaning("ObjectId", 12345, _Ref()) is None
     assert field_meaning("Feat", "not-an-int", _Ref()) is None
+
+
+def test_base_item_resolves_to_its_type():
+    # base_item_type reads the bundled baseitems.2da (53 = Scimitar)
+    title, _ = field_meaning("BaseItem", 53, _Ref())
+    assert title == "Base item #53: Scimitar"
+
+
+def test_an_unknown_base_item_is_none():
+    assert field_meaning("BaseItem", 999999, _Ref()) is None
