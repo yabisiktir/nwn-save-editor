@@ -108,3 +108,26 @@ def test_category_and_text_filter_combine(qtbot):
     shown = {t.topLevelItem(i).data(0, Qt.ItemDataRole.UserRole)
              for i in range(t.topLevelItemCount()) if not t.topLevelItem(i).isHidden()}
     assert shown == {391}  # applicable AND matches "great"
+
+
+def test_free_value_field_pre_selects_and_returns_the_typed_value(qtbot):
+    items = [(0, "Fire"), (1, "Cold"), (2, "Acid")]
+    dialog = IdPickerDialog("Set Subtype", items, allow_value=True, initial=1)
+    qtbot.addWidget(dialog)
+    # starts on the current value
+    assert dialog._value_box.value() == 1
+    assert dialog._tree.currentItem().data(0, Qt.ItemDataRole.UserRole) == 1
+    # picking a row fills the field
+    dialog._select_id(2)
+    assert dialog._value_box.value() == 2
+    assert dialog.selected_id() == 2
+    # typing a raw value not in the list wins
+    dialog._value_box.setValue(999)
+    assert dialog.selected_id() == 999
+
+
+def test_without_allow_value_there_is_no_free_field(qtbot):
+    dialog = IdPickerDialog("Pick", [(1, "A")], allow_value=False)
+    qtbot.addWidget(dialog)
+    assert dialog._value_box is None
+    assert dialog.selected_id() == 1  # the selected row

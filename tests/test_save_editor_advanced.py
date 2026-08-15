@@ -482,3 +482,54 @@ def test_the_value_editor_is_not_called_a_property(window, raw, monkeypatch):
     raw._tree.setCurrentItem(_find_scalar(raw, "Gold"))
     raw._edit_selected()
     assert titles == ["Edit Value"]
+
+
+# -- named value editing (smart Edit value…) -------------------------------- #
+def test_feat_field_offers_named_choices(raw):
+    """A Feat scalar edits by name, not a bare number."""
+    title, options = raw._value_options("Feat", 0, None)
+    assert title == "Feat"
+    assert options.get(0) == "Alertness"  # id -> name, from the reference
+    assert len(options) > 1000
+
+
+def test_a_plain_number_field_has_no_named_choices(raw):
+    assert raw._value_options("Gold", 500, None) is None
+    assert raw._value_options("Age", 30, None) is None
+
+
+def test_property_fields_need_the_enclosing_property(raw, monkeypatch):
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    class _T:
+        available = True
+
+        def subtype_options(self, pid):
+            return {0: "Fire", 1: "cep_reserved", 2: "Cold"}
+
+    monkeypatch.setattr(raw._window, "property_tables", lambda: _T())
+    monkeypatch.setattr(raw._window, "rule_mode", lambda: "strict")
+    prop = ItemProperty(0, 0, 0, 0, 0, 0)
+    title, options = raw._raw_value_options("Subtype", 0, prop)
+    assert (title, options) == ("Subtype", {0: "Fire", 1: "cep_reserved", 2: "Cold"})
+    # without an enclosing property, a Subtype field has no named choices at all
+    assert raw._value_options("Subtype", 0, None) is None
+
+
+def test_strict_filters_reserved_but_keeps_the_current_value(raw, monkeypatch):
+    from nwnfile.formats.bic_reader import ItemProperty
+
+    class _T:
+        available = True
+
+        def subtype_options(self, pid):
+            return {0: "Fire", 1: "cep_reserved", 2: "Cold"}
+
+    monkeypatch.setattr(raw._window, "property_tables", lambda: _T())
+    monkeypatch.setattr(raw._window, "rule_mode", lambda: "strict")
+    monkeypatch.setattr(raw, "_enclosing_property", lambda _item: ItemProperty(0, 0, 0, 0, 0, 0))
+
+    _title, offered = raw._value_options("Subtype", 0, object())
+    assert set(offered) == {0, 2}, "reserved row dropped when not the current value"
+    _title, keep = raw._value_options("Subtype", 1, object())
+    assert 1 in keep, "the current reserved value is kept so it can be seen"

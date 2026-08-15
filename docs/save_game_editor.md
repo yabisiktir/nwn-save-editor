@@ -306,7 +306,12 @@ unhelpful: it bypasses the friendly editors, so its changes are marked **raw** i
 ledger.
 
 - Scalars are editable, and a field's type is always preserved — a raw edit can break
-  the game's *rules*, not the *file*. **Double-click** a row to edit it.
+  the game's *rules*, not the *file*. **Double-click** a row to edit it. A field that
+  is really a **code** — a `Feat`, `Class`, `Race`, `BaseItem`, or an item property's
+  `Subtype` / `CostValue` / `PropertyName` — opens a searchable **name picker** with
+  the current value pre-selected, so you set it as "Fire" rather than `4`. It also has
+  a plain **Value** field: you can always type any number, including one not in the
+  list. Everything else keeps the ordinary number box.
 - **Id fields read out in plain language.** Selecting a field that holds an id or a
   coded value — `Feat`, `Spell`, `Class`, `LvlStatClass`, `Race`, `LvlStatAbility`,
   `BaseItem`, `Appearance_Type`, `SoundSetFile`, `Phenotype`, `CreatureSize`,

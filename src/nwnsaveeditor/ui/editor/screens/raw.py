@@ -517,6 +517,73 @@ class RawScreen(QWidget):
             # list, and the default scroll leaves it clipped against the bottom.
             self._tree.scrollToItem(node, QTreeWidget.ScrollHint.PositionAtCenter)
 
+    #: id/2da-backed scalar fields the editor can offer named choices for.
+    _2DA_FIELDS = {
+        "Class": "classes", "LvlStatClass": "classes", "Race": "racialtypes",
+        "BaseItem": "baseitems", "Appearance_Type": "appearance",
+        "SoundSetFile": "soundset", "Phenotype": "phenotype",
+        "CreatureSize": "creaturesize",
+    }
+
+    def _value_options(self, field_name, value, item):
+        """``(title, {value: label})`` of named choices for a coded/id scalar, or
+        ``None``. Strict drops reserved rows (never the current value)."""
+        found = self._raw_value_options(field_name, value, self._enclosing_property(item))
+        if found is None:
+            return None
+        title, options = found
+        options = {k: v for k, v in options.items() if v not in (None, "", "****")}
+        if not options:
+            return None
+        if self._window.rule_mode() == "strict":
+            from nwnfile.reserved import is_reserved_label
+
+            options = {
+                k: v for k, v in options.items()
+                if k == value or not is_reserved_label(v)
+            }
+        return title, options
+
+    def _raw_value_options(self, field_name, value, prop):
+        tables = self._window.property_tables()
+        if prop is not None and tables is not None and tables.available:
+            pid = prop.property_name
+            if field_name == "PropertyName":
+                return "Property type", {
+                    i: tables.property_name_label(i) or f"#{i}" for i in tables.property_ids()
+                }
+            if field_name == "Subtype":
+                return "Subtype", tables.subtype_options(pid) or {}
+            if field_name == "CostValue":
+                ct = tables.cost_table_for(pid)
+                return "Value", (tables.cost_options(ct) if ct is not None else {}) or {}
+            if field_name == "Param1Value":
+                return "Parameter", tables.param1_options(pid) or {}
+        stack = self._window.hak_stack()
+        if field_name in self._2DA_FIELDS and stack is not None:
+            table = stack.read_2da(self._2DA_FIELDS[field_name]) or {}
+            return field_name, {i: _row_label(r) for i, r in table.items()}
+        if field_name in ("Feat", "Spell"):
+            from nwnfile.character_reference import default_reference
+
+            ref = default_reference()
+            items = ref.all_feat_ids() if field_name == "Feat" else ref.all_spell_ids()
+            return field_name, dict(items)
+        return None
+
+    def _pick_value(self, field_name, current, title, options):
+        """A picker with a free numeric field, pre-selected on ``current``; the
+        chosen or typed value, or ``None`` if cancelled."""
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
+
+        dialog = IdPickerDialog(
+            f"Set {field_name}", sorted(options.items()), value_header=title,
+            allow_value=True, initial=current, parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return dialog.selected_id()
+
     def _edit_selected(self) -> None:
         from nwnsaveeditor.ui.dialogs.property_edit_dialog import PropertyEditDialog
 
@@ -532,6 +599,10 @@ class RawScreen(QWidget):
             if not ok:
                 return
             new_value = text
+        elif (options := self._value_options(path[-1][0], int(entry.value), current)):
+            new_value = self._pick_value(path[-1][0], int(entry.value), *options)
+            if new_value is None:
+                return
         else:
             dialog = w.style_dialog(PropertyEditDialog(
                 label, f"{path[-1][0]}:", int(entry.value),
@@ -560,6 +631,12 @@ class RawScreen(QWidget):
         for index in range(self._tree.topLevelItemCount()):
             node = self._tree.topLevelItem(index)
             node.setHidden(needle not in node.text(0).lower())
+
+
+def _row_label(row: dict) -> str:
+    """A 2DA row's Label column (``_`` shown as space), or empty."""
+    label = next((v for k, v in row.items() if k.lower() == "label"), "")
+    return label.replace("_", " ") if label and label not in ("", "****") else ""
 
 
 def _item_property_from_struct(struct):
