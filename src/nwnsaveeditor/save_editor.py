@@ -2275,6 +2275,66 @@ class SaveEditor:
             f"remove entry [{index}] of {len(entries) + 1}",
         )
 
+    def _reassign_object_ids(self, struct: GffStruct) -> None:
+        """Give every ``ObjectId`` in a struct (and its nested objects) a fresh id,
+        so an imported item/creature cannot collide with one already in the save."""
+        for field in struct.fields.values():
+            if field.type == GffType.STRUCT:
+                self._reassign_object_ids(field.value)
+            elif field.type == GffType.LIST:
+                for child in field.value.structs:
+                    self._reassign_object_ids(child)
+        if "ObjectId" in struct.fields:
+            struct.fields["ObjectId"].value = self._next_object_id()
+
+    @_records()
+    def import_into_list(
+        self, target: str, path: tuple, structs: list, *, where: str = ""
+    ) -> None:
+        """Append imported structs to the GFF list at ``path``, each a deep copy
+        with fresh ObjectIds. Staged as a raw edit."""
+        import copy
+
+        entries = self._raw_list(target, path)
+        for struct in structs:
+            clone = copy.deepcopy(struct)
+            self._reassign_object_ids(clone)
+            entries.structs.append(clone)
+        self._mark_raw_dirty(target)
+        self._add_seq += 1
+        n = len(structs)
+        self._stage_raw(
+            (target, tuple(path), "import", self._add_seq), where,
+            f"imported {n} entr{'y' if n == 1 else 'ies'}",
+        )
+
+    @_records()
+    def replace_struct(
+        self, target: str, path: tuple, struct, *, where: str = ""
+    ) -> None:
+        """Replace the struct at ``path`` (a list entry or a struct field) with an
+        imported one — a deep copy with fresh ObjectIds. Staged as a raw edit."""
+        import copy
+
+        clone = copy.deepcopy(struct)
+        self._reassign_object_ids(clone)
+        label, index = path[-1]
+        if index is not None:  # a list entry: swap it in its parent list
+            parent = self._raw_list(target, path[:-1] + ((label, None),))
+            if not 0 <= index < len(parent.structs):
+                raise SaveEditError(f"{label}[{index}] is out of range")
+            parent.structs[index] = clone
+        else:  # a struct field: swap the field's value
+            entry = self._raw_entry(self.raw_tree(target), path)
+            if entry.type != GffType.STRUCT:
+                raise SaveEditError("only a struct field can be replaced")
+            entry.value = clone
+        self._mark_raw_dirty(target)
+        self._add_seq += 1
+        self._stage_raw(
+            (target, tuple(path), "replace", self._add_seq), where, "replaced struct",
+        )
+
     def _stage_raw(self, key: tuple, where: str, summary: str) -> None:
         """Stage a structural raw change under the ledger's ``(kind, key)`` key."""
         self._stage("raw", key, where or f"{key[0]}: {_render_raw_path(key[1])}", summary)

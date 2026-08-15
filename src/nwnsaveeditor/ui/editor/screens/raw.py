@@ -197,6 +197,7 @@ class RawScreen(QWidget):
         self._buttons: dict[str, object] = {}
         for key, text, handler in (
             ("export", "Export…", self._export_selected),
+            ("import", "Import…", self._import_selected),
             ("blank", "Add blank entry", self._add_blank),
             ("duplicate", "Duplicate entry", self._duplicate),
             ("remove", "Remove entry…", self._remove_selected),
@@ -435,6 +436,8 @@ class RawScreen(QWidget):
         self._buttons["remove"].setEnabled(editing and entry)
         # Export is read-only, so it needs no edit mode — only something to export.
         self._buttons["export"].setEnabled(kind in ("struct", "list"))
+        # Import mutates: append onto a list, or replace a struct — so it needs edit mode.
+        self._buttons["import"].setEnabled(editing and kind in ("struct", "list"))
 
     def _enclosing_property(self, item):
         """``(ItemProperty, path)`` for the ``PropertiesList[n]`` entry the selection
@@ -691,6 +694,61 @@ class RawScreen(QWidget):
                       QMessageBox.StandardButton.Ok)
             return
         self._note.setText(f"Exported {_render_path(path)} to {Path(chosen).name}.")
+
+    def _import_selected(self) -> None:
+        """Import a GFF file: append onto the selected list, or replace the
+        selected struct. Imported objects get fresh ObjectIds."""
+        from PySide6.QtWidgets import QFileDialog
+
+        from nwnfile.gff_transfer import import_payload
+
+        current = self._tree.currentItem()
+        role = current.data(0, _ROLE) if current is not None else None
+        if role is None or role[0] not in ("struct", "list"):
+            return
+        kind, path, _value = role
+        chosen, _filter = QFileDialog.getOpenFileName(
+            self, "Import a GFF file", "", "GFF files (*.gff *.uti *.utc *.bic);;All files (*)"
+        )
+        if not chosen:
+            return
+        try:
+            _payload_kind, structs = import_payload(Path(chosen).read_bytes())
+        except Exception as exc:  # noqa: BLE001 - any read/parse failure is reported
+            w.message(self, QMessageBox.Icon.Critical, "Import failed",
+                      f"Could not read {Path(chosen).name}: {exc}", QMessageBox.StandardButton.Ok)
+            return
+        if not structs:
+            w.message(self, QMessageBox.Icon.Warning, "Nothing to import",
+                      "That file held no struct to import.", QMessageBox.StandardButton.Ok)
+            return
+        label = _render_path(path)
+        where = f"{self._target}: {label}"
+        session = self._window.session()
+        try:
+            if kind == "list":  # append every imported struct as new entries
+                session.import_into_list(self._target, path, structs, where=where)
+                verb = f"Imported {len(structs)} entr{'y' if len(structs) == 1 else 'ies'} into"
+            else:  # replace the selected struct
+                if len(structs) != 1:
+                    w.message(self, QMessageBox.Icon.Warning, "Import a list into a list",
+                              "This file holds a list of structs. Select a list to import "
+                              "it into, or a single-struct file to replace this struct.",
+                              QMessageBox.StandardButton.Ok)
+                    return
+                session.replace_struct(self._target, path, structs[0], where=where)
+                verb = "Replaced"
+        except Exception as exc:  # noqa: BLE001
+            w.message(self, QMessageBox.Icon.Critical, "Import failed", str(exc),
+                      QMessageBox.StandardButton.Ok)
+            self._window.notify_changed()
+            return
+        self._window.notify_changed()
+        self._reveal(path)
+        self._note.setText(
+            f"{verb} {label} from {Path(chosen).name}. New objects got fresh ObjectIds; "
+            "content that relies on haks this save lacks may not work in-game."
+        )
 
     def _edit_selected(self) -> None:
         from nwnsaveeditor.ui.dialogs.property_edit_dialog import PropertyEditDialog

@@ -331,7 +331,16 @@ ledger.
 - **Export…** writes the selected struct or list to a standalone GFF file — an item
   comes out as a `.uti` (the blueprint form the toolset makes), a whole inventory or
   equipped list as a `.gff`. It is a faithful copy, `ObjectId` and all. Export is
-  read-only, so it works outside edit mode. (Reading one back into a save is coming.)
+  read-only, so it works outside edit mode.
+- **Import…** reads one back, and *what* it does depends on what you have selected:
+  select a **list** and it appends the file's struct(s) as new entries; select a
+  **struct** and it replaces that struct — so you can drop a whole-character export
+  onto `Mod_PlayerList[0]`, or an item into an `ItemList`. Every imported object is
+  given a **fresh `ObjectId`** (recursively, so a bag of items can't collide with
+  what's already in the save). It reads any GFF, so a toolset `.uti`/`.bic` imports
+  too. Content that relies on haks this save doesn't have may not work in-game — as
+  with a PRC item dropped into a non-PRC save, the data lands but the engine can't
+  resolve it. Staged as a raw edit, so it's discardable and verified on save.
 - The tree keeps its open nodes, selection and scroll position across an edit.
 - **Property reference ›** folds out beside the tree and **follows your selection**.
   Click any field inside an item's `PropertiesList[n]` and it leads with that entry

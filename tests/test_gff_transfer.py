@@ -5,7 +5,12 @@ from __future__ import annotations
 import pytest
 
 from nwnfile.formats.gff import GffField, GffList, GffStruct, GffType, read_gff
-from nwnfile.gff_transfer import export_bytes, export_extension, struct_file_type
+from nwnfile.gff_transfer import (
+    export_bytes,
+    export_extension,
+    import_payload,
+    struct_file_type,
+)
 
 
 def _item(base=5, tag="MySword"):
@@ -60,3 +65,12 @@ def test_a_deep_copy_is_exported():
 def test_a_scalar_cannot_be_exported():
     with pytest.raises(ValueError):
         export_bytes(GffField(GffType.INT, 1), "scalar")
+
+
+def test_import_payload_reads_a_struct_and_a_list():
+    kind, structs = import_payload(export_bytes(_item(tag="s"), "struct"))
+    assert kind == "struct" and len(structs) == 1 and structs[0].fields["Tag"].value == "s"
+
+    items = GffList([_item(tag="a"), _item(tag="b")])
+    kind, structs = import_payload(export_bytes(items, "list"))
+    assert kind == "list" and [s.fields["Tag"].value for s in structs] == ["a", "b"]

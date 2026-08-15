@@ -20,6 +20,7 @@ from nwnfile.formats.gff import (
     GffList,
     GffStruct,
     GffType,
+    read_gff,
     write_gff,
 )
 
@@ -59,3 +60,20 @@ def export_extension(value, kind: str) -> str:
     if kind == "list":
         return ".gff"
     return {"UTI ": ".uti", "UTC ": ".utc"}.get(struct_file_type(value), ".gff")
+
+
+def import_payload(data: bytes) -> tuple[str, list[GffStruct]]:
+    """Read exported GFF bytes into ``(kind, structs)``.
+
+    A ``GLS`` file unwraps to the structs of its ``List`` (``kind == "list"``);
+    anything else is a single struct — an item, a creature — read as the root
+    (``kind == "struct"``, one entry). This reads *any* GFF, so a raw ``.uti`` or
+    ``.bic`` from the toolset imports too, not only our own exports.
+    """
+    gff = read_gff(data)
+    if gff.file_type == LIST_FILE_TYPE:
+        field = gff.root.fields.get("List")
+        if field is not None and field.type == GffType.LIST:
+            return "list", list(field.value.structs)
+        return "list", []
+    return "struct", [gff.root]

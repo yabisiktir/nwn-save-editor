@@ -595,3 +595,86 @@ def test_exporting_a_struct_writes_a_readable_gff(window, raw, monkeypatch, tmp_
     assert out.exists() and "Exported" in raw._note.text()
     gff = read_gff(out.read_bytes())
     assert "FeatList" in gff.root.fields  # the character struct came through
+
+
+# -- import: append onto a list / replace a struct -------------------------- #
+def _tree_list(session, path):
+    return session._raw_list("module.ifo", path).structs
+
+
+def test_import_into_a_list_appends_with_fresh_object_ids(window):
+    from nwnfile.formats.gff import GffField, GffStruct, GffType
+
+    window._edit_toggle.setChecked(True)
+    session = window.session()
+    path = (("Mod_PlayerList", 0), ("FeatList", None))
+    before = len(_tree_list(session, path))
+    imported = GffStruct(struct_type=1, fields={
+        "Feat": GffField(GffType.WORD, 42),
+        "ObjectId": GffField(GffType.DWORD, 123),  # a colliding id
+    })
+    session.import_into_list("module.ifo", path, [imported], where="test import")
+
+    entries = _tree_list(session, path)
+    assert len(entries) == before + 1
+    assert entries[-1].fields["Feat"].value == 42
+    assert entries[-1].fields["ObjectId"].value != 123, "the ObjectId was renumbered"
+    assert session.pending_changes()[-1].kind == "raw"
+
+
+def test_replace_a_struct_swaps_it_and_reassigns_nested_ids(window):
+    from nwnfile.formats.gff import GffField, GffList, GffStruct, GffType
+
+    window._edit_toggle.setChecked(True)
+    session = window.session()
+    # replace the whole player struct with an imported one carrying an item
+    replacement = GffStruct(struct_type=0xFFFFFFFF, fields={
+        "FeatList": GffField(GffType.LIST, GffList([])),  # marks it a player struct
+        "FirstName": GffField(GffType.CEXOSTRING, "Imported"),
+        "ObjectId": GffField(GffType.DWORD, 999),
+        "ItemList": GffField(GffType.LIST, GffList([
+            GffStruct(struct_type=0, fields={"ObjectId": GffField(GffType.DWORD, 999)}),
+        ])),
+    })
+    session.replace_struct("module.ifo", (("Mod_PlayerList", 0),), replacement, where="replace")
+
+    player = session._player_struct(session._module_tree())
+    assert player.fields["FirstName"].value == "Imported"
+    assert player.fields["ObjectId"].value != 999, "the struct's id was renumbered"
+    nested = player.fields["ItemList"].value.structs[0]
+    assert nested.fields["ObjectId"].value != 999, "nested ids renumbered recursively"
+
+
+def test_import_button_is_gated_on_edit_mode(window, raw):
+    def playerlist():  # the tree is rebuilt when edit mode flips, so re-find the node
+        return next(
+            raw._tree.topLevelItem(i) for i in range(raw._tree.topLevelItemCount())
+            if raw._tree.topLevelItem(i).text(0) == "Mod_PlayerList"
+        )
+
+    raw._tree.setCurrentItem(playerlist())
+    assert not raw._buttons["import"].isEnabled(), "read-only session cannot import"
+    window._edit_toggle.setChecked(True)
+    raw._tree.setCurrentItem(playerlist())
+    assert raw._buttons["import"].isEnabled()
+
+
+def test_import_round_trips_through_the_ui(window, raw, monkeypatch, tmp_path):
+    from PySide6.QtWidgets import QFileDialog
+
+    window._edit_toggle.setChecked(True)
+    feats = _find_list(raw, "FeatList")
+    before = len(_feat_ids(window))
+
+    # export FeatList entry [0], then import it back into the list
+    out = tmp_path / "feat.gff"
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", lambda *a, **k: (str(out), ""))
+    raw._tree.setCurrentItem(feats.child(0))
+    raw._export_selected()
+
+    monkeypatch.setattr(QFileDialog, "getOpenFileName", lambda *a, **k: (str(out), ""))
+    raw._tree.setCurrentItem(_find_list(raw, "FeatList"))
+    raw._import_selected()
+
+    assert len(_feat_ids(window)) == before + 1
+    assert "Imported" in raw._note.text()
