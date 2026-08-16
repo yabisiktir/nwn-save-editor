@@ -127,6 +127,13 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
+    # Only one Pages deploy at a time. Two pushes landing close together would
+    # otherwise race the deploy-pages step; queue rather than cancel so a build
+    # in progress still publishes.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
     permissions:
       contents: read
       pages: write
@@ -211,6 +218,21 @@ jobs:
                 <a href="./nwn-save-editor-macOS-ARM64.dmg">
                   macOS (Apple Silicon / arm64)
                 </a>
+              </li>
+            </ul>
+
+            <p>
+              These are unsigned preview builds. The first time you run one:
+            </p>
+            <ul>
+              <li>
+                <strong>macOS</strong>: right-click the app &rarr; Open, then
+                confirm (Gatekeeper blocks a double-click). Apple Silicon only —
+                there is no Intel build.
+              </li>
+              <li>
+                <strong>Windows</strong>: SmartScreen may warn — More info &rarr;
+                Run anyway.
               </li>
             </ul>
           </body>
