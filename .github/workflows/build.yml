@@ -26,8 +26,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -64,14 +66,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14        # Apple Silicon
+          - os: macos-14
             label: macOS (arm64)
+
           - os: windows-latest
             label: Windows (x64)
+
           - os: ubuntu-latest
             label: Linux (x86_64)
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -115,29 +121,12 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  release:
-    name: Attach to release
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      - name: Publish
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/**/*
-          draft: true       # a human checks the artifacts before it goes public
-          generate_release_notes: true
   pages:
     name: Publish preview builds
     needs: build
-    # Don't publish builds from PRs. Publish main and manual builds.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       pages: write
@@ -154,28 +143,82 @@ jobs:
           path: artifacts
 
       - name: Prepare download directory
+        shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p site
 
-          find artifacts -type f -exec cp {} site/ \;
+          echo "Downloaded artifacts:"
+          find artifacts -type f -print
 
-          cat > site/index.html <<'EOF'
+          # Copy the actual packaged files to stable public filenames.
+          #
+          # The build version is deliberately not part of these names, so the
+          # URLs remain stable between preview builds.
+
+          WINDOWS_FILE="$(find artifacts/nwn-save-editor-Windows-X64 -type f -name '*.zip' -print -quit)"
+          LINUX_FILE="$(find artifacts/nwn-save-editor-Linux-X64 -type f -name '*.tar.gz' -print -quit)"
+          MACOS_FILE="$(find artifacts/nwn-save-editor-macOS-ARM64 -type f -name '*.dmg' -print -quit)"
+
+          if [ -z "$WINDOWS_FILE" ]; then
+            echo "ERROR: Windows package not found"
+            exit 1
+          fi
+
+          if [ -z "$LINUX_FILE" ]; then
+            echo "ERROR: Linux package not found"
+            exit 1
+          fi
+
+          if [ -z "$MACOS_FILE" ]; then
+            echo "ERROR: macOS package not found"
+            exit 1
+          fi
+
+          cp "$WINDOWS_FILE" site/nwn-save-editor-Windows-X64.zip
+          cp "$LINUX_FILE" site/nwn-save-editor-Linux-X64.tar.gz
+          cp "$MACOS_FILE" site/nwn-save-editor-macOS-ARM64.dmg
+
+          cat > site/index.html <<EOF
           <!doctype html>
           <html>
           <head>
             <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>NWN Save Editor - Preview Builds</title>
           </head>
           <body>
             <h1>NWN Save Editor - Preview Builds</h1>
+
+            <p>
+              Preview build from commit
+              <code>${GITHUB_SHA::7}</code>.
+            </p>
+
             <ul>
-              <li><a href="./nwn-save-editor-Linux-X64.tar.gz">Linux (x86_64)</a></li>
-              <li><a href="./nwn-save-editor-Windows-X64.zip">Windows (x64)</a></li>
-              <li><a href="./nwn-save-editor-macOS-ARM64.zip">macOS (arm64)</a></li>
+              <li>
+                <a href="./nwn-save-editor-Windows-X64.zip">
+                  Windows (x64)
+                </a>
+              </li>
+              <li>
+                <a href="./nwn-save-editor-Linux-X64.tar.gz">
+                  Linux (x86_64)
+                </a>
+              </li>
+              <li>
+                <a href="./nwn-save-editor-macOS-ARM64.dmg">
+                  macOS (Apple Silicon / arm64)
+                </a>
+              </li>
             </ul>
           </body>
           </html>
           EOF
+
+          echo "Files being published:"
+          find site -type f -print
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -185,3 +228,24 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  release:
+    name: Attach to release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          draft: true
+          generate_release_notes: true
