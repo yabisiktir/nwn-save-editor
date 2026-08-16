@@ -20,12 +20,26 @@ from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
     QHBoxLayout,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
 from nwnsaveeditor.ui.editor import tokens as t
 from nwnsaveeditor.ui.editor import widgets as w
+
+
+def _wrap_grows(holder: QWidget) -> QWidget:
+    """Let a group with a wrapping label take its full height in a parent layout.
+
+    A ``QWidget`` holding a heightForWidth label does not, by default, tell its
+    parent it has one — so the parent uses the one-line sizeHint and the label
+    paints over the next row. Opting the holder's size policy in fixes that
+    (offscreen tolerates it; the native macOS style does not)."""
+    policy = holder.sizePolicy()
+    policy.setHeightForWidth(True)
+    holder.setSizePolicy(policy)
+    return holder
 
 
 class SettingsDialog(QDialog):
@@ -37,10 +51,24 @@ class SettingsDialog(QDialog):
         self._host = window._controller
         self._chosen: dict[str, Path] = {}
         self.setWindowTitle("Settings")
-        self.setMinimumWidth(620)
+        self.setMinimumWidth(560)
+        self.resize(600, 640)
         self.setStyleSheet(w.dialog_qss() + w.scrollbar_qss())
 
-        column = QVBoxLayout(self)
+        # A scroll area keeps a growing settings list usable on a small screen, and
+        # keeps the Close/Apply buttons pinned below it rather than scrolling away.
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        content = QWidget()
+        content.setStyleSheet("background:transparent;")
+        scroll.setWidget(content)
+        outer.addWidget(scroll, 1)
+
+        column = QVBoxLayout(content)
         column.setContentsMargins(22, 20, 22, 18)
         column.setSpacing(14)
         column.addWidget(w.heading("Settings", 20))
@@ -53,33 +81,33 @@ class SettingsDialog(QDialog):
             ))
 
         column.addWidget(w.cap_label("Folders"))
-        column.addWidget(self._folder_row(
+        column.addWidget(_wrap_grows(self._folder_row(
             "game_user_dir", "Save games",
             "Your saves, haks, portraits and override — the folder NWN writes to.",
-        ))
-        column.addWidget(self._folder_row(
+        )))
+        column.addWidget(_wrap_grows(self._folder_row(
             "game_root", "Game installation",
             "Only needed for names: items, feats and spells are stored as numbers, "
             "and the names come from the game's 2DAs and dialog.tlk.",
-        ))
+        )))
 
         if self.extra_saves_editable():
             column.addWidget(w.hline())
             column.addWidget(w.cap_label("Additional save folders"))
-            column.addWidget(self._extra_saves_block())
+            column.addWidget(_wrap_grows(self._extra_saves_block()))
 
         if self.icons_editable():
             column.addWidget(w.hline())
             column.addWidget(w.cap_label("Item icons"))
-            column.addWidget(self._icon_toggle(
+            column.addWidget(_wrap_grows(self._icon_toggle(
                 "exact_item_icons", "Show each item's own icon",
                 "Off, every item of a type shows that type's one picture.",
-            ))
-            column.addWidget(self._icon_toggle(
+            )))
+            column.addWidget(_wrap_grows(self._icon_toggle(
                 "hak_item_icons", "Look in your haks too",
                 "Custom content keeps its icons in haks — without this a CEP or PRC "
                 "item falls back to a generic picture. Costs about a second, once.",
-            ))
+            )))
 
         column.addWidget(w.hline())
         column.addWidget(w.cap_label("Appearance"))
@@ -94,10 +122,15 @@ class SettingsDialog(QDialog):
         if self.class_editing_available():
             column.addWidget(w.hline())
             column.addWidget(w.cap_label("Advanced"))
-            column.addWidget(self._class_editing_toggle())
+            column.addWidget(_wrap_grows(self._class_editing_toggle()))
 
         column.addStretch(1)
-        buttons = QHBoxLayout()
+
+        # A pinned footer: the buttons stay put while the settings above scroll.
+        footer = QWidget()
+        footer.setStyleSheet(f"background:{t.SURFACE};border-top:1px solid {t.hairline(0.1)};")
+        buttons = QHBoxLayout(footer)
+        buttons.setContentsMargins(22, 12, 22, 12)
         buttons.addStretch(1)
         close = w.ghost_button("Close")
         close.clicked.connect(self.reject)
@@ -106,7 +139,7 @@ class SettingsDialog(QDialog):
             apply = w.gold_button("Apply")
             apply.clicked.connect(self._apply)
             buttons.addWidget(apply)
-        column.addLayout(buttons)
+        outer.addWidget(footer)
 
     # -- what the host allows ----------------------------------------------- #
     def editable(self) -> bool:
