@@ -132,3 +132,56 @@ jobs:
           files: artifacts/**/*
           draft: true       # a human checks the artifacts before it goes public
           generate_release_notes: true
+  pages:
+    name: Publish preview builds
+    needs: build
+    # Don't publish builds from PRs. Publish main and manual builds.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare download directory
+        run: |
+          mkdir -p site
+
+          find artifacts -type f -exec cp {} site/ \;
+
+          cat > site/index.html <<'EOF'
+          <!doctype html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>NWN Save Editor - Preview Builds</title>
+          </head>
+          <body>
+            <h1>NWN Save Editor - Preview Builds</h1>
+            <ul>
+              <li><a href="./nwn-save-editor-Linux-X64.tar.gz">Linux (x86_64)</a></li>
+              <li><a href="./nwn-save-editor-Windows-X64.zip">Windows (x64)</a></li>
+              <li><a href="./nwn-save-editor-macOS-ARM64.zip">macOS (arm64)</a></li>
+            </ul>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

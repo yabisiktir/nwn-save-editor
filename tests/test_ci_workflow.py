@@ -24,7 +24,7 @@ def workflow() -> dict:
 
 
 def test_the_workflow_exists_and_parses(workflow):
-    assert set(workflow["jobs"]) == {"test", "build", "release"}
+    assert set(workflow["jobs"]) == {"test", "build", "release", "pages"}
 
 
 def test_it_builds_on_every_os_it_ships_for(workflow):
