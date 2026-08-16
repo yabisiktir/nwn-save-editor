@@ -63,8 +63,14 @@ class SettingsDialog(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        # The viewport must be transparent AND the content must paint the theme
+        # background itself: a bare QScrollArea viewport falls back to the system
+        # palette, so on a dark-mode Mac the light theme rendered dark-on-dark
+        # (the dialog's own QDialog background sits behind the viewport, unseen).
+        scroll.setStyleSheet("QScrollArea{background:transparent;border:none;}")
+        scroll.viewport().setStyleSheet("background:transparent;")
         content = QWidget()
-        content.setStyleSheet("background:transparent;")
+        content.setStyleSheet(f"background:{t.APP_BG};")
         scroll.setWidget(content)
         outer.addWidget(scroll, 1)
 
