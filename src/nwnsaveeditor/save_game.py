@@ -10,6 +10,8 @@ readers (like Leto's advanced view, read-only).
 
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -135,14 +137,44 @@ def scan_save_games(saves_dir: Path | None) -> list[SaveGame]:
     return saves
 
 
+#: A drive-letter or UNC path (``C:\`` / ``C:/`` / ``\\server``) — Windows-absolute.
+_WINDOWS_ABSOLUTE = re.compile(r"^(?:[A-Za-z]:[\\/]|\\\\)")
+#: A leading slash — POSIX-absolute.
+_POSIX_ABSOLUTE = re.compile(r"^/")
+
+
+def _alias_target(value: str, user_dir: Path) -> Path | None:
+    """Resolve an ``nwn.ini`` alias value the way the game does.
+
+    Absolute native paths are used as-is; a **relative** value is joined onto the
+    user directory (VB ``CombinePath``), not the current working directory — the
+    naïve ``Path(value).is_dir()`` checked the cwd, so a relative ``SAVES`` never
+    resolved. A path written by the *other* operating system is dropped rather than
+    mangled: on Windows a POSIX ``/Users/…`` is *rooted, not absolute*, so joining
+    it silently splices it onto the current drive and finds nothing — the very
+    reason this misbehaved on Windows. Foreign → ``None`` → the caller falls back
+    to the default ``<user_dir>/saves``.
+    """
+    value = value.strip().strip('"')
+    if not value:
+        return None
+    looks_windows = bool(_WINDOWS_ABSOLUTE.match(value))
+    looks_posix = bool(_POSIX_ABSOLUTE.match(value))
+    if looks_windows or looks_posix:
+        native = looks_windows if os.name == "nt" else looks_posix
+        return Path(value) if native else None
+    return Path(user_dir) / value
+
+
 def saves_alias_from_ini(user_dir: Path) -> Path | None:
     """The ``SAVES=`` entry from ``<user_dir>/nwn.ini``'s ``[Alias]`` section.
 
     That entry is where NWN actually writes saves, and it need not be the default
-    ``<user_dir>/saves`` — the player can point it elsewhere. Returns the path only
-    if it exists on *this* machine: ``nwn.ini`` stores absolute, platform-specific
-    paths, so a user folder shared between operating systems can carry a ``SAVES``
-    written by the other one, which won't resolve here (fall back to the default).
+    ``<user_dir>/saves`` — the player can point it elsewhere, absolutely or relative
+    to the user directory. Returns the path only if it resolves to a real folder on
+    *this* machine (see :func:`_alias_target` for the cross-platform handling); a
+    ``SAVES`` written by another operating system is ignored so the caller falls
+    back to the default.
     """
     ini = user_dir / "nwn.ini"
     try:
@@ -157,8 +189,8 @@ def saves_alias_from_ini(user_dir: Path) -> Path | None:
         elif in_alias and "=" in line:
             key, _, value = line.partition("=")
             if key.strip().lower() == "saves":
-                path = Path(value.strip())
-                return path if path.is_dir() else None
+                target = _alias_target(value, user_dir)
+                return target if target is not None and target.is_dir() else None
     return None
 
 

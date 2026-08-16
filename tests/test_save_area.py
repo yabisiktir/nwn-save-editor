@@ -53,7 +53,8 @@ def _first_sav():
 @pytest.mark.skipif(not _SAVES.is_dir(), reason="no local NWN saves on this box")
 def test_real_save_area_contents_decode():
     save = _first_sav()
-    assert save is not None
+    if save is None:
+        pytest.skip("the real saves folder holds no saves")
     info = save.module_info()
     assert info is not None and info.areas
     resolver = resolver_for(_GAME if _GAME.is_dir() else None)
@@ -86,7 +87,8 @@ def test_real_save_area_contents_decode():
 @pytest.mark.skipif(not _SAVES.is_dir(), reason="no local NWN saves on this box")
 def test_real_save_factions_decode():
     save = _first_sav()
-    assert save is not None
+    if save is None:
+        pytest.skip("the real saves folder holds no saves")
     factions = read_factions(save.sav_path)
     assert factions  # every module ships the standard faction table
     assert any(f.name == "Commoner" for f in factions)

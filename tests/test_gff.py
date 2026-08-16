@@ -139,7 +139,8 @@ def test_real_save_gff_no_data_loss():
 
     er = ErfReader()
     sav = next(iter(_SAVES.glob("*/*.sav")), None)
-    assert sav is not None
+    if sav is None:
+        pytest.skip("the real saves folder holds no saves")
     # module.ifo (the character + module state we would edit) round-trips losslessly
     # and deterministically; game-written files aren't always byte-identical (their
     # field-index ordering differs from Leto's) but carry identical data.

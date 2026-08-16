@@ -417,6 +417,37 @@ def test_a_foreign_or_missing_saves_alias_falls_back_to_the_default(tmp_path):
     assert primary_saves_dir(bare) == bare / "saves"
 
 
+def test_a_relative_saves_alias_resolves_against_the_user_dir(tmp_path):
+    """A relative SAVES resolves against the user directory (VB CombinePath), not
+    the process cwd. The naïve Path(value).is_dir() checked the cwd, so on Windows
+    a relative SAVES never resolved — the reported "not working" case."""
+    from nwnsaveeditor.save_game import primary_saves_dir, scan_all_saves
+
+    user = tmp_path / "user"
+    _make_save(user / "MySaves", "000003 - relative")
+    (user / "nwn.ini").write_text("[Alias]\nSAVES=MySaves\n", encoding="utf-8")
+
+    assert primary_saves_dir(user) == user / "MySaves"
+    assert [s.folder.name for s in scan_all_saves(user)] == ["000003 - relative"]
+
+
+def test_saves_alias_uses_a_native_path_and_drops_the_other_os(monkeypatch, tmp_path):
+    """A drive-letter path is native on Windows and foreign on POSIX (and vice
+    versa for a leading-slash path); a foreign path is dropped, not mangled onto
+    the current drive — which is what broke it on Windows."""
+    import os
+
+    from nwnsaveeditor.save_game import _alias_target
+
+    monkeypatch.setattr(os, "name", "nt")  # emulate Windows
+    assert _alias_target(r"C:\Games\Saves", tmp_path) == Path(r"C:\Games\Saves")
+    assert _alias_target("/Users/x/Neverwinter Nights/saves", tmp_path) is None
+
+    monkeypatch.setattr(os, "name", "posix")  # emulate macOS/Linux
+    assert _alias_target("/real/saves", tmp_path) == Path("/real/saves")
+    assert _alias_target(r"C:\Games\Saves", tmp_path) is None
+
+
 def test_the_ini_saves_is_primary_and_extra_dirs_are_secondary(tmp_path):
     """The nwn.ini location wins de-duplication over an extra folder pointing at
     the same place, and both sets of saves are listed."""

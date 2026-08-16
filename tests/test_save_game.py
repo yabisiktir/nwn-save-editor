@@ -53,7 +53,8 @@ def _mk_item(name, base=0):
 @pytest.mark.skipif(not _SAVES.is_dir(), reason="no local NWN saves on this box")
 def test_real_save_module_info_decodes():
     saves = scan_save_games(_SAVES)
-    assert saves
+    if not saves:
+        pytest.skip("the real saves folder holds no saves")
     info = next((s.module_info() for s in saves if s.sav_path), None)
     assert info is not None
     assert info.name and info.areas  # module name + at least one named area

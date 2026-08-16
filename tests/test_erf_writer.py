@@ -91,7 +91,8 @@ _SAVES = Path.home() / "Documents" / "Neverwinter Nights" / "saves"
 @pytest.mark.skipif(not _SAVES.is_dir(), reason="no local NWN saves on this box")
 def test_real_sav_noop_byte_identical():
     sav = next(iter(_SAVES.glob("*/*.sav")), None)
-    assert sav is not None
+    if sav is None:
+        pytest.skip("the real saves folder holds no saves")
     src = sav.read_bytes()
     # A faithful rewrite of the real container reproduces it byte-for-byte, which is
     # the safety bar: a no-op is a no-op, so a targeted edit is a minimal diff.
