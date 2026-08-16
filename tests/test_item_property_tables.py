@@ -6,7 +6,36 @@ from pathlib import Path
 
 import pytest
 
-from nwnfile.item_property_tables import ItemPropertyTables, parse_2da
+from nwnfile.item_property_tables import (
+    ItemPropertyTables,
+    find_prc_2das_hak,
+    parse_2da,
+)
+
+
+def test_find_prc_2das_hak_matches_any_version_name(tmp_path):
+    """PRC 8.x names the hak prc8_2das.hak; 3.5/5.0 name it prc_2das.hak. Both
+    must be found — assuming one name silently fell back to the base game."""
+    assert find_prc_2das_hak(tmp_path) is None  # nothing installed
+    assert find_prc_2das_hak(None) is None
+
+    older = tmp_path / "prc_2das.hak"
+    older.write_bytes(b"")
+    assert find_prc_2das_hak(tmp_path) == older  # the only one present wins
+
+
+def test_find_prc_2das_hak_prefers_the_newer_when_both_are_installed(tmp_path):
+    """A player may have both installed; the newer (prc8) is preferred."""
+    (tmp_path / "prc_2das.hak").write_bytes(b"")
+    newer = tmp_path / "prc8_2das.hak"
+    newer.write_bytes(b"")
+    assert find_prc_2das_hak(tmp_path) == newer
+
+
+def test_find_prc_2das_hak_ignores_the_crafting_hak(tmp_path):
+    """prc_craft2das.hak is a different hak and must not be mistaken for it."""
+    (tmp_path / "prc_craft2das.hak").write_bytes(b"")
+    assert find_prc_2das_hak(tmp_path) is None
 
 
 def test_parse_2da_basic():

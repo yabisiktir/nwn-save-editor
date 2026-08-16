@@ -14,11 +14,13 @@ from pathlib import Path
 from nwnfile.cache import by_install
 from nwnfile.formats.erf_reader import ErfReader
 from nwnfile.formats.key_bif_reader import KeyBifReader
-from nwnfile.item_property_tables import parse_2da
+from nwnfile.item_property_tables import PRC_2DAS_HAK_NAMES, parse_2da
 
 _2DA_RESTYPE = 2017
 #: haks (in the user hak folder) that commonly override appearance/portraits.
-_LOOK_HAKS = ("prc8_2das.hak", "cep2_add_cc.hak", "cep2_core5.hak")
+#: PRC's 2DAs hak is named per-version (see :data:`PRC_2DAS_HAK_NAMES`); missing
+#: ones are dropped, so listing every known name just widens what is found.
+_LOOK_HAKS = (*PRC_2DAS_HAK_NAMES, "cep2_add_cc.hak", "cep2_core5.hak")
 
 #: ``portraits.2da`` Sex codes. 4 is the catch-all the table gives creatures
 #: and placeables — 1,318 of the base game's 1,594 rows.

@@ -12,7 +12,7 @@ tables:
 
 This reader resolves each of those into ``{row -> label}`` option maps, so the editor
 can present only valid choices — you can never store an out-of-range value that would
-corrupt the item. PRC's extended tables (in ``prc8_2das.hak``) are read in preference
+corrupt the item. PRC's extended tables (in its ``*_2das.hak``) are read in preference
 to the base game, so PRC properties/spells/feats are covered too. The huge feat/spell
 subtype tables reuse the bundled maps in :mod:`nwnfile.item_properties`.
 """
@@ -29,6 +29,24 @@ from nwnfile.formats.key_bif_reader import KeyBifReader
 _2DA_RESTYPE = 2017
 #: property ids whose subtype table is huge / PRC-extended — reuse bundled maps.
 _BUNDLED_SUBTYPES = {12: "_feats", 15: "_spells", 82: "_onhit_spells", 52: "_skills", 29: "_skills"}
+
+#: Basenames of PRC's extended-2DAs hak, newest first. PRC releases name it
+#: differently — 8.x ships ``prc8_2das.hak``, 3.5 / 5.0 ship ``prc_2das.hak`` — and
+#: a player may have more than one installed, so the newer is preferred. Anything
+#: that reads PRC's item-property / appearance tables looks for whichever exists,
+#: rather than assuming one name (which silently fell back to the base game).
+PRC_2DAS_HAK_NAMES = ("prc8_2das.hak", "prc_2das.hak")
+
+
+def find_prc_2das_hak(hak_dir: Path | None) -> Path | None:
+    """The installed PRC extended-2DAs hak, by whatever name this version uses."""
+    if hak_dir is None:
+        return None
+    for name in PRC_2DAS_HAK_NAMES:
+        candidate = hak_dir / name
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def parse_2da(text: str) -> tuple[list[str], dict[int, dict[str, str]]]:
@@ -75,11 +93,8 @@ class ItemPropertyTables:
     @classmethod
     @by_install
     def for_install(cls, game_root: Path | None, hak_dir: Path | None = None) -> ItemPropertyTables:
-        """Build from an install, preferring ``prc8_2das.hak`` + the base ``dialog.tlk``."""
-        hak_path = None
-        if hak_dir is not None:
-            candidate = hak_dir / "prc8_2das.hak"
-            hak_path = candidate if candidate.is_file() else None
+        """Build from an install, preferring PRC's ``*_2das.hak`` + the base ``dialog.tlk``."""
+        hak_path = find_prc_2das_hak(hak_dir)
         tlk = None
         if game_root is not None:
             from nwnfile.item_names import _dialog_tlk_path, _load_tlk
