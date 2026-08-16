@@ -82,3 +82,61 @@ def test_a_macos_artifact_says_which_cpu_it_is_for():
 def test_build_output_is_not_committed():
     ignored = (_ROOT / ".gitignore").read_text(encoding="utf-8")
     assert "/dist/" in ignored and "/build/" in ignored
+
+
+def _load_build_app():
+    import importlib.util
+
+    path = _ROOT / "scripts" / "build_app.py"
+    spec = importlib.util.spec_from_file_location("build_app", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class _FakeResult:
+    def __init__(self, returncode, stderr=""):
+        self.returncode = returncode
+        self.stdout = ""
+        self.stderr = stderr
+
+
+def test_dmg_creation_retries_while_the_source_is_busy(tmp_path, monkeypatch):
+    """CI's freshly-written .app is still being indexed, so hdiutil intermittently
+    reports 'Resource busy'; that must be retried, not fail the build."""
+    build_app = _load_build_app()
+    results = [
+        _FakeResult(1, "hdiutil: create failed - Resource busy"),
+        _FakeResult(1, "hdiutil: create failed - Resource busy"),
+        _FakeResult(0),
+    ]
+    calls = []
+
+    def fake_run(*_a, **_k):
+        calls.append(1)
+        return results.pop(0)
+
+    monkeypatch.setattr(build_app.subprocess, "run", fake_run)
+    monkeypatch.setattr(build_app.time, "sleep", lambda _s: None)
+
+    build_app._create_dmg(tmp_path / "src", tmp_path / "out.dmg")
+    assert len(calls) == 3, "it should retry past the two busy failures"
+
+
+def test_dmg_creation_does_not_retry_a_real_error(tmp_path, monkeypatch):
+    """A genuine failure (not 'busy') is raised at once — no pointless retries."""
+    import subprocess
+
+    build_app = _load_build_app()
+    calls = []
+
+    def fake_run(*_a, **_k):
+        calls.append(1)
+        return _FakeResult(1, "hdiutil: no space left on device")
+
+    monkeypatch.setattr(build_app.subprocess, "run", fake_run)
+    monkeypatch.setattr(build_app.time, "sleep", lambda _s: None)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        build_app._create_dmg(tmp_path / "src", tmp_path / "out.dmg")
+    assert len(calls) == 1, "a non-busy error must not be retried"

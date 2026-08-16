@@ -28,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,13 +82,37 @@ def package_macos() -> Path:
 
     target = DIST / f"{SLUG}-{version()}-macos-{mac_arch()}.dmg"
     target.unlink(missing_ok=True)
-    subprocess.run(
-        ["hdiutil", "create", "-volname", APP_NAME, "-srcfolder", str(staging),
-         "-ov", "-format", "UDZO", str(target)],
-        check=True, stdout=subprocess.DEVNULL,
-    )
+    _create_dmg(staging, target)
     shutil.rmtree(staging, ignore_errors=True)
     return target
+
+
+def _create_dmg(staging: Path, target: Path, *, attempts: int = 6) -> None:
+    """``hdiutil create``, retried while the source is busy.
+
+    On CI the just-written ``.app`` is still being indexed (Spotlight / fsevents)
+    when we reach this, so ``hdiutil`` intermittently fails with "Resource busy".
+    It clears within a few seconds, so retry that specific failure rather than
+    letting a transient runner condition fail the whole build. A real error (a
+    missing source, no disk space) is not "busy" and is raised at once.
+    """
+    command = [
+        "hdiutil", "create", "-volname", APP_NAME, "-srcfolder", str(staging),
+        "-ov", "-format", "UDZO", str(target),
+    ]
+    for attempt in range(1, attempts + 1):
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode == 0:
+            return
+        output = result.stdout + result.stderr
+        if attempt == attempts or "Resource busy" not in output:
+            sys.stderr.write(output)
+            raise subprocess.CalledProcessError(
+                result.returncode, command, result.stdout, result.stderr
+            )
+        wait = attempt * 3
+        print(f"hdiutil: source busy (attempt {attempt}/{attempts}); retrying in {wait}s")
+        time.sleep(wait)
 
 
 def package_linux() -> Path:
