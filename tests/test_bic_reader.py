@@ -263,7 +263,10 @@ class TestRealBic:
         # Character-sheet scalars decode (raw race id kept; combat + bio present).
         assert isinstance(info.race_id, int)
         assert info.base_attack_bonus > 0
-        assert info.current_hit_points > 0
+        # Current HP decodes, but need not be positive — a dying character is at or
+        # below 0 — and can never exceed the maximum.
+        assert isinstance(info.current_hit_points, int)
+        assert info.current_hit_points <= info.hit_points
 
         # Scalar fields fall in sane ranges.
         assert info.experience > 0

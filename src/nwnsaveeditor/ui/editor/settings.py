@@ -63,6 +63,11 @@ class SettingsDialog(QDialog):
             "and the names come from the game's 2DAs and dialog.tlk.",
         ))
 
+        if self.extra_saves_editable():
+            column.addWidget(w.hline())
+            column.addWidget(w.cap_label("Additional save folders"))
+            column.addWidget(self._extra_saves_block())
+
         if self.icons_editable():
             column.addWidget(w.hline())
             column.addWidget(w.cap_label("Item icons"))
@@ -119,6 +124,73 @@ class SettingsDialog(QDialog):
     def class_editing_available(self) -> bool:
         """Whether this host offers the (opt-in) class-level editing toggle."""
         return hasattr(self._host, "set_class_level_editing")
+
+    def extra_saves_editable(self) -> bool:
+        """Whether extra saves folders are this host's to manage."""
+        return hasattr(self._host, "set_extra_save_dirs")
+
+    # -- extra saves folders ------------------------------------------------- #
+    def _extra_saves_block(self) -> QWidget:
+        self._extra_saves_holder = QWidget()
+        self._extra_saves_holder.setStyleSheet("background:transparent;")
+        column = QVBoxLayout(self._extra_saves_holder)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(6)
+        column.addWidget(w.body(
+            "Scanned alongside the install's own saves. Each is a folder that "
+            "contains save sub-folders — a second saves directory, a backup drive.",
+            t.TEXT_3, 11.5,
+        ))
+        self._extra_saves_list = QVBoxLayout()
+        self._extra_saves_list.setSpacing(3)
+        column.addLayout(self._extra_saves_list)
+        add = w.small_ghost("Add folder…")
+        add.clicked.connect(self._add_extra_save_dir)
+        row = QHBoxLayout()
+        row.addWidget(add)
+        row.addStretch(1)
+        column.addLayout(row)
+        self._rebuild_extra_saves()
+        return self._extra_saves_holder
+
+    def _rebuild_extra_saves(self) -> None:
+        while self._extra_saves_list.count():
+            item = self._extra_saves_list.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                w.retire(widget)
+        dirs = self._host.extra_save_dirs()
+        if not dirs:
+            self._extra_saves_list.addWidget(w.body("None added.", t.TEXT_3, 12))
+            return
+        for folder in dirs:
+            line = QWidget()
+            line.setStyleSheet("background:transparent;")
+            row = QHBoxLayout(line)
+            row.setContentsMargins(0, 0, 0, 0)
+            row.addWidget(w.mono(str(folder), t.TEXT_2, 11.5), 1)
+            remove = w.small_ghost("Remove")
+            remove.clicked.connect(lambda _=False, f=folder: self._remove_extra_save_dir(f))
+            row.addWidget(remove)
+            self._extra_saves_list.addWidget(line)
+
+    def _add_extra_save_dir(self) -> None:
+        chosen = QFileDialog.getExistingDirectory(
+            self, "Choose a folder that holds NWN save sub-folders", str(Path.home())
+        )
+        if not chosen:
+            return
+        current = [str(d) for d in self._host.extra_save_dirs()]
+        if chosen not in current:
+            self._host.set_extra_save_dirs([*current, chosen])
+            self._rebuild_extra_saves()
+            self._window.reload_saves()
+
+    def _remove_extra_save_dir(self, folder) -> None:
+        kept = [d for d in self._host.extra_save_dirs() if str(d) != str(folder)]
+        self._host.set_extra_save_dirs(kept)
+        self._rebuild_extra_saves()
+        self._window.reload_saves()
 
     def _class_editing_toggle(self) -> QWidget:
         from PySide6.QtWidgets import QCheckBox

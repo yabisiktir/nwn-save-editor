@@ -26,6 +26,11 @@ remember the light/dark choice. Vaultkeeper's own controller satisfies it, and s
 does the standalone launcher, which keeps its own settings file rather than writing
 to the app's.
 
+By default it lists the saves under `<user directory>/saves`. If your saves live
+elsewhere too, add those folders under **Settings… → Additional save folders** — each
+one holds NWN save sub-folders, they are scanned alongside the default, and the
+sidebar updates as you add or remove one. (No command line needed; it is remembered.)
+
 ## Quick start
 
 1. **Tools → Save Game Editor**, and pick a save.

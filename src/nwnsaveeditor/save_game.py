@@ -135,6 +135,34 @@ def scan_save_games(saves_dir: Path | None) -> list[SaveGame]:
     return saves
 
 
+def scan_all_saves(
+    user_dir: Path | None, extra_dirs: list[Path] | tuple[Path, ...] = ()
+) -> list[SaveGame]:
+    """Saves from the install's ``<user_dir>/saves`` *and* every extra saves folder.
+
+    Each extra folder is one that itself holds save sub-folders (a second ``saves``
+    directory, a backup drive). Results are de-duplicated by folder path — the same
+    save reached two ways is listed once — and stay newest-first across all sources.
+    """
+    dirs: list[Path] = []
+    if user_dir is not None:
+        dirs.append(user_dir / "saves")
+    dirs.extend(extra_dirs)
+    seen: set[Path] = set()
+    out: list[SaveGame] = []
+    for saves_dir in dirs:
+        for save in scan_save_games(saves_dir):
+            try:
+                key = save.folder.resolve()
+            except OSError:
+                key = save.folder
+            if key not in seen:
+                seen.add(key)
+                out.append(save)
+    out.sort(key=lambda s: s.saved or datetime.min, reverse=True)
+    return out
+
+
 def read_module_info(sav_path: Path, *, read_area_names: bool = True) -> ModuleSaveInfo | None:
     """Decode ``module.ifo`` (+ area names) from a ``.sav`` ERF; ``None`` if unreadable."""
     reader = ErfReader()

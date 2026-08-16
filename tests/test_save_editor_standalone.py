@@ -96,10 +96,12 @@ def test_a_path_that_is_not_a_save_folder_is_skipped(tmp_path):
 
 def test_with_no_arguments_it_scans_the_user_directory(tmp_path, monkeypatch):
     seen = {}
-    monkeypatch.setattr(
-        "nwnsaveeditor.save_game.scan_save_games",
-        lambda folder: seen.setdefault("folder", folder) or [],
-    )
+
+    def fake_scan(folder):
+        seen.setdefault("folder", folder)
+        return []
+
+    monkeypatch.setattr("nwnsaveeditor.save_game.scan_save_games", fake_scan)
     collect_saves([], tmp_path)
     assert seen["folder"] == tmp_path / "saves"
 
@@ -324,3 +326,40 @@ def test_class_level_editing_is_off_by_default_and_persists(tmp_path):
     assert StandaloneHost(settings_dir=tmp_path)._settings().enable_class_level_editing is True
     StandaloneHost(settings_dir=tmp_path).set_class_level_editing(False)
     assert StandaloneHost(settings_dir=tmp_path)._settings().enable_class_level_editing is False
+
+
+# -- extra saves folders ----------------------------------------------------- #
+def _make_save(saves_dir: Path, name: str) -> None:
+    folder = saves_dir / name
+    folder.mkdir(parents=True)
+    (folder / "x.sav").write_bytes(b"")
+
+
+def test_extra_save_dirs_persist_and_read_back(tmp_path):
+    host = StandaloneHost(game_root=None, game_user_dir=tmp_path, settings_dir=tmp_path)
+    assert host.extra_save_dirs() == []
+    extra = tmp_path / "backup_saves"
+    host.set_extra_save_dirs([extra])
+    assert host.extra_save_dirs() == [extra]
+    # written to save_editor.json and read by a fresh host
+    data = json.loads((tmp_path / "save_editor.json").read_text())
+    assert data["extra_save_dirs"] == [str(extra)]
+    again = StandaloneHost(game_root=None, game_user_dir=tmp_path, settings_dir=tmp_path)
+    assert again.extra_save_dirs() == [extra]
+
+
+def test_collect_saves_unions_the_user_dir_and_extra_folders(tmp_path):
+    _make_save(tmp_path / "saves", "000001 - here")
+    extra = tmp_path / "elsewhere"
+    _make_save(extra, "000009 - there")
+    saves = collect_saves([], tmp_path, [extra])
+    assert sorted(s.folder.name for s in saves) == ["000001 - here", "000009 - there"]
+
+
+def test_scan_all_saves_dedupes_by_path(tmp_path):
+    from nwnsaveeditor.save_game import scan_all_saves
+
+    _make_save(tmp_path / "saves", "000001 - one")
+    # point an "extra" at the very same saves folder -> the save is listed once
+    saves = scan_all_saves(tmp_path, [tmp_path / "saves", tmp_path / "saves"])
+    assert len(saves) == 1

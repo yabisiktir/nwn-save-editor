@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from nwnsaveeditor.save_game import SaveGame, scan_save_games
+from nwnsaveeditor.save_game import SaveGame, scan_all_saves
 from nwnsaveeditor.ui.editor import tokens as t
 from nwnsaveeditor.ui.editor import widgets as w
 from nwnsaveeditor.ui.editor.appicon import app_icon
@@ -311,12 +311,7 @@ class SaveEditorWindow(QMainWindow):
         saves_scroll.setStyleSheet(w.scroll_area_qss())
         saves_scroll.setWidget(saves_holder)
         layout.addWidget(saves_scroll)
-        for save in self._saves:
-            row = _SaveRow(save)
-            row.clicked.connect(lambda _=False, s=save: self._select_save(s))
-            self._save_rows.append(row)
-            self._saves_box.addWidget(row)
-        self._saves_box.addStretch(1)
+        self._populate_saves()
 
         layout.addWidget(w.cap_label("Sections"))
         nav = QVBoxLayout()
@@ -778,6 +773,35 @@ class SaveEditorWindow(QMainWindow):
         for row in self._save_rows:
             row.setChecked(row.save is self._current)
 
+    def _populate_saves(self) -> None:
+        """(Re)build the sidebar's save-row list from ``self._saves``."""
+        while self._saves_box.count():
+            item = self._saves_box.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                w.retire(widget)
+        self._save_rows = []
+        for save in self._saves:
+            row = _SaveRow(save)
+            row.clicked.connect(lambda _=False, s=save: self._select_save(s))
+            self._save_rows.append(row)
+            self._saves_box.addWidget(row)
+        self._saves_box.addStretch(1)
+        self._sync_save_rows()
+
+    def reload_saves(self) -> None:
+        """Re-scan the saves folders (after the extra-folders list changed) and
+        refresh the sidebar, without disturbing the save currently open for edit."""
+        user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
+        extra = getattr(self._controller, "extra_save_dirs", None)
+        found = scan_all_saves(user, extra() if callable(extra) else ())
+        if self._current is not None:  # keep the exact open instance (its session lives on)
+            found = [self._current if s.folder == self._current.folder else s for s in found]
+            if not any(s.folder == self._current.folder for s in found):
+                found.insert(0, self._current)
+        self._saves = found
+        self._populate_saves()
+
     def _choose_save(self) -> None:
         from nwnsaveeditor.ui.editor.dialogs import OpenSaveDialog
 
@@ -1123,9 +1147,12 @@ class SaveEditorWindow(QMainWindow):
     # -- entry point ------------------------------------------------------ #
     @classmethod
     def show_for(cls, controller, parent: QWidget | None = None) -> SaveEditorWindow:
-        """Open the editor over the install's ``saves`` folder."""
+        """Open the editor over the install's ``saves`` folder — plus any extra
+        saves folders the host offers (a host may implement ``extra_save_dirs``;
+        the standalone one does, Vaultkeeper may later)."""
         user = getattr(controller.ctx, "game_user_dir", None)
-        saves = scan_save_games(user / "saves" if user is not None else None)
+        extra = getattr(controller, "extra_save_dirs", None)
+        saves = scan_all_saves(user, extra() if callable(extra) else ())
         window = cls(saves, controller, parent)
         window.show()
         return window

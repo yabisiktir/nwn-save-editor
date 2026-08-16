@@ -135,6 +135,9 @@ class StandaloneHost:
         self._hak_item_icons = bool(saved.get("hak_item_icons", True))
         self._exact_item_icons = bool(saved.get("exact_item_icons", True))
         self._class_level_editing = bool(saved.get("enable_class_level_editing", False))
+        self._extra_save_dirs = [
+            Path(p) for p in saved.get("extra_save_dirs", []) if isinstance(p, str) and p
+        ]
 
         root = game_root or _saved_dir(saved, "game_root") or default_game_root()
         user = game_user_dir or _saved_dir(saved, "game_user_dir") or default_user_dir()
@@ -175,6 +178,16 @@ class StandaloneHost:
             self._exact_item_icons = bool(exact_item_icons)
         self._write()
 
+    def extra_save_dirs(self) -> list[Path]:
+        """Saves folders to scan besides ``<user_dir>/saves`` (empty by default)."""
+        return list(self._extra_save_dirs)
+
+    def set_extra_save_dirs(self, dirs) -> None:
+        """Set the extra saves folders, and remember them. Its presence tells the
+        settings screen this list is the editor's to manage."""
+        self._extra_save_dirs = [Path(d) for d in dirs]
+        self._write()
+
     def set_game_paths(
         self, game_root: Path | None = None, game_user_dir: Path | None = None
     ) -> None:
@@ -210,6 +223,8 @@ class StandaloneHost:
             "exact_item_icons": self._exact_item_icons,
             "enable_class_level_editing": self._class_level_editing,
         }
+        if self._extra_save_dirs:
+            payload["extra_save_dirs"] = [str(d) for d in self._extra_save_dirs]
         for key, value in (("game_root", self.ctx.game_root),
                            ("game_user_dir", self.ctx.game_user_dir)):
             if value is not None:

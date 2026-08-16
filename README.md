@@ -132,10 +132,16 @@ off under **Settings…**.
   "hak_item_icons": true,
   "exact_item_icons": true,
   "enable_class_level_editing": false,
+  "extra_save_dirs": ["/Volumes/backup/nwn-saves"],
   "game_root": "/path/to/Neverwinter Nights",
   "game_user_dir": "/path/to/Documents/Neverwinter Nights"
 }
 ```
+
+`extra_save_dirs` are folders scanned for saves *besides* `<user_dir>/saves` — each
+one holds NWN save sub-folders (a second saves directory, a backup drive). Manage
+them in **Settings… → Additional save folders**; the sidebar updates as you add or
+remove one.
 
 `enable_class_level_editing` is **off by default**: adding a class level is a real
 level-up, not a field edit, so the wizard stays behind a switch you turn on

@@ -34,13 +34,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def collect_saves(paths: list[Path], user_dir: Path | None) -> list:
-    """The saves to offer: the ones named, or everything in the user directory."""
-    from nwnsaveeditor.save_game import SaveGame, scan_save_games
+def collect_saves(
+    paths: list[Path], user_dir: Path | None, extra_dirs: list[Path] | tuple = ()
+) -> list:
+    """The saves to offer: the ones named, or every save under the user directory
+    and each configured extra saves folder."""
+    from nwnsaveeditor.save_game import SaveGame, scan_all_saves
 
     if paths:
         return [SaveGame(folder=path) for path in paths if path.is_dir()]
-    return scan_save_games(user_dir / "saves" if user_dir is not None else None)
+    return scan_all_saves(user_dir, extra_dirs)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -56,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     app.setWindowIcon(app_icon())
 
     host = StandaloneHost(game_root=args.game_root, game_user_dir=args.user_dir)
-    saves = collect_saves(args.saves, host.ctx.game_user_dir)
+    saves = collect_saves(args.saves, host.ctx.game_user_dir, host.extra_save_dirs())
     if not saves:
         # Better than an empty window: say where it looked, since a wrong or
         # missing user directory is the one thing that makes this a blank screen.
