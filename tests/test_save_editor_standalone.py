@@ -448,6 +448,21 @@ def test_saves_alias_uses_a_native_path_and_drops_the_other_os(monkeypatch, tmp_
     assert _alias_target(r"C:\Games\Saves", tmp_path) is None
 
 
+def test_an_absolute_saves_path_on_another_drive_is_used_as_is(monkeypatch, tmp_path):
+    """The reporter's Windows case: SAVES=E:\\Game Saves\\NeverwinterNights\\Saves —
+    an absolute path on a *different* drive. It must be taken as-is, never joined
+    onto the user directory (which is what a mis-detected relative path would do)."""
+    import os
+
+    from nwnsaveeditor.save_game import _alias_target
+
+    monkeypatch.setattr(os, "name", "nt")  # emulate Windows
+    reporter = r"E:\Game Saves\NeverwinterNights\Saves"
+    got = _alias_target(reporter, tmp_path)
+    assert str(got) == reporter
+    assert str(tmp_path) not in str(got)  # not spliced onto the user dir
+
+
 def test_the_ini_saves_is_primary_and_extra_dirs_are_secondary(tmp_path):
     """The nwn.ini location wins de-duplication over an extra folder pointing at
     the same place, and both sets of saves are listed."""
