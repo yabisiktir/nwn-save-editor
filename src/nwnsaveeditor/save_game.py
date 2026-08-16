@@ -135,18 +135,57 @@ def scan_save_games(saves_dir: Path | None) -> list[SaveGame]:
     return saves
 
 
+def saves_alias_from_ini(user_dir: Path) -> Path | None:
+    """The ``SAVES=`` entry from ``<user_dir>/nwn.ini``'s ``[Alias]`` section.
+
+    That entry is where NWN actually writes saves, and it need not be the default
+    ``<user_dir>/saves`` — the player can point it elsewhere. Returns the path only
+    if it exists on *this* machine: ``nwn.ini`` stores absolute, platform-specific
+    paths, so a user folder shared between operating systems can carry a ``SAVES``
+    written by the other one, which won't resolve here (fall back to the default).
+    """
+    ini = user_dir / "nwn.ini"
+    try:
+        lines = ini.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return None
+    in_alias = False
+    for raw in lines:
+        line = raw.strip()
+        if line.startswith("[") and line.endswith("]"):
+            in_alias = line[1:-1].strip().lower() == "alias"
+        elif in_alias and "=" in line:
+            key, _, value = line.partition("=")
+            if key.strip().lower() == "saves":
+                path = Path(value.strip())
+                return path if path.is_dir() else None
+    return None
+
+
+def primary_saves_dir(user_dir: Path | None) -> Path | None:
+    """The current saves directory: the ``nwn.ini`` ``SAVES`` alias if it resolves
+    here, else the default ``<user_dir>/saves``."""
+    if user_dir is None:
+        return None
+    return saves_alias_from_ini(user_dir) or (user_dir / "saves")
+
+
 def scan_all_saves(
     user_dir: Path | None, extra_dirs: list[Path] | tuple[Path, ...] = ()
 ) -> list[SaveGame]:
-    """Saves from the install's ``<user_dir>/saves`` *and* every extra saves folder.
+    """Saves from the install's current saves directory *and* every extra folder.
 
-    Each extra folder is one that itself holds save sub-folders (a second ``saves``
-    directory, a backup drive). Results are de-duplicated by folder path — the same
-    save reached two ways is listed once — and stay newest-first across all sources.
+    The **primary** location is where the game actually writes saves — the
+    ``nwn.ini`` ``SAVES`` alias when set, otherwise ``<user_dir>/saves`` (see
+    :func:`primary_saves_dir`). The extra folders are secondary: each is one that
+    itself holds save sub-folders (a second ``saves`` directory, a backup drive).
+    Results are de-duplicated by folder path — the same save reached two ways is
+    listed once, the primary winning — and stay newest-first across all sources.
     """
     dirs: list[Path] = []
-    if user_dir is not None:
-        dirs.append(user_dir / "saves")
+    primary = primary_saves_dir(user_dir)
+    if primary is not None:
+        dirs.append(primary)
     dirs.extend(extra_dirs)
     seen: set[Path] = set()
     out: list[SaveGame] = []

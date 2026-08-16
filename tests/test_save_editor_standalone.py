@@ -380,6 +380,60 @@ def test_scan_all_saves_dedupes_by_path(tmp_path):
     assert len(saves) == 1
 
 
+# -- the primary saves directory (nwn.ini) ----------------------------------- #
+def _write_ini(user_dir: Path, saves_path: Path) -> None:
+    user_dir.mkdir(parents=True, exist_ok=True)
+    (user_dir / "nwn.ini").write_text(
+        f"[Alias]\nHD0=./\nSAVES={saves_path}\nTEMP=./temp\n", encoding="utf-8"
+    )
+
+
+def test_the_nwn_ini_saves_alias_is_the_primary_location(tmp_path):
+    """NWN writes saves where nwn.ini's SAVES alias points, which need not be the
+    default <user>/saves — that relocated folder must be scanned."""
+    from nwnsaveeditor.save_game import primary_saves_dir, scan_all_saves
+
+    user = tmp_path / "user"
+    relocated = tmp_path / "somewhere else" / "saves"
+    _make_save(relocated, "000007 - relocated")
+    _write_ini(user, relocated)
+
+    assert primary_saves_dir(user) == relocated
+    names = [s.folder.name for s in scan_all_saves(user)]
+    assert names == ["000007 - relocated"]
+
+
+def test_a_foreign_or_missing_saves_alias_falls_back_to_the_default(tmp_path):
+    """A SAVES path written by another OS won't exist here; use <user>/saves."""
+    from nwnsaveeditor.save_game import primary_saves_dir
+
+    user = tmp_path / "user"
+    _write_ini(user, Path("Z:/Neverwinter Nights/saves"))  # not a dir on this machine
+    assert primary_saves_dir(user) == user / "saves"
+
+    # No nwn.ini at all -> also the default.
+    bare = tmp_path / "bare"
+    bare.mkdir()
+    assert primary_saves_dir(bare) == bare / "saves"
+
+
+def test_the_ini_saves_is_primary_and_extra_dirs_are_secondary(tmp_path):
+    """The nwn.ini location wins de-duplication over an extra folder pointing at
+    the same place, and both sets of saves are listed."""
+    from nwnsaveeditor.save_game import scan_all_saves
+
+    user = tmp_path / "user"
+    ini_saves = tmp_path / "current" / "saves"
+    _make_save(ini_saves, "000001 - current")
+    _write_ini(user, ini_saves)
+    extra = tmp_path / "backup"
+    _make_save(extra, "000009 - backup")
+
+    saves = scan_all_saves(user, [extra, ini_saves])  # extra also re-lists the primary
+    names = sorted(s.folder.name for s in saves)
+    assert names == ["000001 - current", "000009 - backup"]  # primary listed once
+
+
 # -- the first-run setup dialog ---------------------------------------------- #
 def test_an_accepted_setup_dialog_opens_the_editor_with_what_it_found(
     tmp_path, monkeypatch
