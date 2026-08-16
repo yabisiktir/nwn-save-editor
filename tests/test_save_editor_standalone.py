@@ -113,17 +113,32 @@ def test_the_arguments_are_what_a_person_would_expect():
     assert args.saves == [Path("/saves/one")]
 
 
-def test_no_saves_explains_where_it_looked(tmp_path, monkeypatch):
-    """A blank window would leave a wrong user directory undiagnosable."""
-    from PySide6.QtWidgets import QMessageBox
+def test_no_saves_offers_a_setup_dialog(tmp_path, monkeypatch):
+    """Nothing found no longer dead-ends to the command line: it opens the
+    first-run dialog so the folders can be pointed at in the GUI."""
+    from PySide6.QtWidgets import QDialog
 
-    told = []
-    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: told.append(a))
     monkeypatch.setattr(
         "nwnsaveeditor.ui.editor.__main__.collect_saves", lambda *a: []
     )
-    assert main(["--user-dir", str(tmp_path)]) == 1
-    assert told and str(tmp_path) in told[0][2]
+    opened = []
+
+    class _FakeDialog:
+        def __init__(self, host, *a, **k):
+            opened.append(host)
+
+        def exec(self):
+            return QDialog.DialogCode.Rejected  # the person closed it
+
+        def found_saves(self):
+            return []
+
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.firstrun.FirstRunDialog", _FakeDialog
+    )
+    # Quitting the setup dialog is a clean exit, not a failure.
+    assert main(["--user-dir", str(tmp_path)]) == 0
+    assert opened, "the first-run setup dialog must be offered"
 
 
 def test_the_console_script_points_at_this_entry_point():
@@ -363,3 +378,73 @@ def test_scan_all_saves_dedupes_by_path(tmp_path):
     # point an "extra" at the very same saves folder -> the save is listed once
     saves = scan_all_saves(tmp_path, [tmp_path / "saves", tmp_path / "saves"])
     assert len(saves) == 1
+
+
+# -- the first-run setup dialog ---------------------------------------------- #
+def test_an_accepted_setup_dialog_opens_the_editor_with_what_it_found(
+    tmp_path, monkeypatch
+):
+    """Accepting the dialog carries its saves straight into the editor window."""
+    from PySide6.QtWidgets import QDialog
+
+    found = ["save-1", "save-2"]  # opaque tokens: we only check they are handed on
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.__main__.collect_saves", lambda *a: []
+    )
+
+    class _FakeDialog:
+        def __init__(self, host, *a, **k):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def found_saves(self):
+            return found
+
+    opened_with = []
+
+    class _FakeWindow:  # a whole stand-in, so no real QMainWindow is constructed
+        def __init__(self, saves, host, *a, **k):
+            opened_with.append(saves)
+
+        def resize(self, *a):
+            pass
+
+        def show(self):
+            pass
+
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.firstrun.FirstRunDialog", _FakeDialog
+    )
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.window.SaveEditorWindow", _FakeWindow
+    )
+    monkeypatch.setattr("PySide6.QtWidgets.QApplication.exec", lambda self: 0)
+    monkeypatch.setattr("nwnsaveeditor.ui.editor.host.default_game_root", lambda: None)
+    # Passing a game root keeps the (modal) "no game folder" notice from blocking.
+    assert main(["--user-dir", str(tmp_path), "--game-root", str(tmp_path)]) == 0
+    assert opened_with == [found]
+
+
+def test_first_run_dialog_counts_saves_and_gates_the_open_button(qtbot, tmp_path):
+    """The dialog re-scans as folders change: no saves -> Open disabled; a saves
+    folder added -> it enables and the count shows."""
+    from nwnsaveeditor.ui.editor.firstrun import FirstRunDialog
+
+    host = StandaloneHost(
+        game_root=None, game_user_dir=tmp_path / "empty", settings_dir=tmp_path
+    )
+    host.ctx.game_user_dir = None
+    dialog = FirstRunDialog(host)
+    qtbot.addWidget(dialog)
+    assert dialog.found_saves() == []
+    assert not dialog._open_button.isEnabled()
+
+    extra = tmp_path / "elsewhere"
+    _make_save(extra, "000009 - there")
+    host.set_extra_save_dirs([extra])
+    dialog._refresh_status()
+    assert len(dialog.found_saves()) == 1
+    assert dialog._open_button.isEnabled()
+    assert "found" in dialog._status.text()

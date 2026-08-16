@@ -47,7 +47,7 @@ def collect_saves(
 
 
 def main(argv: list[str] | None = None) -> int:
-    from PySide6.QtWidgets import QApplication, QMessageBox
+    from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 
     from nwnsaveeditor.ui.editor.appicon import app_icon
     from nwnsaveeditor.ui.editor.host import StandaloneHost
@@ -61,16 +61,17 @@ def main(argv: list[str] | None = None) -> int:
     host = StandaloneHost(game_root=args.game_root, game_user_dir=args.user_dir)
     saves = collect_saves(args.saves, host.ctx.game_user_dir, host.extra_save_dirs())
     if not saves:
-        # Better than an empty window: say where it looked, since a wrong or
-        # missing user directory is the one thing that makes this a blank screen.
-        QMessageBox.warning(
-            None, "No saves found",
-            f"No save games found in {host.ctx.game_user_dir or '(no user directory)'}.\n\n"
-            "Pass save folders on the command line, or --user-dir to point at "
-            "your Neverwinter Nights directory. Whatever you pass is remembered, "
-            "so you only need the flag once.",
-        )
-        return 1
+        # Detection came up empty. Rather than dead-ending to the command line
+        # (pass --user-dir, then relaunch), let the folders be pointed at here —
+        # the dialog re-scans as they change and hands back whatever it found.
+        from nwnsaveeditor.ui.editor.firstrun import FirstRunDialog
+
+        dialog = FirstRunDialog(host)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return 0  # the person chose to quit — a clean exit, not an error
+        saves = dialog.found_saves()
+        if not saves:
+            return 0
 
     if host.ctx.game_root is None:
         # The editor still opens and edits — it just cannot name anything, since
