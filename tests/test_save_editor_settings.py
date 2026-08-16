@@ -240,6 +240,36 @@ def test_browsing_stages_the_choice_without_applying_it(qtbot, tmp_path, monkeyp
     assert str(picked) in _texts(dialog), "but shown so you can see what you picked"
 
 
+def test_the_user_folder_row_is_not_mislabelled_save_games(qtbot, tmp_path):
+    """It is the NWN user/home folder (saves, haks, portraits, override) — calling
+    it 'Save games' read as a second saves location next to Additional save
+    folders (owner-reported). It is the user files folder."""
+    dialog = SettingsDialog(_window(qtbot, tmp_path, _standalone(tmp_path)))
+    qtbot.addWidget(dialog)
+    texts = _texts(dialog)
+    assert "User files folder" in texts
+    assert "Save games" not in texts
+
+
+def test_a_chosen_path_is_shown_with_native_separators(qtbot, tmp_path, monkeypatch):
+    """Qt returns a forward-slash path even on Windows; it is shown via
+    ``str(Path(...))`` so a Windows user sees ``C:\\…`` not ``C:/…``. On POSIX we
+    prove the normalisation by feeding a redundant trailing slash, which Path drops.
+    """
+    from PySide6.QtWidgets import QFileDialog
+
+    dialog = SettingsDialog(_window(qtbot, tmp_path, _standalone(tmp_path)))
+    qtbot.addWidget(dialog)
+    picked = tmp_path / "picked"
+    picked.mkdir()
+    monkeypatch.setattr(
+        QFileDialog, "getExistingDirectory", lambda *a, **k: str(picked) + "/"
+    )
+    dialog._browse("game_root", "Game installation")
+    assert dialog._chosen["game_root"] == picked  # Path-normalised, no trailing slash
+    assert str(picked) in _texts(dialog)
+
+
 def test_set_game_paths_can_change_one_folder_without_clearing_the_other(tmp_path):
     host = _standalone(tmp_path)
     user_before = host.ctx.game_user_dir

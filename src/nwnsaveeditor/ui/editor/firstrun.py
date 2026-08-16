@@ -55,8 +55,10 @@ class FirstRunDialog(QDialog):
 
         column.addWidget(w.cap_label("Folders"))
         column.addWidget(self._folder_row(
-            "game_user_dir", "Save games",
-            "The folder NWN writes to — its saves, haks and portraits live here.",
+            "game_user_dir", "User files folder",
+            "The Neverwinter Nights folder NWN writes to — its saves, haks and "
+            "portraits live under it. Saves are read from its nwn.ini SAVES "
+            "location (plus any Additional save folders below).",
         ))
         column.addWidget(self._folder_row(
             "game_root", "Game installation",
@@ -131,12 +133,15 @@ class FirstRunDialog(QDialog):
     def _browse(self, key: str, label: str) -> None:
         start = getattr(getattr(self._host, "ctx", None), key, None)
         chosen = QFileDialog.getExistingDirectory(
-            self, f"Choose the {label.lower()} folder", str(start or Path.home())
+            self, f"Choose your {label}", str(start or Path.home())
         )
         if not chosen:
             return
-        self._host.set_game_paths(**{key: Path(chosen)})
-        getattr(self, f"_{key}_label").setText(chosen)
+        # Qt hands back a forward-slash path even on Windows; store and show it
+        # with the OS's own separators (C:\… not C:/…).
+        chosen_path = Path(chosen)
+        self._host.set_game_paths(**{key: chosen_path})
+        getattr(self, f"_{key}_label").setText(str(chosen_path))
         self._refresh_status()
 
     # -- extra saves folders ------------------------------------------------ #

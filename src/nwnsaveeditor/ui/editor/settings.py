@@ -88,8 +88,10 @@ class SettingsDialog(QDialog):
 
         column.addWidget(w.cap_label("Folders"))
         column.addWidget(_wrap_grows(self._folder_row(
-            "game_user_dir", "Save games",
-            "Your saves, haks, portraits and override — the folder NWN writes to.",
+            "game_user_dir", "User files folder",
+            "The Neverwinter Nights folder NWN writes to — your saves, haks, "
+            "portraits and override live under it. Saves come from its "
+            "nwn.ini SAVES location (plus any Additional save folders below).",
         )))
         column.addWidget(_wrap_grows(self._folder_row(
             "game_root", "Game installation",
@@ -319,12 +321,15 @@ class SettingsDialog(QDialog):
     def _browse(self, key: str, label: str) -> None:
         start = getattr(getattr(self._host, "ctx", None), key, None)
         chosen = QFileDialog.getExistingDirectory(
-            self, f"Choose the {label.lower()} folder", str(start or Path.home())
+            self, f"Choose your {label}", str(start or Path.home())
         )
         if not chosen:
             return
-        self._chosen[key] = Path(chosen)
-        getattr(self, f"_{key}_label").setText(chosen)
+        # Qt returns a forward-slash path even on Windows; show it with the OS's
+        # own separators so a Windows user sees C:\… not C:/….
+        chosen_path = Path(chosen)
+        self._chosen[key] = chosen_path
+        getattr(self, f"_{key}_label").setText(str(chosen_path))
 
     def _apply(self) -> None:
         """Hand the chosen folders to the host, then rebuild what depends on them."""
