@@ -64,9 +64,14 @@ class SaveState:
 
 
 def inspect_save(save: SaveGame) -> SaveState:
-    """Measure a save's module, timestamp, size and state."""
+    """Measure a save's module, timestamp, size and state.
+
+    Only the module's *name* is shown here, so the area names are not read: each
+    one is a separate lookup inside the ``.sav``, which made opening this dialog
+    cost (areas x saves) archive reads before it could paint.
+    """
     try:
-        info = save.module_info()
+        info = save.module_info(read_area_names=False)
     except Exception:
         info = None
     try:

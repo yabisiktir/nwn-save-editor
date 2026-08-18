@@ -92,6 +92,11 @@ class SaveGame:
     folder: Path
     location: str = ""
     saved: datetime | None = None
+    #: ``module_info`` memo: ``(identity, info, whether area names were read)``.
+    #: Not part of the save's identity, so it stays out of ``==`` and ``repr``.
+    _info_cache: tuple | None = field(
+        default=None, repr=False, compare=False
+    )
 
     @property
     def name(self) -> str:
@@ -114,9 +119,39 @@ class SaveGame:
                 return shot
         return None
 
-    def module_info(self) -> ModuleSaveInfo | None:
-        """Decode this save's ``module.ifo`` (reads the ``.sav`` — call on demand)."""
-        return read_module_info(self.sav_path) if self.sav_path else None
+    def module_info(self, *, read_area_names: bool = True) -> ModuleSaveInfo | None:
+        """Decode this save's ``module.ifo`` (reads the ``.sav`` — call on demand).
+
+        Pass ``read_area_names=False`` when only the module's own fields are
+        wanted: naming the areas costs one extra archive lookup *per area*, and a
+        caller that just wants the module name should not pay for it.
+
+        The result is memoized against the ``.sav``'s size and mtime, so repeated
+        calls (the Open dialog, then the party and area screens) read the archive
+        once — while a save rewritten on disk is still re-read rather than served
+        stale.
+        """
+        sav = self.sav_path
+        if sav is None:
+            return None
+        try:
+            stat = sav.stat()
+            key = (str(sav), stat.st_size, stat.st_mtime_ns)
+        except OSError:
+            key = None
+
+        cached = self._info_cache
+        if key is not None and cached is not None:
+            cached_key, cached_info, has_areas = cached
+            # An entry read *with* area names answers either question; one read
+            # without them cannot answer a caller that wants them.
+            if cached_key == key and (has_areas or not read_area_names):
+                return cached_info
+
+        info = read_module_info(sav, read_area_names=read_area_names)
+        if key is not None:
+            self._info_cache = (key, info, read_area_names)
+        return info
 
 
 def scan_save_games(saves_dir: Path | None) -> list[SaveGame]:

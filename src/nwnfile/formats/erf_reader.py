@@ -94,10 +94,48 @@ class ErfInfo:
 
 
 class ErfReader:
-    """Reads and extracts resources from an NWN ERF/HAK/MOD archive."""
+    """Reads and extracts resources from an NWN ERF/HAK/MOD archive.
+
+    Parsed directories are cached **per reader instance**, keyed by the file's
+    identity (path + size + mtime). Reading several resources out of one archive
+    is the normal case — a save's ``module.ifo`` plus one ``.are`` per area — and
+    each :meth:`find_resource` otherwise re-parsed the whole key table, making
+    that pattern cost *areas x resources*.
+
+    The cache is deliberately instance-scoped rather than global: a reader is
+    cheap and short-lived, so a caller that wants fresh bytes after a write just
+    uses a new one, and there is no cross-call staleness to invalidate. The
+    identity key means even a reused reader notices an archive that changed
+    underneath it.
+    """
+
+    def __init__(self) -> None:
+        self._info_cache: dict[tuple[str, int, int], ErfInfo | None] = {}
+
+    @staticmethod
+    def _identity(path: Path) -> tuple[str, int, int] | None:
+        """A key that changes when the file does, or ``None`` if it can't be stat'd."""
+        try:
+            stat = path.stat()
+        except OSError:
+            return None
+        return (str(path), stat.st_size, stat.st_mtime_ns)
 
     def read_info(self, path: Path) -> ErfInfo | None:
-        """Parse ``path`` and return its :class:`ErfInfo`, or ``None`` on failure."""
+        """Parse ``path`` and return its :class:`ErfInfo`, or ``None`` on failure.
+
+        Cached per instance — see the class docstring.
+        """
+        key = self._identity(path)
+        if key is not None and key in self._info_cache:
+            return self._info_cache[key]
+        info = self._parse_info(path)
+        if key is not None:
+            self._info_cache[key] = info
+        return info
+
+    def _parse_info(self, path: Path) -> ErfInfo | None:
+        """Read and parse the archive's header + key/resource lists (uncached)."""
         try:
             with open(path, "rb") as f:
                 tag = f.read(4).decode("ascii", "replace")

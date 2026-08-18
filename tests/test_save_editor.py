@@ -1343,3 +1343,66 @@ def test_the_revert_originals_follow_the_property_too(tmp_path):
     moved = next(index for index, value in _prop_state(editor, path) if value == 9)
     editor.set_property(path, moved, cost_value=4, where="added", label="added")
     assert not _staged(editor, "property"), "reverted, so no longer pending"
+
+
+def test_a_reader_used_before_an_overwrite_sees_the_new_bytes(tmp_path):
+    """The ERF directory cache must never outlive the file it describes.
+
+    Overwriting swaps a freshly written .sav into the original's path. A reader
+    that had already read that path — as SaveEditor's own does, to verify what it
+    wrote — must re-read it rather than serve the directory it cached beforehand,
+    or verification would inspect the *old* archive's offsets. A same-size scalar
+    edit is used deliberately: the .sav's length is unchanged, so nothing but the
+    file's mtime distinguishes the two versions.
+    """
+    save = _make_save(tmp_path, _git_with_store(_store_struct(markup=200)))
+    git = ("area1", 2023)
+
+    reader = ErfReader()
+    before = reader.read_resource_bytes(
+        save.sav_path, reader.find_resource(save.sav_path, git[0], res_type=git[1])
+    )
+    size_before = save.sav_path.stat().st_size
+
+    editor = SaveEditor(save)
+    editor.set_store_fields("area1", 0, markup=150)
+    editor.save_as(save.folder, overwrite=True)
+
+    assert save.sav_path.stat().st_size == size_before, "expected a same-size edit"
+
+    after = reader.read_resource_bytes(
+        save.sav_path, reader.find_resource(save.sav_path, git[0], res_type=git[1])
+    )
+    assert after != before, "the reader served a stale directory across the swap"
+    assert read_area_contents(save.sav_path, "area1").stores[0].markup == 150
+
+
+def test_a_save_memo_does_not_survive_an_overwrite(tmp_path):
+    """The same guarantee one layer up: a SaveGame that read its module before an
+    overwrite re-reads it afterwards rather than answering from the memo it took
+    against the file that is no longer there."""
+    ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Mod_Name": GffField(
+            GffType.CEXOLOCSTRING, LocString(substrings=[(0, "Before")])
+        ),
+    }))
+    folder = tmp_path / "000000 - test"
+    folder.mkdir()
+    (folder / "x.sav").write_bytes(_make_erf([
+        ("area1", 2023, _git_with_store(_store_struct(markup=200))),
+        ("module", 2014, write_gff(ifo)),
+    ]))
+    (folder / "player.bic").write_bytes(b"BICDATA")
+    save = SaveGame(folder=folder)
+
+    first = save.module_info()
+    assert first.name == "Before"  # now memoized against the pre-overwrite file
+
+    editor = SaveEditor(save)
+    editor.set_store_fields("area1", 0, markup=150)
+    editor.save_as(folder, overwrite=True)
+
+    again = save.module_info()
+    assert again is not first, "the memo outlived the file it was taken against"
+    assert again.name == "Before"  # the edit did not touch module.ifo
+    assert read_area_contents(save.sav_path, "area1").stores[0].markup == 150

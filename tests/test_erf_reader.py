@@ -143,3 +143,119 @@ def test_real_hak_type_mapping() -> None:
     # This hak holds 2DA and item-palette (itp) resources.
     assert "2da" in exts
     assert "itp" in exts
+
+
+def _bump_mtime(path: Path) -> None:
+    """Push a file's mtime forward so a rewrite is unambiguously a new version.
+
+    Rewriting within one filesystem timestamp tick can otherwise leave mtime
+    unchanged, which would make these tests flaky rather than meaningful.
+    """
+    import os
+
+    stat = path.stat()
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+
+
+def test_read_info_is_cached_per_instance(tmp_path: Path) -> None:
+    """A reader parses one archive's directory once — reading several resources
+    out of a .sav used to re-parse the whole key table per lookup."""
+    path = tmp_path / "cached.hak"
+    path.write_bytes(_build_erf([("a", 2017, b"AA"), ("b", 2017, b"BB")]))
+
+    reader = ErfReader()
+    parses = 0
+    original = reader._parse_info
+
+    def counting(p):
+        nonlocal parses
+        parses += 1
+        return original(p)
+
+    reader._parse_info = counting
+    # A cached directory must still yield the *right* bytes: the offsets it hands
+    # back are used to seek into the file, so a stale or crossed entry would read
+    # the wrong resource rather than fail loudly.
+    for _ in range(5):
+        assert reader.read_resource_bytes(path, reader.find_resource(path, "a")) == b"AA"
+        assert reader.read_resource_bytes(path, reader.find_resource(path, "b")) == b"BB"
+    assert parses == 1  # ten lookups, one directory parse
+
+    # A separate reader does its own parse — the cache is not global.
+    assert ErfReader().find_resource(path, "a") is not None
+
+
+def test_one_reader_keeps_two_archives_apart(tmp_path: Path) -> None:
+    """The cache is keyed by path, so archives read through one reader can't
+    answer for each other."""
+    first = tmp_path / "first.hak"
+    second = tmp_path / "second.hak"
+    # Same resref in both, different payloads and different sizes.
+    first.write_bytes(_build_erf([("shared", 2017, b"FIRST")]))
+    second.write_bytes(_build_erf([("shared", 2017, b"SECOND"), ("extra", 2017, b"X")]))
+
+    reader = ErfReader()
+    assert reader.read_resource_bytes(first, reader.find_resource(first, "shared")) == b"FIRST"
+    assert reader.read_resource_bytes(second, reader.find_resource(second, "shared")) == b"SECOND"
+    # and again, now that both are cached
+    assert reader.read_resource_bytes(first, reader.find_resource(first, "shared")) == b"FIRST"
+    assert reader.find_resource(first, "extra") is None
+    assert reader.find_resource(second, "extra") is not None
+
+
+def test_cache_notices_a_changed_archive(tmp_path: Path) -> None:
+    """The cache keys on the file's identity, so a rewritten archive is re-read."""
+    path = tmp_path / "changing.hak"
+    path.write_bytes(_build_erf([("before", 2017, b"AA")]))
+
+    reader = ErfReader()
+    assert reader.find_resource(path, "before") is not None
+    assert reader.find_resource(path, "after") is None
+
+    path.write_bytes(_build_erf([("after", 2017, b"BBBB")]))
+    _bump_mtime(path)
+
+    assert reader.find_resource(path, "after") is not None
+    assert reader.find_resource(path, "before") is None
+
+
+def test_a_same_size_rewrite_is_still_noticed(tmp_path: Path) -> None:
+    """Size alone would not distinguish these — the mtime in the key does."""
+    path = tmp_path / "samesize.hak"
+    path.write_bytes(_build_erf([("aaa", 2017, b"AA")]))
+
+    reader = ErfReader()
+    assert reader.find_resource(path, "aaa") is not None
+
+    path.write_bytes(_build_erf([("bbb", 2017, b"BB")]))  # identical length
+    _bump_mtime(path)
+
+    assert reader.find_resource(path, "bbb") is not None
+    assert reader.find_resource(path, "aaa") is None
+
+
+def test_a_missing_file_is_not_negatively_cached(tmp_path: Path) -> None:
+    """An unreadable path returns None without caching, so an archive that shows
+    up later is read rather than remembered as absent."""
+    path = tmp_path / "appears-later.hak"
+
+    reader = ErfReader()
+    assert reader.read_info(path) is None
+    assert reader.list_resources(path) == []
+
+    path.write_bytes(_build_erf([("now", 2017, b"HERE")]))
+    assert reader.read_resource_bytes(path, reader.find_resource(path, "now")) == b"HERE"
+
+
+def test_an_unparseable_archive_returns_none_each_time(tmp_path: Path) -> None:
+    path = tmp_path / "junk.hak"
+    path.write_bytes(b"not an ERF")
+
+    reader = ErfReader()
+    assert reader.read_info(path) is None
+    assert reader.read_info(path) is None  # cached negative, still None
+    assert reader.list_resources(path) == []
+
+    path.write_bytes(_build_erf([("fixed", 2017, b"OK")]))
+    _bump_mtime(path)
+    assert reader.find_resource(path, "fixed") is not None  # repaired, re-read

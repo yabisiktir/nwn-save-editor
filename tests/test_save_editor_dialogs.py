@@ -219,3 +219,72 @@ def test_review_changes_closes_without_writing(qtbot):
     dialog._on_review()
     assert dialog.review_requested
     assert dialog.result() == SaveDialog.DialogCode.Rejected
+
+
+# -- what opening the dialog is allowed to cost ---------------------------- #
+def test_listing_saves_does_not_read_area_names(tmp_path, monkeypatch):
+    """The Open dialog shows a save's *module*, never its areas.
+
+    Naming areas costs one archive lookup per area, per save, and this list is
+    built before the dialog can paint — which is what made opening it hang. If a
+    future change drops the read_area_names=False here, this fails rather than
+    quietly costing seconds again.
+    """
+    from nwnsaveeditor import save_game
+    from tests.test_save_game import _sav_with_areas
+
+    calls = 0
+    original = save_game._read_area_name
+
+    def counting(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(save_game, "_read_area_name", counting)
+
+    saves = []
+    for i in range(3):
+        folder = tmp_path / f"00000{i} - save {i}"
+        folder.mkdir()
+        _sav_with_areas(folder, area_count=10)
+        saves.append(save_game.SaveGame(folder=folder))
+
+    states = [inspect_save(save) for save in saves]
+
+    assert calls == 0, f"the Open list named areas {calls} times"
+    # and it still shows what it is supposed to show
+    assert [s.module for s in states] == ["Test Module"] * 3
+    assert all(s.state == "normal" for s in states)
+
+
+def test_the_open_dialog_still_names_each_module(qtbot, tmp_path):
+    """The end the person actually sees: a real dialog, listing real module names."""
+    from nwnsaveeditor.save_game import SaveGame
+    from tests.test_save_game import _sav_with_areas
+
+    folder = tmp_path / "000000 - quicksave"
+    folder.mkdir()
+    _sav_with_areas(folder, area_count=4)
+
+    dialog = OpenSaveDialog([SaveGame(folder=folder)], None)
+    qtbot.addWidget(dialog)
+    assert "Test Module" in _texts(dialog)
+
+
+def test_opening_a_save_still_gets_named_areas(tmp_path):
+    """The lean read must not leak into the screens: once a save is opened, the
+    area list carries real names, not the resrefs it falls back to."""
+    from nwnsaveeditor.save_game import SaveGame
+    from tests.test_save_game import _sav_with_areas
+
+    folder = tmp_path / "000000 - quicksave"
+    folder.mkdir()
+    _sav_with_areas(folder, area_count=3)
+    save = SaveGame(folder=folder)
+
+    inspect_save(save)  # the dialog measures it first, memoizing a lean read
+    info = save.module_info()  # then a screen asks for the full one
+    assert [name for _resref, name in info.areas] == [
+        "The area00 Room", "The area01 Room", "The area02 Room"
+    ]
