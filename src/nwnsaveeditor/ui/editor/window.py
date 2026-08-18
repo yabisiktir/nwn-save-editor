@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 )
 
 from nwnsaveeditor.save_game import SaveGame, scan_all_saves
+from nwnsaveeditor.ui.editor import geometry
 from nwnsaveeditor.ui.editor import tokens as t
 from nwnsaveeditor.ui.editor import widgets as w
 from nwnsaveeditor.ui.editor.appicon import app_icon
@@ -138,7 +139,6 @@ class SaveEditorWindow(QMainWindow):
         super().__init__(parent)
         self.setWindowTitle("Save Game Editor")
         self.setWindowIcon(app_icon())
-        self.resize(t.WINDOW_W, t.WINDOW_H)
         self._controller = controller
         self._saves = list(saves)
         self._current: SaveGame | None = None
@@ -167,6 +167,53 @@ class SaveEditorWindow(QMainWindow):
         self._set_section("character")
         self._sync_edit_state()
         self._install_shortcuts()
+        self._restore_window_geometry()
+
+    # -- where the window sits ---------------------------------------------- #
+    def _restore_window_geometry(self) -> None:
+        """Open where the window was last left, if that is still somewhere visible.
+
+        A remembered position is only as good as the screen it was remembered on:
+        unplug the monitor it was saved against and restoring it puts the window
+        where nobody can reach it. So the restore is checked, and a position that
+        no longer lands on a screen is dropped rather than honoured.
+        """
+        saved = geometry.decode(self._host_window_geometry())
+        if saved is not None and self.restoreGeometry(saved):
+            # A maximized or full-screen window is placed by the window manager
+            # onto a screen that exists, so there is nothing to second-guess.
+            if self.isMaximized() or self.isFullScreen():
+                return
+            if geometry.is_on_screen(self.frameGeometry()):
+                return
+
+        width, height = geometry.fit_to_screen(t.WINDOW_W, t.WINDOW_H)
+        self.resize(width, height)
+        geometry.center_on_primary(self)
+
+    def _host_window_geometry(self) -> str:
+        """What the host remembers, or ``""`` if it does not remember windows."""
+        getter = getattr(self._controller, "window_geometry", None)
+        if not callable(getter):
+            return ""
+        try:
+            return getter() or ""
+        except Exception:
+            return ""
+
+    def _remember_window_geometry(self) -> None:
+        import contextlib
+
+        setter = getattr(self._controller, "set_window_geometry", None)
+        if not callable(setter):
+            return  # a host that embeds the editor owns its own window state
+        # Failing to remember a window size must never block closing.
+        with contextlib.suppress(Exception):
+            setter(geometry.encode(self.saveGeometry()))
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - Qt's spelling
+        self._remember_window_geometry()
+        super().closeEvent(event)
 
     def _build_ui(self) -> None:
         """Build the whole window from the current palette.

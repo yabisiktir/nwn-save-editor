@@ -84,8 +84,9 @@ def main(argv: list[str] | None = None) -> int:
             "Pass --game-root to point at it; it is remembered afterwards.",
         )
 
+    # No resize here: the window sizes and places itself from what the host
+    # remembers, falling back to a size that fits this screen.
     window = SaveEditorWindow(saves, host)
-    window.resize(1440, 920)
     window.show()
     return app.exec()
 

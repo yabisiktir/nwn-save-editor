@@ -133,10 +133,17 @@ off under **Settings…**.
   "exact_item_icons": true,
   "enable_class_level_editing": false,
   "extra_save_dirs": ["/Volumes/backup/nwn-saves"],
+  "window_geometry": "AdnQywADAAAAAAAeAAAAKAAAAp0AAAJX…",
   "game_root": "/path/to/Neverwinter Nights",
   "game_user_dir": "/path/to/Documents/Neverwinter Nights"
 }
 ```
+
+`window_geometry` is where the window was last left, so it opens there next time.
+It is only restored if it still lands on a screen that is attached — geometry saved
+against a monitor you have since unplugged is discarded rather than opening the
+window somewhere you cannot reach it. Delete the line to start from a default size
+centred on your main screen.
 
 `extra_save_dirs` are folders scanned for saves *besides* `<user_dir>/saves` — each
 one holds NWN save sub-folders (a second saves directory, a backup drive). Manage

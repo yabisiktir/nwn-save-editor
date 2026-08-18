@@ -138,6 +138,8 @@ class StandaloneHost:
         self._extra_save_dirs = [
             Path(p) for p in saved.get("extra_save_dirs", []) if isinstance(p, str) and p
         ]
+        geometry = saved.get("window_geometry")
+        self._window_geometry = geometry if isinstance(geometry, str) else ""
 
         root = game_root or _saved_dir(saved, "game_root") or default_game_root()
         user = game_user_dir or _saved_dir(saved, "game_user_dir") or default_user_dir()
@@ -176,6 +178,20 @@ class StandaloneHost:
             self._hak_item_icons = bool(hak_item_icons)
         if exact_item_icons is not None:
             self._exact_item_icons = bool(exact_item_icons)
+        self._write()
+
+    def window_geometry(self) -> str:
+        """The window's size and position as it was last left (``""`` if unknown).
+
+        Offered the same opt-in way as the settings above: its presence is what
+        tells the window its geometry is this host's to remember. A host that
+        embeds the editor owns its own window and simply does not offer it.
+        """
+        return self._window_geometry
+
+    def set_window_geometry(self, value: str) -> None:
+        """Remember the window's size and position for the next run."""
+        self._window_geometry = str(value or "")
         self._write()
 
     def extra_save_dirs(self) -> list[Path]:
@@ -225,6 +241,8 @@ class StandaloneHost:
         }
         if self._extra_save_dirs:
             payload["extra_save_dirs"] = [str(d) for d in self._extra_save_dirs]
+        if self._window_geometry:
+            payload["window_geometry"] = self._window_geometry
         for key, value in (("game_root", self.ctx.game_root),
                            ("game_user_dir", self.ctx.game_user_dir)):
             if value is not None:

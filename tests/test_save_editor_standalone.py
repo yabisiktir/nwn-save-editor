@@ -548,3 +548,98 @@ def test_first_run_dialog_counts_saves_and_gates_the_open_button(qtbot, tmp_path
     assert len(dialog.found_saves()) == 1
     assert dialog._open_button.isEnabled()
     assert "found" in dialog._status.text()
+
+
+# -- remembering the window -------------------------------------------------- #
+def test_the_window_position_is_remembered_between_runs(tmp_path):
+    StandaloneHost(settings_dir=tmp_path).set_window_geometry("Z2VvbWV0cnk=")
+    assert StandaloneHost(settings_dir=tmp_path).window_geometry() == "Z2VvbWV0cnk="
+
+
+def test_a_host_with_nothing_remembered_reports_no_geometry(tmp_path):
+    assert StandaloneHost(settings_dir=tmp_path).window_geometry() == ""
+
+
+def test_remembering_the_window_keeps_the_other_settings(tmp_path):
+    """The geometry is written into the same file as everything else, so writing
+    it must not drop what is already there."""
+    host = StandaloneHost(settings_dir=tmp_path)
+    host.set_save_editor_theme("light")
+    host.set_extra_save_dirs([tmp_path / "elsewhere"])
+    host.set_window_geometry("Z2VvbWV0cnk=")
+
+    reopened = StandaloneHost(settings_dir=tmp_path)
+    assert reopened._settings().save_editor_theme == "light"
+    assert reopened.extra_save_dirs() == [tmp_path / "elsewhere"]
+    assert reopened.window_geometry() == "Z2VvbWV0cnk="
+
+
+def test_a_settings_file_with_a_nonsense_geometry_is_survivable(tmp_path):
+    """Someone hand-edits the file, or an older build wrote a different shape."""
+    (tmp_path / "save_editor.json").write_text(
+        json.dumps({"window_geometry": {"not": "a string"}}), encoding="utf-8"
+    )
+    assert StandaloneHost(settings_dir=tmp_path).window_geometry() == ""
+
+
+def test_the_window_records_its_geometry_when_it_closes(qtbot, tmp_path):
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+    from tests.test_save_editor import _make_char_save
+
+    host = StandaloneHost(settings_dir=tmp_path)
+    window = SaveEditorWindow([_make_char_save(tmp_path)], host)
+    qtbot.addWidget(window)
+    # Kept inside the headless platform's 800x800 virtual screen: Qt clamps a
+    # restore to the screen it lands on, which would mask the round-trip here.
+    window.resize(700, 600)
+    window.close()
+
+    assert host.window_geometry(), "closing the window remembered nothing"
+    # and the next run starts from it rather than the fallback size
+    reopened = SaveEditorWindow([_make_char_save(tmp_path, name="000001 - b")], host)
+    qtbot.addWidget(reopened)
+    assert (reopened.size().width(), reopened.size().height()) == (700, 600)
+
+
+def test_an_off_screen_position_is_not_restored(qtbot, tmp_path, monkeypatch):
+    """Geometry saved against a monitor that is no longer attached must not be
+    honoured — the window would open where it cannot be reached."""
+    from nwnsaveeditor.ui.editor import geometry
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+    from tests.test_save_editor import _make_char_save
+
+    host = StandaloneHost(settings_dir=tmp_path)
+    window = SaveEditorWindow([_make_char_save(tmp_path)], host)
+    qtbot.addWidget(window)
+    window.resize(700, 600)
+    window.close()
+    remembered = host.window_geometry()
+
+    # Now pretend every screen it was saved against has gone.
+    monkeypatch.setattr(geometry, "is_on_screen", lambda *a, **k: False)
+    reopened = SaveEditorWindow([_make_char_save(tmp_path, name="000001 - b")], host)
+    qtbot.addWidget(reopened)
+
+    assert host.window_geometry() == remembered  # the memory itself is kept
+    assert (reopened.size().width(), reopened.size().height()) != (700, 600)
+
+
+def test_a_host_that_does_not_remember_windows_still_opens(qtbot, tmp_path):
+    """Vaultkeeper embeds the editor and owns its own window: the geometry hooks
+    are opt-in, so a host without them must not break."""
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+    from tests.test_save_editor import _make_char_save
+
+    class BareHost:
+        ctx = StandaloneHost(settings_dir=tmp_path).ctx
+
+        def _settings(self):
+            return StandaloneHost(settings_dir=tmp_path)._settings()
+
+        def set_save_editor_theme(self, name):
+            pass
+
+    window = SaveEditorWindow([_make_char_save(tmp_path)], BareHost())
+    qtbot.addWidget(window)
+    window.close()  # must not raise looking for the hooks it does not have
+    assert window.size().width() > 0
