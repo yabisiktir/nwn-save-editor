@@ -97,8 +97,47 @@ guarantee; keep it.
   ("Internal C++ object already deleted"). This bug was hit three separate times.
   Refresh should update values in place, or rebuild only non-focused, non-editing
   regions.
+- **An editing widget must stage on *finish*, not on every keystroke.** Staging an
+  edit here calls `notify_changed` → `refresh`, which rebuilds the screen the widget
+  lives on — the trap above. A `QSpinBox`/`QLineEdit` wired to `valueChanged`/
+  `textChanged` therefore rebuilds itself on *each* keystroke and arrow click: the
+  user gets one digit in before the field is recreated (they must click back in for
+  the next), and steppers jump out from under the pointer. Reported by a user as
+  "it only lets you enter one digit at a time". Fix: commit on `editingFinished`
+  (Enter / Tab / focus-out), which fires once the value has settled. Use
+  `widgets.commit_on_finish(box, cb)` for spin boxes and `editingFinished` for line
+  edits; `valueChanged` is only for a live-preview widget that does **not** trigger a
+  rebuild (e.g. the level-up wizard's budget label). `textChanged` on a *filter* box
+  is fine — it toggles row visibility and never rebuilds the box. The standard
+  editable-number control is `widgets.stepper(...)` (a `Stepper`): a field with flat
+  −/+ end-caps that auto-repeat on hold — it replaced the bare `QSpinBox` arrows,
+  which a user found too small to see or hit. Its −/+ path stages on **`leaveEvent`**
+  (pointer leaving the control), *not* per click or on a debounce timer: the commit
+  rebuilds and destroys the control, and releasing + to reach for − takes longer than
+  any timer (auto-repeat has its own start delay), so a timer-based commit fired
+  mid-gesture and felt "stuck". Typing still commits on `editingFinished`. Do not add
+  a `setFocus` in the −/+ handler — it fires a spurious `editingFinished` inside the
+  scroll area. Its `.spin` is the inner `QSpinBox` for the full API.
+- **Never set an empty tooltip.** `setToolTip("")` does not clear a tooltip — Qt
+  pops a tiny blank box on hover, which reads as a bug (a user reported exactly
+  this). Any tooltip built from data that can be empty (`Limits.reason` when a field
+  has no special bound, a possibly-blank name) must go through
+  `widgets.set_tooltip(widget, text)`, which no-ops on blank text. This is *not* a
+  theming issue — the tooltip string was genuinely empty.
 - **A `QTreeWidgetItem` / `QWidget` reference is dead after the tree rebuilds.**
   Don't stash item references across a refresh; re-find by key.
+- **Rebuild only what is on screen.** A page is hundreds of widgets (137 feat rows,
+  a bonuses view ~3800px), and an edit rebuilds via `notify_changed`. Two lazy layers
+  keep that cheap, and both must be preserved: (1) at the window level,
+  `notify_changed` refreshes only the **visible section** and marks the others stale
+  (`_stale_screens`), refreshing each on its next `_set_section` — so an edit does not
+  redraw the Inventory screen's every item icon while you are on Character; (2) the
+  Character screen's `refresh()` rebuilds only the **visible tab** and marks the rest
+  stale (`_stale_pages`), rebuilding each in `_show_tab`. Building all screens / all
+  six tabs on every edit put a full save's edit at ~460 ms and made tab-switching
+  drag; the lazy paths cut it to ~120 ms. If you add a screen or tab, follow the same
+  build-on-show pattern; if a test reads a page or screen the user hasn't navigated
+  to, activate it first (the `_page` test helper and the `raw` fixture do this).
 - **Anything read from the game folder is install-keyed and never held** — go
   through `nwnfile.cache.by_install` (backs the property/look/spell tables, item
   names and icons). A different install is a different key, so there is nothing to

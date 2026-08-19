@@ -134,10 +134,42 @@ def test_editing_a_skill_rank_stages_it(window, screen):
     assert screen._tabs._dots["skills"].text().endswith("●")
 
 
-def test_the_skill_filter_hides_non_matching_rows(window, screen):
+def test_a_spin_box_stages_on_finish_not_on_every_keystroke(window, screen):
+    """The "one digit at a time" bug: a spin box wired to ``valueChanged`` staged
+    (and rebuilt the screen) on each keystroke, destroying the field mid-type. It
+    must stage only when editing finishes, so a whole number can be typed first."""
     window._edit_toggle.setChecked(True)
     screen.refresh()
     screen._tabs.set_value("skills")
+    box = _page(screen, "skills").findChildren(QSpinBox)[0]
+
+    old = box.value()
+    target = box.minimum() if old != box.minimum() else box.maximum()
+    assert target != old, "the fixture skill needs room to change"
+
+    box.setValue(target)  # what typing a digit or nudging the arrow does
+    assert not window.session().has_edits, "must not stage (or rebuild) mid-edit"
+
+    box.editingFinished.emit()  # Enter / Tab / focus leaving
+    assert window.session().has_edits, "the settled value stages once, on finish"
+
+
+def test_no_edit_spin_box_carries_an_empty_tooltip(window, screen):
+    """An empty tooltip string still pops a blank box on hover — a reported bug.
+    Every editable spin box must either explain its bound or carry none at all."""
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    for key in ("abilities", "details", "skills"):
+        for box in _page(screen, key).findChildren(QSpinBox):
+            tip = box.toolTip()
+            assert tip == "" or tip.strip(), f"blank tooltip on a {key} spin box"
+            assert tip.strip(), f"a {key} spin box should explain its range"
+
+
+def test_the_skill_filter_hides_non_matching_rows(window, screen):
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    _page(screen, "skills")  # show the tab so its rows are built
     names = [name for name, _row in screen._skill_rows]
     screen._apply_skill_filter(names[0])
     shown = [name for name, row in screen._skill_rows if not row.isHidden()]
@@ -393,7 +425,13 @@ def test_neither_mode_lets_an_ability_exceed_what_a_byte_holds(window, screen):
 
 
 def _page(screen, key):
-    """A tab's page by key — positional indices shift when a tab is added."""
+    """A tab's page by key — positional indices shift when a tab is added.
+
+    Activates the tab first: pages build lazily on show (only the visible tab is
+    rebuilt on refresh), so a page must be shown before it holds its widgets.
+    """
+    screen._tabs.set_value(key)
+    screen._show_tab()
     return screen._pages.widget(screen._page_keys.index(key))
 
 
@@ -464,6 +502,7 @@ def test_base_saves_are_editable_when_the_record_carries_them(window, screen):
 # -- skills ------------------------------------------------------------------ #
 def test_skills_are_listed_alphabetically(window, screen):
     screen.refresh()
+    _page(screen, "skills")  # show the tab so its rows are built
     names = [name for name, _row in screen._skill_rows]
     assert names == sorted(names), "skill-id order reads as random"
 

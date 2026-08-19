@@ -149,6 +149,8 @@ class SaveEditorWindow(QMainWindow):
         self._nav_rows: dict[str, w.NavRow] = {}
         self._save_rows: list[_SaveRow] = []
         self._screens: dict[str, QWidget] = {}
+        self._section_key: str | None = None  # the visible section
+        self._stale_screens: set[str] = set()  # built screens awaiting a refresh on show
         self._restore_states: dict = {}  # per-screen state kept across a theme rebuild
         self._char_cache = None  # CharacterInfo for _char_cache_for
         self._char_cache_for = None  # cache key: (save.folder, edit-token-or-None)
@@ -273,10 +275,10 @@ class SaveEditorWindow(QMainWindow):
 
         # Built fresh on every theme rebuild, so seed it from the current save
         # rather than leaving a rebuilt toolbar claiming nothing is open.
-        self._save_label = w.body(_save_label_text(self._current), t.TEXT_2, 12.5)
-        self._save_label.setWordWrap(False)
-        layout.addWidget(self._save_label)
-        layout.addStretch(1)
+        # Elide (…) rather than wrap: a plain label bakes the whole save name into
+        # the window's minimum width, so a long module name pinned the window wider.
+        self._save_label = w.eliding_body(_save_label_text(self._current), t.TEXT_2, 12.5)
+        layout.addWidget(self._save_label, 1)  # takes the slack, and gives it back when tight
 
         self._open_btn = w.ghost_button("Open Save…")
         self._open_btn.setToolTip("Open another save  (Ctrl+O)")
@@ -734,23 +736,38 @@ class SaveEditorWindow(QMainWindow):
         """A screen staged an edit: refresh the footer, the dots and the screens."""
         self._char_edit_token += 1  # invalidate the cached character summary
         self._refresh_pending()
-        self._refresh_screens()
+        # Refresh the visible screen now; defer the rest until they are shown. An
+        # edit changes at most one screen's view, but rebuilding every visited
+        # screen on each commit — the Inventory screen redraws every item icon —
+        # is what made editing lag. Non-visible screens are marked stale and
+        # refreshed on their next show (see _set_section).
+        for key in list(dict.keys(self._screens)):  # built screens only
+            if key == self._section_key:
+                self._refresh_one(self._screens[key])
+            else:
+                self._stale_screens.add(key)
 
     def _refresh_screens(self) -> None:
         """Re-render every screen that has been built.
 
         Only screens the user has actually visited exist (see _LazyScreens), so
         this is a handful at most — iterating the dict never builds a new one.
+        Used for whole-editor changes (a save switch, a rule-mode flip); the
+        per-edit path defers non-visible screens instead (see notify_changed).
         """
+        self._stale_screens.clear()  # everything is being refreshed now
         for screen in list(self.values_of_built_screens()):
-            refresh = getattr(screen, "refresh", None)
-            if callable(refresh):
-                try:
-                    self._safely(refresh)
-                except Exception:  # one screen's failure must not leave the rest stale
-                    import traceback
+            self._refresh_one(screen)
 
-                    traceback.print_exc()
+    def _refresh_one(self, screen) -> None:
+        refresh = getattr(screen, "refresh", None)
+        if callable(refresh):
+            try:
+                self._safely(refresh)
+            except Exception:  # one screen's failure must not leave the rest stale
+                import traceback
+
+                traceback.print_exc()
 
     def values_of_built_screens(self):
         """The screens constructed so far, without building any more."""
@@ -1088,7 +1105,11 @@ class SaveEditorWindow(QMainWindow):
     def _set_section(self, key: str) -> None:
         for nav_key, row in self._nav_rows.items():
             row.setChecked(nav_key == key)
+        self._section_key = key
         screen = self._screens[key]  # builds on first display
+        if key in self._stale_screens:  # an edit happened while it was hidden
+            self._stale_screens.discard(key)
+            self._refresh_one(screen)
         self._stack.setCurrentWidget(screen)
         state = self._restore_states.pop(key, None)  # kept across a theme rebuild
         if state is not None and hasattr(screen, "restore_state"):

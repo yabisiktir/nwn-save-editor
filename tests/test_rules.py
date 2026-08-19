@@ -94,6 +94,17 @@ def test_strict_does_not_cap_ability_scores():
     assert limits.minimum == 1, "but a score below 1 is not a thing"
 
 
+def test_every_limit_names_a_reason():
+    """The editor shows ``reason`` as a spin box's tooltip. An empty one pops a
+    blank tooltip box on hover — a reported bug — so a field with no special
+    rule bound must still explain that it is bounded only by storage."""
+    for field in ("Gold", "Experience", "Age", "CurrentHitPoints"):
+        for strict in (True, False):
+            assert limits_for(field, GffType.DWORD, strict=strict).reason.strip(), (
+                f"{field} strict={strict}"
+            )
+
+
 # -- clamping ---------------------------------------------------------------- #
 def test_clamp_pins_a_value_into_range():
     limits = Limits(0, 100)

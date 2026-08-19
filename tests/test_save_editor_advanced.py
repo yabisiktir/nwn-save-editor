@@ -36,6 +36,9 @@ def _texts(widget) -> str:
 # -- Raw Data --------------------------------------------------------------- #
 @pytest.fixture
 def raw(window):
+    # Select the section, as a user would before editing it: an edit refreshes
+    # the visible screen now and defers the hidden ones (see notify_changed).
+    window._set_section("raw")
     return window._screens["raw"]
 
 

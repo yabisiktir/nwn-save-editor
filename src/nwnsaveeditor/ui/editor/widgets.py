@@ -20,12 +20,14 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtWidgets import (
     QAbstractButton,
+    QAbstractSpinBox,
     QButtonGroup,
     QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QSizePolicy,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -43,6 +45,180 @@ def paints_own_background(widget: QWidget) -> QWidget:
     """
     widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
     return widget
+
+
+def set_tooltip(widget: QWidget, text: str | None) -> None:
+    """Set a tooltip only when there is something to say.
+
+    ``QWidget.setToolTip("")`` does not mean "no tooltip" — an empty (or
+    whitespace-only) string still makes Qt pop a tiny blank box on hover, which
+    reads as a bug. Several tooltips here come from data that is sometimes empty
+    (``Limits.reason`` has no text when a field has no special bound), so route
+    every *dynamic* tooltip through this instead of ``setToolTip`` directly.
+    """
+    widget.setToolTip(text.strip() if text else "")
+
+
+def commit_on_finish(box, callback) -> None:
+    """Stage a spin box's value when the user finishes editing, not per keystroke.
+
+    Connecting ``valueChanged`` fires on every digit typed *and* every arrow
+    click. In this editor, staging an edit rebuilds the screen the box lives on
+    (``notify_changed`` → ``refresh``), which destroys the box mid-edit: the user
+    can enter only one digit before the field is recreated, and the steppers jump
+    out from under the pointer. ``editingFinished`` fires once the value settles
+    (Enter, Tab, or focus leaving), so the value is whole before the rebuild — the
+    same reason the name field uses it. See CLAUDE.md, "Editable numeric fields".
+    """
+    box.editingFinished.connect(lambda b=box: callback(b.value()))
+
+
+def _stepper_frame_qss() -> str:
+    """The stepper's outlined shell — the row-control idiom (see :func:`small_ghost`):
+    transparent fill, a hairline border and a chip radius, so it sits beside the
+    Feats ``×`` chip as the same family rather than as a heavier filled input."""
+    return (
+        f"QFrame#stepperFrame{{background:transparent;"
+        f"border:1px solid {t.hairline(0.16)};border-radius:{t.RADIUS_CHIP}px;}}"
+    )
+
+
+def _stepper_field_qss() -> str:
+    """The inner number: transparent, borderless — the shell draws the chrome."""
+    return (
+        f"QSpinBox{{background:transparent;border:none;color:{t.TEXT};"
+        f"font-family:{t.UI_FAMILY};font-size:12.5px;font-weight:600;padding:0;}}"
+    )
+
+
+def _stepper_button_qss(side: str) -> str:
+    """A flat −/+ end-cap, styled like :func:`small_ghost` for visual consistency:
+    ``TEXT_2`` glyph, a faint neutral hover — ``side`` rounds the shell's corners."""
+    r = t.RADIUS_CHIP
+    corner = (
+        f"border-top-left-radius:{r}px;border-bottom-left-radius:{r}px;"
+        if side == "left"
+        else f"border-top-right-radius:{r}px;border-bottom-right-radius:{r}px;"
+    )
+    return (
+        f"QPushButton{{background:transparent;border:none;color:{t.TEXT_2};"
+        f"font-family:{t.UI_FAMILY};font-size:14px;font-weight:600;padding:0 0 1px 0;{corner}}}"
+        f"QPushButton:hover{{color:{t.TEXT};background:{t.hairline(0.06)};}}"
+        f"QPushButton:pressed{{background:{t.hairline(0.10)};}}"
+    )
+
+
+class Stepper(QWidget):
+    """A number field with flat −/+ end-caps, in one rounded shell.
+
+    Replaces the bare ``QSpinBox`` arrows, which a user found too small to read or
+    hit ("not clear what the dots do") and which forced the pointer to be
+    repositioned between clicks. The caps are large, fixed, and auto-repeat while
+    held, so a value can be run up without clicking repeatedly.
+
+    Committing waits until the pointer **leaves the whole control**, and this
+    matters: staging an edit rebuilds the screen the widget lives on
+    (``notify_changed`` → ``refresh``), which destroys the widget. If a −/+ click
+    committed immediately — or even on a short debounce — the control would be torn
+    out from under the pointer while the user was still nudging (releasing + and
+    reaching for − takes longer than any timer, because auto-repeat has its own
+    start delay). The user reported exactly that as "feeling stuck". So a −/+ click
+    only nudges the value live; the settled value is staged once, on ``leaveEvent``
+    (or on the field's ``editingFinished`` when the value was typed). While the
+    pointer stays on the buttons, no rebuild can happen. There is no ``setFocus``
+    dance either — an earlier version focused the field on each click, which fired a
+    spurious ``editingFinished`` inside the scroll area and caused the same stuck
+    behaviour.
+
+    The inner ``QSpinBox`` is exposed as :attr:`spin` so callers keep the full
+    spin-box API (range, value, ``editingFinished``).
+    """
+
+    def __init__(
+        self,
+        *,
+        minimum: int,
+        maximum: int,
+        value: int,
+        tooltip: str = "",
+        width: int = 64,
+        on_commit=None,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._on_commit = on_commit
+
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        frame = QFrame()
+        frame.setObjectName("stepperFrame")
+        frame.setStyleSheet(_stepper_frame_qss())
+        outer.addWidget(frame)
+        row = QHBoxLayout(frame)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(0)
+
+        self.spin = QSpinBox()
+        self.spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        self.spin.setFrame(False)
+        self.spin.setRange(minimum, maximum)
+        self.spin.setValue(max(minimum, min(value, maximum)))
+        self.spin.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.spin.setFixedSize(width, 26)
+        self.spin.setStyleSheet(_stepper_field_qss())
+        set_tooltip(self.spin, tooltip)
+        self.spin.editingFinished.connect(self._fire_commit)
+
+        minus = self._button("−", "left", tooltip)  # a real minus sign, not a hyphen
+        plus = self._button("+", "right", tooltip)
+        minus.clicked.connect(lambda: self._step(-1))
+        plus.clicked.connect(lambda: self._step(1))
+
+        row.addWidget(minus)
+        row.addWidget(self.spin)
+        row.addWidget(plus)
+
+    def _button(self, glyph: str, side: str, tooltip: str) -> QPushButton:
+        button = QPushButton(glyph)
+        button.setFixedSize(28, 26)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setAutoRepeat(True)  # hold to run the value
+        button.setAutoRepeatDelay(300)
+        button.setAutoRepeatInterval(60)
+        button.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # never blur/commit the field
+        set_tooltip(button, tooltip)
+        button.setStyleSheet(_stepper_button_qss(side))
+        return button
+
+    def _step(self, delta: int) -> None:
+        self.spin.setValue(self.spin.value() + delta)  # QSpinBox clamps to range; live only
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 (Qt override)
+        # Stage the value only when the pointer has truly left the control. Qt also
+        # sends leaveEvent to a parent when the cursor moves onto one of its own
+        # children (− → field → +), so ignore those: a real exit puts the cursor
+        # outside our rectangle. This is what lets the user run + then − without a
+        # rebuild landing mid-gesture.
+        from PySide6.QtGui import QCursor
+
+        if not self.rect().contains(self.mapFromGlobal(QCursor.pos())):
+            self._fire_commit()
+        super().leaveEvent(event)
+
+    def _fire_commit(self) -> None:
+        if self._on_commit is not None:
+            self._on_commit(self.spin.value())
+
+    def value(self) -> int:
+        return self.spin.value()
+
+
+def stepper(*, minimum, maximum, value, tooltip="", width=64, on_commit=None) -> Stepper:
+    """A :class:`Stepper` wired to stage its settled value via ``on_commit``."""
+    return Stepper(
+        minimum=minimum, maximum=maximum, value=value,
+        tooltip=tooltip, width=width, on_commit=on_commit,
+    )
 
 
 def _literal(text: str) -> str:
@@ -86,6 +262,49 @@ def body(text: str, color: str | None = None, size: float = 12.5) -> QLabel:
     policy = label.sizePolicy()
     policy.setHeightForWidth(True)
     label.setSizePolicy(policy)
+    label.setStyleSheet(
+        f"font-family:{t.UI_FAMILY};font-size:{size}px;"
+        f"color:{color or t.TEXT};background:transparent;"
+    )
+    return label
+
+
+class ElidingLabel(QLabel):
+    """A single-line label that elides to ``…`` instead of forcing its full width.
+
+    A plain ``QLabel`` bakes its whole text width into the layout minimum. In the
+    toolbar that let a long save name pin the entire window wider (and made the
+    minimum wander with whichever save was open). This keeps a near-zero minimum,
+    elides on the right to whatever width it is given, and shows the full text on
+    hover. ``setText`` keeps the untruncated string so a later re-elide is exact.
+    """
+
+    def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._full = text
+        self.setMinimumWidth(0)
+        policy = self.sizePolicy()
+        policy.setHorizontalPolicy(QSizePolicy.Policy.Ignored)  # may shrink below its text
+        self.setSizePolicy(policy)
+        self.setText(text)
+
+    def setText(self, text: str) -> None:  # noqa: N802 (Qt override)
+        self._full = text
+        super().setToolTip(text)
+        self._elide()
+
+    def _elide(self) -> None:
+        metrics = QFontMetrics(self.font())
+        super().setText(metrics.elidedText(self._full, Qt.TextElideMode.ElideRight, self.width()))
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
+        self._elide()
+        super().resizeEvent(event)
+
+
+def eliding_body(text: str, color: str | None = None, size: float = 12.5) -> ElidingLabel:
+    """:func:`body` styling on an :class:`ElidingLabel` (elides instead of wrapping)."""
+    label = ElidingLabel(text)
     label.setStyleSheet(
         f"font-family:{t.UI_FAMILY};font-size:{size}px;"
         f"color:{color or t.TEXT};background:transparent;"

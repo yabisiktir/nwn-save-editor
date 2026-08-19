@@ -102,7 +102,9 @@ def limits_for(
     if field in {"Str", "Dex", "Con", "Int", "Wis", "Cha"}:
         # No rule ceiling exists; the storable range is the honest bound.
         return Limits(max(low, 1), high, "an ability score is at least 1")
-    return Limits(low, high)
+    # No rule bound beyond what the field can physically store. Still name a
+    # reason: an empty one becomes a blank tooltip on the editor's spin box.
+    return Limits(low, high, "bounded only by what the field can store")
 
 
 def skill_limits(*, strict: bool, level: int, class_skill: bool = True) -> Limits:

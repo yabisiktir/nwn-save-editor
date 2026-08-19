@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QScrollArea,
     QSizePolicy,
-    QSpinBox,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -96,6 +95,7 @@ class CharacterScreen(QWidget):
         self._skin = "leather"
         self._effects_view = "active"
         self._class_skill_set: set[int] = set()  # filled per Skills-tab build
+        self._stale_pages: set[str] = set()  # tabs whose page needs a rebuild on show
         self.setStyleSheet(f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
@@ -130,29 +130,42 @@ class CharacterScreen(QWidget):
 
     # -- rebuilding ------------------------------------------------------- #
     def refresh(self) -> None:
-        """Rebuild from the current save, edit gate and staged changes."""
-        info = self._window.character_info()
-        self._build_header(info)
-        for index, key in enumerate(self._page_keys):
-            # A fresh body per refresh, handed to the page's scroll area. Clearing
-            # and refilling the existing one leaves the QScrollArea sizing its
-            # widget from the *old* content: with widgetResizable it does not
-            # re-measure when its widget's children are swapped, so a page that
-            # grows (the bonuses view runs to ~3800px) gets squeezed into the
-            # viewport and every panel collapses to a sliver.
-            body = QWidget()
-            body.setStyleSheet("background:transparent;")
-            layout = QVBoxLayout(body)
-            layout.setContentsMargins(0, 0, 8, 0)
-            builder = getattr(self, f"_build_{key}")
-            builder(layout, info)
-            w.set_scroll_widget(self._pages.widget(index), body)  # takes ownership of the old
-            self._page_bodies[index] = body
-        self._show_tab()
+        """Rebuild from the current save, edit gate and staged changes.
+
+        Only the visible tab is rebuilt now; the others are marked stale and
+        rebuilt the moment they are shown (see :meth:`_show_tab`). A page is
+        hundreds of widgets — 137 feat rows on a real character, a bonuses view
+        that runs to ~3800px — and building all six on every edit made editing
+        and tab-switching drag. This mirrors how the top-level screens already
+        build lazily on first display.
+        """
+        self._build_header(self._window.character_info())
+        self._stale_pages = set(self._page_keys)
+        self._show_tab()  # builds the current page and clears its stale flag
         self._mark_dirty_tabs()
 
     def _show_tab(self) -> None:
-        self._pages.setCurrentIndex(self._page_keys.index(self._tabs.value()))
+        key = self._tabs.value()
+        index = self._page_keys.index(key)
+        if key in self._stale_pages:
+            self._rebuild_page(index, key)
+        self._pages.setCurrentIndex(index)
+
+    def _rebuild_page(self, index: int, key: str) -> None:
+        # A fresh body per rebuild, handed to the page's scroll area. Clearing
+        # and refilling the existing one leaves the QScrollArea sizing its widget
+        # from the *old* content: with widgetResizable it does not re-measure when
+        # its widget's children are swapped, so a page that grows gets squeezed
+        # into the viewport and every panel collapses to a sliver.
+        info = self._window.character_info()  # cached on the edit token; cheap
+        body = QWidget()
+        body.setStyleSheet("background:transparent;")
+        layout = QVBoxLayout(body)
+        layout.setContentsMargins(0, 0, 8, 0)
+        getattr(self, f"_build_{key}")(layout, info)
+        w.set_scroll_widget(self._pages.widget(index), body)  # takes ownership of the old
+        self._page_bodies[index] = body
+        self._stale_pages.discard(key)
 
     def _mark_dirty_tabs(self) -> None:
         """Put the design's ``●`` on tabs holding staged changes."""
@@ -636,16 +649,13 @@ class CharacterScreen(QWidget):
                 line.addWidget(w.prc_badge())
         else:
             limits = self._limits(field.field, self._window.character_info())
-            box = QSpinBox()
-            box.setRange(
-                max(limits.minimum, field.minimum), min(limits.maximum, field.maximum)
-            )
-            box.setToolTip(limits.reason)
-            box.setValue(int(field.value))
-            box.setFixedWidth(120)
-            box.setStyleSheet(_input_qss())
-            box.valueChanged.connect(
-                lambda v, f=field.field: self._set_detail(f, v)
+            box = w.stepper(
+                minimum=max(limits.minimum, field.minimum),
+                maximum=min(limits.maximum, field.maximum),
+                value=int(field.value),
+                tooltip=limits.reason,
+                width=110,
+                on_commit=lambda v, f=field.field: self._set_detail(f, v),
             )
             line.addWidget(box)
         return row
@@ -860,13 +870,14 @@ class CharacterScreen(QWidget):
                 level=getattr(info, "level", 0) or 0,
                 class_skill=self._skill_cap_is_class(skill.index),
             )
-            box = QSpinBox()
-            box.setRange(limits.minimum, limits.maximum)
-            box.setToolTip(limits.reason)
-            box.setValue(min(skill.rank, limits.maximum))
-            box.setFixedWidth(64)
-            box.setStyleSheet(_input_qss())
-            box.valueChanged.connect(lambda v, s=skill: self._set_skill(s, v))
+            box = w.stepper(
+                minimum=limits.minimum,
+                maximum=limits.maximum,
+                value=min(skill.rank, limits.maximum),
+                tooltip=limits.reason,
+                width=56,
+                on_commit=lambda v, s=skill: self._set_skill(s, v),
+            )
             line.addWidget(box)
         else:
             rank = w.body(str(skill.rank), t.TEXT, 13)
@@ -1725,16 +1736,15 @@ def _ability_row(
         line.addWidget(old)
 
     if on_change is not None:
-        stepper = QSpinBox()
-        if limits is not None:
-            stepper.setRange(limits.minimum, limits.maximum)
-            stepper.setToolTip(limits.reason)
-        else:
-            stepper.setRange(1, 255)
-        stepper.setValue(min(score, stepper.maximum()))
-        stepper.setFixedWidth(62)
-        stepper.setStyleSheet(_input_qss())
-        stepper.valueChanged.connect(lambda v, f=field: on_change(f, v))
+        low, high = (limits.minimum, limits.maximum) if limits is not None else (1, 255)
+        stepper = w.stepper(
+            minimum=low,
+            maximum=high,
+            value=min(score, high),
+            tooltip=limits.reason if limits is not None else "",
+            width=54,
+            on_commit=lambda v, f=field: on_change(f, v),
+        )
         line.addWidget(stepper)
     else:
         value = w.body(str(score), t.GOLD if dirty else t.SHEET_TEXT, 15)
@@ -1891,7 +1901,7 @@ def _bonus_group_row(group) -> QWidget:
         # characters to thirty, and a ragged left edge makes the list unreadable.
         source = w.body(contribution.source, t.TEXT_3, 11.5)
         source.setFixedWidth(_SOURCE_COLUMN)
-        source.setToolTip(contribution.source)
+        w.set_tooltip(source, contribution.source)
         line.addWidget(source)
         line.addWidget(w.body(contribution.label, t.TEXT_2, 12), 1)
         if contribution.amount is not None:

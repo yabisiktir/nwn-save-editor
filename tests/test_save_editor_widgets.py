@@ -121,3 +121,125 @@ def test_prc_badge_explains_why_an_edit_may_not_stick(qtbot):
     qtbot.addWidget(badge)
     assert "PRC" in badge.text()
     assert "may not stick" in badge.toolTip()
+
+
+# -- Stepper: the −/+ number control that replaced the tiny spin-box arrows --- #
+def test_stepper_exposes_a_ranged_spin_box(qtbot):
+    step = w.stepper(minimum=0, maximum=43, value=5, tooltip="caps at 43")
+    qtbot.addWidget(step)
+    from PySide6.QtWidgets import QSpinBox
+
+    assert isinstance(step.spin, QSpinBox)
+    assert (step.spin.minimum(), step.spin.maximum()) == (0, 43)
+    assert step.value() == 5
+    assert step.spin.toolTip() == "caps at 43"
+
+
+def test_stepper_has_labelled_plus_minus_buttons_not_bare_arrows(qtbot):
+    step = w.stepper(minimum=0, maximum=10, value=1)
+    qtbot.addWidget(step)
+    from PySide6.QtWidgets import QAbstractSpinBox, QPushButton
+
+    glyphs = {b.text() for b in step.findChildren(QPushButton)}
+    assert glyphs == {"+", "−"}, "the control must show clear −/+ labels"
+    # the field itself carries no native arrows (they were the unclear 'dots')
+    assert step.spin.buttonSymbols() == QAbstractSpinBox.ButtonSymbols.NoButtons
+
+
+def test_stepper_buttons_nudge_the_value_but_do_not_commit_per_click(qtbot):
+    """A click runs the value live; nothing is staged mid-gesture. Staging (which
+    rebuilds the screen and would destroy the control) waits until the pointer
+    leaves — so running + then − never rebuilds the field out from under it."""
+    from PySide6.QtWidgets import QPushButton
+
+    committed = []
+    step = w.stepper(minimum=0, maximum=10, value=4, on_commit=committed.append)
+    qtbot.addWidget(step)
+    plus = next(b for b in step.findChildren(QPushButton) if b.text() == "+")
+    minus = next(b for b in step.findChildren(QPushButton) if b.text() == "−")
+
+    plus.click()
+    plus.click()
+    minus.click()  # + then − in one gesture
+    assert step.value() == 5, "clicks change the value live"
+    assert committed == [], "but nothing is staged while the pointer stays on it"
+
+    step.spin.editingFinished.emit()  # typed value: Enter / focus-out commits
+    assert committed == [5], "the whole settled value stages once, on finish"
+
+
+def test_stepper_commits_when_the_pointer_leaves(qtbot, monkeypatch):
+    """The −/+ path stages on leave, not per click (see the docstring above)."""
+    from PySide6.QtCore import QEvent, QPoint
+    from PySide6.QtGui import QCursor
+    from PySide6.QtWidgets import QPushButton
+
+    committed = []
+    step = w.stepper(minimum=0, maximum=10, value=4, on_commit=committed.append)
+    qtbot.addWidget(step)
+    plus = next(b for b in step.findChildren(QPushButton) if b.text() == "+")
+    plus.click()
+    assert committed == []
+
+    # Pretend the cursor is well outside the control, then deliver the leave.
+    monkeypatch.setattr(QCursor, "pos", staticmethod(lambda: QPoint(-9999, -9999)))
+    step.leaveEvent(QEvent(QEvent.Type.Leave))
+    assert committed == [5], "leaving the control stages the settled value once"
+
+
+def test_stepper_leave_onto_a_child_does_not_commit(qtbot, monkeypatch):
+    """Qt sends the parent a leaveEvent when the cursor moves onto its own child;
+    that must not be mistaken for the user finishing."""
+    from PySide6.QtCore import QEvent
+    from PySide6.QtGui import QCursor
+    from PySide6.QtWidgets import QPushButton
+
+    committed = []
+    step = w.stepper(minimum=0, maximum=10, value=4, on_commit=committed.append)
+    qtbot.addWidget(step)
+    step.resize(120, 30)
+    next(b for b in step.findChildren(QPushButton) if b.text() == "+").click()
+
+    # Cursor still inside the control's own rectangle (i.e. over a child).
+    inside = step.mapToGlobal(step.rect().center())
+    monkeypatch.setattr(QCursor, "pos", staticmethod(lambda: inside))
+    step.leaveEvent(QEvent(QEvent.Type.Leave))
+    assert committed == [], "moving onto a child is not leaving the control"
+
+
+def test_stepper_buttons_respect_the_range(qtbot):
+    step = w.stepper(minimum=0, maximum=2, value=2)
+    qtbot.addWidget(step)
+    from PySide6.QtWidgets import QPushButton
+
+    plus = next(b for b in step.findChildren(QPushButton) if b.text() == "+")
+    plus.click()
+    assert step.value() == 2, "cannot step past the maximum"
+
+
+# -- ElidingLabel: keeps a long save name from pinning the window width -------- #
+def test_eliding_label_shows_full_text_when_it_fits(qtbot):
+    label = w.eliding_body("Short name")
+    qtbot.addWidget(label)
+    label.setFixedWidth(400)
+    label.show()
+    qtbot.waitExposed(label)
+    assert label.text() == "Short name"
+    assert label.toolTip() == "Short name", "the full text is always the tooltip"
+
+
+def test_eliding_label_truncates_and_does_not_force_its_width(qtbot):
+    long = "000002 - quicksave (edited)  —  A Cave beneath the Cloudpeaks"
+    label = w.eliding_body(long)
+    qtbot.addWidget(label)
+    assert label.minimumWidth() == 0, "must not pin a minimum from its text"
+
+    label.setFixedWidth(120)
+    label.show()
+    qtbot.waitExposed(label)  # a real resize so resizeEvent runs the elision
+    shown = label.text()
+    assert shown != long and shown.endswith("…"), "narrow: elided with an ellipsis"
+    assert label.toolTip() == long, "the untruncated name stays on hover"
+
+    label.setText("A different, also quite long, save name here")
+    assert label.toolTip() == "A different, also quite long, save name here"
