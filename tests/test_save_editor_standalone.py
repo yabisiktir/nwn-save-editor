@@ -141,26 +141,36 @@ def test_no_saves_offers_a_setup_dialog(tmp_path, monkeypatch):
     assert opened, "the first-run setup dialog must be offered"
 
 
-def test_an_empty_but_valid_saves_folder_says_so_instead_of_the_setup_dialog(
+def test_an_empty_but_valid_saves_folder_opens_the_editor_not_the_setup_dialog(
     tmp_path, monkeypatch
 ):
-    """A set-up-but-empty saves folder is not a misconfiguration — showing the
-    'Set up the Save Editor' dialog there misleads. Say 'no save games' and quit."""
+    """A set-up-but-empty saves folder is not a misconfiguration — the setup
+    dialog misleads. The editor opens instead, on its 'no save games' state."""
     from PySide6.QtWidgets import QMessageBox
 
+    from nwnsaveeditor.ui.editor.window import SaveEditorWindow
+
     (tmp_path / "saves").mkdir()  # the folder exists, it just holds no saves
-    told = []
-    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: told.append(a))
     opened = []
     monkeypatch.setattr(
         "nwnsaveeditor.ui.editor.firstrun.FirstRunDialog",
         lambda *a, **k: opened.append(a),
     )
+    built = []
+    real_init = SaveEditorWindow.__init__
+
+    def spy_init(self, saves, *a, **k):
+        built.append(list(saves))
+        real_init(self, saves, *a, **k)
+
+    monkeypatch.setattr(SaveEditorWindow, "__init__", spy_init)
+    monkeypatch.setattr(SaveEditorWindow, "show", lambda self: None)
+    monkeypatch.setattr("PySide6.QtWidgets.QApplication.exec", lambda self: 0)
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)  # game-root notice
 
     assert main(["--user-dir", str(tmp_path)]) == 0
-    assert told, "the empty-folder case must be reported"
-    assert "does not contain any save games" in told[0][2]
     assert not opened, "the setup dialog must NOT be shown when folders are valid"
+    assert built == [[]], "the editor opens with an empty save list (its empty state)"
 
 
 def test_has_saves_directory_distinguishes_empty_from_unconfigured(tmp_path):

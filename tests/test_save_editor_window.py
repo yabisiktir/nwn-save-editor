@@ -29,6 +29,123 @@ def window(qtbot, tmp_path):
     return editor
 
 
+# -- no saves: the empty state -------------------------------------------- #
+def test_no_saves_shows_an_empty_state_naming_the_folder(qtbot, tmp_path):
+    """With nothing to open, the editor shows where it searched — not a hollow
+    character sheet claiming 'no readable character record'."""
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+    from PySide6.QtWidgets import QLabel
+
+    editor = SaveEditorWindow([], _Ctrl())
+    qtbot.addWidget(editor)
+
+    from nwnsaveeditor.save_game import primary_saves_dir
+
+    assert editor._current is None
+    assert editor._stack.currentWidget() is editor._empty_state
+    labels = editor._empty_state.findChildren(QLabel)
+    text = " ".join(lbl.text() for lbl in labels)
+    assert "No save games found" in text
+    # The path is shown in an eliding label; its full value is on the tooltip.
+    tips = " ".join(lbl.toolTip() for lbl in labels)
+    assert str(primary_saves_dir(tmp_path)) in tips, "the searched saves folder is named"
+    # Nothing to edit: the gate and the sections are disabled.
+    assert not editor._edit_toggle.isEnabled()
+    assert all(not row.isEnabled() for row in editor._nav_rows.values())
+
+
+def test_selecting_a_section_with_no_saves_stays_on_the_empty_state(qtbot, tmp_path):
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+    editor = SaveEditorWindow([], _Ctrl())
+    qtbot.addWidget(editor)
+    editor._set_section("inventory")  # e.g. a stray shortcut
+    assert editor._stack.currentWidget() is editor._empty_state
+
+
+def test_rescan_opens_a_save_that_appeared_after_launch(qtbot, tmp_path):
+    """The common confusion — 'I just saved, why isn't it here?' — is one click."""
+    from tests.test_save_editor import _make_char_save_with_details
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+    editor = SaveEditorWindow([], _Ctrl())
+    qtbot.addWidget(editor)
+    assert editor._stack.currentWidget() is editor._empty_state
+
+    # A game is saved into the default saves folder while the editor is open.
+    (tmp_path / "saves").mkdir()
+    _make_char_save_with_details(tmp_path / "saves", "000001 - fresh")
+    editor._rescan()
+
+    assert editor._current is not None, "the new save is opened"
+    assert editor._stack.currentWidget() is not editor._empty_state
+    assert editor._edit_toggle.isEnabled()
+
+
+def test_rescan_with_still_no_saves_stays_on_the_empty_state(qtbot, tmp_path):
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+    editor = SaveEditorWindow([], _Ctrl())
+    qtbot.addWidget(editor)
+    editor._rescan()  # nothing turned up
+    assert editor._current is None
+    assert editor._stack.currentWidget() is editor._empty_state
+
+
+def test_add_a_folder_registers_it_and_opens_a_save_it_holds(qtbot, tmp_path, monkeypatch):
+    """'Add a folder…' is the Settings extra-saves flow, on the empty state."""
+    from pathlib import Path
+
+    from PySide6.QtWidgets import QFileDialog
+
+    from tests.test_save_editor import _make_char_save_with_details
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    _make_char_save_with_details(elsewhere, "000005 - remote")
+
+    registered: list[Path] = []
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+        def extra_save_dirs(self):
+            return list(registered)
+
+        def set_extra_save_dirs(self, dirs):
+            registered[:] = [Path(d) for d in dirs]
+
+    editor = SaveEditorWindow([], _Ctrl())
+    qtbot.addWidget(editor)
+    monkeypatch.setattr(QFileDialog, "getExistingDirectory", lambda *a, **k: str(elsewhere))
+    editor._add_save_folder()
+
+    assert elsewhere in registered, "the chosen folder is kept as an extra saves dir"
+    assert editor._current is not None, "a save it holds is opened"
+    assert editor._stack.currentWidget() is not editor._empty_state
+
+
+def test_add_a_folder_button_is_absent_when_the_host_cannot_take_one(qtbot, tmp_path):
+    """An embedding host without set_extra_save_dirs gets Rescan only, not a dead
+    button."""
+    from PySide6.QtWidgets import QPushButton
+
+    class _Ctrl:  # no set_extra_save_dirs
+        ctx = SimpleNamespace(game_root=tmp_path / "NWN", game_user_dir=tmp_path)
+
+    editor = SaveEditorWindow([], _Ctrl())
+    qtbot.addWidget(editor)
+    labels = {b.text() for b in editor._empty_state.findChildren(QPushButton)}
+    assert "Rescan" in labels
+    assert "Add a folder…" not in labels
+
+
 # -- helpers -------------------------------------------------------------- #
 def test_base_name_drops_the_games_numeric_prefix():
     assert _base_name("000014 - Auto Save") == "Auto Save"

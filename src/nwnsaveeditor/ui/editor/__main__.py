@@ -58,25 +58,14 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationName("NWN Save Editor")
     app.setWindowIcon(app_icon())
 
+    from nwnsaveeditor.save_game import has_saves_directory
+
     host = StandaloneHost(game_root=args.game_root, game_user_dir=args.user_dir)
     saves = collect_saves(args.saves, host.ctx.game_user_dir, host.extra_save_dirs())
-    if not saves:
-        from nwnsaveeditor.save_game import has_saves_directory
-
-        if not args.saves and has_saves_directory(
-            host.ctx.game_user_dir, host.extra_save_dirs()
-        ):
-            # The saves folder is set up correctly (found via nwn.ini or the
-            # default), it just has no saves in it. Say so plainly rather than
-            # showing the setup dialog, which implies the folders are wrong.
-            QMessageBox.information(
-                None, "No save games found",
-                "Your Neverwinter Nights saves folder was found, but it does not "
-                "contain any save games yet.\n\nSave a game in Neverwinter Nights, "
-                "then open the editor again.",
-            )
-            return 0
-
+    folder_is_set_up = not args.saves and has_saves_directory(
+        host.ctx.game_user_dir, host.extra_save_dirs()
+    )
+    if not saves and not folder_is_set_up:
         # Nothing is pointed at yet. Rather than dead-ending to the command line
         # (pass --user-dir, then relaunch), let the folders be pointed at here —
         # the dialog re-scans as they change and hands back whatever it found.
@@ -88,6 +77,9 @@ def main(argv: list[str] | None = None) -> int:
         saves = dialog.found_saves()
         if not saves:
             return 0
+    # A configured-but-empty saves folder falls through: the window opens on its
+    # empty state, naming the folder it searched, rather than a setup dialog (which
+    # implies the folders are wrong) or a modal that just quits.
 
     if host.ctx.game_root is None:
         # The editor still opens and edits — it just cannot name anything, since

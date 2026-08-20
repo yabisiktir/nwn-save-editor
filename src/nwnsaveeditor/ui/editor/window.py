@@ -18,6 +18,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -386,7 +387,112 @@ class SaveEditorWindow(QMainWindow):
         self._stack.setStyleSheet(f"background:{t.APP_BG};")
         # Screens are built on first display — see _LazyScreens.
         self._screens = _LazyScreens(self._make_screen)
+        self._empty_state = self._build_empty_state()
+        self._stack.addWidget(self._empty_state)
         return self._stack
+
+    def _build_empty_state(self) -> QWidget:
+        """Shown when no save was found: names the folder that was searched, so the
+        person can see the editor is looking in the right place (or the wrong one),
+        rather than a hollow character sheet."""
+        from nwnsaveeditor.save_game import primary_saves_dir
+
+        width = 520
+        center = Qt.AlignmentFlag.AlignHCenter
+
+        holder = QWidget()
+        holder.setStyleSheet(f"background:{t.APP_BG};")
+        outer = QVBoxLayout(holder)
+        outer.setContentsMargins(40, 40, 40, 40)
+        outer.setSpacing(11)
+        outer.addStretch(1)
+
+        def line(text: str, color: str, size: float) -> None:
+            # Single-line, sized to its text: a centred word-wrap label collapses
+            # to a narrow clipped column, so each line is its own non-wrapping label.
+            label = w.body(text, color, size)
+            label.setWordWrap(False)
+            label.setAlignment(center)
+            outer.addWidget(label, alignment=center)
+
+        heading = w.heading("No save games found", 22)
+        heading.setAlignment(center)
+        outer.addWidget(heading, alignment=center)
+        line("The editor looked for Neverwinter Nights saves in this folder:", t.TEXT_2, 13)
+
+        path = primary_saves_dir(self._user_dir())
+        path_text = str(path) if path is not None else "— no saves folder is set —"
+        chip = QFrame()
+        chip.setFixedWidth(width)
+        chip.setStyleSheet(
+            f"QFrame{{background:{t.INSET};border:1px solid {t.hairline(0.14)};"
+            f"border-radius:6px;}}"
+        )
+        chip_layout = QVBoxLayout(chip)
+        chip_layout.setContentsMargins(12, 9, 12, 9)
+        path_label = w.ElidingLabel(path_text)  # elides a very long path; full path on hover
+        path_label.setStyleSheet(
+            f"font-family:{t.MONO_FAMILY};font-size:12px;color:{t.TEXT};background:transparent;"
+        )
+        path_label.setAlignment(center)
+        chip_layout.addWidget(path_label)
+        outer.addWidget(chip, alignment=center)
+
+        line("Save a game in Neverwinter Nights and it will appear here.", t.TEXT_3, 12)
+        can_add = callable(getattr(self._controller, "set_extra_save_dirs", None))
+        if can_add:
+            line("If your saves live somewhere else, add that folder below.", t.TEXT_3, 12)
+
+        buttons = QWidget()
+        buttons.setStyleSheet("background:transparent;")
+        row = QHBoxLayout(buttons)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(10)
+        rescan = w.ghost_button("Rescan")
+        rescan.setToolTip("Look again — for a game you just saved")
+        rescan.clicked.connect(self._rescan)
+        row.addWidget(rescan)
+        if can_add:
+            add_folder = w.ghost_button("Add a folder…")
+            add_folder.setToolTip("Point the editor at another folder that holds saves")
+            add_folder.clicked.connect(self._add_save_folder)
+            row.addWidget(add_folder)
+        outer.addSpacing(6)
+        outer.addWidget(buttons, alignment=center)
+
+        outer.addStretch(2)
+        return holder
+
+    def _rescan(self) -> None:
+        """Look for saves again (e.g. after the person saved a game just now).
+        If any turned up, open the first; otherwise stay on the empty state."""
+        self.reload_saves()
+        if self._saves:
+            self._select_save(self._saves[0])
+            self._set_section("character")
+            self._sync_edit_state()
+
+    def _add_save_folder(self) -> None:
+        """Register another folder that holds save sub-folders (the same thing the
+        Settings screen does), then rescan — so a person whose saves live elsewhere
+        can point at them here instead of hunting through Settings first."""
+        from pathlib import Path
+
+        from PySide6.QtWidgets import QFileDialog
+
+        setter = getattr(self._controller, "set_extra_save_dirs", None)
+        getter = getattr(self._controller, "extra_save_dirs", None)
+        if not callable(setter):
+            return
+        chosen = QFileDialog.getExistingDirectory(
+            self, "Choose a folder that holds NWN save sub-folders", str(Path.home())
+        )
+        if not chosen:
+            return
+        current = [str(d) for d in (getter() if callable(getter) else [])]
+        if chosen not in current:
+            setter([*current, chosen])
+        self._rescan()
 
     def _make_screen(self, key: str) -> QWidget:
         """Build one section's screen and put it in the stack."""
@@ -847,6 +953,10 @@ class SaveEditorWindow(QMainWindow):
             if widget is not None:
                 w.retire(widget)
         self._save_rows = []
+        if not self._saves:
+            empty = w.body("No save games found.", t.TEXT_3, 12)
+            empty.setContentsMargins(2, 2, 2, 2)
+            self._saves_box.addWidget(empty)
         for save in self._saves:
             row = _SaveRow(save)
             row.clicked.connect(lambda _=False, s=save: self._select_save(s))
@@ -928,6 +1038,7 @@ class SaveEditorWindow(QMainWindow):
     def _sync_edit_state(self) -> None:
         """Apply the global edit gate to everything it controls."""
         self._footer.setVisible(self._editing)
+        self._edit_toggle.setEnabled(self._current is not None)  # nothing to edit
         has_edits = self._session is not None and self._session.has_edits
         for button in (self._save_new_btn, self._overwrite_btn):
             button.setEnabled(self._editing and has_edits)
@@ -1107,7 +1218,13 @@ class SaveEditorWindow(QMainWindow):
 
     # -- sections --------------------------------------------------------- #
     def _set_section(self, key: str) -> None:
+        if not self._saves:
+            # Nothing to edit: show where saves were looked for, not a hollow
+            # character sheet claiming "no readable character record".
+            self._show_empty_state()
+            return
         for nav_key, row in self._nav_rows.items():
+            row.setEnabled(True)
             row.setChecked(nav_key == key)
         self._section_key = key
         screen = self._screens[key]  # builds on first display
@@ -1118,6 +1235,17 @@ class SaveEditorWindow(QMainWindow):
         state = self._restore_states.pop(key, None)  # kept across a theme rebuild
         if state is not None and hasattr(screen, "restore_state"):
             self._safely(lambda: screen.restore_state(state))
+
+    def _show_empty_state(self) -> None:
+        """Open with no save: show the folder that was searched, not a section."""
+        self._section_key = None
+        for row in self._nav_rows.values():
+            row.setChecked(False)
+            row.setEnabled(False)  # there is nothing for a section to show
+        self._stack.setCurrentWidget(self._empty_state)
+
+    def _user_dir(self):
+        return getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
 
     # -- committing ------------------------------------------------------- #
     def _save_as_new(self) -> None:
