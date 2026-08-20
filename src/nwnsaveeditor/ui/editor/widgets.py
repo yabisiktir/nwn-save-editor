@@ -178,6 +178,14 @@ class Stepper(QWidget):
         row.addWidget(self.spin)
         row.addWidget(plus)
 
+        # Put the tooltip on *every* hoverable surface. The spin box's internal
+        # line edit (the number itself) has no tooltip of its own, and on macOS an
+        # empty child tooltip does not fall through to its parent — it just shows a
+        # blank box. So set it on the frame, the spin, its line edit and the caps.
+        for target in (self, frame, self.spin, self.spin.lineEdit(), minus, plus):
+            if target is not None:
+                set_tooltip(target, tooltip)
+
     def _button(self, glyph: str, side: str, tooltip: str) -> QPushButton:
         button = QPushButton(glyph)
         button.setFixedSize(28, 26)
@@ -300,6 +308,41 @@ class ElidingLabel(QLabel):
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt override)
         self._elide()
         super().resizeEvent(event)
+
+
+def tooltip_qss() -> str:
+    """Theme-aware chrome for QToolTip, rebuilt per call so it follows the theme.
+
+    A QToolTip has no stylesheet of its own, so without this it falls back to the
+    OS/Fusion palette — which renders dark-on-dark in the editor's light theme (a
+    reported unreadable tooltip). Applied on the top-level window so its descendant
+    widgets' tooltips inherit it; it is not set app-wide, to avoid restyling a host
+    application's tooltips when the editor is embedded.
+    """
+    return (
+        f"QToolTip{{color:{t.TEXT};background-color:{t.SURFACE};"
+        f"border:1px solid {t.hairline(0.22)};padding:5px 8px;}}"
+    )
+
+
+def message_box_qss() -> str:
+    """Theme-aware chrome for QMessageBox, rebuilt per call so it follows the theme.
+
+    A ``QMessageBox`` is a separate top-level and does not get the editor's dialog
+    styling, so it fell back to the OS palette — off-theme (and, like the tooltip
+    once was, at risk of poor contrast under the opposite OS appearance). Scoped to
+    ``QMessageBox`` so it only reaches message boxes, and applied on the window /
+    dialogs (whose descendant boxes inherit it), not app-wide.
+    """
+    return (
+        f"QMessageBox{{background:{t.APP_BG};}}"
+        f"QMessageBox QLabel{{color:{t.TEXT};background:transparent;}}"
+        f"QMessageBox QPushButton{{background:transparent;color:{t.TEXT};"
+        f"border:1px solid {t.hairline(0.22)};border-radius:6px;"
+        f"padding:5px 14px;min-width:72px;}}"
+        f"QMessageBox QPushButton:hover{{background:{t.hairline(0.08)};}}"
+        f"QMessageBox QPushButton:default{{background:{t.GOLD};color:{t.GOLD_ON};border:none;}}"
+    )
 
 
 def eliding_body(text: str, color: str | None = None, size: float = 12.5) -> ElidingLabel:
@@ -766,7 +809,11 @@ QPushButton {{
 QPushButton:hover {{ background:{t.hairline(0.08)}; }}
 QPushButton:default {{ background:{t.GOLD}; color:{t.GOLD_ON}; border:none; }}
 QPushButton:disabled {{ color:{t.TEXT_3}; border-color:{t.hairline(0.1)}; }}
-"""
+QToolTip {{
+    color:{t.TEXT}; background-color:{t.SURFACE};
+    border:1px solid {t.hairline(0.22)}; padding:5px 8px;
+}}
+""" + message_box_qss()
 
 
 def style_dialog(dialog):

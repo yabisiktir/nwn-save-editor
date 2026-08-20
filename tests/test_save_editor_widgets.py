@@ -135,6 +135,21 @@ def test_stepper_exposes_a_ranged_spin_box(qtbot):
     assert step.spin.toolTip() == "caps at 43"
 
 
+def test_stepper_puts_the_tooltip_on_every_hoverable_surface(qtbot):
+    """The number is the spin box's internal line edit; without its own tooltip,
+    hovering it showed a blank box on macOS (an empty child tooltip does not fall
+    through to the parent). Every surface must carry the text."""
+    from PySide6.QtWidgets import QPushButton
+
+    tip = "a class skill caps at 43"
+    step = w.stepper(minimum=0, maximum=43, value=5, tooltip=tip)
+    qtbot.addWidget(step)
+    assert step.toolTip() == tip
+    assert step.spin.toolTip() == tip
+    assert step.spin.lineEdit().toolTip() == tip, "the number itself must not be blank"
+    assert all(b.toolTip() == tip for b in step.findChildren(QPushButton))
+
+
 def test_stepper_has_labelled_plus_minus_buttons_not_bare_arrows(qtbot):
     step = w.stepper(minimum=0, maximum=10, value=1)
     qtbot.addWidget(step)

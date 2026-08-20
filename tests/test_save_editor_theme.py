@@ -177,3 +177,76 @@ def test_without_the_host_hook_the_saved_theme_still_wins(qtbot, tmp_path):
     editor = SaveEditorWindow([save], _Ctrl())
     qtbot.addWidget(editor)
     assert t.active_theme() == "light"
+
+
+def test_tooltips_are_readable_in_both_themes(qtbot):
+    """A QToolTip has no stylesheet of its own; without a theme-aware rule it fell
+    back to the OS palette and rendered dark-on-dark in light mode (reported).
+    The rule the window applies must give the shown tooltip themed colours."""
+    from PySide6.QtCore import QPoint
+    from PySide6.QtWidgets import (
+        QApplication,
+        QLabel,
+        QMainWindow,
+        QToolTip,
+        QVBoxLayout,
+        QWidget,
+    )
+
+    def shown_tooltip():
+        for widget in QApplication.topLevelWidgets():
+            if widget.metaObject().className() == "QTipLabel":
+                return widget
+        return None
+
+    for theme in ("dark", "light"):
+        t.set_theme(theme)
+        win = QMainWindow()
+        win.setStyleSheet("QMainWindow{}" + w.tooltip_qss())
+        central = QWidget()
+        win.setCentralWidget(central)
+        label = QLabel("x")
+        label.setToolTip("Appraise 8")
+        QVBoxLayout(central).addWidget(label)
+        qtbot.addWidget(win)
+        win.show()
+        qtbot.waitExposed(win)
+
+        QToolTip.showText(QPoint(20, 20), label.toolTip(), label)
+        qtbot.waitUntil(lambda: shown_tooltip() is not None)
+        palette = shown_tooltip().palette()
+        bg = palette.color(palette.ColorRole.Window).name().lower()
+        fg = palette.color(palette.ColorRole.WindowText).name().lower()
+        assert bg == t.SURFACE.lower(), f"{theme}: tooltip background not themed"
+        assert fg == t.TEXT.lower(), f"{theme}: tooltip text not themed"
+        QToolTip.hideText()
+
+
+def test_message_boxes_follow_the_theme(qtbot):
+    """A QMessageBox is a separate top-level and misses the dialog styling, so it
+    fell back to the OS palette. The window's scoped rule must reach it."""
+    from PySide6.QtWidgets import QLabel, QMainWindow, QMessageBox, QWidget
+
+    for theme in ("dark", "light"):
+        t.set_theme(theme)
+        win = QMainWindow()
+        win.setStyleSheet(f"QMainWindow{{background:{t.APP_BG};}}" + w.message_box_qss())
+        win.setCentralWidget(QWidget())
+        qtbot.addWidget(win)
+        win.show()
+        qtbot.waitExposed(win)
+
+        box = QMessageBox(
+            QMessageBox.Icon.Question, "Discard?", "Discard 1 change.",
+            QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel, win,
+        )
+        qtbot.addWidget(box)
+        box.show()
+        qtbot.waitExposed(box)
+
+        box_bg = box.palette().color(box.palette().ColorRole.Window).name().lower()
+        assert box_bg == t.APP_BG.lower(), f"{theme}: message box background not themed"
+        label = next(lbl for lbl in box.findChildren(QLabel) if "Discard" in lbl.text())
+        text = label.palette().color(label.palette().ColorRole.WindowText).name().lower()
+        assert text == t.TEXT.lower(), f"{theme}: message text not themed"
+        box.close()

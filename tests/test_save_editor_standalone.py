@@ -141,6 +141,37 @@ def test_no_saves_offers_a_setup_dialog(tmp_path, monkeypatch):
     assert opened, "the first-run setup dialog must be offered"
 
 
+def test_an_empty_but_valid_saves_folder_says_so_instead_of_the_setup_dialog(
+    tmp_path, monkeypatch
+):
+    """A set-up-but-empty saves folder is not a misconfiguration — showing the
+    'Set up the Save Editor' dialog there misleads. Say 'no save games' and quit."""
+    from PySide6.QtWidgets import QMessageBox
+
+    (tmp_path / "saves").mkdir()  # the folder exists, it just holds no saves
+    told = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: told.append(a))
+    opened = []
+    monkeypatch.setattr(
+        "nwnsaveeditor.ui.editor.firstrun.FirstRunDialog",
+        lambda *a, **k: opened.append(a),
+    )
+
+    assert main(["--user-dir", str(tmp_path)]) == 0
+    assert told, "the empty-folder case must be reported"
+    assert "does not contain any save games" in told[0][2]
+    assert not opened, "the setup dialog must NOT be shown when folders are valid"
+
+
+def test_has_saves_directory_distinguishes_empty_from_unconfigured(tmp_path):
+    from nwnsaveeditor.save_game import has_saves_directory
+
+    assert not has_saves_directory(tmp_path), "no saves subfolder yet"
+    (tmp_path / "saves").mkdir()
+    assert has_saves_directory(tmp_path), "an existing (empty) saves folder counts"
+    assert not has_saves_directory(None)
+
+
 def test_the_console_script_points_at_this_entry_point():
     import tomllib
 

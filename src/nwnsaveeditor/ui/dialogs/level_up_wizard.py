@@ -233,7 +233,7 @@ class LevelUpWizard(QWizard):
             f"{left} of {self._skill_budget} point" + ("s" if self._skill_budget != 1 else "")
             + " remaining" + ("  —  over budget" if left < 0 else "")
         )
-        colour = "#e06c6c" if left < 0 else t.TEXT
+        colour = t.DANGER if left < 0 else t.TEXT
         self._remaining_label.setStyleSheet(f"color:{colour};font-weight:700;")
 
     # -- results ----------------------------------------------------------- #

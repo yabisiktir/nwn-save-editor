@@ -82,7 +82,8 @@ class QuestsScreen(QWidget):
         self._search.setStyleSheet(
             f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
             f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};"
-            f"font-size:12px;padding:6px 9px;}}"
+            f"font-size:12px;padding:6px 9px;selection-background-color:{t.gold_tint(0.5)};"
+            f"selection-color:{t.GOLD};}}"
         )
         self._search.textChanged.connect(self._set_filter)
         self._variables_layout.addWidget(self._search)

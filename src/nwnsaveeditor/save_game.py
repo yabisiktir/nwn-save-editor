@@ -237,6 +237,23 @@ def primary_saves_dir(user_dir: Path | None) -> Path | None:
     return saves_alias_from_ini(user_dir) or (user_dir / "saves")
 
 
+def has_saves_directory(
+    user_dir: Path | None, extra_dirs: list[Path] | tuple[Path, ...] = ()
+) -> bool:
+    """Whether a real saves directory exists to scan — even if it holds no saves.
+
+    Distinguishes "the folders are set up, there just aren't any saves" (a resolved
+    ``nwn.ini`` ``SAVES`` alias, an existing ``<user_dir>/saves``, or a configured
+    extra folder) from "nothing is pointed at yet". The launcher uses it to say
+    "no save games found" instead of the first-run *setup* dialog, which misleads
+    when the folders are in fact correct.
+    """
+    primary = primary_saves_dir(user_dir)
+    if primary is not None and primary.is_dir():
+        return True
+    return any(Path(directory).is_dir() for directory in extra_dirs)
+
+
 def scan_all_saves(
     user_dir: Path | None, extra_dirs: list[Path] | tuple[Path, ...] = ()
 ) -> list[SaveGame]:

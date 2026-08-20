@@ -38,7 +38,8 @@ def _input_qss(family: str | None = None) -> str:
     return (
         f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
         f"border-radius:5px;color:{t.TEXT};font-family:{family or t.MONO_FAMILY};"
-        f"font-size:12px;padding:7px 9px;}}"
+        f"font-size:12px;padding:7px 9px;selection-background-color:{t.gold_tint(0.5)};"
+        f"selection-color:{t.GOLD};}}"
         f"QLineEdit:focus{{border-color:{t.gold_border(0.5)};}}"
     )
 

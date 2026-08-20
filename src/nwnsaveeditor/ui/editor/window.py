@@ -228,7 +228,9 @@ class SaveEditorWindow(QMainWindow):
         self._save_rows.clear()
         self._screens.clear()
 
-        self.setStyleSheet(f"QMainWindow{{background:{t.APP_BG};}}")
+        self.setStyleSheet(
+            f"QMainWindow{{background:{t.APP_BG};}}" + w.tooltip_qss() + w.message_box_qss()
+        )
         root = QWidget()
         root.setStyleSheet(f"background:{t.APP_BG};")
         self.setCentralWidget(root)  # replaces and deletes any previous central widget
@@ -954,7 +956,10 @@ class SaveEditorWindow(QMainWindow):
         if answer != QMessageBox.StandardButton.Discard:
             return False
         self._session.discard()
-        self._refresh_pending()
+        # Rebuild the screens too, not just the footer: otherwise the edit fields
+        # (skill steppers, character details) keep showing the discarded values
+        # instead of snapping back to the original — a reported confusion.
+        self.notify_changed()
         return True
 
     def _undo(self) -> None:
@@ -1054,8 +1059,7 @@ class SaveEditorWindow(QMainWindow):
     def _discard_all(self) -> None:
         if self._session is None or not self._session.has_edits:
             return
-        if self._confirm_discard("Discard All"):
-            self._refresh_pending()
+        self._confirm_discard("Discard All")  # discards and refreshes on confirm
 
     # -- pending changes -------------------------------------------------- #
     def _refresh_pending(self) -> None:

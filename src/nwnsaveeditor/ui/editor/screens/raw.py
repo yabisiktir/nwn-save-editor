@@ -147,7 +147,8 @@ class RawScreen(QWidget):
         self._filter.setStyleSheet(
             f"QLineEdit{{background:{t.INPUT_BG};border:1px solid {t.hairline(0.18)};"
             f"border-radius:5px;color:{t.TEXT};font-family:{t.UI_FAMILY};"
-            f"font-size:12px;padding:6px 9px;}}"
+            f"font-size:12px;padding:6px 9px;selection-background-color:{t.gold_tint(0.5)};"
+            f"selection-color:{t.GOLD};}}"
         )
         self._filter.textChanged.connect(self._apply_filter)
         outer.addWidget(self._filter)

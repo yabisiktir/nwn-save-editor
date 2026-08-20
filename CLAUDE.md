@@ -52,6 +52,18 @@ half the users.
    Then build the widget in `light` theme and grab it. If the body goes dark, a
    scroll viewport (or some other surface) isn't painting a token background.
 
+6. **Popups are separate top-levels and don't inherit a parent's inline styles —
+   theme them by a *scoped* rule on the window/dialog.** `QToolTip` and
+   `QMessageBox` fall back to the OS palette otherwise (a reported dark-on-dark
+   tooltip in light mode). A `QToolTip{…}` / `QMessageBox{…}` rule *does* reach a
+   popup shown for a descendant of the widget carrying it, so `widgets.tooltip_qss()`
+   and `widgets.message_box_qss()` are appended to the window's stylesheet (and to
+   `dialog_qss()`), never set app-wide — that would restyle a host app's popups when
+   embedded. `QFileDialog` is deliberately left native: theming it forces the
+   worse non-native picker. Text-selection colour (`selection-background-color` /
+   `selection-color`) is also palette-driven — every input QSS sets it to the gold
+   tokens so selection isn't OS-blue.
+
 See the module docstring in `tokens.py` for how the palette is authored (OKLCH →
 sRGB) and how `set_theme` works.
 

@@ -61,7 +61,23 @@ def main(argv: list[str] | None = None) -> int:
     host = StandaloneHost(game_root=args.game_root, game_user_dir=args.user_dir)
     saves = collect_saves(args.saves, host.ctx.game_user_dir, host.extra_save_dirs())
     if not saves:
-        # Detection came up empty. Rather than dead-ending to the command line
+        from nwnsaveeditor.save_game import has_saves_directory
+
+        if not args.saves and has_saves_directory(
+            host.ctx.game_user_dir, host.extra_save_dirs()
+        ):
+            # The saves folder is set up correctly (found via nwn.ini or the
+            # default), it just has no saves in it. Say so plainly rather than
+            # showing the setup dialog, which implies the folders are wrong.
+            QMessageBox.information(
+                None, "No save games found",
+                "Your Neverwinter Nights saves folder was found, but it does not "
+                "contain any save games yet.\n\nSave a game in Neverwinter Nights, "
+                "then open the editor again.",
+            )
+            return 0
+
+        # Nothing is pointed at yet. Rather than dead-ending to the command line
         # (pass --user-dir, then relaunch), let the folders be pointed at here —
         # the dialog re-scans as they change and hands back whatever it found.
         from nwnsaveeditor.ui.editor.firstrun import FirstRunDialog

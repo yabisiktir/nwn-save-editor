@@ -134,6 +134,30 @@ def test_editing_a_skill_rank_stages_it(window, screen):
     assert screen._tabs._dots["skills"].text().endswith("●")
 
 
+def test_discard_all_snaps_the_edit_fields_back_to_the_original(window, screen, monkeypatch):
+    """Discard dropped the staged values but left the steppers showing them — the
+    fields must rebuild so the original value is what you see again."""
+    from PySide6.QtWidgets import QMessageBox
+
+    window._edit_toggle.setChecked(True)
+    screen.refresh()
+    skill = window.session().player_skills()[0]
+    original = skill.rank
+    screen._set_skill(skill, original + 3)
+    assert window.session().player_skills()[0].rank == original + 3, "staged"
+
+    refreshed = []
+    monkeypatch.setattr(type(screen), "refresh", lambda self: refreshed.append(True))
+    monkeypatch.setattr(
+        QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Discard
+    )
+    window._discard_all()
+
+    assert not window.session().has_edits
+    assert refreshed, "discarding must rebuild the screen, not just the footer"
+    assert window.session().player_skills()[0].rank == original, "value restored"
+
+
 def test_a_spin_box_stages_on_finish_not_on_every_keystroke(window, screen):
     """The "one digit at a time" bug: a spin box wired to ``valueChanged`` staged
     (and rebuilt the screen) on each keystroke, destroying the field mid-type. It
