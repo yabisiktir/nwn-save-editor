@@ -360,11 +360,13 @@ class InventoryScreen(QWidget):
         if item is None:
             return item_cell(slot_name, filled=False, selected=False, tooltip=slot_name)
         name = self._name(item)
+        stack = _stack(item)
         cell = item_cell(
             _code(name), filled=True,
             selected=tuple(item.path) == self._selected,
-            tooltip=f"{name}\n{slot_name}",
+            tooltip=f"{self._label(item)}\n{slot_name}",
             icon=self._icon(item),
+            badge=str(stack) if stack > 1 else "",
         )
         cell.mousePressEvent = _left_click(lambda p=tuple(item.path): self._select(p))
         return cell
@@ -389,14 +391,19 @@ class InventoryScreen(QWidget):
             name = self._name(item)
             path = tuple(item.path)
             held = counts.get(path, 0)
-            tooltip = name
+            stack = _stack(item)
+            tooltip = self._label(item)
             if held:
                 tooltip = f"{name}\nHolds {held} item(s) — double-click to see them"
+            # A bag shows how many it holds; a plain stack shows how many it is.
+            # An item is never both, so the one corner badge carries whichever
+            # applies (the tooltip spells out which).
+            badge = str(held) if held else (str(stack) if stack > 1 else "")
             cell = item_cell(
                 _code(name), filled=True,
                 selected=path == self._selected,
                 tooltip=tooltip, icon=self._icon(item),
-                badge=str(held) if held else "",
+                badge=badge,
             )
             cell.mousePressEvent = _left_click(lambda p=path: self._select(p))
             if held:
@@ -410,6 +417,10 @@ class InventoryScreen(QWidget):
 
     def _name(self, item) -> str:
         return self._window.item_name(item) if item is not None else ""
+
+    def _label(self, item) -> str:
+        """The name with its stack count, e.g. ``"Arrow (45)"`` — for tooltips."""
+        return self._window.item_label(item) if item is not None else ""
 
     def _sorted(self, items: list) -> list:
         """Items in a stable, readable order — the GFF order is arbitrary.
@@ -461,6 +472,14 @@ def _code(name: str) -> str:
     """A short cell label for an item with no icon — the design's 2-3 letter code."""
     letters = "".join(ch for ch in name if ch.isalpha())
     return letters[:3].upper() or "??"
+
+def _stack(item) -> int:
+    """How many the item holds (``StackSize``), at least 1. Local to dodge the
+    window↔screens import cycle; mirrors ``window.item_stack_size``."""
+    try:
+        return max(1, int(getattr(item, "stack_size", 1) or 1))
+    except (TypeError, ValueError):
+        return 1
 
 def _left_click(action):
     """A mousePressEvent handler that fires only on the left button.

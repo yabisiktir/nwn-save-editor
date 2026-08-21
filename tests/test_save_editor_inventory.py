@@ -41,6 +41,22 @@ def _buttons(widget) -> list[str]:
 
 
 # -- the paperdoll --------------------------------------------------------- #
+def test_cast_spell_subtype_reads_both_item_shapes():
+    """A scroll's icon comes from its Cast-Spell subtype; the extractor must find
+    it whether the property is a bare ItemProperty or a wrapped EditableProperty."""
+    from nwnsaveeditor.ui.icons import _cast_spell_subtype
+
+    bare = SimpleNamespace(property_name=15, subtype=245)  # Cast Spell -> spell 245
+    other = SimpleNamespace(property_name=6, subtype=3)  # some other property
+    wrapped = SimpleNamespace(prop=bare)
+    zero = SimpleNamespace(property_name=15, subtype=0)  # Acid Fog is subtype 0
+    assert _cast_spell_subtype(SimpleNamespace(properties=[other, bare])) == 245
+    assert _cast_spell_subtype(SimpleNamespace(properties=[wrapped])) == 245
+    assert _cast_spell_subtype(SimpleNamespace(properties=[zero])) == 0  # not -1
+    assert _cast_spell_subtype(SimpleNamespace(properties=[other])) == -1  # no cast prop
+    assert _cast_spell_subtype(SimpleNamespace(properties=None)) == -1
+
+
 def test_paperdoll_covers_the_wearable_slots():
     """Every wearable slot needs a cell, or an item there would be invisible."""
     wearable = set(EQUIP_SLOT_NAMES) - set(CREATURE_SLOTS)

@@ -47,6 +47,17 @@ from nwnfile.formats.key_bif_reader import KeyBifReader
 _TGA_RES_TYPE = 3
 _MAX_RESREF = 16
 
+#: The "Cast Spell" item-property type (itempropdef.2da row). A scroll's real
+#: inventory icon is its spell's icon, reached through this property's subtype.
+_CAST_SPELL_PROP = 15
+#: Base items pictured as the spell they carry: spell scrolls (spellscroll,
+#: blank_scroll, crafted_scroll). The game ships a ready-made scroll icon per
+#: spell — the spell's ``is_<name>`` icon has an ``iss_<name>`` ("icon spell
+#: scroll") twin that is the orange scroll drawn *with* that spell's symbol on it.
+#: Wands/rods/staves were tried too but looked wrong (tall icons), so they keep
+#: their plain per-type picture.
+_SPELL_ICON_ITEMS = frozenset({75, 102, 105})
+
 
 class ItemIconSource:
     """Looks up item inventory icons (TGA bytes) from the install, cached."""
@@ -71,6 +82,8 @@ class ItemIconSource:
         #: opt-in hak icon search: resref -> (hak path, resource), built lazily.
         self._hak_dir = hak_dir if hak_dir is not None and hak_dir.is_dir() else None
         self._hak_index: dict[str, tuple[Path, ErfResource]] | None = None
+        #: Cast-Spell subtype (iprp_spells row) -> the spell's icon resref, lazy.
+        self._spell_icons: dict[int, str] | None = None
         self._erf = ErfReader()
         if self._reader is not None:
             self._load_base_items()
@@ -110,6 +123,59 @@ class ItemIconSource:
                 int(model_type) if model_type.isdigit() else -1,
             )
 
+    def _spell_icon_resref(self, subtype: int) -> str | None:
+        """The spell's own icon resref for a Cast-Spell subtype, or ``None``.
+
+        Reached by two 2da hops: ``iprp_spells.2da[subtype].SpellIndex`` ->
+        ``spells.2da[index].IconResRef``. Built once and cached; ``None`` with no
+        install to read the tables from.
+        """
+        if self._spell_icons is None:
+            self._build_spell_icons()
+        return self._spell_icons.get(subtype) if self._spell_icons else None
+
+    def _scroll_candidates(self, base_item: int, cast_spell: int) -> list[str]:
+        """The lead icon resrefs for a spell scroll: its spell's ready-made scroll
+        icon, then the bare spell icon, both derived from the Cast-Spell subtype.
+
+        Empty for anything that is not a spell scroll, or a scroll with no spell
+        (``cast_spell < 0``; a subtype of **0** is valid — it is Acid Fog).
+        The game names a spell's icon ``is_<name>`` and its scroll twin
+        ``iss_<name>``, so the scroll icon is the spell icon with that one extra
+        's'. Both are offered (scroll first); the caller keeps the generic parchment
+        as a final fallback for a spell whose scroll icon the install lacks.
+        """
+        if cast_spell < 0 or base_item not in _SPELL_ICON_ITEMS:
+            return []
+        spell_icon = self._spell_icon_resref(cast_spell)
+        if not spell_icon:
+            return []
+        out: list[str] = []
+        if spell_icon.lower().startswith("is_"):
+            out.append(("iss_" + spell_icon[3:])[:_MAX_RESREF])  # the scroll twin
+        out.append(spell_icon[:_MAX_RESREF])
+        return out
+
+    def _build_spell_icons(self) -> None:
+        from nwnfile.item_property_tables import parse_2da
+
+        self._spell_icons = {}
+        if self._reader is None:
+            return
+        iprp_text = self._reader.read_2da_text("iprp_spells")
+        spells_text = self._reader.read_2da_text("spells")
+        if not iprp_text or not spells_text:
+            return
+        _cols, iprp = parse_2da(iprp_text)
+        _scols, spells = parse_2da(spells_text)
+        for subtype, row in iprp.items():
+            index = row.get("SpellIndex")
+            if not index or not index.isdigit():
+                continue
+            icon = spells.get(int(index), {}).get("IconResRef")
+            if icon and icon != "****":
+                self._spell_icons[subtype] = icon
+
     #: Tintable parts (cloaks, robes) ship a PLT rather than a TGA: it stores no
     #: colour, only a palette index per pixel. See nwnfile.formats.plt_reader.
     PLT_RES_TYPE = 6
@@ -143,6 +209,7 @@ class ItemIconSource:
         armor_torso: int = 0,
         armor_robe: int = 0,
         female: bool = False,
+        cast_spell: int = -1,  # -1 = no Cast-Spell property; 0 is a valid subtype
         **_composite_parts,  # consumed by _composite_image, not by naming
     ) -> list[str]:
         """Icon resrefs to try for an item, best guess first.
@@ -150,6 +217,11 @@ class ItemIconSource:
         Every one of these is a per-variant picture; ``DefaultIcon`` comes last and
         is a per-*type* one. Falling back to it is why every suit of armour showed
         the same breastplate and every cloak the same red cloak.
+
+        A spell scroll leads with its spell's ready-made *scroll* icon
+        (``iss_<name>``) — the orange scroll drawn with that spell's symbol — then
+        the bare spell icon (``is_<name>``), then the generic scroll parchment. So
+        each scroll shows the game's own per-spell picture, not one shared tile.
         """
         row = self._base_items.get(base_item)
         if row is None:
@@ -157,7 +229,7 @@ class ItemIconSource:
         item_class, default_icon, model_type = row
         if not self._exact:
             return [default_icon[:_MAX_RESREF]] if default_icon else []
-        candidates: list[str] = []
+        candidates: list[str] = list(self._scroll_candidates(base_item, cast_spell))
 
         if model_type == self._ARMOUR_MODEL_TYPE:
             # Both genders, ours first: the picture is the armour as worn, and a

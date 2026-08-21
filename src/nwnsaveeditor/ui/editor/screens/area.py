@@ -355,7 +355,9 @@ class AreaScreen(QWidget):
             )
 
     def _item_node(self, item, *, prefix: str = "") -> QTreeWidgetItem:
-        node = QTreeWidgetItem([f"{prefix}{item.name}"])
+        labeler = getattr(self._window, "item_label", None)
+        name = labeler(item) if callable(labeler) else item.name
+        node = QTreeWidgetItem([f"{prefix}{name}"])
         node.setData(0, _ROLE, ("item", item))
         # The same icon the Inventory screen uses, so an item looks the same
         # wherever it is found.
@@ -472,7 +474,7 @@ class AreaScreen(QWidget):
 
         dialog = w.style_dialog(IdPickerDialog(
             f"Place a copy of one of your items in {label}",
-            [(i, self._window.item_name(item)) for i, item in enumerate(mine)],
+            [(i, self._window.item_label(item)) for i, item in enumerate(mine)],
             value_header="Item", parent=self,
         ))
         if dialog.exec() != QDialog.DialogCode.Accepted:

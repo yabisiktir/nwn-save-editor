@@ -57,6 +57,29 @@ def tga_to_pixmap(path: Path, *, box: int = DEFAULT_PORTRAIT_BOX) -> QPixmap | N
     )
 
 
+#: The "Cast Spell" item-property type (itempropdef.2da row); a scroll's icon is
+#: its spell's icon, reached through this property's subtype. Mirrors
+#: ``nwnfile.item_icons._CAST_SPELL_PROP``.
+_CAST_SPELL_PROP = 15
+
+
+def _cast_spell_subtype(item) -> int:
+    """The subtype of the item's Cast-Spell property, or ``-1`` if it has none.
+
+    ``-1`` (not ``0``) means "no Cast-Spell property": subtype **0** is a real
+    spell (Acid Fog), so a falsy default would hide its scroll icon. Read
+    defensively across the two item shapes: an :class:`ItemProperty` carries
+    ``property_name``/``subtype`` directly, while a save-editor ``EditableProperty``
+    wraps one in ``.prop``.
+    """
+    for entry in getattr(item, "properties", None) or []:
+        prop = getattr(entry, "prop", entry)
+        if getattr(prop, "property_name", None) == _CAST_SPELL_PROP:
+            subtype = getattr(prop, "subtype", None)
+            return subtype if subtype is not None else -1
+    return -1
+
+
 def load_item_icon(source, item, *, female: bool = False) -> QIcon | None:
     """An item's inventory icon as a QIcon (``None`` if unavailable).
 
@@ -65,7 +88,8 @@ def load_item_icon(source, item, *, female: bool = False) -> QIcon | None:
 
     Armour is pictured as the torso it puts on the wearer, so it needs the parts
     off the item *and* whose body they are drawn on — pass ``female`` for a woman's
-    character, or every suit shows the man's cut of it.
+    character, or every suit shows the man's cut of it. A spell scroll is pictured
+    as the spell it carries, so its Cast-Spell subtype is passed too.
     """
     pixmap = _pixmap(source.icon_image(
         item.base_item,
@@ -74,6 +98,7 @@ def load_item_icon(source, item, *, female: bool = False) -> QIcon | None:
         model_part3=getattr(item, "model_part3", 0),
         armor_torso=getattr(item, "armor_torso", 0),
         armor_robe=getattr(item, "armor_robe", 0),
+        cast_spell=_cast_spell_subtype(item),
         female=female,
     ))
     return None if pixmap is None else QIcon(pixmap)

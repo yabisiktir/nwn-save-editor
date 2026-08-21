@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -120,6 +120,19 @@ def _base_name(name: str) -> str:
     return rest if sep else name
 
 
+def item_stack_size(item) -> int:
+    """How many an item holds (``StackSize``), clamped to at least 1.
+
+    Read defensively: store, area and inventory items share the ``.bic`` layout,
+    but a caller may hand in something simpler, and a zero/missing value means a
+    single item, not none.
+    """
+    try:
+        return max(1, int(getattr(item, "stack_size", 1) or 1))
+    except (TypeError, ValueError):
+        return 1
+
+
 def _next_save_folder(saves_dir: Path, name: str) -> Path:
     """The next free ``NNNNNN - name`` folder, matching how the game numbers saves."""
     used = set()
@@ -149,6 +162,7 @@ class SaveEditorWindow(QMainWindow):
         self._editing = False
         self._nav_rows: dict[str, w.NavRow] = {}
         self._save_rows: list[_SaveRow] = []
+        self._thumb_gen = 0  # bumps on each re-populate; stale pumps see it and stop
         self._screens: dict[str, QWidget] = {}
         self._section_key: str | None = None  # the visible section
         self._stale_screens: set[str] = set()  # built screens awaiting a refresh on show
@@ -616,6 +630,18 @@ class SaveEditorWindow(QMainWindow):
                 return resolved
         return name
 
+    def item_label(self, item) -> str:
+        """An item's display name with its stack count, e.g. ``"Arrow (45)"``.
+
+        A stacked item (arrows, bolts, potions, thrown weapons) carries how many
+        it holds in ``StackSize``; the game shows that number on the icon, and a
+        list of loot reads wrong without it. Singletons (``StackSize`` 1, the
+        default) are left as their bare name.
+        """
+        name = self.item_name(item)
+        count = item_stack_size(item)
+        return f"{name} ({count})" if count > 1 else name
+
     def game_root(self):
         """The configured game folder, or ``None`` — screens need it for 2DAs."""
         return self._game_root()
@@ -964,6 +990,39 @@ class SaveEditorWindow(QMainWindow):
             self._saves_box.addWidget(row)
         self._saves_box.addStretch(1)
         self._sync_save_rows()
+        self._start_thumbnail_pump()
+
+    def _start_thumbnail_pump(self) -> None:
+        """Decode the save-row screenshots in the background, a few per idle tick.
+
+        Each ``screen.tga`` decode costs tens of ms; doing all of them up front is
+        what made a folder of hundreds of saves feel like the app hadn't launched.
+        The rows are on screen with placeholder chips already, so the window is
+        usable immediately and the pictures fill in as they are ready. A newer
+        re-populate bumps ``_thumb_gen``, which an in-flight pump notices and stops,
+        so it never touches rows that have since been retired.
+        """
+        self._thumb_gen += 1
+        pending = [row for row in self._save_rows if row.save.screenshot is not None]
+        if pending:
+            self._pump_thumbnails(self._thumb_gen, pending, 0)
+
+    def _pump_thumbnails(self, gen: int, rows: list[_SaveRow], start: int) -> None:
+        from shiboken6 import isValid
+
+        # Two ways this tick can be stale, both handled before touching a widget:
+        # a later re-populate/theme rebuild bumped the generation (its rows are
+        # retired), or the window itself was torn down while a tick was pending
+        # (an embedded host closing it). Both run on this one thread, never
+        # interleaved with the tick, so a plain check is enough — no locking.
+        if gen != self._thumb_gen or not isValid(self):
+            return
+        batch = 4  # small enough that a tick never blocks the UI noticeably
+        for row in rows[start : start + batch]:
+            row.fill_thumbnail()
+        nxt = start + batch
+        if nxt < len(rows):
+            QTimer.singleShot(0, lambda: self._pump_thumbnails(gen, rows, nxt))
 
     def reload_saves(self) -> None:
         """Re-scan the saves folders (after the extra-folders list changed) and
@@ -1318,6 +1377,7 @@ class SaveEditorWindow(QMainWindow):
         self._saves.insert(0, save)
         row = _SaveRow(save)
         row.clicked.connect(lambda _=False, s=save: self._select_save(s))
+        row.fill_thumbnail()  # one decode is instant; no need to defer a single row
         self._save_rows.insert(0, row)
         self._saves_box.insertWidget(0, row)
 
@@ -1378,7 +1438,8 @@ class _SaveRow(QPushButton):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 6, 8, 6)
         layout.setSpacing(9)
-        layout.addWidget(_save_thumbnail(save))
+        self._thumb = _save_thumbnail(save)
+        layout.addWidget(self._thumb)
 
         text = QVBoxLayout()
         text.setContentsMargins(0, 0, 0, 0)
@@ -1396,6 +1457,11 @@ class _SaveRow(QPushButton):
         )
         text.addWidget(meta)
         layout.addLayout(text, 1)
+
+    def fill_thumbnail(self) -> None:
+        """Decode and show this row's screenshot — driven off the UI thread's idle
+        loop so the list can appear before every image is ready."""
+        _fill_thumbnail(self._thumb, self.save)
 
     def setChecked(self, checked: bool) -> None:  # noqa: N802 - Qt override
         super().setChecked(checked)
@@ -1422,7 +1488,14 @@ def _thumbnail_pixmap(save: SaveGame):
 
 
 def _save_thumbnail(save: SaveGame) -> QLabel:
-    """The save's in-game screenshot at thumbnail size, or a placeholder chip."""
+    """A placeholder thumbnail chip for a save, its screenshot filled in later.
+
+    The chip is built with no image so a row costs ~nothing; the actual TGA decode
+    (tens of ms each, and the whole reason a big saves folder felt slow to open) is
+    deferred to :func:`_fill_thumbnail`, which the window drives in the background
+    after the list is on screen. A screenshot already in ``_THUMBNAILS`` (e.g. after
+    a theme rebuild) is applied straight away, so a re-populate stays instant.
+    """
     thumb = QLabel()
     thumb.setFixedSize(t.SAVE_THUMB, t.SAVE_THUMB)
     thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1430,12 +1503,25 @@ def _save_thumbnail(save: SaveGame) -> QLabel:
         f"background:{t.ICON_CHIP};border-radius:{t.RADIUS_CHIP}px;"
         f"color:{t.TEXT_3};font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;"
     )
-    pixmap = _thumbnail_pixmap(save)
-    if pixmap is None:
-        thumb.setText("SV")
-    else:
-        thumb.setPixmap(pixmap)
+    thumb.setText("SV")
+    shot = save.screenshot
+    if shot is not None and shot in _THUMBNAILS:
+        _apply_thumbnail(thumb, _THUMBNAILS[shot])
     return thumb
+
+
+def _apply_thumbnail(thumb: QLabel, pixmap) -> None:
+    """Show a decoded thumbnail on its chip (clearing the ``SV`` placeholder)."""
+    if pixmap is not None:
+        thumb.setText("")
+        thumb.setPixmap(pixmap)
+
+
+def _fill_thumbnail(thumb: QLabel, save: SaveGame) -> None:
+    """Decode this save's screenshot (once, cached) and paint it onto ``thumb``."""
+    pixmap = _thumbnail_pixmap(save)
+    if pixmap is not None:
+        _apply_thumbnail(thumb, pixmap)
 
 
 def _empty_state(section: Section, blurb: str) -> QWidget:

@@ -74,8 +74,11 @@ class _PanelBase(QWidget):
         self._body.addWidget(w.hline())
 
     def _display_name(self, item) -> str:
-        """The item's name with its strref resolved, if the screen can do that."""
+        """The item's name (strref resolved) with its stack count, when the screen
+        can work them out — e.g. ``"Arrow (45)"``."""
         window = getattr(getattr(self, "_screen", None), "_window", None)
+        if window is not None and hasattr(window, "item_label"):
+            return window.item_label(item)
         if window is not None and hasattr(window, "item_name"):
             return window.item_name(item)
         return getattr(item, "name", "") or ""

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -31,6 +31,12 @@ from nwnsaveeditor.ui.editor import widgets as w
 
 OPEN_DIALOG_W = 680
 SAVE_DIALOG_W = 560
+
+#: How many saves the Open dialog decodes before painting — about a screenful, so
+#: what the user first sees is correct at once while the rest streams in behind it.
+_EAGER_ROWS = 12
+#: How many pending saves the background pump resolves per idle tick.
+_RESOLVE_BATCH = 4
 
 
 def _input_qss(family: str | None = None) -> str:
@@ -52,11 +58,17 @@ class SaveState:
     module: str
     saved: datetime | None
     size: int
-    state: str  #: "normal" | "readonly" | "corrupt"
+    state: str  #: "pending" | "normal" | "readonly" | "corrupt"
 
     @property
     def openable(self) -> bool:
-        return self.state != "corrupt"
+        # "pending" is not yet decoded, so we cannot promise it opens — it becomes
+        # choosable the moment it resolves. "corrupt" never opens.
+        return self.state in ("normal", "readonly")
+
+    @property
+    def resolved(self) -> bool:
+        return self.state != "pending"
 
     @property
     def action_label(self) -> str:
@@ -64,35 +76,63 @@ class SaveState:
         return "Open read-only" if self.state == "readonly" else "Open"
 
 
-def inspect_save(save: SaveGame) -> SaveState:
+def inspect_save(save: SaveGame, *, resolve: bool = True) -> SaveState:
     """Measure a save's module, timestamp, size and state.
 
     Only the module's *name* is shown here, so the area names are not read: each
     one is a separate lookup inside the ``.sav``, which made opening this dialog
     cost (areas x saves) archive reads before it could paint.
+
+    Decoding ``module.ifo`` (to name the module and tell a corrupt save from a
+    good one) is the costly part — a few ms of archive read *per save*, which is
+    what made opening a folder of hundreds of saves hang. Pass ``resolve=False``
+    for a **pending** state that skips it (name and size only); the dialog then
+    fills the rest in the background via :func:`resolve_state`.
     """
-    try:
-        info = save.module_info(read_area_names=False)
-    except Exception:
-        info = None
     try:
         size = sum(f.stat().st_size for f in save.folder.rglob("*") if f.is_file())
     except OSError:
         size = 0
-
-    if info is None:
-        state = "corrupt"  # the .sav's module.ifo would not decode
-    elif not os.access(save.folder, os.W_OK):
-        state = "readonly"
-    else:
-        state = "normal"
-    return SaveState(
-        save=save,
-        module=(info.name if info is not None else "") or "—",
-        saved=save.saved,
-        size=size,
-        state=state,
+    state = SaveState(
+        save=save, module="", saved=save.saved, size=size, state="pending"
     )
+    if resolve:
+        resolve_state(state)
+    return state
+
+
+def resolve_state(state: SaveState) -> SaveState:
+    """Decode ``module.ifo`` for a pending state, settling its module name and
+    whether it is corrupt / read-only / normal. A no-op once resolved."""
+    if state.resolved:
+        return state
+    save = state.save
+    try:
+        info = save.module_info(read_area_names=False)
+    except Exception:
+        info = None
+    if info is None:
+        state.state = "corrupt"  # the .sav's module.ifo would not decode
+    elif not os.access(save.folder, os.W_OK):
+        state.state = "readonly"
+    else:
+        state.state = "normal"
+    state.module = (info.name if info is not None else "") or "—"
+    return state
+
+
+def _meta_text(state: SaveState) -> str:
+    """The row's second line: ``module · when · size``. A not-yet-decoded save
+    reads ``Reading…`` in the module slot, so a pending row looks like it is
+    loading rather than empty or broken."""
+    module = "Reading…" if not state.resolved else state.module
+    stamp = state.saved.strftime("%Y-%m-%d %H:%M") if state.saved else "—"
+    return f"{module}  ·  {stamp}  ·  {_human_size(state.size)}"
+
+
+def _haystack_for(state: SaveState) -> str:
+    """The lower-cased text the search box matches a row against."""
+    return f"{state.save.name} {state.module} {state.save.location}".lower()
 
 
 def _human_size(size: int) -> str:
@@ -112,7 +152,14 @@ class OpenSaveDialog(QDialog):
         self.setFixedWidth(OPEN_DIALOG_W)
         self.setMinimumHeight(460)
         self.setStyleSheet(f"OpenSaveDialog{{background:{t.APP_BG};}}")
-        self._states = [inspect_save(save) for save in saves]
+        # Resolve only the first screenful up front so the dialog paints at once
+        # even on a folder of hundreds of saves; the rest is decoded in the
+        # background by _resolve_pump (see resolve_state). A small folder resolves
+        # entirely here, so it is correct and flicker-free on the very first frame.
+        self._states = [
+            inspect_save(save, resolve=(i < _EAGER_ROWS))
+            for i, save in enumerate(saves)
+        ]
         self._chosen: SaveState | None = next(
             (s for s in self._states if s.openable), None
         )
@@ -147,6 +194,39 @@ class OpenSaveDialog(QDialog):
         self._rows: list[tuple[str, QWidget, SaveState]] = []
         self._build_rows()
         self._sync_button()
+        self._start_resolve_pump()
+
+    def _start_resolve_pump(self) -> None:
+        """Decode the still-pending saves in the background, a few per idle tick,
+        so a big folder's dialog is usable before every module is read. The first
+        tick is deferred too, so construction returns with the dialog painted and
+        the pending rows still showing their loading cue."""
+        if any(not s.resolved for s in self._states):
+            QTimer.singleShot(0, self._resolve_pump)
+
+    def _resolve_pump(self) -> None:
+        from shiboken6 import isValid
+
+        if not isValid(self):  # dialog closed while a tick was still queued
+            return
+        # Always drain the front of the still-pending set: resolving a row drops it
+        # out, so an incrementing index would skip saves.
+        pending = [
+            (row, state) for _h, row, state in self._rows if not state.resolved
+        ]
+        for row, state in pending[:_RESOLVE_BATCH]:
+            resolve_state(state)
+            self._refresh_row(row, state)
+        # A resolved save may be the first openable one — adopt it if nothing is
+        # chosen yet, so the Open button lights as soon as something can be opened.
+        if self._chosen is None:
+            self._chosen = next((s for s in self._states if s.openable), None)
+            if self._chosen is not None:
+                for _h, r, rs in self._rows:
+                    self._style_row(r, rs)
+                self._sync_button()
+        if len(pending) > _RESOLVE_BATCH:
+            QTimer.singleShot(0, self._resolve_pump)
 
     def _build_rows(self) -> None:
         body = QWidget()
@@ -159,10 +239,7 @@ class OpenSaveDialog(QDialog):
             column.addWidget(w.body("No save games were found.", t.TEXT_2, 13))
         for state in self._states:
             row = self._row(state)
-            self._rows.append((
-                f"{state.save.name} {state.module} {state.save.location}".lower(),
-                row, state,
-            ))
+            self._rows.append((_haystack_for(state), row, state))
             column.addWidget(row)
         column.addStretch(1)
         w.set_scroll_widget(self._scroll, body)
@@ -184,15 +261,41 @@ class OpenSaveDialog(QDialog):
         name = w.body(state.save.name, t.TEXT, 13)
         name.setStyleSheet(name.styleSheet() + "font-weight:600;")
         text.addWidget(name)
-        stamp = state.saved.strftime("%Y-%m-%d %H:%M") if state.saved else "—"
-        text.addWidget(w.body(
-            f"{state.module}  ·  {stamp}  ·  {_human_size(state.size)}", t.TEXT_3, 11.5
-        ))
+        row._meta = w.body(_meta_text(state), t.TEXT_3, 11.5)
+        text.addWidget(row._meta)
         layout.addLayout(text, 1)
-        if state.state != "normal":
-            layout.addWidget(_state_badge(state.state))
+        # A badge holder that stays in the layout so a pending row can grow a
+        # corrupt/read-only badge once it resolves, without a full rebuild.
+        row._badge_box = QWidget()
+        row._badge_box.setStyleSheet("background:transparent;")
+        badge_layout = QHBoxLayout(row._badge_box)
+        badge_layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(row._badge_box)
+        self._fill_badge(row, state)
         row.mousePressEvent = lambda _e, s=state: self._choose(s)
         return row
+
+    def _fill_badge(self, row: QWidget, state: SaveState) -> None:
+        layout = row._badge_box.layout()
+        while layout.count():
+            old = layout.takeAt(0).widget()
+            if old is not None:
+                old.setParent(None)
+        # "pending" and "normal" carry no badge — an unresolved row must not flash
+        # a scary state, and a normal one needs none.
+        if state.state in ("readonly", "corrupt"):
+            layout.addWidget(_state_badge(state.state))
+
+    def _refresh_row(self, row: QWidget, state: SaveState) -> None:
+        """Update a row in place after its save resolved (module name, state)."""
+        row._meta.setText(_meta_text(state))
+        self._fill_badge(row, state)
+        self._style_row(row, state)
+        # Rebuild this row's search key so a now-named module becomes searchable.
+        self._rows = [
+            (_haystack_for(rs) if r is row else h, r, rs)
+            for h, r, rs in self._rows
+        ]
 
     def _style_row(self, row: QWidget, state: SaveState) -> None:
         selected = state is self._chosen
@@ -205,7 +308,7 @@ class OpenSaveDialog(QDialog):
 
     def _choose(self, state: SaveState) -> None:
         if not state.openable:
-            return  # a corrupt save cannot be opened, so it cannot be chosen
+            return  # a corrupt (or not-yet-resolved) save cannot be chosen
         self._chosen = state
         for _haystack, row, row_state in self._rows:
             self._style_row(row, row_state)

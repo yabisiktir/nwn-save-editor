@@ -135,6 +135,77 @@ def test_the_search_filters_the_list(qtbot, saves):
     assert len(visible) == 1
 
 
+# -- a big folder loads progressively -------------------------------------- #
+def _many_good_saves(tmp_path, count):
+    from nwnsaveeditor.save_game import SaveGame
+    from tests.test_save_game import _sav_with_areas
+
+    saves = []
+    for i in range(count):
+        folder = tmp_path / f"{i:06d} - save {i}"
+        folder.mkdir()
+        _sav_with_areas(folder, area_count=1)
+        saves.append(SaveGame(folder=folder))
+    return saves
+
+
+def test_only_a_screenful_is_decoded_before_the_dialog_paints(qtbot, tmp_path):
+    from nwnsaveeditor.ui.editor.dialogs import _EAGER_ROWS
+
+    saves = _many_good_saves(tmp_path, _EAGER_ROWS + 6)
+    dialog = OpenSaveDialog(saves)
+    qtbot.addWidget(dialog)
+    # The first screenful is resolved up front; the rest start pending so the
+    # dialog can appear at once on a folder of hundreds.
+    assert all(s.resolved for s in dialog._states[:_EAGER_ROWS])
+    assert all(not s.resolved for s in dialog._states[_EAGER_ROWS:])
+    # A pending row shows a loading cue, not an empty or scary one.
+    assert "Reading…" in _texts(dialog)
+
+
+def test_the_pump_resolves_the_rest_and_names_their_modules(qtbot, tmp_path):
+    from nwnsaveeditor.ui.editor.dialogs import _EAGER_ROWS
+
+    saves = _many_good_saves(tmp_path, _EAGER_ROWS + 6)
+    dialog = OpenSaveDialog(saves)
+    qtbot.addWidget(dialog)
+    qtbot.waitUntil(lambda: all(s.resolved for s in dialog._states), timeout=2000)
+    assert all(s.module == "Test Module" for s in dialog._states)
+    assert "Reading…" not in _texts(dialog)
+    # A module named only after the pump is still searchable.
+    dialog._apply_filter("test module")
+    assert all(not row.isHidden() for _h, row, _s in dialog._rows)
+
+
+def test_a_healthy_save_past_the_screenful_becomes_openable_after_the_pump(
+    qtbot, tmp_path
+):
+    from nwnsaveeditor.ui.editor.dialogs import _EAGER_ROWS
+
+    # Fill the first screenful with corrupt saves and put the only good one
+    # beyond it, so nothing is openable until the pump reaches it.
+    saves = []
+    for i in range(_EAGER_ROWS):
+        good = _many_good_saves(tmp_path, 1)[0]
+        good.folder.rename(good.folder.parent / f"corrupt-{i}")
+        from nwnsaveeditor.save_game import SaveGame
+
+        folder = tmp_path / f"corrupt-{i}"
+        (next(folder.glob("*.sav"))).write_bytes(b"corrupt")
+        saves.append(SaveGame(folder=folder))
+    good = _many_good_saves(tmp_path, 1)[0]
+    saves.append(good)
+
+    dialog = OpenSaveDialog(saves)
+    qtbot.addWidget(dialog)
+    assert dialog.selected_save() is None  # every resolved save so far is corrupt
+    assert not dialog._open.isEnabled()
+
+    qtbot.waitUntil(lambda: dialog._chosen is not None, timeout=2000)
+    assert dialog.selected_save().folder == good.folder
+    assert dialog._open.isEnabled()
+
+
 # -- the Save dialog -------------------------------------------------------- #
 def _save_dialog(qtbot, **overrides):
     kwargs = dict(

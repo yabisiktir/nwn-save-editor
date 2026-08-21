@@ -11,6 +11,7 @@ from nwnsaveeditor.ui.editor.window import (
     SaveEditorWindow,
     _base_name,
     _next_save_folder,
+    item_stack_size,
 )
 
 
@@ -152,10 +153,112 @@ def test_base_name_drops_the_games_numeric_prefix():
     assert _base_name("quicksave") == "quicksave"  # no prefix -> unchanged
 
 
+# -- item stack size ------------------------------------------------------ #
+def test_item_stack_size_defaults_to_one_and_never_below():
+    from types import SimpleNamespace
+
+    assert item_stack_size(SimpleNamespace()) == 1  # missing StackSize
+    assert item_stack_size(SimpleNamespace(stack_size=0)) == 1  # 0 == a single item
+    assert item_stack_size(SimpleNamespace(stack_size=45)) == 45
+    assert item_stack_size(SimpleNamespace(stack_size=None)) == 1  # unparsed
+
+
+def test_item_label_appends_the_stack_count_only_when_stacked(window):
+    from types import SimpleNamespace
+
+    arrow = SimpleNamespace(name="Arrow", named=True, stack_size=45)
+    sword = SimpleNamespace(name="Longsword", named=True, stack_size=1)
+    assert window.item_label(arrow) == "Arrow (45)"
+    assert window.item_label(sword) == "Longsword"  # a singleton stays bare
+
+
 def test_next_save_folder_picks_the_first_free_number(tmp_path):
     (tmp_path / "000001 - a").mkdir()
     (tmp_path / "000003 - c").mkdir()
     assert _next_save_folder(tmp_path, "new").name == "000002 - new"
+
+
+# -- lazy save-row thumbnails --------------------------------------------- #
+def _tga_bytes(width: int = 8, height: int = 8) -> bytes:
+    """A minimal valid uncompressed 32-bit TGA (top-left origin)."""
+    import struct
+
+    header = struct.pack(
+        "<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, width, height, 32, 0x20
+    )
+    return header + bytes([0, 0, 0, 255]) * (width * height)
+
+
+def _save_with_screenshot(folder):
+    from nwnsaveeditor.save_game import SaveGame
+
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "screen.tga").write_bytes(_tga_bytes())
+    return SaveGame(folder=folder, location="Somewhere")
+
+
+def test_save_rows_defer_the_screenshot_decode(qtbot, tmp_path):
+    """A fresh row shows the placeholder chip and holds no pixmap until asked to
+    fill — decoding every screenshot up front is what made a big saves folder feel
+    like the app had not launched."""
+    from nwnsaveeditor.ui.editor.window import _SaveRow
+
+    row = _SaveRow(_save_with_screenshot(tmp_path / "000001 - one"))
+    qtbot.addWidget(row)
+    assert row._thumb.text() == "SV"
+    assert row._thumb.pixmap().isNull()
+
+    row.fill_thumbnail()
+    assert row._thumb.text() == ""
+    assert not row._thumb.pixmap().isNull()
+
+
+def test_the_pump_fills_row_thumbnails_after_the_list_is_shown(qtbot, tmp_path):
+    """The window builds every row unfilled (so it can appear at once) and a
+    background pump decodes the screenshots on the event loop's idle turns."""
+    from types import SimpleNamespace
+
+    saves = [
+        _save_with_screenshot(tmp_path / "saves" / f"00000{i} - s{i}")
+        for i in range(3)
+    ]
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=None, game_user_dir=tmp_path)
+
+    editor = SaveEditorWindow(saves, _Ctrl())
+    qtbot.addWidget(editor)
+    # Rows exist immediately; their pictures have not been decoded yet.
+    assert len(editor._save_rows) == 3
+    qtbot.waitUntil(
+        lambda: all(not r._thumb.pixmap().isNull() for r in editor._save_rows),
+        timeout=2000,
+    )
+
+
+def test_a_superseded_pump_tick_does_not_touch_the_new_rows(qtbot, tmp_path):
+    """A pump tick left over from before a re-populate (or theme rebuild) must be a
+    no-op: it runs on the same thread, so it can't race, but its rows are retired —
+    the generation guard stops it before it decodes onto anything."""
+    from types import SimpleNamespace
+
+    saves = [_save_with_screenshot(tmp_path / "saves" / "000000 - s")]
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=None, game_user_dir=tmp_path)
+
+    editor = SaveEditorWindow(saves, _Ctrl())
+    qtbot.addWidget(editor)
+    stale_gen = editor._thumb_gen
+    editor._thumb_gen += 1  # simulate a re-populate having happened since
+
+    class _Boom:
+        save = SimpleNamespace(screenshot=tmp_path / "nope.tga")
+
+        def fill_thumbnail(self):  # must never be called for a stale generation
+            raise AssertionError("stale pump tick decoded onto a retired row")
+
+    editor._pump_thumbnails(stale_gen, [_Boom()], 0)  # no exception == guarded
 
 
 # -- sections ------------------------------------------------------------- #

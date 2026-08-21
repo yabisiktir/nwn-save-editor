@@ -132,6 +132,9 @@ class EditableItem:
     #: part (or the robe, when it wears one). See :mod:`nwnfile.item_icons`.
     armor_torso: int = 0
     armor_robe: int = 0
+    #: How many the item holds (``StackSize``): arrows, bolts, potions, thrown
+    #: weapons stack. 1 (the default) for a single item. Shown as "(N)"/a badge.
+    stack_size: int = 1
     #: True when the item carries its own ``LocalizedName``. Without this a
     #: caller cannot tell a real name from the ``(unnamed: …)`` placeholder, and
     #: a module's "Robes of Sesustris" gets displayed under whatever its
@@ -1021,6 +1024,7 @@ class SaveEditor:
             model_part3=struct.get("ModelPart3") or 0,
             armor_torso=struct.get("ArmorPart_Torso") or 0,
             armor_robe=struct.get("ArmorPart_Robe") or 0,
+            stack_size=struct.get("StackSize") or 1,
             properties=props,
         )
 

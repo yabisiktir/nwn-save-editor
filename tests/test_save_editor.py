@@ -224,14 +224,19 @@ def _prop(pid: int, subtype: int, cost: int, uses: int = 255) -> GffStruct:
     })
 
 
-def _item(name: str, slot: int, props: list[GffStruct], oid: int = 100) -> GffStruct:
-    return GffStruct(struct_type=slot, fields={
+def _item(
+    name: str, slot: int, props: list[GffStruct], oid: int = 100, stack: int = 1
+) -> GffStruct:
+    fields = {
         "ObjectId": GffField(GffType.DWORD, oid),
         "LocalizedName": _loc(name),
         "TemplateResRef": GffField(GffType.CRESREF, name.lower()),
         "BaseItem": GffField(GffType.INT, 16),
         "PropertiesList": GffField(GffType.LIST, GffList(props)),
-    })
+    }
+    if stack != 1:
+        fields["StackSize"] = GffField(GffType.WORD, stack)
+    return GffStruct(struct_type=slot, fields=fields)
 
 
 def _character() -> GffStruct:
@@ -315,6 +320,27 @@ def test_player_items_walks_equipped_carried_and_bags(tmp_path):
     assert helm.slot == 1 and helm.path == (("Equip_ItemList", 0),)
     ring = next(it for it in items if it.name == "Ring")
     assert ring.slot is None and ring.path == (("ItemList", 0), ("ItemList", 0))  # in the bag
+
+
+def test_player_items_carry_their_stack_size(tmp_path):
+    """A stacked item (arrows, potions) reports how many it holds, so the
+    inventory can show "(N)" / a badge; a single item defaults to 1."""
+    arrows = _item("Arrows", 4, [], oid=200, stack=17)
+    plain = _item("Dagger", 4, [], oid=201)  # no StackSize field
+    char = GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Equip_ItemList": GffField(GffType.LIST, GffList([arrows, plain])),
+    })
+    ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Mod_PlayerList": GffField(GffType.LIST, GffList([char])),
+    }))
+    folder = tmp_path / "000000 - stack"
+    folder.mkdir()
+    (folder / "x.sav").write_bytes(_make_erf([("module", 2014, write_gff(ifo))]))
+    (folder / "player.bic").write_bytes(write_gff(Gff("BIC ", "V3.2", char)))
+
+    items = SaveEditor(SaveGame(folder=folder)).player_items()
+    assert next(it for it in items if it.name == "Arrows").stack_size == 17
+    assert next(it for it in items if it.name == "Dagger").stack_size == 1
 
 
 def test_edit_property_magnitude_syncs_ifo_and_bic(tmp_path):

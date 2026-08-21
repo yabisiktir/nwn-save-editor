@@ -19,6 +19,30 @@ def test_icon_candidate_derivation():
     assert source._candidates(999, 1) == []  # unknown base item
 
 
+def test_scroll_leads_with_its_spells_ready_made_scroll_icon():
+    """A spell scroll is pictured by its spell's ``iss_<name>`` scroll icon (the
+    orange scroll drawn with that spell's symbol), then the bare ``is_<name>``,
+    then the generic parchment — never one shared tile."""
+    source = ItemIconSource(None)
+    source._base_items = {
+        75: ("IT_SCROLL", "iit_scroll_001", 0),  # spellscroll
+        52: ("it_ring", "iit_ring", 0),  # a non-scroll for contrast
+    }
+    source._spell_icons = {245: "is_shadconj", 0: "is_acidfog"}  # 0 == Acid Fog
+    cands = source._candidates(75, 1, cast_spell=245)
+    assert cands[0] == "iss_shadconj"  # the ready-made scroll icon leads
+    assert cands[1] == "is_shadconj"  # then the bare spell icon
+    assert "iit_scroll_001" in cands  # generic parchment still a final fallback
+    # Subtype 0 is a real spell (Acid Fog), not "no spell" — it must still lead.
+    assert source._candidates(75, 1, cast_spell=0)[0] == "iss_acidfog"
+    # A subtype with no known spell icon adds no scroll lead.
+    assert source._candidates(75, 1, cast_spell=999)[0] == "iIT_SCROLL_001"
+    # The scroll icons are only for scroll base items — a ring is unaffected.
+    assert not any(c.startswith("iss_") for c in source._candidates(52, 1, cast_spell=245))
+    # And a scroll with no Cast-Spell property (-1) keeps the plain behaviour.
+    assert not any(c.startswith("iss_") for c in source._candidates(75, 1))
+
+
 def test_icon_source_unavailable_without_install(tmp_path):
     source = ItemIconSource(tmp_path)  # no data/*.key here
     assert not source.available
