@@ -147,6 +147,14 @@ class StandaloneHost:
         self.remember_paths()
 
     # -- the protocol ------------------------------------------------------- #
+    def owns_application(self) -> bool:
+        """The editor created the QApplication (standalone), so it may theme
+        application-wide chrome — the tooltip palette especially, which a QToolTip
+        reads from the *app* palette (a scroll area's viewport stops the window's
+        own QToolTip stylesheet from reaching the tooltips inside it). A host that
+        embeds the editor owns the application and does not implement this."""
+        return True
+
     def _settings(self) -> _Settings:
         return _Settings(
             self._theme, self._hak_item_icons, self._exact_item_icons,

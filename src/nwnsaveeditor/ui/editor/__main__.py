@@ -47,14 +47,29 @@ def collect_saves(
 
 
 def main(argv: list[str] | None = None) -> int:
-    from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+    from PySide6.QtWidgets import (
+        QApplication,
+        QDialog,
+        QMessageBox,
+        QStyleFactory,
+    )
 
     from nwnsaveeditor.ui.editor.appicon import app_icon
     from nwnsaveeditor.ui.editor.host import StandaloneHost
     from nwnsaveeditor.ui.editor.window import SaveEditorWindow
 
     args = parse_args(argv)
-    app = QApplication.instance() or QApplication(sys.argv[:1])
+    existing = QApplication.instance()
+    app = existing or QApplication(sys.argv[:1])
+    # We own the QApplication only when standalone (a host like Vaultkeeper makes
+    # its own and sets its own style). The native macOS/Windows style paints chrome
+    # — tooltips especially — from the OS appearance and ignores the palette and our
+    # QToolTip stylesheet rules, so on a dark-appearance Mac the light theme showed
+    # dark, unreadable (and wildly inconsistent) tooltips. Fusion honours them, and
+    # draws the editor identically on every OS.
+    fusion = QStyleFactory.create("Fusion")
+    if existing is None and fusion is not None:
+        app.setStyle(fusion)
     app.setApplicationName("NWN Save Editor")
     app.setWindowIcon(app_icon())
 

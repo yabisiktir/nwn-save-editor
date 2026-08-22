@@ -177,6 +177,7 @@ class SaveEditorWindow(QMainWindow):
         self._prc_prewarm = None  # background thread building the membership index
         # Set the theme first: everything below reads token colours as it builds.
         t.set_theme(_saved_theme(controller))
+        self._apply_app_tooltip_style()
 
         self._build_ui()
         if self._saves:
@@ -244,7 +245,7 @@ class SaveEditorWindow(QMainWindow):
         self._screens.clear()
 
         self.setStyleSheet(
-            f"QMainWindow{{background:{t.APP_BG};}}" + w.tooltip_qss() + w.message_box_qss()
+            f"QMainWindow{{background:{t.APP_BG};}}" + w.message_box_qss()
         )
         root = QWidget()
         root.setStyleSheet(f"background:{t.APP_BG};")
@@ -1173,6 +1174,33 @@ class SaveEditorWindow(QMainWindow):
         self._icons = _icon_source(self._controller)
         self._build_ui()
 
+    def _apply_app_tooltip_style(self) -> None:
+        """Theme every tooltip through the *application palette* (standalone only).
+
+        A ``QToolTip`` is a separate top-level popup: Qt resolves its style from the
+        stylesheet cascade of the widget it is shown for, and that cascade does not
+        cross a scroll area's **viewport**, so a *window*-scoped ``QToolTip`` rule
+        reaches a toolbar button but not a save row inside the sidebar list. The one
+        thing every tooltip reads regardless of the widget tree is the application
+        palette's tooltip roles, and setting them is cheap (an app-wide *stylesheet*
+        instead would re-polish every widget on each theme switch — far too slow).
+        Done only when the editor owns the application (standalone); an embedding
+        host owns the palette and keeps ``owns_application`` absent.
+        """
+        owns = getattr(self._controller, "owns_application", None)
+        if not (callable(owns) and owns()):
+            return
+        from PySide6.QtGui import QColor, QPalette
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app is None:
+            return
+        palette = app.palette()
+        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(t.SURFACE))
+        palette.setColor(QPalette.ColorRole.ToolTipText, QColor(t.TEXT))
+        app.setPalette(palette)
+
     def _set_theme(self, name: str) -> None:
         """Switch the editor's palette and rebuild the window in it.
 
@@ -1184,6 +1212,7 @@ class SaveEditorWindow(QMainWindow):
         if name == t.active_theme():
             return
         t.set_theme(name)
+        self._apply_app_tooltip_style()
         if self._controller is not None and hasattr(self._controller, "set_save_editor_theme"):
             self._controller.set_save_editor_theme(name)
 

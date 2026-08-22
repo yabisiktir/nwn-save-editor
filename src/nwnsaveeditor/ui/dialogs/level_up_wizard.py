@@ -165,6 +165,7 @@ class LevelUpWizard(QWizard):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setStyleSheet(w.scroll_area_qss())  # themed scrollbars + tooltips
         holder = QWidget()
         rows = QVBoxLayout(holder)
         rows.setContentsMargins(0, 0, 8, 0)
@@ -293,7 +294,9 @@ class _FeatChoice:
         self._filter.setPlaceholderText("Filter feats by name or id…")
         self._filter.textChanged.connect(self._apply_filter)
         box.addWidget(self._filter)
+        from nwnsaveeditor.ui.editor import widgets as w
         tree = QTreeWidget()
+        tree.setStyleSheet(w.scrollbar_qss())  # themed scrollbars + tooltips
         tree.setColumnCount(2)
         tree.setHeaderLabels(["ID", "Feat"])
         tree.setRootIsDecorated(False)
@@ -354,6 +357,7 @@ class _SpellsKnownChoice:
         self._filter.textChanged.connect(self._apply_filter)
         box.addWidget(self._filter)
         tree = QTreeWidget()
+        tree.setStyleSheet(w.scrollbar_qss())  # themed scrollbars + tooltips
         tree.setColumnCount(2)
         tree.setHeaderLabels(["ID", "Spell"])
         tree.setUniformRowHeights(True)

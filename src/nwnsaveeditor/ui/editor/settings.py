@@ -67,7 +67,7 @@ class SettingsDialog(QDialog):
         # background itself: a bare QScrollArea viewport falls back to the system
         # palette, so on a dark-mode Mac the light theme rendered dark-on-dark
         # (the dialog's own QDialog background sits behind the viewport, unseen).
-        scroll.setStyleSheet("QScrollArea{background:transparent;border:none;}")
+        scroll.setStyleSheet(w.scroll_area_qss())  # + themed scrollbars & tooltips
         scroll.viewport().setStyleSheet("background:transparent;")
         content = QWidget()
         content.setStyleSheet(f"background:{t.APP_BG};")

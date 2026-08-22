@@ -543,6 +543,12 @@ def scrollbar_qss() -> str:
 
     Qt's default chrome is a bright native bar that reads as a bug against the
     editor's own surfaces, in either theme.
+
+    Note: the ``QToolTip`` rule is deliberately *not* here. Tooltips are themed by
+    the one rule on the window/dialog (plus the Fusion style, which is what makes
+    the native platform honour it at all — see ``__main__.main``). Repeating the
+    rule on a scroll area made in-scroll tooltips render with a transparent body
+    under Fusion, so the single window/dialog rule is the only one.
     """
     return (
         f"QScrollBar:vertical{{background:transparent;width:9px;margin:0;}}"
@@ -809,10 +815,6 @@ QPushButton {{
 QPushButton:hover {{ background:{t.hairline(0.08)}; }}
 QPushButton:default {{ background:{t.GOLD}; color:{t.GOLD_ON}; border:none; }}
 QPushButton:disabled {{ color:{t.TEXT_3}; border-color:{t.hairline(0.1)}; }}
-QToolTip {{
-    color:{t.TEXT}; background-color:{t.SURFACE};
-    border:1px solid {t.hairline(0.22)}; padding:5px 8px;
-}}
 """ + message_box_qss()
 
 

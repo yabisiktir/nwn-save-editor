@@ -69,6 +69,7 @@ class IdPickerDialog(QDialog):
         layout.addWidget(self._filter)
 
         self._tree = QTreeWidget()
+        self._tree.setStyleSheet(w.scrollbar_qss())  # themed scrollbars + tooltips
         self._tree.setColumnCount(2)
         self._tree.setHeaderLabels(["ID", value_header])
         self._tree.setRootIsDecorated(False)

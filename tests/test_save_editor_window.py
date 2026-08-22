@@ -153,6 +153,37 @@ def test_base_name_drops_the_games_numeric_prefix():
     assert _base_name("quicksave") == "quicksave"  # no prefix -> unchanged
 
 
+# -- tooltip palette (standalone only) ------------------------------------ #
+def test_standalone_themes_the_tooltip_palette_but_embedded_leaves_it(window, qtbot):
+    """A QToolTip reads the app palette, so standalone themes it there (the one
+    place that reaches tooltips inside a scroll area's viewport). A host that
+    embeds the editor owns the application palette, so the editor must not touch
+    it — signalled by the absence of ``owns_application``."""
+    from PySide6.QtGui import QColor, QPalette
+    from PySide6.QtWidgets import QApplication
+
+    from nwnsaveeditor.ui.editor import tokens as t
+
+    app = QApplication.instance()
+    saved = app.palette()
+    try:
+        # Embedded: the window fixture's controller has no owns_application -> no-op.
+        app.setPalette(app.style().standardPalette())
+        before = app.palette().color(QPalette.ColorRole.ToolTipBase).name()
+        window._apply_app_tooltip_style()
+        assert app.palette().color(QPalette.ColorRole.ToolTipBase).name() == before
+
+        # Standalone: owns_application -> tooltip roles follow the theme's tokens.
+        window._controller.owns_application = lambda: True
+        t.set_theme("light")
+        window._apply_app_tooltip_style()
+        pal = app.palette()
+        assert pal.color(QPalette.ColorRole.ToolTipBase) == QColor(t.SURFACE)
+        assert pal.color(QPalette.ColorRole.ToolTipText) == QColor(t.TEXT)
+    finally:
+        app.setPalette(saved)
+
+
 # -- item stack size ------------------------------------------------------ #
 def test_item_stack_size_defaults_to_one_and_never_below():
     from types import SimpleNamespace
