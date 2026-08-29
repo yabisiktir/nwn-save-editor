@@ -292,6 +292,38 @@ def test_a_superseded_pump_tick_does_not_touch_the_new_rows(qtbot, tmp_path):
     editor._pump_thumbnails(stale_gen, [_Boom()], 0)  # no exception == guarded
 
 
+def test_a_cloud_only_save_row_says_so_and_refuses_to_open(qtbot, tmp_path, monkeypatch):
+    """A save listed with ``sav_available=False`` (a cloud/OneDrive placeholder) is
+    shown in the sidebar with an 'In cloud' cue, and selecting it explains how to
+    make it available offline instead of opening a broken/empty editor."""
+    from types import SimpleNamespace
+
+    from PySide6.QtWidgets import QMessageBox
+
+    from nwnsaveeditor.save_game import SaveGame
+    from nwnsaveeditor.ui.editor.window import _SaveRow
+
+    folder = tmp_path / "saves" / "000009 - A Dance With Rogues"
+    folder.mkdir(parents=True)
+    cloud = SaveGame(folder=folder, location="Somewhere", sav_available=False)
+
+    row = _SaveRow(cloud)
+    qtbot.addWidget(row)
+    texts = "\n".join(label.text() for label in row.findChildren(type(row._name)))
+    assert "In cloud" in texts
+
+    class _Ctrl:
+        ctx = SimpleNamespace(game_root=None, game_user_dir=tmp_path)
+
+    editor = SaveEditorWindow([cloud], _Ctrl())
+    qtbot.addWidget(editor)
+    shown = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: shown.append(a))
+    assert editor._select_save(cloud) is False
+    assert editor._current is not cloud, "a cloud-only save is not made current"
+    assert shown, "the user is told how to make the save available offline"
+
+
 # -- sections ------------------------------------------------------------- #
 def test_every_section_has_a_nav_row_and_a_screen(window):
     for section in sec.SECTIONS:

@@ -92,6 +92,11 @@ class SaveGame:
     folder: Path
     location: str = ""
     saved: datetime | None = None
+    #: ``False`` when the folder looks like a save but its ``.sav`` is not present /
+    #: enumerable on this device — typically a cloud (OneDrive) placeholder that has
+    #: not been downloaded. Such a save is *listed* (not silently dropped) so the user
+    #: can see it and make it available offline, but it cannot be opened until then.
+    sav_available: bool = True
     #: ``module_info`` memo: ``(identity, info, whether area names were read)``.
     #: Not part of the save's identity, so it stays out of ``==`` and ``repr``.
     _info_cache: tuple | None = field(
@@ -154,20 +159,70 @@ class SaveGame:
         return info
 
 
+#: Files the game drops beside the ``.sav`` in a save folder. Any one of them (or
+#: the ``<NNNNNN> - name`` naming convention) marks a folder as a save even when its
+#: ``.sav`` is a cloud placeholder ``glob`` cannot see.
+_SAVE_MARKERS = (SAVE_INFO_FILE, *_SCREENSHOTS, "player.bic")
+
+
+def _looks_like_a_save_folder(folder: Path) -> bool:
+    """Whether ``folder`` is a save folder whose ``.sav`` we simply could not read.
+
+    Used only when no ``.sav`` is enumerable, to tell a cloud-only save (which must
+    still be listed) from an unrelated directory (which must not). The **name**
+    convention (``"<NNNNNN> - <name>"``) is the primary signal because it survives a
+    fully dehydrated folder whose child files aren't materialised locally either; a
+    visible marker file is a secondary confirmation for the partially-dehydrated case.
+    """
+    if " - " in folder.name:
+        return True
+    for marker in _SAVE_MARKERS:
+        try:
+            if (folder / marker).exists():
+                return True
+        except OSError:
+            continue
+    return False
+
+
 def scan_save_games(saves_dir: Path | None) -> list[SaveGame]:
-    """Every save folder under ``saves_dir`` (each with a ``.sav``), newest first."""
-    if saves_dir is None or not saves_dir.is_dir():
+    """Every save folder under ``saves_dir``, newest first.
+
+    A folder is a save when it holds a ``.sav`` — or, when no ``.sav`` is enumerable
+    but it still *looks* like a save (see :func:`_looks_like_a_save_folder`), it is
+    listed with ``sav_available=False`` rather than silently dropped. That last case
+    is what a cloud-sync (OneDrive Files On-Demand) placeholder produces: the folder
+    is there but its ``.sav`` is not downloaded, so ``glob`` finds nothing. Previously
+    such saves just vanished from the list. Enumeration is also wrapped defensively so
+    a single folder that *raises* (an offline cloud folder can error rather than list
+    empty) cannot abort the whole scan and take every save down with it.
+    """
+    if saves_dir is None:
+        return []
+    try:
+        if not saves_dir.is_dir():
+            return []
+        folders = list(saves_dir.iterdir())
+    except OSError:
         return []
     saves: list[SaveGame] = []
-    for folder in saves_dir.iterdir():
-        if not folder.is_dir() or not any(folder.glob("*.sav")):
+    for folder in folders:
+        try:
+            if not folder.is_dir():
+                continue
+            has_sav = any(folder.glob("*.sav"))
+        except OSError:
+            has_sav = False  # unreadable folder — decide by shape below
+        if not has_sav and not _looks_like_a_save_folder(folder):
             continue
         location, _module = get_location_in_game_save(folder)
         try:
             saved = datetime.fromtimestamp(folder.stat().st_mtime)
         except OSError:
             saved = None
-        saves.append(SaveGame(folder=folder, location=location, saved=saved))
+        saves.append(
+            SaveGame(folder=folder, location=location, saved=saved, sav_available=has_sav)
+        )
     saves.sort(key=lambda s: s.saved or datetime.min, reverse=True)
     return saves
 

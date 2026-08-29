@@ -112,6 +112,27 @@ def test_a_corrupt_save_is_shown_but_cannot_be_chosen(qtbot, saves):
     assert dialog._open.isEnabled(), "the healthy save is still selected"
 
 
+def test_a_cloud_only_save_is_listed_with_a_badge_but_cannot_be_chosen(qtbot, tmp_path):
+    """A save whose .sav is not on this device (an OneDrive cloud-only placeholder)
+    is shown with an 'in cloud' badge and cannot be opened — not silently dropped."""
+    from nwnsaveeditor.save_game import SaveGame
+
+    folder = tmp_path / "000007 - A Dance With Rogues"
+    folder.mkdir()  # no .sav — a dehydrated placeholder
+    save = SaveGame(folder=folder, sav_available=False)
+
+    state = inspect_save(save)
+    assert state.state == "cloud"
+    assert not state.openable
+
+    dialog = OpenSaveDialog([save])
+    qtbot.addWidget(dialog)
+    assert "in cloud" in _texts(dialog)
+    dialog._choose(state)
+    assert dialog.selected_save() is None
+    assert not dialog._open.isEnabled()
+
+
 def test_the_first_healthy_save_is_preselected(qtbot, saves):
     dialog = OpenSaveDialog(saves)
     qtbot.addWidget(dialog)

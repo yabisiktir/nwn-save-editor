@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from nwnsaveeditor.save_game import SaveGame
+from nwnsaveeditor.save_game import GAME_LOCATION_FAILED, SaveGame
 from nwnsaveeditor.ui.editor import tokens as t
 from nwnsaveeditor.ui.editor import widgets as w
 
@@ -58,7 +58,7 @@ class SaveState:
     module: str
     saved: datetime | None
     size: int
-    state: str  #: "pending" | "normal" | "readonly" | "corrupt"
+    state: str  #: "pending" | "normal" | "readonly" | "corrupt" | "cloud"
 
     @property
     def openable(self) -> bool:
@@ -93,6 +93,14 @@ def inspect_save(save: SaveGame, *, resolve: bool = True) -> SaveState:
         size = sum(f.stat().st_size for f in save.folder.rglob("*") if f.is_file())
     except OSError:
         size = 0
+    if not save.sav_available:
+        # A save-shaped folder whose .sav is not on this device (typically a cloud /
+        # OneDrive placeholder not yet downloaded). There is nothing to decode; list
+        # it — resolved, with a "cloud" badge — so the user can see it and make it
+        # available offline, but it is not openable.
+        return SaveState(
+            save=save, module="", saved=save.saved, size=size, state="cloud"
+        )
     state = SaveState(
         save=save, module="", saved=save.saved, size=size, state="pending"
     )
@@ -125,8 +133,16 @@ def _meta_text(state: SaveState) -> str:
     """The row's second line: ``module · when · size``. A not-yet-decoded save
     reads ``Reading…`` in the module slot, so a pending row looks like it is
     loading rather than empty or broken."""
-    module = "Reading…" if not state.resolved else state.module
     stamp = state.saved.strftime("%Y-%m-%d %H:%M") if state.saved else "—"
+    if state.state == "cloud":
+        # Nothing was decoded (the .sav is not on disk) and the local size is
+        # meaningless, so show where in the game it is when savenfo told us, and skip
+        # the empty module slot / misleading size rather than dangling a bare "·".
+        where = state.save.location
+        if not where or where == GAME_LOCATION_FAILED:
+            where = "Not downloaded to this device"
+        return f"{where}  ·  {stamp}"
+    module = "Reading…" if not state.resolved else state.module
     return f"{module}  ·  {stamp}  ·  {_human_size(state.size)}"
 
 
@@ -283,7 +299,7 @@ class OpenSaveDialog(QDialog):
                 old.setParent(None)
         # "pending" and "normal" carry no badge — an unresolved row must not flash
         # a scary state, and a normal one needs none.
-        if state.state in ("readonly", "corrupt"):
+        if state.state in ("readonly", "corrupt", "cloud"):
             layout.addWidget(_state_badge(state.state))
 
     def _refresh_row(self, row: QWidget, state: SaveState) -> None:
@@ -337,20 +353,36 @@ class _SaveCard(QFrame):
     """
 
 
+#: Per-state badge wording (label shown, tooltip explaining it).
+_BADGE_TEXT = {
+    "corrupt": (
+        "corrupt",
+        "This save's module.ifo could not be decoded, so it cannot be opened.",
+    ),
+    "readonly": (
+        "readonly",
+        "This save's folder is not writable — it can be opened, but not overwritten.",
+    ),
+    "cloud": (
+        "in cloud",
+        "This save is stored only in the cloud and is not downloaded to this device, "
+        "so it cannot be opened yet. Make it available offline — e.g. in OneDrive, "
+        "right-click the save folder and choose “Always keep on this device” — then reopen.",
+    ),
+}
+
+
 def _state_badge(state: str):
     from PySide6.QtWidgets import QLabel
 
+    label, tooltip = _BADGE_TEXT.get(state, (state, ""))
     colour = t.DANGER if state == "corrupt" else t.TEXT_2
-    badge = QLabel(state)
+    badge = QLabel(label)
     badge.setStyleSheet(
         f"color:{colour};border:1px solid {colour};border-radius:{t.RADIUS_BADGE}px;"
         f"padding:1px 6px;font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;"
     )
-    badge.setToolTip(
-        "This save's module.ifo could not be decoded, so it cannot be opened."
-        if state == "corrupt"
-        else "This save's folder is not writable — it can be opened, but not overwritten."
-    )
+    badge.setToolTip(tooltip)
     return badge
 
 

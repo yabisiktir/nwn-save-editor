@@ -180,8 +180,9 @@ class SaveEditorWindow(QMainWindow):
         self._apply_app_tooltip_style()
 
         self._build_ui()
-        if self._saves:
-            self._select_save(self._saves[0])
+        first = self._first_openable_save()
+        if first is not None:
+            self._select_save(first)
         self._set_section("character")
         self._sync_edit_state()
         self._install_shortcuts()
@@ -482,8 +483,9 @@ class SaveEditorWindow(QMainWindow):
         """Look for saves again (e.g. after the person saved a game just now).
         If any turned up, open the first; otherwise stay on the empty state."""
         self.reload_saves()
-        if self._saves:
-            self._select_save(self._saves[0])
+        first = self._first_openable_save()
+        if first is not None:
+            self._select_save(first)
             self._set_section("character")
             self._sync_edit_state()
 
@@ -951,10 +953,27 @@ class SaveEditorWindow(QMainWindow):
         return self._footer
 
     # -- save selection --------------------------------------------------- #
+    def _first_openable_save(self) -> SaveGame | None:
+        """The first save we can actually open — skipping cloud-only placeholders so
+        auto-selection never lands on (and pops the offline notice for) one."""
+        return next((s for s in self._saves if s.sav_available), None)
+
     def _select_save(self, save: SaveGame) -> bool:
         """Make ``save`` current. ``False`` if the user kept their staged edits."""
         if save is self._current:
             return True
+        if not save.sav_available:
+            # A cloud-only placeholder we listed but cannot open until it is on disk.
+            QMessageBox.information(
+                self,
+                "Save is in the cloud",
+                "This save is stored only in the cloud and is not downloaded to this "
+                "device, so it cannot be opened yet.\n\nMake it available offline — for "
+                "OneDrive, right-click the save folder in File Explorer and choose "
+                "“Always keep on this device” — then reopen it here.",
+            )
+            self._sync_save_rows()
+            return False
         if not self._confirm_discard("Switching saves"):
             self._sync_save_rows()
             return False
@@ -1479,13 +1498,21 @@ class _SaveRow(QPushButton):
             f"color:{t.TEXT};background:transparent;"
         )
         text.addWidget(self._name)
-        meta = QLabel(save.location or "—")
+        cloud = not save.sav_available
+        meta = QLabel("In cloud — make available offline" if cloud else (save.location or "—"))
         meta.setStyleSheet(
-            f"font-family:{t.UI_FAMILY};font-size:10.5px;color:{t.TEXT_3};"
-            f"background:transparent;"
+            f"font-family:{t.UI_FAMILY};font-size:10.5px;"
+            f"color:{t.TEXT_2 if cloud else t.TEXT_3};background:transparent;"
         )
         text.addWidget(meta)
         layout.addLayout(text, 1)
+        if cloud:
+            self.setToolTip(
+                f"{save.folder}\n\nThis save is stored only in the cloud and is not "
+                "downloaded to this device, so it cannot be opened yet. Make it "
+                "available offline — e.g. in OneDrive, right-click the save folder and "
+                "choose “Always keep on this device” — then reopen."
+            )
 
     def fill_thumbnail(self) -> None:
         """Decode and show this row's screenshot — driven off the UI thread's idle

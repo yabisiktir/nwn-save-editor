@@ -87,6 +87,21 @@ guarantee; keep it.
 3. **Character edits live in the `.sav`'s `module.ifo` `Mod_PlayerList[0]`, mirrored
    into `player.bic`.** Write both. `save_editor.py` captures the original value on
    first touch per field so discard works and reverts are detectable.
+4. **Save discovery must tolerate cloud placeholders — never silently drop a save.**
+   `scan_save_games` finds saves by *enumerating* folders, not by reading them. A
+   cloud-sync (OneDrive Files On-Demand) placeholder whose `.sav` isn't downloaded is
+   not locally enumerable, so the old `any(folder.glob("*.sav"))` gate skipped it with
+   no error — whole swaths of a QA tester's saves just vanished (fixed by pinning them
+   "always keep on this device"). So: a `.sav`-less folder that still *looks* like a
+   save (`_looks_like_a_save_folder`: the `NNNNNN - name` convention, which survives
+   full dehydration, or a `savenfo.txt`/screenshot marker) is listed with
+   `SaveGame.sav_available=False` and shown with an **"in cloud"** badge / sidebar cue
+   rather than dropped; it can't be opened until it's on disk (auto-select skips these
+   via `_first_openable_save`, and opening one shows the make-available-offline notice).
+   The scan is also wrapped so one folder that *raises* on enumeration can't abort the
+   whole list. Keep discovery cheap: the heuristic runs **only** for `.sav`-less
+   folders (real saves never reach it — verified 0 calls on 350 saves), so don't move
+   filesystem work ahead of the `has_sav` gate.
 
 ## Domain correctness — names come from the game, and PRC bites
 

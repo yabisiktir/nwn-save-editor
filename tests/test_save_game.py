@@ -35,6 +35,72 @@ def test_scan_save_games_skips_folders_without_a_sav(tmp_path):
     assert scan_save_games(tmp_path / "missing") == []
 
 
+def test_scan_lists_cloud_only_save_shaped_folders(tmp_path):
+    """A save-shaped folder whose .sav is not on disk (a cloud/OneDrive placeholder
+    that hasn't been downloaded) is *listed* with ``sav_available=False``, not
+    silently dropped — while an unrelated folder is still skipped."""
+    real = tmp_path / "000000 - quicksave"
+    real.mkdir()
+    (real / "x.sav").write_bytes(b"sav")
+    cloud = tmp_path / "000001 - A Dance With Rogues"  # dehydrated: no local .sav
+    cloud.mkdir()
+    junk = tmp_path / "notes"  # not a .sav, not save-shaped
+    junk.mkdir()
+    (junk / "readme.txt").write_bytes(b"hi")
+
+    saves = {s.name: s for s in scan_save_games(tmp_path)}
+    assert set(saves) == {"000000 - quicksave", "000001 - A Dance With Rogues"}
+    assert saves["000000 - quicksave"].sav_available is True
+    assert saves["000001 - A Dance With Rogues"].sav_available is False
+
+
+def test_scan_recognises_a_cloud_save_by_its_marker_file(tmp_path):
+    """Even without the ' - ' name, a savenfo.txt beside a missing .sav marks a
+    dehydrated save folder (the partially-dehydrated case where small files stay)."""
+    folder = tmp_path / "quicksave"
+    folder.mkdir()
+    (folder / "savenfo.txt").write_bytes(b".Chapter One")
+    saves = scan_save_games(tmp_path)
+    assert [s.name for s in saves] == ["quicksave"]
+    assert saves[0].sav_available is False
+
+
+def test_scan_survives_a_folder_that_raises_on_enumeration(tmp_path, monkeypatch):
+    """One folder that errors while being enumerated (an offline cloud folder can
+    raise instead of listing empty) must not abort the scan and take every sibling
+    save down with it — the Layer-1 hardening."""
+    import pathlib
+
+    good = tmp_path / "000000 - quicksave"
+    good.mkdir()
+    (good / "x.sav").write_bytes(b"sav")
+    (tmp_path / "000001 - broken").mkdir()
+
+    real_glob = pathlib.Path.glob
+
+    def flaky_glob(self, pattern, *args, **kwargs):
+        if self.name == "000001 - broken":
+            raise OSError("cloud provider is not available")
+        return real_glob(self, pattern, *args, **kwargs)
+
+    monkeypatch.setattr(pathlib.Path, "glob", flaky_glob)
+
+    saves = {s.name: s for s in scan_save_games(tmp_path)}
+    assert saves["000000 - quicksave"].sav_available is True  # sibling survived
+    assert saves["000001 - broken"].sav_available is False  # listed as unavailable
+
+
+def test_scan_returns_empty_when_the_saves_dir_cannot_be_listed(tmp_path, monkeypatch):
+    """A saves directory that raises on iterdir yields [] rather than crashing."""
+    import pathlib
+
+    def boom(self):
+        raise OSError("permission denied")
+
+    monkeypatch.setattr(pathlib.Path, "iterdir", boom)
+    assert scan_save_games(tmp_path) == []
+
+
 def test_module_save_info_game_time():
     info = ModuleSaveInfo(year=1372, month=10, day=1, hour=13, minute=5)
     assert info.game_time == "1372/10/01 13:05"
