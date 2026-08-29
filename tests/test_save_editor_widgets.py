@@ -232,6 +232,53 @@ def test_stepper_buttons_respect_the_range(qtbot):
     assert step.value() == 2, "cannot step past the maximum"
 
 
+def test_stepper_selects_its_value_on_entry_so_typing_replaces_it(qtbot):
+    """Entering the field selects the whole number, so the first keystroke replaces
+    it rather than inserting beside it.
+
+    A user reported that with ``0`` showing, clicking to the left of the digit and
+    typing ``1`` "did nothing": the centred field put the caret wherever the click
+    fell, so typing produced ``"10"`` or ``"01"`` instead of the value they meant,
+    and only pre-selecting the digits worked. Selecting on entry makes every entry
+    behave that way. A mouse focus-in places the caret on the *release*, so the
+    selection is made there — reproduce both events.
+    """
+    from PySide6.QtCore import QEvent, QPointF, Qt
+    from PySide6.QtGui import QFocusEvent, QMouseEvent
+    from PySide6.QtTest import QTest
+
+    step = w.stepper(minimum=0, maximum=40, value=0)
+    qtbot.addWidget(step)
+    step.show()
+
+    spin = step.spin
+    spin.focusInEvent(QFocusEvent(QEvent.Type.FocusIn, Qt.FocusReason.MouseFocusReason))
+    spin.mouseReleaseEvent(
+        QMouseEvent(
+            QEvent.Type.MouseButtonRelease, QPointF(5, 5), QPointF(5, 5),
+            Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
+        )
+    )
+    assert spin.lineEdit().selectedText() == "0", "entering selects the whole value"
+
+    QTest.keyClicks(spin, "25")
+    spin.editingFinished.emit()
+    assert step.value() == 25, "typing over the selection sets exactly what was typed"
+
+
+def test_stepper_keyboard_focus_selects_the_value_too(qtbot):
+    """Tab focus selects the whole value by Qt's own default — a Tab-and-type must
+    also replace, not insert. (Kept so a future change can't regress it.)"""
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QFocusEvent
+
+    step = w.stepper(minimum=0, maximum=40, value=7)
+    qtbot.addWidget(step)
+    step.show()
+    step.spin.focusInEvent(QFocusEvent(QEvent.Type.FocusIn, Qt.FocusReason.TabFocusReason))
+    assert step.spin.lineEdit().selectedText() == "7"
+
+
 # -- ElidingLabel: keeps a long save name from pinning the window width -------- #
 def test_eliding_label_shows_full_text_when_it_fits(qtbot):
     label = w.eliding_body("Short name")

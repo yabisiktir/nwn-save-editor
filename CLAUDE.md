@@ -129,7 +129,17 @@ guarantee; keep it.
   any timer (auto-repeat has its own start delay), so a timer-based commit fired
   mid-gesture and felt "stuck". Typing still commits on `editingFinished`. Do not add
   a `setFocus` in the −/+ handler — it fires a spurious `editingFinished` inside the
-  scroll area. Its `.spin` is the inner `QSpinBox` for the full API.
+  scroll area. Its `.spin` is the inner `QSpinBox` for the full API. **The `.spin`
+  selects its whole value on entry** (a `_SelectAllSpinBox`), so the first keystroke
+  *replaces* the number rather than inserting a digit beside it — the field is narrow
+  and centre-aligned, so a click put the caret at a near-random offset and typing over
+  a `0` produced `10`/`01` (QA: typing "did nothing" unless you selected the digits
+  first). The selection is made in `mouseReleaseEvent` (the same event that places the
+  caret), **not** a deferred `singleShot` — the deferred version showed a caret then a
+  highlight a frame later and felt "clunky". Keep it release-based. Relatedly,
+  `widgets.set_scroll_widget` restores the scroll position **synchronously** (it
+  `adjustSize()`s + `activate()`s the new content so the range exists this turn); the
+  old deferred-only restore flashed the view to the top and back on every commit.
 - **Never set an empty tooltip.** `setToolTip("")` does not clear a tooltip — Qt
   pops a tiny blank box on hover, which reads as a bug (a user reported exactly
   this). Any tooltip built from data that can be empty (`Limits.reason` when a field

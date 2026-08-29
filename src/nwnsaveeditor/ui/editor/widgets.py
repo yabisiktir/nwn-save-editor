@@ -17,7 +17,7 @@ toggle swaps :mod:`~nwnsaveeditor.ui.editor.tokens` live.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont, QFontMetrics
+from PySide6.QtGui import QFocusEvent, QFont, QFontMetrics
 from PySide6.QtWidgets import (
     QAbstractButton,
     QAbstractSpinBox,
@@ -108,6 +108,52 @@ def _stepper_button_qss(side: str) -> str:
     )
 
 
+class _SelectAllSpinBox(QSpinBox):
+    """A ``QSpinBox`` that selects its whole value on first entry, so the first
+    keystroke *replaces* the number instead of inserting a digit beside it.
+
+    The field is narrow and centre-aligned, so the caret lands wherever the click
+    happened to fall relative to the centred glyph. With a value of ``0`` showing,
+    clicking to the left of it and typing ``1`` produced ``"10"`` while clicking to
+    its right produced ``"01"`` — a user reported that typing "did nothing" when
+    they clicked left of the number and could only set a value by selecting the
+    digits first. Selecting everything on entry makes every click behave the way
+    the user found worked: type a number and it becomes the value.
+
+    A mouse focus-in positions the caret (clearing any selection) on the button
+    *release*, after ``focusInEvent`` has returned — so the selection is made in
+    ``mouseReleaseEvent``, in the same event that placed the caret. Doing it there
+    rather than on a deferred ``singleShot`` avoids a visible caret-then-highlight
+    flicker (a user called the singleShot version "clunky"). Only the *first* click
+    that brings focus selects; a later click in an already-focused field positions
+    the caret normally, so the value can still be edited in place. Keyboard (Tab)
+    focus already selects the whole value by Qt's own default, so it needs nothing.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._select_on_release = False
+
+    def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802 (Qt override)
+        super().focusInEvent(event)
+        # A mouse (or programmatic "Other") focus-in still has its caret placed on
+        # the coming release; flag it so that release selects. Tab/backtab focus is
+        # already select-all, so leave it alone.
+        if event.reason() in (
+            Qt.FocusReason.MouseFocusReason,
+            Qt.FocusReason.OtherFocusReason,
+        ):
+            self._select_on_release = True
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt override)
+        super().mouseReleaseEvent(event)  # places the caret
+        if self._select_on_release:
+            self._select_on_release = False
+            line_edit = self.lineEdit()
+            if line_edit is not None:
+                line_edit.selectAll()
+
+
 class Stepper(QWidget):
     """A number field with flat −/+ end-caps, in one rounded shell.
 
@@ -158,7 +204,7 @@ class Stepper(QWidget):
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(0)
 
-        self.spin = QSpinBox()
+        self.spin = _SelectAllSpinBox()
         self.spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spin.setFrame(False)
         self.spin.setRange(minimum, maximum)
@@ -883,9 +929,13 @@ def set_scroll_widget(area, content) -> None:
     the scrollbars to the top — so editing a field two thirds down the Details tab
     threw the view back to the start, every keystroke.
 
-    The position is restored after the event loop has laid the new widget out:
-    setting it immediately does nothing, because the scrollbar's range is still 0
-    until the content is measured.
+    The position is restored **in this same turn**: the new content is measured now
+    (``adjustSize`` + ``layout().activate()``) so the scrollbar's range exists
+    before we set the value. An earlier version deferred the restore to the next
+    event-loop turn, which left one frame painted at the top — the view visibly
+    jumped up and snapped back on every edit, which a user called "clunky". A
+    deferred restore is still queued as a safety net for the rare case where the
+    viewport is not yet sized (range still 0 now, established a turn later).
     """
     vertical = area.verticalScrollBar().value()
     horizontal = area.horizontalScrollBar().value()
@@ -896,7 +946,16 @@ def set_scroll_widget(area, content) -> None:
     area.setWidget(content)
 
     if vertical or horizontal:
-        def _restore() -> None:
+        # Force the new content to a real size now, so the scrollbar range is known
+        # and the position sticks synchronously (no flash to the top).
+        content.adjustSize()
+        layout = content.layout()
+        if layout is not None:
+            layout.activate()
+        area.verticalScrollBar().setValue(vertical)
+        area.horizontalScrollBar().setValue(horizontal)
+
+        def _restore() -> None:  # safety net if the range was still 0 above
             area.verticalScrollBar().setValue(vertical)
             area.horizontalScrollBar().setValue(horizontal)
 
