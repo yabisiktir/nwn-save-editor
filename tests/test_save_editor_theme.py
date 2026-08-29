@@ -195,12 +195,24 @@ def test_tooltips_are_readable_in_both_themes(qtbot):
 
     def shown_tooltip():
         for widget in QApplication.topLevelWidgets():
-            if widget.metaObject().className() == "QTipLabel":
+            if widget.metaObject().className() == "QTipLabel" and widget.isVisible():
                 return widget
         return None
 
+    def purge_tooltips():
+        # QToolTip.hideText only *hides* the shared QTipLabel singleton; it stays a
+        # live top-level. Reused in the next iteration it can be picked up before the
+        # new owner's stylesheet re-polishes it, so the light pass reads the dark
+        # pass's colours (dark-on-CI, fine on macOS). Delete it so each pass shows a
+        # freshly themed tooltip; also clears any left by an earlier test.
+        for widget in QApplication.topLevelWidgets():
+            if widget.metaObject().className() == "QTipLabel":
+                widget.deleteLater()
+        QApplication.processEvents()
+
     for theme in ("dark", "light"):
         t.set_theme(theme)
+        purge_tooltips()
         win = QMainWindow()
         win.setStyleSheet("QMainWindow{}" + w.tooltip_qss())
         central = QWidget()
@@ -220,6 +232,7 @@ def test_tooltips_are_readable_in_both_themes(qtbot):
         assert bg == t.SURFACE.lower(), f"{theme}: tooltip background not themed"
         assert fg == t.TEXT.lower(), f"{theme}: tooltip text not themed"
         QToolTip.hideText()
+        purge_tooltips()
 
 
 def test_message_boxes_follow_the_theme(qtbot):
