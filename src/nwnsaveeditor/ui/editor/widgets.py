@@ -104,6 +104,20 @@ def set_tooltip(widget: QWidget, text: str | None) -> None:
     reads as a bug. Several tooltips here come from data that is sometimes empty
     (``Limits.reason`` has no text when a field has no special bound), so route
     every *dynamic* tooltip through this instead of ``setToolTip`` directly.
+
+    **How the editor words a tooltip** (the convention the existing ones follow,
+    written down here because this is where you look when adding one):
+
+    - A tooltip that says what a control *does* is an action or label fragment in
+      sentence case, with **no** full stop — "Write these changes", "Remove this
+      property", "Every spell this class knows, across all levels".
+    - A tooltip that *explains* something is written as whole sentences, **with**
+      full stops — "The value in the save; the edit is staged, not written."
+    - A keyboard shortcut goes at the end, after two spaces, in parentheses:
+      "Open another save  (Ctrl+O)".
+    - Show a bare value only when the tooltip *is* the untruncated text of the
+      thing being hovered (:class:`ElidingLabel` does this). A tooltip carrying
+      some *other* value says what it is — "Area resource: m1q1a", not "m1q1a".
     """
     widget.setToolTip(text.strip() if text else "")
 

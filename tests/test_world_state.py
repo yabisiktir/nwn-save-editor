@@ -56,7 +56,7 @@ def test_object_and_location_variables_are_not_editable():
     assert not Variable(0, "x", OBJECT, 1).editable
     assert not Variable(0, "x", LOCATION, 1).editable
     assert Variable(0, "x", INT, 1).editable
-    assert "object ids" in Variable(0, "x", OBJECT, 1).why_locked
+    assert "Object ids" in Variable(0, "x", OBJECT, 1).why_locked
 
 
 def test_a_module_with_no_variables_reads_as_empty(tmp_path):

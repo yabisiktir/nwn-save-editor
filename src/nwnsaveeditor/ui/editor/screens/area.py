@@ -206,7 +206,7 @@ class AreaScreen(QWidget):
         for resref, name in areas:
             row = w.NavRow(resref, name or resref, "AR")
             row.setChecked(resref == self._area_resref)
-            row.setToolTip(resref)
+            row.setToolTip(f"Area resource: {resref}")
             row.clicked.connect(lambda _=False, r=resref: self._choose_area(r))
             self._area_rows.append(row)
             column.addWidget(row)

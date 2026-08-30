@@ -512,7 +512,7 @@ def _natural_row(weapon) -> QWidget:
         slot = w.body(
             EQUIP_SLOT_NAMES.get(weapon.equipped_slot, "equipped"), t.GOLD, 11.5
         )
-        slot.setToolTip("Currently in one of the creature weapon slots")
+        slot.setToolTip("Currently in one of the creature weapon slots.")
         line.addWidget(slot)
     else:
         line.addWidget(w.body("not in hand", t.TEXT_3, 11.5))

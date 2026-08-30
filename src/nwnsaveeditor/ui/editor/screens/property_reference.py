@@ -202,7 +202,7 @@ class PropertyReferenceScreen(QWidget):
         if mine:
             # A quiet marker beats a separate "my properties" list to keep in sync.
             dot = w.status_dot()
-            dot.setToolTip("One of your items carries this")
+            dot.setToolTip("One of your items carries this.")
             line.addWidget(dot)
         line.addWidget(w.mono(str(property_id), t.TEXT_3, 11))
         row.mousePressEvent = _left_click(lambda p=property_id: self._choose(p))

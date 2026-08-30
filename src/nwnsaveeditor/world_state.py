@@ -55,10 +55,10 @@ class Variable:
     def why_locked(self) -> str:
         """Why an uneditable variable is uneditable, in the user's terms."""
         if self.type_code == OBJECT:
-            return "object ids only mean something to the running game"
+            return "Object ids only mean something to the running game."
         if self.type_code == LOCATION:
-            return "locations are runtime handles"
-        return "this variable's type is not understood"
+            return "Locations are runtime handles."
+        return "This variable's type is not understood."
 
 
 def read_variables(tree) -> list[Variable]:

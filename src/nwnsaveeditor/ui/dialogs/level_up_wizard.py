@@ -175,7 +175,7 @@ class LevelUpWizard(QWizard):
             spin = QSpinBox()
             cap = self._skill_caps.get(skill.index, self._skill_cap)
             spin.setRange(skill.rank, max(skill.rank, cap))
-            spin.setToolTip(f"caps at {cap}")
+            spin.setToolTip(f"Caps at {cap}")
             spin.setValue(skill.rank)
             spin.setFixedWidth(70)
             spin.valueChanged.connect(self._on_skill_changed)

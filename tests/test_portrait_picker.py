@@ -99,8 +99,9 @@ def test_the_current_portrait_stays_reachable_when_filtered_out(qtbot):
     dialog = _picker(qtbot, current="el_f_01_", female=False)  # a woman's, on a man
     assert "el_f_01_" not in [e.resref for e in dialog.visible_entries()]
     # It is not in the filtered set, yet it is on screen — pinned in by _render.
+    # The cell names its resref on the label's tooltip ("Portrait resource: …").
     tooltips = {label.toolTip() for label in dialog.findChildren(QLabel)}
-    assert "el_f_01_" in tooltips
+    assert any("el_f_01_" in tip for tip in tooltips)
 
 
 def test_clicking_changes_the_choice_without_closing(qtbot):

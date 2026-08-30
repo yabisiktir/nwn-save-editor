@@ -292,7 +292,7 @@ class PortraitPickerDialog(QDialog):
 
         name = w.body(entry.resref.rstrip("_"), t.TEXT_2, 9.5)
         name.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        name.setToolTip(entry.resref)
+        name.setToolTip(f"Portrait resource: {entry.resref}")
         column.addWidget(name)
         self._cells[entry.resref] = (cell, name)
         self._style_cell(entry.resref, entry.resref == self._chosen)
