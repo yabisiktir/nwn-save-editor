@@ -101,16 +101,16 @@ class FirstRunDialog(QDialog):
         if count:
             noun = "save game" if count == 1 else "save games"
             self._status.setText(f"✓  {count} {noun} found.")
-            self._status.setStyleSheet(f"color:{t.GREEN};")
+            w.own_style(self._status, f"color:{t.GREEN};")
         else:
             self._status.setText("No save games found yet — choose a folder above.")
-            self._status.setStyleSheet(f"color:{t.PRC_AMBER};")
+            w.own_style(self._status, f"color:{t.PRC_AMBER};")
         self._open_button.setEnabled(count > 0)
 
     # -- folder rows -------------------------------------------------------- #
     def _folder_row(self, key: str, label: str, blurb: str) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(4)
@@ -147,7 +147,7 @@ class FirstRunDialog(QDialog):
     # -- extra saves folders ------------------------------------------------ #
     def _extra_saves_block(self) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(6)
@@ -180,7 +180,7 @@ class FirstRunDialog(QDialog):
             return
         for folder in dirs:
             line = QWidget()
-            line.setStyleSheet("background:transparent;")
+            w.own_style(line, "background:transparent;")
             row = QHBoxLayout(line)
             row.setContentsMargins(0, 0, 0, 0)
             row.addWidget(w.mono(str(folder), t.TEXT_2, 11.5), 1)

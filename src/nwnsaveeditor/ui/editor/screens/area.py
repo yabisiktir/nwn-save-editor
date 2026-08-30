@@ -66,7 +66,7 @@ class AreaScreen(QWidget):
         self._area = None
         self._built_for = None  # the save folder the picker/tree were built for
         self._area_rows: list = []  # the picker's NavRows, kept to re-check them
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
@@ -75,7 +75,7 @@ class AreaScreen(QWidget):
         # -- area picker --------------------------------------------------- #
         left = QWidget()
         left.setFixedWidth(220)
-        left.setStyleSheet("background:transparent;")
+        w.own_style(left, "background:transparent;")
         self._areas_column = QVBoxLayout(left)
         self._areas_column.setContentsMargins(0, 0, 0, 0)
         self._areas_column.setSpacing(8)
@@ -83,7 +83,7 @@ class AreaScreen(QWidget):
 
         # -- contents tree ------------------------------------------------- #
         middle = QWidget()
-        middle.setStyleSheet("background:transparent;")
+        w.own_style(middle, "background:transparent;")
         self._middle = QVBoxLayout(middle)
         self._middle.setContentsMargins(0, 0, 0, 0)
         self._middle.setSpacing(10)
@@ -122,7 +122,7 @@ class AreaScreen(QWidget):
         # -- detail -------------------------------------------------------- #
         self._detail_slot = QWidget()
         self._detail_slot.setFixedWidth(t.DETAIL_W)
-        self._detail_slot.setStyleSheet("background:transparent;")
+        w.own_style(self._detail_slot, "background:transparent;")
         QVBoxLayout(self._detail_slot).setContentsMargins(0, 0, 0, 0)
         outer.addWidget(self._detail_slot)
 
@@ -198,7 +198,7 @@ class AreaScreen(QWidget):
             self._area_resref = areas[0][0]
 
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(3)

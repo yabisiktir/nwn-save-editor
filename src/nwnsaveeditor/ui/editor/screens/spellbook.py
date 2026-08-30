@@ -40,7 +40,7 @@ class SpellbookScreen(QWidget):
         self._class_index: int | None = None
         self._level: int | None = None
         self._filter = ""
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
@@ -96,7 +96,7 @@ class SpellbookScreen(QWidget):
     def refresh(self) -> None:
         book = self._book()
         content = QWidget()
-        content.setStyleSheet("background:transparent;")
+        w.own_style(content, "background:transparent;")
         column = QVBoxLayout(content)
         column.setContentsMargins(0, 0, 8, 0)
         column.setSpacing(16)
@@ -136,7 +136,7 @@ class SpellbookScreen(QWidget):
 
     def _class_row(self, book: list, chosen) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(8)
@@ -164,7 +164,7 @@ class SpellbookScreen(QWidget):
 
     def _level_row(self, chosen, levels: list[int]) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(8)
@@ -191,7 +191,7 @@ class SpellbookScreen(QWidget):
 
     def _list_block(self, chosen, spell_list) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(8)
@@ -242,7 +242,7 @@ class SpellbookScreen(QWidget):
         does this class know at all", which the tabs make you visit ten times.
         """
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(8)
@@ -295,9 +295,10 @@ class SpellbookScreen(QWidget):
         level_tag: str | None = None,
     ) -> QWidget:
         row = QWidget()
-        row.setStyleSheet(
+        w.own_style(
+            row,
             f"background:{t.gold_tint(0.12) if dirty else 'transparent'};"
-            f"border-bottom:1px solid {t.hairline(0.06)};"
+            f"border-bottom:1px solid {t.hairline(0.06)};",
         )
         line = QHBoxLayout(row)
         line.setContentsMargins(14, 7, 14, 7)

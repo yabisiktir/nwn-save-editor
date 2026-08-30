@@ -68,9 +68,9 @@ class SettingsDialog(QDialog):
         # palette, so on a dark-mode Mac the light theme rendered dark-on-dark
         # (the dialog's own QDialog background sits behind the viewport, unseen).
         scroll.setStyleSheet(w.scroll_area_qss())  # + themed scrollbars & tooltips
-        scroll.viewport().setStyleSheet("background:transparent;")
+        w.own_style(scroll.viewport(), "background:transparent;")
         content = QWidget()
-        content.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(content, f"background:{t.APP_BG};")
         scroll.setWidget(content)
         outer.addWidget(scroll, 1)
 
@@ -136,7 +136,7 @@ class SettingsDialog(QDialog):
 
         # A pinned footer: the buttons stay put while the settings above scroll.
         footer = QWidget()
-        footer.setStyleSheet(f"background:{t.SURFACE};border-top:1px solid {t.hairline(0.1)};")
+        w.own_style(footer, f"background:{t.SURFACE};border-top:1px solid {t.hairline(0.1)};")
         buttons = QHBoxLayout(footer)
         buttons.setContentsMargins(22, 12, 22, 12)
         buttons.addStretch(1)
@@ -173,7 +173,7 @@ class SettingsDialog(QDialog):
     # -- extra saves folders ------------------------------------------------- #
     def _extra_saves_block(self) -> QWidget:
         self._extra_saves_holder = QWidget()
-        self._extra_saves_holder.setStyleSheet("background:transparent;")
+        w.own_style(self._extra_saves_holder, "background:transparent;")
         column = QVBoxLayout(self._extra_saves_holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(6)
@@ -206,7 +206,7 @@ class SettingsDialog(QDialog):
             return
         for folder in dirs:
             line = QWidget()
-            line.setStyleSheet("background:transparent;")
+            w.own_style(line, "background:transparent;")
             row = QHBoxLayout(line)
             row.setContentsMargins(0, 0, 0, 0)
             row.addWidget(w.mono(str(folder), t.TEXT_2, 11.5), 1)
@@ -237,14 +237,14 @@ class SettingsDialog(QDialog):
         from PySide6.QtWidgets import QCheckBox
 
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         row = QVBoxLayout(holder)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(2)
         settings = self._host._settings() if hasattr(self._host, "_settings") else None
         box = QCheckBox("Enable class level editing")
         box.setChecked(bool(getattr(settings, "enable_class_level_editing", False)))
-        box.setStyleSheet(f"color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:13px;")
+        w.own_style(box, f"color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:13px;")
         box.toggled.connect(self._host.set_class_level_editing)
         row.addWidget(box)
         note = w.body(
@@ -261,7 +261,7 @@ class SettingsDialog(QDialog):
         from PySide6.QtWidgets import QCheckBox
 
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         row = QVBoxLayout(holder)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(2)
@@ -291,7 +291,7 @@ class SettingsDialog(QDialog):
     # -- rows ---------------------------------------------------------------- #
     def _folder_row(self, key: str, label: str, blurb: str) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(4)

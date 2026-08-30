@@ -167,7 +167,9 @@ class OpenSaveDialog(QDialog):
         self.setWindowTitle("Open Save")
         self.setFixedWidth(OPEN_DIALOG_W)
         self.setMinimumHeight(460)
-        self.setStyleSheet(f"OpenSaveDialog{{background:{t.APP_BG};}}")
+        self.setStyleSheet(
+            f"OpenSaveDialog{{background:{t.APP_BG};}}" + w.tooltip_qss()
+        )
         # Resolve only the first screenful up front so the dialog paints at once
         # even on a folder of hundreds of saves; the rest is decoded in the
         # background by _resolve_pump (see resolve_state). A small folder resolves
@@ -246,7 +248,7 @@ class OpenSaveDialog(QDialog):
 
     def _build_rows(self) -> None:
         body = QWidget()
-        body.setStyleSheet("background:transparent;")
+        w.own_style(body, "background:transparent;")
         column = QVBoxLayout(body)
         column.setContentsMargins(0, 0, 6, 0)
         column.setSpacing(6)
@@ -275,7 +277,7 @@ class OpenSaveDialog(QDialog):
         text = QVBoxLayout()
         text.setSpacing(2)
         name = w.body(state.save.name, t.TEXT, 13)
-        name.setStyleSheet(name.styleSheet() + "font-weight:600;")
+        w.add_own_style(name, "font-weight:600;")
         text.addWidget(name)
         row._meta = w.body(_meta_text(state), t.TEXT_3, 11.5)
         text.addWidget(row._meta)
@@ -283,7 +285,7 @@ class OpenSaveDialog(QDialog):
         # A badge holder that stays in the layout so a pending row can grow a
         # corrupt/read-only badge once it resolves, without a full rebuild.
         row._badge_box = QWidget()
-        row._badge_box.setStyleSheet("background:transparent;")
+        w.own_style(row._badge_box, "background:transparent;")
         badge_layout = QHBoxLayout(row._badge_box)
         badge_layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(row._badge_box)
@@ -378,11 +380,12 @@ def _state_badge(state: str):
     label, tooltip = _BADGE_TEXT.get(state, (state, ""))
     colour = t.DANGER if state == "corrupt" else t.TEXT_2
     badge = QLabel(label)
-    badge.setStyleSheet(
+    w.own_style(
+        badge,
         f"color:{colour};border:1px solid {colour};border-radius:{t.RADIUS_BADGE}px;"
-        f"padding:1px 6px;font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;"
+        f"padding:1px 6px;font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;",
     )
-    badge.setToolTip(tooltip)
+    w.set_tooltip(badge, tooltip)  # an unknown state has no wording; "" pops a blank box
     return badge
 
 
@@ -410,7 +413,9 @@ class SaveDialog(QDialog):
         self._backup_dir = backup_dir
         self.setWindowTitle("Save" if mode == "new" else "Overwrite save")
         self.setFixedWidth(SAVE_DIALOG_W)
-        self.setStyleSheet(f"SaveDialog{{background:{t.APP_BG};}}")
+        self.setStyleSheet(
+            f"SaveDialog{{background:{t.APP_BG};}}" + w.tooltip_qss()
+        )
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(20, 18, 20, 18)
@@ -538,7 +543,7 @@ class SaveDialog(QDialog):
 
 def _kv(label: str, value: str, *, dim: bool = False, mono: bool = False) -> QWidget:
     row = QWidget()
-    row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
+    w.own_style(row, f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
     layout = QHBoxLayout(row)
     layout.setContentsMargins(14, 10, 14, 10)
     layout.setSpacing(12)
@@ -546,6 +551,6 @@ def _kv(label: str, value: str, *, dim: bool = False, mono: bool = False) -> QWi
     colour = t.TEXT_3 if dim else t.TEXT
     value_label = w.mono(value, colour, 12) if mono else w.body(value, colour, 12.5)
     if not mono:
-        value_label.setStyleSheet(value_label.styleSheet() + "font-weight:700;")
+        w.add_own_style(value_label, "font-weight:700;")
     layout.addWidget(value_label)
     return row

@@ -34,7 +34,7 @@ class PartyScreen(QWidget):
     def __init__(self, window, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._window = window
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
         self._outer = QVBoxLayout(self)
         self._outer.setContentsMargins(26, 22, 26, 22)
         self._outer.setSpacing(14)
@@ -159,9 +159,10 @@ class PartyScreen(QWidget):
 
     def _row(self, field, dirty: bool) -> QWidget:
         row = QWidget()
-        row.setStyleSheet(
+        w.own_style(
+            row,
             f"background:{t.gold_tint(0.12) if dirty else 'transparent'};"
-            f"border-bottom:1px solid {t.hairline(0.06)};"
+            f"border-bottom:1px solid {t.hairline(0.06)};",
         )
         line = QHBoxLayout(row)
         line.setContentsMargins(14, 9, 14, 9)

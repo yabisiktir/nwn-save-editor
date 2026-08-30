@@ -179,60 +179,200 @@ def test_without_the_host_hook_the_saved_theme_still_wins(qtbot, tmp_path):
     assert t.active_theme() == "light"
 
 
-def test_tooltips_are_readable_in_both_themes(qtbot):
+def _shown_tooltip():
+    from PySide6.QtWidgets import QApplication
+
+    for widget in QApplication.topLevelWidgets():
+        if widget.metaObject().className() == "QTipLabel" and widget.isVisible():
+            return widget
+    return None
+
+
+def _purge_tooltips():
+    """Delete the shared QTipLabel singleton between passes.
+
+    ``QToolTip.hideText`` only *hides* it; reused in the next pass it can be picked
+    up before the new owner's stylesheet re-polishes it, so a light pass reads the
+    dark pass's colours (dark on CI, fine on macOS).
+    """
+    from PySide6.QtCore import QEvent
+    from PySide6.QtWidgets import QApplication
+
+    for widget in QApplication.topLevelWidgets():
+        if widget.metaObject().className() == "QTipLabel":
+            widget.deleteLater()
+    # ``deleteLater`` only *posts*; QToolTip keeps a static pointer to the label and
+    # hands the same one back until it is really gone, so flush the deferred deletes
+    # rather than trusting one processEvents pass.
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QApplication.processEvents()
+
+
+def _tooltip_look(owner, text: str):
+    """Show ``owner``'s tooltip and return what it actually looks like."""
+    from PySide6.QtCore import QPoint
+    from PySide6.QtGui import QPalette
+    from PySide6.QtWidgets import QApplication, QToolTip
+
+    _purge_tooltips()
+    QToolTip.showText(QPoint(20, 20), text, owner)
+    QApplication.processEvents()
+    tip = _shown_tooltip()
+    assert tip is not None, "no tooltip was shown"
+    font, palette = tip.font(), tip.palette()
+    margins = tip.contentsMargins()
+    look = (
+        font.family(), font.pixelSize(), font.weight(),
+        palette.color(QPalette.ColorRole.ToolTipBase).name(),
+        palette.color(QPalette.ColorRole.ToolTipBase).alpha(),
+        palette.color(QPalette.ColorRole.ToolTipText).name(),
+        (margins.left(), margins.top(), margins.right(), margins.bottom()),
+    )
+    QToolTip.hideText()
+    return look
+
+
+def test_tooltips_are_readable_in_both_themes(window, qtbot):
     """A QToolTip has no stylesheet of its own; without a theme-aware rule it fell
     back to the OS palette and rendered dark-on-dark in light mode (reported).
-    The rule the window applies must give the shown tooltip themed colours."""
-    from PySide6.QtCore import QPoint
-    from PySide6.QtWidgets import (
-        QApplication,
-        QLabel,
-        QMainWindow,
-        QToolTip,
-        QVBoxLayout,
-        QWidget,
-    )
 
-    def shown_tooltip():
-        for widget in QApplication.topLevelWidgets():
-            if widget.metaObject().className() == "QTipLabel" and widget.isVisible():
-                return widget
-        return None
+    Driven through the window the editor actually builds — an earlier version of
+    this test applied ``tooltip_qss`` to a bare QMainWindow itself, so it passed
+    while nothing in the editor was applying that rule at all.
+    """
+    from PySide6.QtGui import QColor
 
-    def purge_tooltips():
-        # QToolTip.hideText only *hides* the shared QTipLabel singleton; it stays a
-        # live top-level. Reused in the next iteration it can be picked up before the
-        # new owner's stylesheet re-polishes it, so the light pass reads the dark
-        # pass's colours (dark-on-CI, fine on macOS). Delete it so each pass shows a
-        # freshly themed tooltip; also clears any left by an earlier test.
-        for widget in QApplication.topLevelWidgets():
-            if widget.metaObject().className() == "QTipLabel":
-                widget.deleteLater()
-        QApplication.processEvents()
+    for theme in ("dark", "light"):
+        window._set_theme(theme)
+        assert t.active_theme() == theme
+        _purge_tooltips()
+        _, _, _, background, alpha, text, _ = _tooltip_look(
+            window._open_btn, "Open another save"
+        )
+        assert alpha == 255, f"{theme}: tooltip background is see-through"
+        assert background == t.SURFACE.lower(), f"{theme}: tooltip background not themed"
+        assert text == t.TEXT.lower(), f"{theme}: tooltip text not themed"
+        # …and readable against it, not merely themed.
+        back, front = QColor(background), QColor(text)
+        assert abs(back.lightness() - front.lightness()) > 90, (
+            f"{theme}: tooltip text does not contrast with its background"
+        )
+    _purge_tooltips()
+
+
+def test_every_tooltip_in_the_editor_looks_the_same(window, qtbot):
+    """One tooltip appearance per theme, across every section.
+
+    Qt resolves a tooltip's style from the stylesheet cascade of the widget it is
+    shown *for*, so unscoped widget QSS ("font-size:12.5px;background:transparent;")
+    used to hand its font and its transparency straight to the tooltip: hovering a
+    heading gave a 16px tooltip, an inventory cell a 9px one with the cell's gold
+    border, and anything painted ``background:transparent`` gave a tooltip with no
+    background at all — fourteen appearances in all, several unreadable.
+
+    ``widgets.own_style`` scopes those declarations to the widget's own exact class,
+    which a ``QTipLabel`` (a QLabel *subclass*) does not match. This is the guard on
+    that: it cannot be fixed from above, because a ``QToolTip`` rule on the window —
+    or even on the application — loses to any nearer declaration.
+    """
+    import shiboken6
+    from PySide6.QtWidgets import QApplication, QWidget
+
+    window.resize(1400, 900)
+    window.show()
+    qtbot.waitExposed(window)
+
+    for theme in ("dark", "light"):
+        window._set_theme(theme)
+        assert t.active_theme() == theme
+        QApplication.processEvents()  # the switch rebuilds the shell
+        looks: dict[tuple, str] = {}
+        for key, row in list(window._nav_rows.items()):
+            row.click()
+            QApplication.processEvents()
+            # Snapshot first: showing a tooltip pumps the event loop, which drops the
+            # widgets a screen rebuild retired — iterating findChildren lazily walks
+            # into one of those and raises "C++ object already deleted".
+            targets = [
+                (wdg, wdg.toolTip())
+                for wdg in window.findChildren(QWidget)
+                if wdg.toolTip() and wdg.isVisible()
+            ]
+            for widget, tip in targets:
+                if not shiboken6.isValid(widget):
+                    continue
+                looks.setdefault(
+                    _tooltip_look(widget, tip),
+                    f"{key}: {widget.metaObject().className()} — {tip[:40]!r}",
+                )
+        assert len(looks) == 1, (
+            f"{theme}: {len(looks)} different tooltip appearances:\n  "
+            + "\n  ".join(f"{look} <- {where}" for look, where in looks.items())
+        )
+    _purge_tooltips()
+
+
+def test_dialog_tooltips_match_the_window_s(qtbot):
+    """A dialog is a separate top-level with its own cascade, so it needs the rule
+    too — ``dialog_qss`` carries it, and the two bare dialogs set it themselves."""
+    from PySide6.QtWidgets import QDialog, QLabel, QSpinBox, QVBoxLayout
+
+    from nwnsaveeditor.ui.editor.screens import item_panels as ip
 
     for theme in ("dark", "light"):
         t.set_theme(theme)
-        purge_tooltips()
-        win = QMainWindow()
-        win.setStyleSheet("QMainWindow{}" + w.tooltip_qss())
-        central = QWidget()
-        win.setCentralWidget(central)
-        label = QLabel("x")
-        label.setToolTip("Appraise 8")
-        QVBoxLayout(central).addWidget(label)
-        qtbot.addWidget(win)
-        win.show()
-        qtbot.waitExposed(win)
+        dialog = w.style_dialog(QDialog())
+        layout = QVBoxLayout(dialog)
+        widgets = [
+            w.body("x"), w.heading("H"), w.mono("m"), w.prc_badge(),
+            ip.item_cell("L", filled=True, selected=False, tooltip="tip"),
+            w.ghost_button("Go"), QSpinBox(), QLabel("plain"),
+        ]
+        for widget in widgets:
+            if not widget.toolTip():
+                widget.setToolTip("An enhancement bonus of +2")
+            layout.addWidget(widget)
+        qtbot.addWidget(dialog)
+        dialog.show()
+        qtbot.waitExposed(dialog)
 
-        QToolTip.showText(QPoint(20, 20), label.toolTip(), label)
-        qtbot.waitUntil(lambda: shown_tooltip() is not None)
-        palette = shown_tooltip().palette()
-        bg = palette.color(palette.ColorRole.Window).name().lower()
-        fg = palette.color(palette.ColorRole.WindowText).name().lower()
-        assert bg == t.SURFACE.lower(), f"{theme}: tooltip background not themed"
-        assert fg == t.TEXT.lower(), f"{theme}: tooltip text not themed"
-        QToolTip.hideText()
-        purge_tooltips()
+        looks = {_tooltip_look(widget, widget.toolTip()) for widget in widgets}
+        assert len(looks) == 1, f"{theme}: dialog tooltips differ: {looks}"
+        background, alpha = looks.copy().pop()[3], looks.copy().pop()[4]
+        assert (background, alpha) == (t.SURFACE.lower(), 255), (
+            f"{theme}: a dialog tooltip is not on the themed surface"
+        )
+        dialog.close()
+    _purge_tooltips()
+
+
+def test_a_widget_stylesheet_cannot_leak_into_its_tooltip(qtbot):
+    """``own_style`` keeps the widget's look and drops nothing but the leak."""
+    from PySide6.QtWidgets import QLabel
+
+    t.set_theme("dark")
+    css = f"font-family:{t.UI_FAMILY};font-size:20px;color:{t.GOLD};background:transparent;"
+
+    from PySide6.QtWidgets import QVBoxLayout, QWidget
+
+    host = QWidget()
+    layout = QVBoxLayout(host)
+    bare = QLabel("Sample")
+    bare.setStyleSheet(css)
+    scoped = w.own_style(QLabel("Sample"), css)
+    layout.addWidget(bare)
+    layout.addWidget(scoped)
+    qtbot.addWidget(host)
+    host.show()
+    qtbot.waitExposed(host)  # an unshown widget has not resolved its stylesheet font
+
+    # The widget itself is untouched by the scoping…
+    assert scoped.font().pixelSize() == bare.font().pixelSize() == 20
+    assert scoped.sizeHint() == bare.sizeHint()
+    # …while only the bare one hands its font and its transparency to the tooltip.
+    assert _tooltip_look(bare, "tip")[1] == 20, "the leak this guards against is gone"
+    assert _tooltip_look(scoped, "tip")[1] != 20, "the widget's font reached its tooltip"
+    _purge_tooltips()
 
 
 def test_message_boxes_follow_the_theme(qtbot):

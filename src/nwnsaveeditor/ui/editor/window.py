@@ -246,10 +246,12 @@ class SaveEditorWindow(QMainWindow):
         self._screens.clear()
 
         self.setStyleSheet(
-            f"QMainWindow{{background:{t.APP_BG};}}" + w.message_box_qss()
+            f"QMainWindow{{background:{t.APP_BG};}}"
+            + w.message_box_qss()
+            + w.tooltip_qss()
         )
         root = QWidget()
-        root.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(root, f"background:{t.APP_BG};")
         self.setCentralWidget(root)  # replaces and deletes any previous central widget
         outer = QVBoxLayout(root)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -285,9 +287,10 @@ class SaveEditorWindow(QMainWindow):
         from nwnsaveeditor.ui.editor.host import wordmark_for
 
         wordmark = self._wordmark = QLabel(wordmark_for(self._controller))
-        wordmark.setStyleSheet(
+        w.own_style(
+            wordmark,
             f"font-family:{t.DISPLAY_FAMILY};font-size:15px;font-weight:700;"
-            f"letter-spacing:0.04em;color:{t.GOLD};background:transparent;"
+            f"letter-spacing:0.04em;color:{t.GOLD};background:transparent;",
         )
         layout.addWidget(wordmark)
         layout.addWidget(w.vline())
@@ -355,8 +358,9 @@ class SaveEditorWindow(QMainWindow):
     def _build_sidebar(self) -> QWidget:
         side = self._sidebar = QWidget()
         side.setFixedWidth(t.SIDEBAR_W)
-        side.setStyleSheet(
-            f"background:{t.SIDEBAR_BG};border-right:1px solid {t.hairline(0.08)};"
+        w.own_style(
+            side,
+            f"background:{t.SIDEBAR_BG};border-right:1px solid {t.hairline(0.08)};",
         )
         layout = QVBoxLayout(side)
         layout.setContentsMargins(12, 14, 12, 14)
@@ -367,7 +371,7 @@ class SaveEditorWindow(QMainWindow):
         # list scrolls within a capped height rather than pushing SECTIONS off the
         # bottom of the sidebar.
         saves_holder = QWidget()
-        saves_holder.setStyleSheet("background:transparent;")
+        w.own_style(saves_holder, "background:transparent;")
         self._saves_box = QVBoxLayout(saves_holder)
         self._saves_box.setContentsMargins(0, 0, 0, 0)
         self._saves_box.setSpacing(4)
@@ -400,7 +404,7 @@ class SaveEditorWindow(QMainWindow):
     # -- content ---------------------------------------------------------- #
     def _build_content(self) -> QWidget:
         self._stack = QStackedWidget()
-        self._stack.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self._stack, f"background:{t.APP_BG};")
         # Screens are built on first display — see _LazyScreens.
         self._screens = _LazyScreens(self._make_screen)
         self._empty_state = self._build_empty_state()
@@ -417,7 +421,7 @@ class SaveEditorWindow(QMainWindow):
         center = Qt.AlignmentFlag.AlignHCenter
 
         holder = QWidget()
-        holder.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(holder, f"background:{t.APP_BG};")
         outer = QVBoxLayout(holder)
         outer.setContentsMargins(40, 40, 40, 40)
         outer.setSpacing(11)
@@ -447,8 +451,9 @@ class SaveEditorWindow(QMainWindow):
         chip_layout = QVBoxLayout(chip)
         chip_layout.setContentsMargins(12, 9, 12, 9)
         path_label = w.ElidingLabel(path_text)  # elides a very long path; full path on hover
-        path_label.setStyleSheet(
-            f"font-family:{t.MONO_FAMILY};font-size:12px;color:{t.TEXT};background:transparent;"
+        w.own_style(
+            path_label,
+            f"font-family:{t.MONO_FAMILY};font-size:12px;color:{t.TEXT};background:transparent;",
         )
         path_label.setAlignment(center)
         chip_layout.addWidget(path_label)
@@ -460,7 +465,7 @@ class SaveEditorWindow(QMainWindow):
             line("If your saves live somewhere else, add that folder below.", t.TEXT_3, 12)
 
         buttons = QWidget()
-        buttons.setStyleSheet("background:transparent;")
+        w.own_style(buttons, "background:transparent;")
         row = QHBoxLayout(buttons)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(10)
@@ -1194,17 +1199,20 @@ class SaveEditorWindow(QMainWindow):
         self._build_ui()
 
     def _apply_app_tooltip_style(self) -> None:
-        """Theme every tooltip through the *application palette* (standalone only).
+        """Theme tooltips through the *application palette* too (standalone only).
 
-        A ``QToolTip`` is a separate top-level popup: Qt resolves its style from the
-        stylesheet cascade of the widget it is shown for, and that cascade does not
-        cross a scroll area's **viewport**, so a *window*-scoped ``QToolTip`` rule
-        reaches a toolbar button but not a save row inside the sidebar list. The one
-        thing every tooltip reads regardless of the widget tree is the application
-        palette's tooltip roles, and setting them is cheap (an app-wide *stylesheet*
-        instead would re-polish every widget on each theme switch — far too slow).
-        Done only when the editor owns the application (standalone); an embedding
-        host owns the palette and keeps ``owns_application`` absent.
+        The window's ``QToolTip`` rule (:func:`widgets.tooltip_qss`) is what dresses
+        the editor's own tooltips, and it does reach every one of them — including
+        inside a scroll area's viewport, which an earlier note here doubted. This
+        stays as the floor beneath it: the palette's tooltip roles are the one thing
+        a tooltip reads with no stylesheet in play at all, so a popup that never
+        picks up the window's rule (a message box or a native dialog the editor did
+        not dress) still comes up themed rather than in OS colours. Setting them is
+        cheap — an app-wide *stylesheet* would re-polish every widget on each theme
+        switch, which is far too slow.
+
+        Only when the editor owns the application (standalone): an embedding host
+        owns the palette and keeps ``owns_application`` absent.
         """
         owns = getattr(self._controller, "owns_application", None)
         if not (callable(owns) and owns()):
@@ -1493,16 +1501,18 @@ class _SaveRow(QPushButton):
         text.setContentsMargins(0, 0, 0, 0)
         text.setSpacing(1)
         self._name = QLabel(_base_name(save.name))
-        self._name.setStyleSheet(
+        w.own_style(
+            self._name,
             f"font-family:{t.UI_FAMILY};font-size:12px;font-weight:600;"
-            f"color:{t.TEXT};background:transparent;"
+            f"color:{t.TEXT};background:transparent;",
         )
         text.addWidget(self._name)
         cloud = not save.sav_available
         meta = QLabel("In cloud — make available offline" if cloud else (save.location or "—"))
-        meta.setStyleSheet(
+        w.own_style(
+            meta,
             f"font-family:{t.UI_FAMILY};font-size:10.5px;"
-            f"color:{t.TEXT_2 if cloud else t.TEXT_3};background:transparent;"
+            f"color:{t.TEXT_2 if cloud else t.TEXT_3};background:transparent;",
         )
         text.addWidget(meta)
         layout.addLayout(text, 1)
@@ -1522,9 +1532,10 @@ class _SaveRow(QPushButton):
     def setChecked(self, checked: bool) -> None:  # noqa: N802 - Qt override
         super().setChecked(checked)
         # A child QLabel can't be recoloured by the ``:checked`` rule above.
-        self._name.setStyleSheet(
+        w.own_style(
+            self._name,
             f"font-family:{t.UI_FAMILY};font-size:12px;font-weight:600;"
-            f"color:{t.GOLD if checked else t.TEXT};background:transparent;"
+            f"color:{t.GOLD if checked else t.TEXT};background:transparent;",
         )
 
 
@@ -1555,9 +1566,10 @@ def _save_thumbnail(save: SaveGame) -> QLabel:
     thumb = QLabel()
     thumb.setFixedSize(t.SAVE_THUMB, t.SAVE_THUMB)
     thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    thumb.setStyleSheet(
+    w.own_style(
+        thumb,
         f"background:{t.ICON_CHIP};border-radius:{t.RADIUS_CHIP}px;"
-        f"color:{t.TEXT_3};font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;"
+        f"color:{t.TEXT_3};font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;",
     )
     thumb.setText("SV")
     shot = save.screenshot
@@ -1583,14 +1595,14 @@ def _fill_thumbnail(thumb: QLabel, save: SaveGame) -> None:
 def _empty_state(section: Section, blurb: str) -> QWidget:
     """The centred card shown for a section whose screen isn't built yet."""
     page = QWidget()
-    page.setStyleSheet(f"background:{t.APP_BG};")
+    w.own_style(page, f"background:{t.APP_BG};")
 
     # The card is a fixed-width container centred by the surrounding stretches.
     # Centring the *labels* individually with an alignment flag would make the
     # layout use each one's sizeHint, and a wrapping label's sizeHint is one line.
     card = QWidget()
     card.setFixedWidth(420)
-    card.setStyleSheet("background:transparent;")
+    w.own_style(card, "background:transparent;")
     inner = QVBoxLayout(card)
     inner.setContentsMargins(0, 0, 0, 0)
     inner.setSpacing(10)
@@ -1598,10 +1610,11 @@ def _empty_state(section: Section, blurb: str) -> QWidget:
     chip = QLabel(section.code)
     chip.setFixedSize(48, 48)
     chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    chip.setStyleSheet(
+    w.own_style(
+        chip,
         f"border:1px solid {t.gold_border(0.4)};background:{t.gold_tint(0.12)};"
         f"color:{t.GOLD};border-radius:{t.RADIUS_PANEL}px;"
-        f"font-family:{t.UI_FAMILY};font-size:15px;font-weight:700;"
+        f"font-family:{t.UI_FAMILY};font-size:15px;font-weight:700;",
     )
     inner.addWidget(chip, 0, Qt.AlignmentFlag.AlignHCenter)
 

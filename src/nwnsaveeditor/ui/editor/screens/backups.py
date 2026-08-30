@@ -35,7 +35,7 @@ class BackupsScreen(QWidget):
         self._window = window
         self._selected = None  # the chosen Backup
         self._diff = None
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
@@ -43,14 +43,14 @@ class BackupsScreen(QWidget):
 
         left = QWidget()
         left.setFixedWidth(320)
-        left.setStyleSheet("background:transparent;")
+        w.own_style(left, "background:transparent;")
         self._left = QVBoxLayout(left)
         self._left.setContentsMargins(0, 0, 0, 0)
         self._left.setSpacing(10)
         outer.addWidget(left)
 
         right = QWidget()
-        right.setStyleSheet("background:transparent;")
+        w.own_style(right, "background:transparent;")
         self._right = QVBoxLayout(right)
         self._right.setContentsMargins(0, 0, 0, 0)
         self._right.setSpacing(10)
@@ -92,7 +92,7 @@ class BackupsScreen(QWidget):
             self._selected = backups[0]
 
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(6)
@@ -129,7 +129,7 @@ class BackupsScreen(QWidget):
         column.setContentsMargins(12, 9, 12, 9)
         column.setSpacing(2)
         name = w.body(backup.original_name, t.TEXT, 12.5)
-        name.setStyleSheet(name.styleSheet() + "font-weight:600;")
+        w.add_own_style(name, "font-weight:600;")
         column.addWidget(name)
         taken = backup.taken.strftime("%Y-%m-%d %H:%M:%S") if backup.taken else "unknown time"
         column.addWidget(w.body(f"{taken}  ·  {backup.size / (1 << 20):.0f} MB", t.TEXT_3, 11))
@@ -162,7 +162,7 @@ class BackupsScreen(QWidget):
             t.TEXT_2, 12.5,
         ))
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 6, 0)
         column.setSpacing(10)
@@ -194,7 +194,7 @@ class BackupsScreen(QWidget):
 
     def _field_row(self, change) -> QWidget:
         row = QWidget()
-        row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
+        w.own_style(row, f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
         line = QHBoxLayout(row)
         line.setContentsMargins(0, 4, 0, 4)
         line.setSpacing(10)

@@ -215,9 +215,10 @@ class PortraitPickerDialog(QDialog):
         try:
             if pixmap is None:
                 label.setText("no\nimage")
-                label.setStyleSheet(
+                w.own_style(
+                    label,
                     f"color:{t.TEXT_3};font-family:{t.UI_FAMILY};font-size:10px;"
-                    f"border:1px dashed {t.hairline(0.16)};border-radius:4px;"
+                    f"border:1px dashed {t.hairline(0.16)};border-radius:4px;",
                 )
             else:
                 label.setPixmap(pixmap)
@@ -335,10 +336,11 @@ class PortraitPickerDialog(QDialog):
             return
         cell, name = entry
         try:
-            cell.setStyleSheet(
+            w.own_style(
+                cell,
                 f"background:{t.gold_tint(0.18) if selected else 'transparent'};"
                 f"border:1px solid {t.GOLD if selected else t.hairline(0.12)};"
-                f"border-radius:6px;"
+                f"border-radius:6px;",
             )
             name.setStyleSheet(
                 name.styleSheet().rsplit("color:", 1)[0]

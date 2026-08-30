@@ -96,14 +96,14 @@ class CharacterScreen(QWidget):
         self._effects_view = "active"
         self._class_skill_set: set[int] = set()  # filled per Skills-tab build
         self._stale_pages: set[str] = set()  # tabs whose page needs a rebuild on show
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
         outer.setSpacing(20)
 
         self._header = QWidget()
-        self._header.setStyleSheet("background:transparent;")
+        w.own_style(self._header, "background:transparent;")
         outer.addWidget(self._header)
 
         self._tabs = w.TabStrip(TABS)
@@ -111,7 +111,7 @@ class CharacterScreen(QWidget):
         outer.addWidget(self._tabs)
 
         self._pages = QStackedWidget()
-        self._pages.setStyleSheet("background:transparent;")
+        w.own_style(self._pages, "background:transparent;")
         self._page_keys: list[str] = []
         self._page_bodies: list[QWidget] = []
         for key, _label in TABS:
@@ -119,7 +119,7 @@ class CharacterScreen(QWidget):
             # hundred feats, and a QStackedWidget's sizeHint is the largest of its
             # pages — unscrolled, one long tab would force the whole window taller.
             body = QWidget()
-            body.setStyleSheet("background:transparent;")
+            w.own_style(body, "background:transparent;")
             QVBoxLayout(body).setContentsMargins(0, 0, 8, 0)
             self._pages.addWidget(_scroll(body))
             self._page_keys.append(key)
@@ -159,7 +159,7 @@ class CharacterScreen(QWidget):
         # into the viewport and every panel collapses to a sliver.
         info = self._window.character_info()  # cached on the edit token; cheap
         body = QWidget()
-        body.setStyleSheet("background:transparent;")
+        w.own_style(body, "background:transparent;")
         layout = QVBoxLayout(body)
         layout.setContentsMargins(0, 0, 8, 0)
         getattr(self, f"_build_{key}")(layout, info)
@@ -249,10 +249,11 @@ class CharacterScreen(QWidget):
         label = QLabel()
         label.setFixedSize(box, box)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet(
+        w.own_style(
+            label,
             f"background:{t.ICON_CHIP};border:1px solid {t.gold_border(0.4)};"
             f"border-radius:{t.RADIUS_PANEL}px;color:{t.TEXT_3};"
-            f"font-family:{t.MONO_FAMILY};font-size:8px;font-weight:600;"
+            f"font-family:{t.MONO_FAMILY};font-size:8px;font-weight:600;",
         )
         pixmap = self._portrait_pixmap(info, box)
         if pixmap is None:
@@ -280,8 +281,9 @@ class CharacterScreen(QWidget):
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.setToolTip(f"{key.title()} sheet skin (appearance only)")
             border = t.GOLD if key == self._skin else t.hairline(0.25)
-            button.setStyleSheet(
-                f"background:{swatch};border:2px solid {border};border-radius:11px;"
+            w.own_style(
+                button,
+                f"background:{swatch};border:2px solid {border};border-radius:11px;",
             )
             button.mousePressEvent = lambda _e, k=key: self._set_skin(k)
             row.addWidget(button)
@@ -319,9 +321,10 @@ class CharacterScreen(QWidget):
         art = QLabel("CHARACTER ART")
         art.setFixedSize(t.PORTRAIT_W, t.PORTRAIT_H)
         art.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        art.setStyleSheet(
+        w.own_style(
+            art,
             f"background:{t.ICON_CHIP};border:1px solid {border};border-radius:8px;"
-            f"color:{t.TEXT_3};font-family:{t.MONO_FAMILY};font-size:9px;font-weight:600;"
+            f"color:{t.TEXT_3};font-family:{t.MONO_FAMILY};font-size:9px;font-weight:600;",
         )
         pixmap = self._portrait_pixmap(info, t.PORTRAIT_W)
         if pixmap is not None:
@@ -337,7 +340,7 @@ class CharacterScreen(QWidget):
             accent, 13,
         ))
         classes = w.body(_classes_line(info), t.SHEET_TEXT, 14)
-        classes.setStyleSheet(classes.styleSheet() + "font-weight:600;")
+        w.add_own_style(classes, "font-weight:600;")
         stats.addWidget(classes)
         if self._window.editing and self._window.class_level_editing_enabled():
             add_level = w.small_ghost("+ Add class level…")
@@ -442,7 +445,7 @@ class CharacterScreen(QWidget):
         into a single number the engine might not agree with.
         """
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(8)
@@ -611,9 +614,10 @@ class CharacterScreen(QWidget):
 
     def _detail_row(self, field, dirty: bool) -> QWidget:
         row = QWidget()
-        row.setStyleSheet(
+        w.own_style(
+            row,
             f"background:{t.gold_tint(0.12) if dirty else 'transparent'};"
-            f"border-bottom:1px solid {t.hairline(0.06)};"
+            f"border-bottom:1px solid {t.hairline(0.06)};",
         )
         line = QHBoxLayout(row)
         line.setContentsMargins(14, 8, 14, 8)
@@ -844,7 +848,7 @@ class CharacterScreen(QWidget):
     def _skill_row(self, skill, total=None) -> QWidget:
         pending = {c.key for c in self._pending() if c.kind == "skill"}
         row = QWidget()
-        row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
+        w.own_style(row, f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
         line = QHBoxLayout(row)
         line.setContentsMargins(14, 8, 14, 8)
         line.setSpacing(12)
@@ -857,7 +861,7 @@ class CharacterScreen(QWidget):
             line.addSpacing(12)
             shown = w.body(str(total.total), t.TEXT, 13)
             shown.setFixedWidth(46)
-            shown.setStyleSheet(shown.styleSheet() + "font-weight:700;")
+            w.add_own_style(shown, "font-weight:700;")
             shown.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             shown.setToolTip(total.detail())
             line.addWidget(shown)
@@ -933,7 +937,7 @@ class CharacterScreen(QWidget):
 
     def _feat_row(self, feat_id: int, name: str, is_base: bool, dirty: bool) -> QWidget:
         row = QWidget()
-        row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
+        w.own_style(row, f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
         line = QHBoxLayout(row)
         line.setContentsMargins(14, 7, 14, 7)
         line.setSpacing(10)
@@ -1357,7 +1361,7 @@ class CharacterScreen(QWidget):
     def _bonus_sources_panel(self, bonuses) -> QWidget:
         """Classes, feats and ongoing effects — the sources that can't be summed."""
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(10)
@@ -1509,7 +1513,7 @@ class CharacterScreen(QWidget):
 
     def _name_row(self, field: str, label: str, dirty: bool) -> QWidget:
         row = QWidget()
-        row.setStyleSheet("background:transparent;")
+        w.own_style(row, "background:transparent;")
         line = QHBoxLayout(row)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(10)
@@ -1605,10 +1609,11 @@ def _classes_line(info) -> str:
 
 def _alignment_badge(law: int, good: int) -> QLabel:
     badge = QLabel(f"{_lawful_chaotic_word(law)} {_good_evil_word(good)}")
-    badge.setStyleSheet(
+    w.own_style(
+        badge,
         f"color:{t.GOLD};background:{t.gold_tint(0.18)};border:1px solid {t.gold_border(0.4)};"
         f"border-radius:{t.RADIUS_BADGE}px;padding:2px 7px;"
-        f"font-family:{t.UI_FAMILY};font-size:11px;font-weight:600;"
+        f"font-family:{t.UI_FAMILY};font-size:11px;font-weight:600;",
     )
     return badge
 
@@ -1616,7 +1621,7 @@ def _alignment_badge(law: int, good: int) -> QLabel:
 def _xp_bar(experience: int, level: int) -> QWidget:
     """XP with a progress bar toward the next level (NWN: level N needs N(N-1)/2 · 1000)."""
     holder = QWidget()
-    holder.setStyleSheet("background:transparent;")
+    w.own_style(holder, "background:transparent;")
     holder.setFixedWidth(340)
     row = QHBoxLayout(holder)
     row.setContentsMargins(0, 0, 0, 0)
@@ -1629,9 +1634,9 @@ def _xp_bar(experience: int, level: int) -> QWidget:
 
     track = QFrame()
     track.setFixedHeight(6)
-    track.setStyleSheet(f"background:{t.hairline(0.08)};border-radius:3px;")
+    w.own_style(track, f"background:{t.hairline(0.08)};border-radius:3px;")
     fill = QFrame(track)
-    fill.setStyleSheet(f"background:{t.GOLD};border-radius:3px;")
+    w.own_style(fill, f"background:{t.GOLD};border-radius:3px;")
     track_layout = QHBoxLayout(track)
     track_layout.setContentsMargins(0, 0, 0, 0)
     track_layout.addWidget(fill, int(fraction * 1000))
@@ -1644,7 +1649,7 @@ def _xp_bar(experience: int, level: int) -> QWidget:
 def _sheet_divider() -> QFrame:
     line = QFrame()
     line.setFixedHeight(1)
-    line.setStyleSheet(f"background:{t.hairline(0.12)};border:none;")
+    w.own_style(line, f"background:{t.hairline(0.12)};border:none;")
     return line
 
 
@@ -1710,9 +1715,10 @@ def _ability_row(
     """
     dirty = was is not None
     row = QWidget()
-    row.setStyleSheet(
+    w.own_style(
+        row,
         f"background:{t.gold_tint(0.12) if dirty else 'transparent'};"
-        f"border-bottom:1px solid {t.hairline(0.08)};border-radius:6px;"
+        f"border-bottom:1px solid {t.hairline(0.08)};border-radius:6px;",
     )
     line = QHBoxLayout(row)
     line.setContentsMargins(4, 5, 4, 5)
@@ -1723,16 +1729,17 @@ def _ability_row(
     chip = QLabel(field[0].upper())
     chip.setFixedSize(22, 22)
     chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    chip.setStyleSheet(
+    w.own_style(
+        chip,
         f"border:1px solid {t.GOLD};border-radius:11px;color:{t.GOLD};"
-        f"font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;"
+        f"font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;",
     )
     line.addWidget(chip)
     line.addWidget(w.body(label, t.SHEET_TEXT, 13.5), 1)
 
     if dirty:
         old = w.body(str(was), t.TEXT_3, 13)
-        old.setStyleSheet(old.styleSheet() + "text-decoration:line-through;")
+        w.add_own_style(old, "text-decoration:line-through;")
         old.setToolTip("The value in the save; the edit is staged, not written.")
         line.addWidget(old)
 
@@ -1749,7 +1756,7 @@ def _ability_row(
         line.addWidget(stepper)
     else:
         value = w.body(str(score), t.GOLD if dirty else t.SHEET_TEXT, 15)
-        value.setStyleSheet(value.styleSheet() + "font-weight:700;")
+        w.add_own_style(value, "font-weight:700;")
         value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         value.setFixedWidth(34)
         line.addWidget(value)
@@ -1762,7 +1769,7 @@ def _ability_row(
     if gear is not None and gear.components:
         in_play = score + gear.added
         total = w.body(f"→ {in_play}", t.GOLD, 15)
-        total.setStyleSheet(total.styleSheet() + "font-weight:700;")
+        w.add_own_style(total, "font-weight:700;")
         total.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         total.setFixedWidth(56)
         total.setToolTip(_breakdown_tooltip(label, gear, score))
@@ -1772,7 +1779,7 @@ def _ability_row(
 
     modifier = ability_modifier(in_play)
     mod = w.body(_signed(modifier), t.GREEN if modifier >= 0 else t.DANGER, 13)
-    mod.setStyleSheet(mod.styleSheet() + "font-weight:700;")
+    w.add_own_style(mod, "font-weight:700;")
     mod.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
     mod.setFixedWidth(34)
     mod.setToolTip(
@@ -1786,27 +1793,27 @@ def _ability_row(
 
 def _fact(label: str, value: str, accent: str) -> QWidget:
     holder = QWidget()
-    holder.setStyleSheet("background:transparent;")
+    w.own_style(holder, "background:transparent;")
     row = QHBoxLayout(holder)
     row.setContentsMargins(0, 0, 0, 0)
     row.setSpacing(5)
     row.addWidget(w.body(label, accent, 13))
     strong = w.body(value, t.SHEET_TEXT, 13)
-    strong.setStyleSheet(strong.styleSheet() + "font-weight:700;")
+    w.add_own_style(strong, "font-weight:700;")
     row.addWidget(strong)
     return holder
 
 
 def _combat_stat(label: str, value: str, source: str) -> QWidget:
     holder = QWidget()
-    holder.setStyleSheet("background:transparent;")
+    w.own_style(holder, "background:transparent;")
     holder.setMinimumWidth(120)
     column = QVBoxLayout(holder)
     column.setContentsMargins(0, 0, 0, 0)
     column.setSpacing(2)
     column.addWidget(w.cap_label(label))
     big = w.body(value, t.TEXT, 17)
-    big.setStyleSheet(big.styleSheet() + "font-weight:700;")
+    w.add_own_style(big, "font-weight:700;")
     column.addWidget(big)
     column.addWidget(w.body(source, t.TEXT_3, 10.5))
     return holder
@@ -1834,7 +1841,7 @@ def _effect_row(effect: dict, repeats: int = 1) -> QWidget:
     visible (they are all the save says about the untagged ones) without leading.
     """
     row = QWidget()
-    row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
+    w.own_style(row, f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
     line = QHBoxLayout(row)
     line.setContentsMargins(14, 9, 14, 9)
     line.setSpacing(12)
@@ -1873,7 +1880,7 @@ def _effect_row(effect: dict, repeats: int = 1) -> QWidget:
 def _bonus_group_row(group) -> QWidget:
     """One thing a number feeds into, with every source that feeds it."""
     row = QWidget()
-    row.setStyleSheet(f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
+    w.own_style(row, f"background:transparent;border-bottom:1px solid {t.hairline(0.06)};")
     column = QVBoxLayout(row)
     column.setContentsMargins(14, 9, 14, 9)
     column.setSpacing(5)
@@ -1881,10 +1888,10 @@ def _bonus_group_row(group) -> QWidget:
     head = QHBoxLayout()
     head.setSpacing(10)
     subject = w.body(group.subject, t.TEXT, 13)
-    subject.setStyleSheet(subject.styleSheet() + "font-weight:600;")
+    w.add_own_style(subject, "font-weight:600;")
     head.addWidget(subject, 1)
     summary = w.body(group.summary, t.GOLD, 12.5)
-    summary.setStyleSheet(summary.styleSheet() + "font-weight:700;")
+    w.add_own_style(summary, "font-weight:700;")
     if group.largest is not None and group.total != group.largest:
         summary.setToolTip(
             "NWN applies only the largest item bonus of a given kind, so the sum is "

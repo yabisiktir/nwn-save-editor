@@ -55,7 +55,7 @@ class _PanelBase(QWidget):
         area.setFrameShape(QScrollArea.Shape.NoFrame)
         area.setStyleSheet(w.scroll_area_qss())
         body = QWidget()
-        body.setStyleSheet("background:transparent;")
+        w.own_style(body, "background:transparent;")
         self._body = QVBoxLayout(body)
         self._body.setContentsMargins(14, 14, 14, 14)
         self._body.setSpacing(10)
@@ -65,7 +65,7 @@ class _PanelBase(QWidget):
     def _add_identity(self, item) -> None:
         resolved = self._display_name(item)
         name = w.body(resolved or "(unnamed item)", t.TEXT, 14)
-        name.setStyleSheet(name.styleSheet() + "font-weight:600;")
+        w.add_own_style(name, "font-weight:600;")
         self._body.addWidget(name)
         kind = base_item_type(item.base_item)
         self._body.addWidget(w.body(kind or f"Base item {item.base_item}", t.TEXT_2, 12))
@@ -161,9 +161,10 @@ class PlayerItemPanel(_PanelBase):
 
     def _property_row(self, prop, *, dirty: bool, is_new: bool, repeats: int = 1) -> QWidget:
         row = QWidget()
-        row.setStyleSheet(
+        w.own_style(
+            row,
             f"background:{t.gold_tint(0.12) if (dirty or is_new) else 'transparent'};"
-            f"border-radius:6px;"
+            f"border-radius:6px;",
         )
         column = QVBoxLayout(row)
         column.setContentsMargins(8, 7, 8, 7)
@@ -310,7 +311,7 @@ class AreaItemPanel(_PanelBase):
 
         self._body.addWidget(w.hline())
         self._action_slot = QWidget()
-        self._action_slot.setStyleSheet("background:transparent;")
+        w.own_style(self._action_slot, "background:transparent;")
         QVBoxLayout(self._action_slot).setContentsMargins(0, 0, 0, 0)
         self._body.addWidget(self._action_slot)
         self._show_action()
@@ -328,7 +329,7 @@ class AreaItemPanel(_PanelBase):
 
     def _property_row(self, index: int, prop) -> QWidget:
         row = QWidget()
-        row.setStyleSheet("background:transparent;")
+        w.own_style(row, "background:transparent;")
         line = QHBoxLayout(row)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(6)
@@ -414,9 +415,10 @@ class AreaItemPanel(_PanelBase):
                 _clear_layout(item.layout())
         if copied:
             done = QLabel("●  Copy added to inventory")
-            done.setStyleSheet(
+            w.own_style(
+                done,
                 f"color:{t.GOLD};font-family:{t.UI_FAMILY};font-size:12.5px;"
-                f"font-weight:600;background:transparent;"
+                f"font-weight:600;background:transparent;",
             )
             layout.addWidget(done)
             return
@@ -497,11 +499,12 @@ def item_cell(
     else:
         border = f"1px dashed {t.hairline(0.16)}"
         background = "transparent"
-    cell.setStyleSheet(
+    w.own_style(
+        cell,
         f"border:{border};background:{background};border-radius:{t.RADIUS_ROW}px;"
         f"color:{t.TEXT if filled else t.TEXT_3};font-family:{t.UI_FAMILY};"
         f"font-size:{9 if filled else 8.5}px;font-weight:{600 if filled else 500};"
-        f"padding:2px;"
+        f"padding:2px;",
     )
     if icon is not None:
         cell.setPixmap(icon)
@@ -510,9 +513,10 @@ def item_cell(
         cell.setCursor(Qt.CursorShape.PointingHandCursor)
     if badge:
         count = QLabel(badge, cell)
-        count.setStyleSheet(
+        w.own_style(
+            count,
             f"background:{t.GOLD};color:{t.APP_BG};border-radius:7px;"
-            f"font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;padding:0 4px;"
+            f"font-family:{t.UI_FAMILY};font-size:9px;font-weight:700;padding:0 4px;",
         )
         count.setAlignment(Qt.AlignmentFlag.AlignCenter)
         count.adjustSize()

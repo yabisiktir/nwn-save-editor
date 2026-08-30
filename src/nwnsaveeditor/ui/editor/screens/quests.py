@@ -40,7 +40,7 @@ class QuestsScreen(QWidget):
         self._window = window
         self._filter = ""
         self._shown = PAGE
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
@@ -55,9 +55,9 @@ class QuestsScreen(QWidget):
         ))
 
         self._pages = QStackedWidget()
-        self._pages.setStyleSheet("background:transparent;")
+        w.own_style(self._pages, "background:transparent;")
         self._variables_page = QWidget()
-        self._variables_page.setStyleSheet("background:transparent;")
+        w.own_style(self._variables_page, "background:transparent;")
         self._variables_layout = QVBoxLayout(self._variables_page)
         self._variables_layout.setContentsMargins(0, 0, 0, 0)
         self._variables_layout.setSpacing(10)
@@ -135,7 +135,7 @@ class QuestsScreen(QWidget):
 
         pending = self._pending_keys()
         body = QWidget()
-        body.setStyleSheet("background:transparent;")
+        w.own_style(body, "background:transparent;")
         column = QVBoxLayout(body)
         column.setContentsMargins(0, 0, 6, 0)
         column.setSpacing(0)
@@ -153,7 +153,7 @@ class QuestsScreen(QWidget):
             buttons.addWidget(rest)
             buttons.addStretch(1)
             holder = QWidget()
-            holder.setStyleSheet("background:transparent;")
+            w.own_style(holder, "background:transparent;")
             holder.setLayout(buttons)
             column.addWidget(holder)
         column.addStretch(1)
@@ -162,9 +162,10 @@ class QuestsScreen(QWidget):
 
     def _row(self, variable, dirty: bool) -> QWidget:
         row = QWidget()
-        row.setStyleSheet(
+        w.own_style(
+            row,
             f"background:{t.gold_tint(0.12) if dirty else 'transparent'};"
-            f"border-bottom:1px solid {t.hairline(0.06)};"
+            f"border-bottom:1px solid {t.hairline(0.06)};",
         )
         line = QHBoxLayout(row)
         line.setContentsMargins(10, 6, 10, 6)

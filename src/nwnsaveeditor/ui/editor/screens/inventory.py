@@ -91,7 +91,7 @@ class InventoryScreen(QWidget):
         #: own cell, so either end of the round trip can be scrolled to.
         self._sections: dict[tuple, QWidget] = {}
         self._cells: dict[tuple, QWidget] = {}
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
@@ -105,7 +105,7 @@ class InventoryScreen(QWidget):
 
         self._detail_slot = QWidget()
         self._detail_slot.setFixedWidth(t.DETAIL_W)
-        self._detail_slot.setStyleSheet("background:transparent;")
+        w.own_style(self._detail_slot, "background:transparent;")
         QVBoxLayout(self._detail_slot).setContentsMargins(0, 0, 0, 0)
         outer.addWidget(self._detail_slot)
 
@@ -160,7 +160,7 @@ class InventoryScreen(QWidget):
         # not re-measure when that widget's children are swapped, which left the
         # column crushed into the viewport with sections overlapping.
         content = QWidget()
-        content.setStyleSheet("background:transparent;")
+        w.own_style(content, "background:transparent;")
         column = QVBoxLayout(content)
         column.setContentsMargins(0, 0, 8, 0)
         column.setSpacing(16)
@@ -226,7 +226,7 @@ class InventoryScreen(QWidget):
         the way back is otherwise scrolling and hunting for the icon you came from.
         """
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         row = QHBoxLayout(holder)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(8)
@@ -287,7 +287,7 @@ class InventoryScreen(QWidget):
 
     def _build_paperdoll(self, equipped: dict) -> QWidget:
         doll = Paperdoll()
-        doll.setStyleSheet("background:transparent;")
+        w.own_style(doll, "background:transparent;")
         grid = QGridLayout(doll)
         grid.setSpacing(10)
         grid.setContentsMargins(10, 10, 10, 10)
@@ -298,7 +298,7 @@ class InventoryScreen(QWidget):
 
     def _build_creature_slots(self, equipped: dict, natural: list) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(6)
@@ -335,7 +335,7 @@ class InventoryScreen(QWidget):
         Dragon Disciple's bite could look as though the save had lost it.
         """
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 8, 0, 0)
         column.setSpacing(6)
@@ -373,7 +373,7 @@ class InventoryScreen(QWidget):
 
     def _build_bag(self, carried: list, counts: dict | None = None) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         # A widget carrying its own layout can still be squeezed below its
         # minimumSizeHint, which flattened a 156-item bag into slivers. Fixing the
         # vertical policy makes the grid's height non-negotiable and lets the

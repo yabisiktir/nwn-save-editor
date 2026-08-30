@@ -115,7 +115,7 @@ class ChangeLedger(QFrame):
         self._save.setEnabled(bool(staged))
 
         body = QWidget()
-        body.setStyleSheet("background:transparent;")
+        w.own_style(body, "background:transparent;")
         column = QVBoxLayout(body)
         column.setContentsMargins(0, 0, 6, 0)
         column.setSpacing(6)
@@ -143,7 +143,7 @@ class ChangeLedger(QFrame):
         top.setSpacing(8)
         where = w.body(change.where or change.kind, t.TEXT_3 if undone else t.TEXT, 12.5)
         if undone:
-            where.setStyleSheet(where.styleSheet() + "text-decoration:line-through;")
+            w.add_own_style(where, "text-decoration:line-through;")
         top.addWidget(where, 1)
         section = w.body(_section_label(change.kind), t.TEXT_3, 10.5)
         top.addWidget(section)
@@ -153,7 +153,7 @@ class ChangeLedger(QFrame):
         detail.setSpacing(8)
         summary = w.mono(change.summary, t.TEXT_3 if undone else t.TEXT_2, 11.5)
         if undone:
-            summary.setStyleSheet(summary.styleSheet() + "text-decoration:line-through;")
+            w.add_own_style(summary, "text-decoration:line-through;")
         detail.addWidget(summary, 1)
         if undone:
             detail.addWidget(w.body("undone — not written", t.TEXT_3, 10.5))

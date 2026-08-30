@@ -43,7 +43,7 @@ class PropertyReferenceScreen(QWidget):
         #: panel leads with *this* rather than a context-free catalog when set.
         self._decoded = None
         self._editor = None  # editor(field, value) set by inspect_property, in edit mode
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
@@ -51,7 +51,7 @@ class PropertyReferenceScreen(QWidget):
 
         left = QWidget()
         left.setFixedWidth(300)
-        left.setStyleSheet("background:transparent;")
+        w.own_style(left, "background:transparent;")
         self._left = QVBoxLayout(left)
         self._left.setContentsMargins(0, 0, 0, 0)
         self._left.setSpacing(8)
@@ -169,7 +169,7 @@ class PropertyReferenceScreen(QWidget):
             self._selected = ids[0] if ids else None
 
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(2)
@@ -210,7 +210,7 @@ class PropertyReferenceScreen(QWidget):
 
     def _show_detail(self, property_id: int | None) -> None:
         body = QWidget()
-        body.setStyleSheet("background:transparent;")
+        w.own_style(body, "background:transparent;")
         column = QVBoxLayout(body)
         column.setContentsMargins(0, 0, 8, 0)
         column.setSpacing(12)
@@ -314,7 +314,7 @@ class PropertyReferenceScreen(QWidget):
     def _options_block(self, title: str, options, blurb: str, *, highlight=None,
                        field=None) -> QWidget:
         holder = QWidget()
-        holder.setStyleSheet("background:transparent;")
+        w.own_style(holder, "background:transparent;")
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(6)
@@ -360,7 +360,7 @@ def _kv(label: str, value: str, *, current: bool = False, on_click=None) -> QWid
 
     row = QWidget()
     bg = t.gold_tint(0.16) if current else "transparent"
-    row.setStyleSheet(f"background:{bg};border-bottom:1px solid {t.hairline(0.06)};")
+    w.own_style(row, f"background:{bg};border-bottom:1px solid {t.hairline(0.06)};")
     line = QHBoxLayout(row)
     line.setContentsMargins(12, 6, 12, 6)
     line.setSpacing(10)

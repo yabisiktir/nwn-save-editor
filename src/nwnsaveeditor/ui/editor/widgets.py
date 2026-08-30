@@ -47,6 +47,55 @@ def paints_own_background(widget: QWidget) -> QWidget:
     return widget
 
 
+def own_style(widget: QWidget, css: str) -> QWidget:
+    """Apply widget QSS that cannot leak into the widget's own tooltip.
+
+    A tooltip is a separate top-level ``QTipLabel``, but Qt resolves its style
+    through the stylesheet cascade of the widget it is shown *for* — Qt stores
+    that widget on the tip as ``_q_stylesheet_parent``. So *unscoped* QSS
+    ("font-size:12.5px;background:transparent;"), which applies to a widget and
+    everything under it, applies to its tooltip too: hovering a 12.5px label gave
+    a 12.5px tooltip, and hovering anything painted ``background:transparent``
+    gave a tooltip with no background at all. Measured across the real window,
+    that produced *fourteen* different tooltip appearances.
+
+    The cascade cannot be corrected from above — a ``QToolTip`` rule on the
+    window, or even on the application, loses to a nearer declaration — so the
+    leak has to be stopped where it starts. Wrapping the declarations in the
+    widget's own **exact-class** selector does that: ``.QLabel{...}`` matches a
+    ``QLabel`` but not a ``QTipLabel``, which is a subclass. The widget renders
+    identically (verified widget-by-widget across every screen); only its tooltip
+    stops inheriting.
+
+    Use this instead of ``setStyleSheet`` for any bare declaration block. QSS that
+    already carries its own selector (``QPushButton{...}``, ``Panel{...}``) is
+    safe as it is, for the same reason — which is why the buttons never leaked.
+    """
+    # A bare QWidget ignores a *selector-scoped* background/border unless this is
+    # set (see :func:`paints_own_background`), and the declarations being wrapped
+    # here were unscoped until now — so set it, or scoping would silently stop a
+    # holder painting. QFrame/QLabel/QPushButton paint either way and are unharmed.
+    widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+    widget.setStyleSheet(f".{widget.metaObject().className()}{{{css}}}")
+    return widget
+
+
+def add_own_style(widget: QWidget, css: str) -> QWidget:
+    """Add declarations to a widget already styled by :func:`own_style`.
+
+    The screens build a label and then emphasise it (``+ "font-weight:700;"``).
+    Appending to a *scoped* stylesheet would put the declaration outside the
+    rule, where Qt's parser drops it — and takes the rule with it — so the extra
+    declarations have to go inside the existing braces.
+    """
+    existing = widget.styleSheet()
+    if existing.endswith("}"):
+        widget.setStyleSheet(existing[:-1] + css + "}")
+    else:  # not scoped yet (or empty) — scope it now, with the addition
+        own_style(widget, existing + css)
+    return widget
+
+
 def set_tooltip(widget: QWidget, text: str | None) -> None:
     """Set a tooltip only when there is something to say.
 
@@ -289,9 +338,10 @@ def _literal(text: str) -> str:
 def cap_label(text: str) -> QLabel:
     """A small uppercase section caption (``SECTIONS``, ``PENDING CHANGES``)."""
     label = QLabel(text.upper())
-    label.setStyleSheet(
+    own_style(
+        label,
         f"font-family:{t.UI_FAMILY};font-size:11px;font-weight:600;"
-        f"letter-spacing:0.04em;color:{t.TEXT_2};background:transparent;"
+        f"letter-spacing:0.04em;color:{t.TEXT_2};background:transparent;",
     )
     return label
 
@@ -299,9 +349,10 @@ def cap_label(text: str) -> QLabel:
 def heading(text: str, size: int = 16) -> QLabel:
     """A Cinzel-style display heading (screen and section titles)."""
     label = QLabel(text)
-    label.setStyleSheet(
+    own_style(
+        label,
         f"font-family:{t.DISPLAY_FAMILY};font-size:{size}px;font-weight:600;"
-        f"color:{t.TEXT_HEADING};background:transparent;"
+        f"color:{t.TEXT_HEADING};background:transparent;",
     )
     return label
 
@@ -316,9 +367,10 @@ def body(text: str, color: str | None = None, size: float = 12.5) -> QLabel:
     policy = label.sizePolicy()
     policy.setHeightForWidth(True)
     label.setSizePolicy(policy)
-    label.setStyleSheet(
+    own_style(
+        label,
         f"font-family:{t.UI_FAMILY};font-size:{size}px;"
-        f"color:{color or t.TEXT};background:transparent;"
+        f"color:{color or t.TEXT};background:transparent;",
     )
     return label
 
@@ -360,14 +412,24 @@ def tooltip_qss() -> str:
     """Theme-aware chrome for QToolTip, rebuilt per call so it follows the theme.
 
     A QToolTip has no stylesheet of its own, so without this it falls back to the
-    OS/Fusion palette — which renders dark-on-dark in the editor's light theme (a
-    reported unreadable tooltip). Applied on the top-level window so its descendant
-    widgets' tooltips inherit it; it is not set app-wide, to avoid restyling a host
-    application's tooltips when the editor is embedded.
+    OS/Fusion palette — which rendered dark-on-dark in the editor's light theme (a
+    reported unreadable tooltip). Applied on the top-level window and on the
+    dialogs, so their descendants' tooltips pick it up; it is deliberately not set
+    app-wide, so embedding the editor does not restyle the host's own tooltips.
+
+    Every property a widget could otherwise hand down is named here — font, colour,
+    background, border, padding — because this rule only decides the appearance for
+    a widget that hands nothing down. It cannot *override* a nearer declaration:
+    Qt resolves a tooltip's style from the widget it is shown for and the closer
+    declaration wins, so a rule here loses to a widget's own unscoped QSS even when
+    that rule is set on the application. Keeping tooltips uniform is therefore the
+    job of :func:`own_style` at every widget; this rule dresses the result.
     """
     return (
         f"QToolTip{{color:{t.TEXT};background-color:{t.SURFACE};"
-        f"border:1px solid {t.hairline(0.22)};padding:5px 8px;}}"
+        f"border:1px solid {t.hairline(0.22)};border-radius:{t.RADIUS_BADGE}px;"
+        f"padding:5px 8px;font-family:{t.UI_FAMILY};font-size:12px;"
+        f"font-weight:400;font-style:normal;text-decoration:none;}}"
     )
 
 
@@ -394,9 +456,10 @@ def message_box_qss() -> str:
 def eliding_body(text: str, color: str | None = None, size: float = 12.5) -> ElidingLabel:
     """:func:`body` styling on an :class:`ElidingLabel` (elides instead of wrapping)."""
     label = ElidingLabel(text)
-    label.setStyleSheet(
+    own_style(
+        label,
         f"font-family:{t.UI_FAMILY};font-size:{size}px;"
-        f"color:{color or t.TEXT};background:transparent;"
+        f"color:{color or t.TEXT};background:transparent;",
     )
     return label
 
@@ -405,9 +468,10 @@ def mono(text: str, color: str | None = None, size: float = 11.5) -> QLabel:
     """Ids, codes, paths and filenames — the design sets these in a mono face."""
     label = QLabel(text)
     label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-    label.setStyleSheet(
+    own_style(
+        label,
         f"font-family:{t.MONO_FAMILY};font-size:{size}px;"
-        f"color:{color or t.TEXT_2};background:transparent;"
+        f"color:{color or t.TEXT_2};background:transparent;",
     )
     return label
 
@@ -572,7 +636,7 @@ def hline() -> QFrame:
     """A 1px hairline separator."""
     line = QFrame()
     line.setFixedHeight(1)
-    line.setStyleSheet(f"background:{t.hairline(0.08)};border:none;")
+    own_style(line, f"background:{t.hairline(0.08)};border:none;")
     return line
 
 
@@ -580,7 +644,7 @@ def vline() -> QFrame:
     """A 1px vertical divider (used in the toolbar)."""
     line = QFrame()
     line.setFixedWidth(1)
-    line.setStyleSheet(f"background:{t.hairline(0.08)};border:none;")
+    own_style(line, f"background:{t.hairline(0.08)};border:none;")
     return line
 
 
@@ -591,10 +655,9 @@ def scrollbar_qss() -> str:
     editor's own surfaces, in either theme.
 
     Note: the ``QToolTip`` rule is deliberately *not* here. Tooltips are themed by
-    the one rule on the window/dialog (plus the Fusion style, which is what makes
-    the native platform honour it at all — see ``__main__.main``). Repeating the
-    rule on a scroll area made in-scroll tooltips render with a transparent body
-    under Fusion, so the single window/dialog rule is the only one.
+    the one rule on the window/dialog, and repeating it per scroll area is both
+    unnecessary (the window's rule reaches inside a viewport) and harmful — it once
+    made in-scroll tooltips render with a transparent body under Fusion.
     """
     return (
         f"QScrollBar:vertical{{background:transparent;width:9px;margin:0;}}"
@@ -624,9 +687,10 @@ def icon_chip(code: str, *, size: int = t.NAV_CHIP) -> QLabel:
     chip = QLabel(code)
     chip.setFixedSize(size, size)
     chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    chip.setStyleSheet(
+    own_style(
+        chip,
         f"background:{t.ICON_CHIP};color:{t.GOLD};border-radius:{t.RADIUS_CHIP}px;"
-        f"font-family:{t.UI_FAMILY};font-size:9.5px;font-weight:700;"
+        f"font-family:{t.UI_FAMILY};font-size:9.5px;font-weight:700;",
     )
     return chip
 
@@ -635,8 +699,8 @@ def status_dot(color: str | None = None) -> QLabel:
     """The 6px dot marking a section with unsaved changes."""
     dot = QLabel()
     dot.setFixedSize(t.STATUS_DOT, t.STATUS_DOT)
-    dot.setStyleSheet(
-        f"background:{color or t.GOLD};border-radius:{t.STATUS_DOT // 2}px;"
+    own_style(
+        dot, f"background:{color or t.GOLD};border-radius:{t.STATUS_DOT // 2}px;"
     )
     return dot
 
@@ -644,10 +708,11 @@ def status_dot(color: str | None = None) -> QLabel:
 def prc_badge() -> QLabel:
     """The ``(PRC)`` badge — content PRC regenerates, so an edit may not stick."""
     badge = QLabel("PRC")
-    badge.setStyleSheet(
+    own_style(
+        badge,
         f"color:{t.PRC_AMBER};border:1px solid {t.PRC_BORDER};"
         f"border-radius:{t.RADIUS_BADGE}px;padding:1px 4px;"
-        f"font-family:{t.UI_FAMILY};font-size:8.5px;font-weight:700;"
+        f"font-family:{t.UI_FAMILY};font-size:8.5px;font-weight:700;",
     )
     badge.setToolTip(
         "PRC manages this from its own data and regenerates it on rest, level-up "
@@ -679,9 +744,10 @@ class NavRow(QPushButton):
         layout.setSpacing(10)
         layout.addWidget(icon_chip(code))
         self._label = QLabel(label)
-        self._label.setStyleSheet(
+        own_style(
+            self._label,
             f"font-family:{t.UI_FAMILY};font-size:12.5px;font-weight:500;"
-            f"color:{t.TEXT_2};background:transparent;"
+            f"color:{t.TEXT_2};background:transparent;",
         )
         layout.addWidget(self._label, 1)
         self._dot = status_dot()
@@ -695,10 +761,11 @@ class NavRow(QPushButton):
     def setChecked(self, checked: bool) -> None:  # noqa: N802 - Qt override
         super().setChecked(checked)
         # The label is a child widget, so ``NavRow:checked`` can't recolour it.
-        self._label.setStyleSheet(
+        own_style(
+            self._label,
             f"font-family:{t.UI_FAMILY};font-size:12.5px;"
             f"font-weight:{'600' if checked else '500'};"
-            f"color:{t.GOLD if checked else t.TEXT_2};background:transparent;"
+            f"color:{t.GOLD if checked else t.TEXT_2};background:transparent;",
         )
 
 
@@ -861,7 +928,7 @@ QPushButton {{
 QPushButton:hover {{ background:{t.hairline(0.08)}; }}
 QPushButton:default {{ background:{t.GOLD}; color:{t.GOLD_ON}; border:none; }}
 QPushButton:disabled {{ color:{t.TEXT_3}; border-color:{t.hairline(0.1)}; }}
-""" + message_box_qss()
+""" + message_box_qss() + tooltip_qss()
 
 
 def style_dialog(dialog):

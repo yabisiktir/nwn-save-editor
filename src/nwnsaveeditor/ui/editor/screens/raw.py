@@ -113,7 +113,7 @@ class RawScreen(QWidget):
         super().__init__(parent)
         self._window = window
         self._target = "module.ifo"
-        self.setStyleSheet(f"background:{t.APP_BG};")
+        w.own_style(self, f"background:{t.APP_BG};")
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(26, 22, 26, 22)
