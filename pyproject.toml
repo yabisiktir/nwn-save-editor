@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nwn-save-editor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Read and edit Neverwinter Nights save games, and the file formats behind them."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"  # PySide6 wheels not yet published for 3.14; dev on 3.12/3.13
