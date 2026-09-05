@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from nwnfile.formats.bic_reader import ItemProperty
+from nwnfile.formats.bic_reader import EQUIP_SLOT_NAMES, ItemProperty
 from nwnfile.formats.erf_reader import ErfReader
 from nwnfile.formats.erf_writer import rewrite_erf
 from nwnfile.formats.gff import (
@@ -2291,19 +2291,116 @@ class SaveEditor:
         if "ObjectId" in struct.fields:
             struct.fields["ObjectId"].value = self._next_object_id()
 
+    #: NWN packs a creature's carried inventory into a fixed grid, filling the
+    #: first free cell top-left to bottom-right, and draws only ONE item per
+    #: cell. Ten columns matches the game's personal-inventory panel (real saves
+    #: top out at column 9). The row count is a generous safety bound — real
+    #: inventories are far smaller — so an import into a genuinely full inventory
+    #: is refused rather than stacked invisibly on an occupied slot.
+    _INV_GRID_COLS = 10
+    _INV_GRID_ROWS = 100
+
+    @staticmethod
+    def _inventory_cell(item: GffStruct):
+        """The ``(x, y)`` grid slot an inventory item occupies, or ``None`` if it
+        carries no grid position (so it should be left where it is)."""
+        x = item.get("Repos_PosX")
+        y = item.get("Repos_Posy")
+        if x is None or y is None:
+            return None
+        return int(x), int(y)
+
+    @classmethod
+    def _assign_inventory_slots(cls, existing: list, clones: list) -> None:
+        """Give each imported item the first free grid cell so it can't stack on
+        top of an item already carried (the game shows one item per cell). An
+        item keeps its own slot when that cell is free. Raises ``SaveEditError``
+        if the inventory has no free cell for an item that needs one."""
+        occupied = {
+            cell for s in existing if (cell := cls._inventory_cell(s)) is not None
+        }
+        width = max(cls._INV_GRID_COLS, max((x for x, _ in occupied), default=0) + 1)
+
+        def first_free():
+            for y in range(cls._INV_GRID_ROWS):
+                for x in range(width):
+                    if (x, y) not in occupied:
+                        return x, y
+            return None
+
+        placements: list[tuple[GffStruct, tuple[int, int]]] = []
+        unplaceable = 0
+        for clone in clones:
+            if "Repos_PosX" not in clone.fields or "Repos_Posy" not in clone.fields:
+                continue  # not a grid item — leave it untouched
+            current = cls._inventory_cell(clone)
+            slot = current if current is not None and current not in occupied \
+                else first_free()
+            if slot is None:
+                unplaceable += 1
+                continue
+            occupied.add(slot)
+            placements.append((clone, slot))
+        if unplaceable:
+            raise SaveEditError(
+                f"The inventory has no free slot for {unplaceable} of the "
+                f"{len(clones)} imported item(s) — it is full. Remove some items "
+                "first, or import into a container."
+            )
+        for clone, (x, y) in placements:
+            clone.set_scalar("Repos_PosX", GffType.WORD, x)
+            clone.set_scalar("Repos_Posy", GffType.WORD, y)
+
+    @classmethod
+    def _check_equipment_slots(cls, existing: list, clones: list) -> None:
+        """Refuse to import a worn item onto an equipment slot that is already
+        filled. Equipment is keyed by slot (the entry's struct type), not by a
+        grid cell, and the game equips only ONE item per slot — a second would
+        be ignored in-game. Raises ``SaveEditError`` naming the clashing slot(s).
+        """
+        occupied = {s.struct_type for s in existing}
+        clashes: list[int] = []
+        for clone in clones:
+            slot = clone.struct_type
+            if slot in occupied:
+                clashes.append(slot)
+            occupied.add(slot)
+        if clashes:
+            names = ", ".join(
+                EQUIP_SLOT_NAMES.get(s, f"slot {s}") for s in dict.fromkeys(clashes)
+            )
+            raise SaveEditError(
+                f"That equipment slot is already worn ({names}). The game equips "
+                "one item per slot, so this import would be ignored in-game. "
+                "Unequip the current item first, or import into the carried "
+                "inventory instead."
+            )
+
     @_records()
     def import_into_list(
         self, target: str, path: tuple, structs: list, *, where: str = ""
     ) -> None:
         """Append imported structs to the GFF list at ``path``, each a deep copy
-        with fresh ObjectIds. Staged as a raw edit."""
+        with fresh ObjectIds. Staged as a raw edit. When the list is an
+        inventory ``ItemList``, each item is also given a free grid slot so it
+        does not land on top of an item already there (invisible in-game); an
+        import into ``Equip_ItemList`` is refused when the slot is already worn."""
         import copy
 
         entries = self._raw_list(target, path)
+        clones = []
         for struct in structs:
             clone = copy.deepcopy(struct)
             self._reassign_object_ids(clone)
-            entries.structs.append(clone)
+            clones.append(clone)
+        list_label = path[-1][0] if path else None
+        if list_label == "ItemList":
+            # may raise (inventory full) — before any struct is appended
+            self._assign_inventory_slots(entries.structs, clones)
+        elif list_label == "Equip_ItemList":
+            # may raise (slot already worn) — before any struct is appended
+            self._check_equipment_slots(entries.structs, clones)
+        entries.structs.extend(clones)
         self._mark_raw_dirty(target)
         self._add_seq += 1
         n = len(structs)

@@ -648,6 +648,97 @@ def test_replace_a_struct_swaps_it_and_reassigns_nested_ids(window):
     assert nested.fields["ObjectId"].value != 999, "nested ids renumbered recursively"
 
 
+# -- import into an inventory: give each item a free grid slot --------------- #
+def _grid_item(x, y, **extra):
+    from nwnfile.formats.gff import GffField, GffStruct, GffType
+
+    fields = {
+        "Repos_PosX": GffField(GffType.WORD, x),
+        "Repos_Posy": GffField(GffType.WORD, y),
+    }
+    fields.update(extra)
+    return GffStruct(struct_type=0, fields=fields)
+
+
+def test_an_imported_item_that_collides_is_moved_to_a_free_cell():
+    from nwnsaveeditor.save_editor import SaveEditor
+
+    existing = [_grid_item(2, 34)]  # the cell the import wants
+    clone = _grid_item(2, 34)
+    SaveEditor._assign_inventory_slots(existing, [clone])
+    assert SaveEditor._inventory_cell(clone) != (2, 34), "moved off the occupied cell"
+
+
+def test_an_imported_item_keeps_its_slot_when_that_cell_is_free():
+    from nwnsaveeditor.save_editor import SaveEditor
+
+    existing = [_grid_item(0, 0)]
+    clone = _grid_item(4, 9)  # a free cell — left where it is
+    SaveEditor._assign_inventory_slots(existing, [clone])
+    assert SaveEditor._inventory_cell(clone) == (4, 9)
+
+
+def test_a_batch_of_colliding_items_get_distinct_free_cells():
+    from nwnsaveeditor.save_editor import SaveEditor
+
+    existing = [_grid_item(0, 0)]
+    clones = [_grid_item(0, 0) for _ in range(3)]
+    SaveEditor._assign_inventory_slots(existing, clones)
+    cells = [SaveEditor._inventory_cell(c) for c in clones]
+    assert len(set(cells)) == 3, "no two imported items share a cell"
+    assert (0, 0) not in cells, "none landed on the occupied cell"
+
+
+def test_a_non_grid_struct_is_left_untouched():
+    from nwnfile.formats.gff import GffField, GffStruct, GffType
+    from nwnsaveeditor.save_editor import SaveEditor
+
+    clone = GffStruct(struct_type=1, fields={"Feat": GffField(GffType.WORD, 42)})
+    SaveEditor._assign_inventory_slots([], [clone])
+    assert "Repos_PosX" not in clone.fields, "no grid slot invented for a non-item"
+
+
+def test_a_full_inventory_warns_instead_of_stacking():
+    from nwnsaveeditor.save_editor import SaveEditError, SaveEditor
+
+    full = [
+        _grid_item(x, y)
+        for y in range(SaveEditor._INV_GRID_ROWS)
+        for x in range(SaveEditor._INV_GRID_COLS)
+    ]
+    with pytest.raises(SaveEditError, match="no free slot"):
+        SaveEditor._assign_inventory_slots(full, [_grid_item(0, 0)])
+
+
+# -- import into equipment: one item per slot -------------------------------- #
+def _equipped(slot):
+    from nwnfile.formats.gff import GffStruct
+
+    return GffStruct(struct_type=slot)  # struct type IS the equipment slot
+
+
+def test_importing_onto_a_worn_slot_warns():
+    from nwnsaveeditor.save_editor import SaveEditError, SaveEditor
+
+    existing = [_equipped(16)]  # Right Hand already worn
+    with pytest.raises(SaveEditError, match="Right Hand"):
+        SaveEditor._check_equipment_slots(existing, [_equipped(16)])
+
+
+def test_importing_onto_a_free_slot_is_allowed():
+    from nwnsaveeditor.save_editor import SaveEditor
+
+    existing = [_equipped(16)]  # Right Hand
+    SaveEditor._check_equipment_slots(existing, [_equipped(32)])  # Left Hand — fine
+
+
+def test_two_imported_items_for_the_same_slot_warn():
+    from nwnsaveeditor.save_editor import SaveEditError, SaveEditor
+
+    with pytest.raises(SaveEditError, match="Neck"):
+        SaveEditor._check_equipment_slots([], [_equipped(512), _equipped(512)])
+
+
 def test_import_button_is_gated_on_edit_mode(window, raw):
     def playerlist():  # the tree is rebuilt when edit mode flips, so re-find the node
         return next(
