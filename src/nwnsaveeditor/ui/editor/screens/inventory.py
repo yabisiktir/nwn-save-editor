@@ -165,7 +165,22 @@ class InventoryScreen(QWidget):
         column.setContentsMargins(0, 0, 8, 0)
         column.setSpacing(16)
 
-        column.addWidget(w.heading("Equipment"))
+        equip_header = QHBoxLayout()
+        equip_header.addWidget(w.heading("Equipment"))
+        equip_header.addStretch(1)
+        if self._window.editing:
+            fix = w.gold_button("Fix appearances…")
+            fix.setToolTip(
+                "Reconcile items whose custom art this module can't show "
+                "(e.g. CEP2/Aielund gear under CEP3 Swordflight).")
+            fix.clicked.connect(self._window.fix_appearances)
+            equip_header.addWidget(fix)
+            if self._window.has_appearance_override():
+                undo = w.ghost_button("Remove added art…")
+                undo.setToolTip("Delete the art a previous Extract added to override.")
+                undo.clicked.connect(self._window.remove_appearance_override)
+                equip_header.addWidget(undo)
+        column.addLayout(equip_header)
         column.addWidget(self._build_paperdoll(equipped), 0, Qt.AlignmentFlag.AlignLeft)
         # Read once: a character can have natural weapons recorded and none of
         # them equipped, which is exactly the case worth showing.

@@ -253,6 +253,50 @@ keeps the whole set on the character and swaps them in by script. This lists wha
 has recorded and whether each is in hand, so an unequipped bite does not look lost.
 Read-only: PRC derives the set from your classes and feats and rewrites it.
 
+#### Fix appearances — when gear shows the wrong picture
+
+An item stores its look as *numbers* (a model/icon variation), and the game turns
+those numbers into pictures using whatever haks the **module you are playing**
+loads. Carry a character between campaigns built on different content packs — CEP2
+gear (the Aielund Saga, Sands of Fate) taken into a CEP3 module (Swordflight), say
+— and the numbers point at art that module doesn't have, so weapons, armour and
+the rest fall back to plain default pictures. The items still work perfectly; only
+their appearance is wrong.
+
+In **Edit mode**, the Inventory screen shows a **Fix appearances…** button. It
+lists every worn or carried item the current module can't draw and shows each three
+ways — **Original** (what it should look like, found across every hak you have),
+**In-game now** (the default it falls back to), and the proposed **Closest** — then
+lets you choose per item:
+
+- **Keep original** — change nothing. The item looks right only in modules that
+  load its own haks.
+- **Closest match** — re-point the item at the nearest look this module already
+  has (offered for rings, amulets and other single-picture items; the percentage is
+  how close it is). No new files; but it will look like that match everywhere.
+- **Extract original art → override** — copy the item's real art (its icon, its
+  worn model, and any textures this module is missing) into a free appearance slot
+  in your `override` folder, and re-point the item at it. This keeps the true look
+  in **every** module and collides with nothing, because it lands on an unused
+  number. The count next to it (e.g. *145 files* for a full suit of armour) is how
+  many files it will write — armour is many, because a whole body is many parts.
+
+**Set all** at the top applies one choice to every row at once. Extract is the
+default, since it is the most faithful.
+
+The edits are staged like any other change — **save** the game to keep them (a new
+save folder, as always; the original is untouched). The extracted files are listed
+in `override/vk_appearance_manifest.json`, and a **Remove added art…** button
+appears once anything has been extracted: it deletes exactly those files and
+nothing else, so the operation is fully reversible.
+
+Two honest limits. **Extract can only recover art you still have installed** — if
+you have removed the source campaign's haks, the original look is gone and only Keep
+or Closest match remain. And it fixes the **inventory picture and the worn model**
+for weapons, armour, helmets and cloaks; gloves and rings/amulets have no separate
+worn model (they are drawn by the body, or not shown when worn), so for those only
+the icon is reconciled.
+
 ### Spellbook
 
 Caster class along the top, spell level below it, and the list for that level.

@@ -874,6 +874,114 @@ class SaveEditorWindow(QMainWindow):
         except Exception:
             return None
 
+    def fix_appearances(self) -> None:
+        """Wizard: reconcile item appearances the current module can't render.
+
+        Gear made for another content pack shows default pictures here; the wizard
+        lets the user keep each item, re-point it at the closest look the module
+        has, or extract the true art into ``override`` so it renders everywhere.
+        """
+        from nwnfile.hak_stack import hak_names_from_module
+        from nwnfile.icon_reconcile import IconReconciler
+        from nwnfile.item_icons import ItemIconSource, icon_source_for
+        from nwnfile.resource_stack import ResourceStack
+        from nwnsaveeditor.appearance_fix import apply_decisions, collect_reports
+        from nwnsaveeditor.ui.dialogs.appearance_wizard_dialog import (
+            AppearanceWizardDialog,
+        )
+
+        session = self.session()
+        if session is None:
+            return
+        if not self._editing:
+            w.message(self, QMessageBox.Icon.Information, "Turn on Edit mode",
+                      "Switch on Edit mode first, then run Fix appearances.",
+                      QMessageBox.StandardButton.Ok)
+            return
+        game_root, hak_dir = self._game_root(), self._hak_dir()
+        original = icon_source_for(game_root, hak_dir)  # every hak: the true look
+        try:
+            names = hak_names_from_module(session.module_root())
+        except Exception:  # noqa: BLE001 — no hak list just means an unscoped target
+            names = []
+        module_haks = [hak_dir / f"{n}.hak" for n in names] if hak_dir is not None else []
+        target = ItemIconSource(game_root, hak_paths=module_haks)  # what this module has
+        if not (original.available and target.available):
+            w.message(self, QMessageBox.Icon.Warning, "Game files needed",
+                      "The game install must be found to read item art. Set the game "
+                      "folder first.", QMessageBox.StandardButton.Ok)
+            return
+        # ResourceStacks read models + textures (the worn look); the "original" one
+        # spans every installed hak, the target only this module's.
+        all_haks = sorted(hak_dir.glob("*.hak")) if hak_dir is not None else []
+        original_res = ResourceStack(all_haks, game_root)
+        target_res = ResourceStack(module_haks, game_root)
+        try:
+            player = session.raw_tree("module.ifo").root.fields[
+                "Mod_PlayerList"].value.structs[0]
+        except Exception:  # noqa: BLE001
+            return
+        female = (player.get("Gender") or 0) == 1
+        reconciler = IconReconciler(original, target, original_res, target_res)
+        reports = collect_reports(reconciler, player, female)
+        if not reports:
+            w.message(self, QMessageBox.Icon.Information, "Nothing to fix",
+                      "Every worn and carried item already renders in this module.",
+                      QMessageBox.StandardButton.Ok)
+            return
+        dialog = AppearanceWizardDialog(reports, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        override = self._override_dir()
+        if override is None:
+            w.message(self, QMessageBox.Icon.Warning, "No user folder",
+                      "Can't find your Neverwinter Nights user folder to write "
+                      "override art.", QMessageBox.StandardButton.Ok)
+            return
+        summary = apply_decisions(session, original_res, dialog.decisions(), override)
+        self.notify_changed()
+        w.message(self, QMessageBox.Icon.Information, "Appearances updated",
+                  f"Re-pointed {summary.edited} item(s) and wrote "
+                  f"{summary.files_written} art file(s) to override. Save the game "
+                  "to keep the changes.", QMessageBox.StandardButton.Ok)
+
+    def _override_dir(self):
+        """The user's override folder, where extracted appearance art is written."""
+        user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
+        return (user / "override") if user is not None else None
+
+    def remove_appearance_override(self) -> None:
+        """Delete the art a previous 'Extract' added (per its manifest)."""
+        from nwnsaveeditor.appearance_fix import override_manifest, remove_override
+
+        override = self._override_dir()
+        files = override_manifest(override) if override is not None else []
+        if not files:
+            w.message(self, QMessageBox.Icon.Information, "Nothing to remove",
+                      "No appearance art from this editor was found in override.",
+                      QMessageBox.StandardButton.Ok)
+            return
+        if w.message(
+            self, QMessageBox.Icon.Question, "Remove extracted art?",
+            f"Delete the {len(files)} appearance file(s) this editor added to your "
+            "override folder? Items re-pointed at them will show default pictures "
+            "again until re-extracted. Your saves are not changed.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        removed = remove_override(override)
+        self.notify_changed()
+        w.message(self, QMessageBox.Icon.Information, "Removed",
+                  f"Deleted {removed} file(s) from override.",
+                  QMessageBox.StandardButton.Ok)
+
+    def has_appearance_override(self) -> bool:
+        """Whether a previous Extract left art to remove."""
+        from nwnsaveeditor.appearance_fix import override_manifest
+
+        override = self._override_dir()
+        return bool(override is not None and override_manifest(override))
+
     def notify_changed(self) -> None:
         """A screen staged an edit: refresh the footer, the dots and the screens."""
         self._char_edit_token += 1  # invalidate the cached character summary

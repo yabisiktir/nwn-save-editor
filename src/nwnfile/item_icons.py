@@ -68,6 +68,7 @@ class ItemIconSource:
         hak_dir: Path | None = None,
         *,
         exact: bool = True,
+        hak_paths: list[Path] | None = None,
     ) -> None:
         self._reader = KeyBifReader.for_install(game_root)
         #: With this off, no per-variant icon is looked for at all and every item
@@ -81,6 +82,11 @@ class ItemIconSource:
         self._palette_cache: dict[str, object] | None = None
         #: opt-in hak icon search: resref -> (hak path, resource), built lazily.
         self._hak_dir = hak_dir if hak_dir is not None and hak_dir.is_dir() else None
+        #: an explicit, ordered hak search path (a module's own ``Mod_HakList``).
+        #: When set it *replaces* the folder scan, so an icon that ships only in a
+        #: hak this module does not load is correctly seen as absent — the whole
+        #: point of telling "what this module renders" from "what exists somewhere".
+        self._hak_paths = [p for p in (hak_paths or []) if p is not None and p.is_file()]
         self._hak_index: dict[str, tuple[Path, ErfResource]] | None = None
         #: Cast-Spell subtype (iprp_spells row) -> the spell's icon resref, lazy.
         self._spell_icons: dict[int, str] | None = None
@@ -264,8 +270,13 @@ class ItemIconSource:
         """
         index: dict[tuple[str, int], tuple[Path, ErfResource]] = {}
         wanted = (_TGA_RES_TYPE, self.PLT_RES_TYPE)
-        if self._hak_dir is not None:
-            for hak in sorted(self._hak_dir.glob("*.hak")):
+        # An explicit hak list (module load order) takes precedence over a folder
+        # scan; first hak to define a resref wins, matching the game's priority.
+        haks = self._hak_paths if self._hak_paths else (
+            sorted(self._hak_dir.glob("*.hak")) if self._hak_dir is not None else []
+        )
+        if haks:
+            for hak in haks:
                 try:
                     info = self._erf.read_info(hak)
                     if info is None or not info.is_valid:
@@ -278,7 +289,7 @@ class ItemIconSource:
         self._hak_index = index
 
     def _hak_bytes(self, resref: str, res_type: int = _TGA_RES_TYPE) -> bytes | None:
-        if self._hak_dir is None:
+        if self._hak_dir is None and not self._hak_paths:
             return None
         if self._hak_index is None:
             self._build_hak_index()
@@ -314,6 +325,46 @@ class ItemIconSource:
                 )
             self._image_cache[key] = image
         return self._image_cache[key]
+
+    def specific_image(self, base_item: int, model_part: int, **variant):
+        """The item's *own* per-variant icon, never the per-type fallback.
+
+        Returns ``None`` when only the generic ``DefaultIcon`` would apply — i.e.
+        the module lacks this exact appearance. That is the signal the appearance
+        is "broken" here (the game would show the fallback picture)."""
+        composite = self._composite_image(base_item, model_part, variant)
+        if composite is not None:
+            return composite
+        row = self._base_items.get(base_item)
+        default_icon = row[1] if row else None
+        specific = [
+            c for c in self._candidates(base_item, model_part, **variant)
+            if c != default_icon
+        ]
+        return self._first_image(specific)
+
+    def specific_resref(self, base_item: int, model_part: int, **variant):
+        """The resref+type of the item's own per-variant icon in this source, or
+        ``None``. Used to locate the source file when relocating art."""
+        row = self._base_items.get(base_item)
+        default_icon = row[1] if row else None
+        for resref in self._candidates(base_item, model_part, **variant):
+            if resref == default_icon:
+                continue
+            if self._resource(resref, _TGA_RES_TYPE) is not None:
+                return resref, _TGA_RES_TYPE
+            if self._resource(resref, self.PLT_RES_TYPE) is not None:
+                return resref, self.PLT_RES_TYPE
+        return None
+
+    def raw_resource(self, resref: str, res_type: int) -> bytes | None:
+        """The raw bytes of a resource (base game, then hak), or ``None``. Public
+        so callers relocating art can copy the exact source file."""
+        return self._resource(resref, res_type)
+
+    def base_item_row(self, base_item: int):
+        """``(ItemClass, DefaultIcon, ModelType)`` for a base item, or ``None``."""
+        return self._base_items.get(base_item)
 
     def _composite_image(self, base_item: int, model_part: int, variant: dict):
         """A composite item's picture: its three parts drawn over one another.
