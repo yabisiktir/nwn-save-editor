@@ -20,8 +20,11 @@ from dataclasses import dataclass, field
 
 _TGA, _PLT, _MDL = 3, 6, 2002
 _SINGLE, _COMPOSITE, _ARMOUR = (0, 1), 2, 3
-#: where relocated art is parked — high numbers base/CEP2/CEP3 leave unused.
-_FREE_SLOT_START, _FREE_SLOT_END = 250, 900
+#: Appearance variation numbers are a single byte, so a relocated slot must be
+#: 1..254 (255/0 are avoided as engine-reserved). We hand them out high-first —
+#: high numbers are least likely to be used by base/CEP content — scanning the
+#: whole byte range so a class with many custom items still has room.
+_FREE_SLOT_HIGH, _FREE_SLOT_LOW = 254, 1
 #: gender/phenotype model prefixes an armour part can ship under; we relocate
 #: every one the source has so whatever the character's body asks for is present.
 _ARMOUR_PREFIXES = ("pmh0", "pfh0", "pma0", "pfa0", "pmb0", "pfb0", "pmh1", "pfh1")
@@ -339,7 +342,7 @@ class IconReconciler:
         """A variant number the target renders nothing for AND not already handed
         out to another item in this run — then reserve it."""
         reserved = self._reserved.setdefault(namespace, set())
-        for n in range(_FREE_SLOT_START, _FREE_SLOT_END):
+        for n in range(_FREE_SLOT_HIGH, _FREE_SLOT_LOW - 1, -1):
             if n in reserved:
                 continue
             if model_type == _ARMOUR:

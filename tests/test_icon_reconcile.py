@@ -88,11 +88,11 @@ def test_extract_plans_a_free_slot_and_a_copy():
     target = FakeSource(rows, {(52, 1): FImg((0, 200, 0))})
     rep = IconReconciler(orig, target).report("ring", "equip", Appearance(52, 130))
     assert rep.extract is not None
-    assert rep.extract.slot == 250  # first free high slot
+    assert rep.extract.slot == 254  # first free high slot (254, scanning down)
     op = rep.extract.copies[0]
-    assert op.src_resref == "iit_ring_130" and op.dst_resref == "iit_ring_250"
+    assert op.src_resref == "iit_ring_130" and op.dst_resref == "iit_ring_254"
     assert rep.extract.fields[0].field == "ModelPart1"
-    assert rep.extract.fields[0].value == 250
+    assert rep.extract.fields[0].value == 254
 
 
 def test_armour_extract_uses_the_robe_part_and_no_match():
@@ -108,7 +108,7 @@ def test_armour_extract_uses_the_robe_part_and_no_match():
     assert rep.broken is True
     assert rep.match_number is None  # armour is not single-part
     assert rep.extract is not None
-    assert rep.extract.copies[0].dst_resref == "ipm_robe250"
+    assert rep.extract.copies[0].dst_resref == "ipm_robe254"
     assert rep.extract.fields[0].field == "ArmorPart_Robe"
 
 
@@ -161,9 +161,9 @@ def test_extract_plans_weapon_models_and_missing_textures():
     rep = rec.report("godwind", "worn", A(53, 112, 142, 182))
     dsts = {(c.dst_resref, c.res_type) for c in rep.extract.copies}
     # the three weapon part models, relocated to the free slot
-    assert ("wswsc_b_250", 2002) in dsts
-    assert ("wswsc_m_250", 2002) in dsts
-    assert ("wswsc_t_250", 2002) in dsts
+    assert ("wswsc_b_254", 2002) in dsts
+    assert ("wswsc_m_254", 2002) in dsts
+    assert ("wswsc_t_254", 2002) in dsts
     # the missing texture is carried (under its own name); the present one is not
     assert ("al_leather04_tex", 3) in dsts
     assert ("al_shny_gld_tex", 3) not in dsts
@@ -192,4 +192,4 @@ def test_cloak_relocates_phenotype_worn_models():
     rec = IconReconciler(orig, target, orig_res, target_res)
     rep = rec.report("cloakX", "worn", Appearance(80, 20))
     dsts = {c.dst_resref for c in rep.extract.copies if c.res_type == 2002}
-    assert dsts == {"pmh0_cloak_250", "pfh0_cloak_250"}  # underscore before the number
+    assert dsts == {"pmh0_cloak_254", "pfh0_cloak_254"}  # underscore before the number

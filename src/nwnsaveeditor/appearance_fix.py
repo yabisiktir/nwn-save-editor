@@ -31,18 +31,29 @@ _SKIP_BASE = {72, 73}
 
 
 def collect_reports(reconciler, player_struct, female: bool):
-    """Walk a player's worn + carried items and return ``[(item_path, report), …]``
-    for the ones whose appearance is broken in the target module. Qt-free."""
-    out = []
-    for label in ("Equip_ItemList", "ItemList"):
-        field_ = player_struct.fields.get(label)
-        if field_ is None:
-            continue
-        for i, it in enumerate(field_.value.structs):
-            base = it.get("BaseItem")
-            if base is None or base in _SKIP_BASE:
-                continue
-            from nwnfile.icon_reconcile import _ARMOUR_TOKENS
+    """Walk a player's worn + carried items — **including items inside bags** — and
+    return ``[(item_path, report), …]`` for the ones whose appearance is broken in
+    the target module. Qt-free."""
+    out: list = []
+    _walk_list(reconciler, player_struct, "Equip_ItemList", (_PLAYER,), female,
+               "worn", out)
+    _walk_list(reconciler, player_struct, "ItemList", (_PLAYER,), female,
+               "carried", out)
+    return out
+
+
+def _walk_list(reconciler, container, list_label, base_path, female, slot, out):
+    """Report every item in ``container``'s ``list_label``, then recurse into each
+    item's own contents (a bag has its own ``ItemList``)."""
+    from nwnfile.icon_reconcile import _ARMOUR_TOKENS
+
+    field_ = container.fields.get(list_label)
+    if field_ is None:
+        return
+    for i, it in enumerate(field_.value.structs):
+        item_path = base_path + ((list_label, i),)
+        base = it.get("BaseItem")
+        if base is not None and base not in _SKIP_BASE:
             armor_parts = {
                 name: int(it.get(name) or 0) for name in _ARMOUR_TOKENS
                 if it.get(name) is not None
@@ -51,11 +62,13 @@ def collect_reports(reconciler, player_struct, female: bool):
                 base, it.get("ModelPart1") or 0, it.get("ModelPart2") or 0,
                 it.get("ModelPart3") or 0, it.get("ArmorPart_Torso") or 0,
                 it.get("ArmorPart_Robe") or 0, female, armor_parts)
-            slot = "worn" if label == "Equip_ItemList" else "carried"
             report = reconciler.report(it.get("TemplateResRef") or "", slot, ap)
             if report.broken:
-                out.append(((_PLAYER, (label, i)), report))
-    return out
+                out.append((item_path, report))
+        # a container item carries its own ItemList — descend into the bag
+        if "ItemList" in it.fields:
+            _walk_list(reconciler, it, "ItemList", item_path, female,
+                       "in a bag", out)
 _EXT = {3: ".tga", 6: ".plt", 2002: ".mdl", 2005: ".txi", 2064: ".dds", 2065: ".dds"}
 #: ArmorPart_* -> its truncated x-mirror twin (the game keeps the two in step).
 _ARMOR_MIRROR = {

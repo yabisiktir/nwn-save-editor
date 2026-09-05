@@ -126,3 +126,35 @@ def test_remove_override_deletes_only_manifest_files(tmp_path):
     assert not (tmp_path / "iit_ring_250.tga").exists()
     assert (tmp_path / "unrelated.tga").exists()  # untouched
     assert override_manifest(tmp_path) == []
+
+
+def test_collect_reports_descends_into_bags():
+    from nwnfile.formats.gff import GffField, GffList, GffStruct, GffType
+    from nwnsaveeditor.appearance_fix import collect_reports
+
+    def item(base, resref, contents=None):
+        f = {
+            "BaseItem": GffField(GffType.INT, base),
+            "TemplateResRef": GffField(GffType.CRESREF, resref),
+            "ModelPart1": GffField(GffType.BYTE, 1),
+        }
+        if contents is not None:
+            f["ItemList"] = GffField(GffType.LIST, GffList(contents))
+        return GffStruct(0, f)
+
+    ring = item(52, "ring")               # broken, inside a bag
+    bag = item(66, "bag", [ring])         # a container carrying the ring
+    player = GffStruct(0, {
+        "Gender": GffField(GffType.BYTE, 0),
+        "ItemList": GffField(GffType.LIST, GffList([bag])),
+    })
+
+    class Rec:
+        def report(self, resref, slot, ap):
+            from nwnfile.icon_reconcile import ItemReport
+            return ItemReport(resref, slot, ap, None, None, resref == "ring")
+
+    reports = collect_reports(Rec(), player, female=False)
+    assert [r.resref for _p, r in reports] == ["ring"]
+    path, _rep = reports[0]
+    assert path == (("Mod_PlayerList", 0), ("ItemList", 0), ("ItemList", 0))
