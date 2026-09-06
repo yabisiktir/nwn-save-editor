@@ -70,13 +70,24 @@ def test_set_all_bulk_applies_where_available(qtbot):
     assert [d.choice for d in dlg.decisions()] == ["match", "keep"]
 
 
-def test_toggling_full_body_requests_a_rescan(qtbot):
-    dlg = AppearanceWizardDialog([(_P1, _report("ring", extract=True))], full_body=False)
+def test_toggling_full_body_rebuilds_rows_in_place(qtbot):
+    minimal = [(_P1, _report("ring", extract=True))]
+    full = [(_P1, _report("ring", extract=True)), (_P2, _report("robe", extract=True))]
+    calls = []
+
+    def recompute(full_mode):
+        calls.append(full_mode)
+        return full if full_mode else minimal
+
+    dlg = AppearanceWizardDialog(minimal, full_body=False, recompute=recompute)
     qtbot.addWidget(dlg)
-    assert dlg.retoggle_full is None
-    # flip the "All body types" checkbox
+    assert len(dlg.decisions()) == 1
     from PySide6.QtWidgets import QCheckBox
     box = next(c for c in dlg.findChildren(QCheckBox))
-    box.setChecked(True)
-    assert dlg.retoggle_full is True
-    assert dlg.result() == dlg.DialogCode.Rejected  # closed to re-scan
+    box.setChecked(True)  # switch to all-body-types
+    assert calls == [True]
+    assert len(dlg.decisions()) == 2  # rebuilt in place, dialog still open
+    assert dlg.result() != dlg.DialogCode.Accepted  # not closed
+    box.setChecked(False)  # back to minimal — served from cache, no recompute
+    assert calls == [True]
+    assert len(dlg.decisions()) == 1

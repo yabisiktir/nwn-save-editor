@@ -951,11 +951,15 @@ class SaveEditorWindow(QMainWindow):
             player = session.raw_tree("module.ifo").root.fields[
                 "Mod_PlayerList"].value.structs[0]
             female = (player.get("Gender") or 0) == 1
-            body = None if full_body else self._char_body_prefixes(player, female)
-            reports = collect_reports(
-                IconReconciler(original, target, original_res, target_res,
-                               body_prefixes=body),
-                player, female)
+            char_body = self._char_body_prefixes(player, female)
+
+            def scan(full):
+                body = None if full else char_body
+                return collect_reports(
+                    IconReconciler(original, target, original_res, target_res,
+                                   body_prefixes=body), player, female)
+
+            reports = scan(full_body)
         finally:
             QApplication.restoreOverrideCursor()
 
@@ -964,10 +968,12 @@ class SaveEditorWindow(QMainWindow):
                       "Every worn and carried item already renders in this module.",
                       QMessageBox.StandardButton.Ok)
             return
-        dialog = AppearanceWizardDialog(reports, self, full_body=full_body)
+        # The "All body types" toggle can only re-scan when there is a separate
+        # minimal mode to switch to (i.e. we know this character's body prefix).
+        dialog = AppearanceWizardDialog(
+            reports, self, full_body=full_body,
+            recompute=(scan if char_body is not None else None))
         if dialog.exec() != QDialog.DialogCode.Accepted:
-            if dialog.retoggle_full is not None:  # user flipped the full/minimal mode
-                self.fix_appearances(full_body=dialog.retoggle_full)
             return
         override = self._override_dir()
         if override is None:

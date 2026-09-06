@@ -42,14 +42,17 @@ class AppearanceWizardDialog(QDialog):
     KEEP, MATCH, EXTRACT = "keep", "match", "extract"
 
     def __init__(self, entries: list[tuple[tuple, object]], parent: QWidget | None = None,
-                 *, full_body: bool = False):
-        """``entries`` is ``[(item_path, ItemReport), …]`` for the broken items."""
+                 *, full_body: bool = False, recompute=None):
+        """``entries`` is ``[(item_path, ItemReport), …]`` for the broken items.
+
+        ``recompute(full: bool) -> entries`` recomputes them in the other body-mode
+        when the "All body types" box is flipped; results are cached so the dialog
+        stays open and only its rows change."""
         super().__init__(parent)
-        self._entries = entries
         self._groups: list[tuple[tuple, object, QButtonGroup]] = []
-        #: set to True/False when the user flips the full-body checkbox, so the
-        #: caller can re-run the scan in the other mode; None means unchanged.
-        self.retoggle_full: bool | None = None
+        self._recompute = recompute
+        self._full = full_body
+        self._cache: dict[bool, list] = {full_body: entries}
         self.setWindowTitle("Fix Item Appearances")
         self.setStyleSheet(w.dialog_qss())
         self.resize(680, 560)
@@ -70,14 +73,15 @@ class AppearanceWizardDialog(QDialog):
             b.clicked.connect(lambda _=False, c=choice: self._set_all(c))
             bulk.addWidget(b)
         bulk.addStretch(1)
-        full = QCheckBox("All body types")
-        full.setChecked(full_body)
-        full.setToolTip(
+        self._full_box = QCheckBox("All body types")
+        self._full_box.setChecked(full_body)
+        self._full_box.setToolTip(
             "Off: extract only your character's own body model (far fewer files).\n"
             "On: extract every gender/phenotype variant — bigger, only needed if "
-            "you later change appearance.\nChanging this re-scans.")
-        full.toggled.connect(self._retoggle)
-        bulk.addWidget(full)
+            "you later change appearance.")
+        self._full_box.setEnabled(recompute is not None)
+        self._full_box.toggled.connect(self._toggle_full)
+        bulk.addWidget(self._full_box)
         layout.addLayout(bulk)
 
         # A frozen header outside the scroll so the column labels stay in view.
@@ -107,15 +111,13 @@ class AppearanceWizardDialog(QDialog):
         # background shows through — an unstyled viewport falls back to the OS
         # palette and washes the text out (see CLAUDE.md theming rule 4).
         w.own_style(body, "background:transparent;")
-        grid = QGridLayout(body)
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(10)
-        self._config_columns(grid)
-        for r, (item_path, report) in enumerate(entries):
-            self._add_row(grid, r, item_path, report)
-        grid.setRowStretch(len(entries), 1)
+        self._grid = QGridLayout(body)
+        self._grid.setHorizontalSpacing(12)
+        self._grid.setVerticalSpacing(10)
+        self._config_columns(self._grid)
         scroll.setWidget(body)
         layout.addWidget(scroll, 1)
+        self._populate(entries)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -191,12 +193,37 @@ class AppearanceWizardDialog(QDialog):
         grid.addWidget(choices, r, 4)
         self._groups.append((item_path, report, group))
 
-    def _retoggle(self, checked: bool) -> None:
-        """The full-body checkbox flipped — record it and close so the caller can
-        re-scan in the new mode (the file counts change, so a fresh scan is
-        simpler than rebuilding every row)."""
-        self.retoggle_full = checked
-        self.reject()
+    def _populate(self, entries: list) -> None:
+        """(Re)build the item rows from ``entries``, in place."""
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)  # remove from view now; deleteLater is async
+                widget.deleteLater()
+        self._groups = []
+        for r, (item_path, report) in enumerate(entries):
+            self._add_row(self._grid, r, item_path, report)
+        self._grid.setRowStretch(len(entries), 1)
+
+    def _toggle_full(self, checked: bool) -> None:
+        """Switch between minimal (this body only) and all-body-types extraction,
+        rebuilding the rows in place — the dialog stays open; only file counts and
+        which body models are copied change."""
+        if self._recompute is None or checked == self._full:
+            return
+        if checked not in self._cache:
+            from PySide6.QtCore import Qt
+            from PySide6.QtGui import QCursor
+            from PySide6.QtWidgets import QApplication
+
+            QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+            try:
+                self._cache[checked] = self._recompute(checked)
+            finally:
+                QApplication.restoreOverrideCursor()
+        self._full = checked
+        self._populate(self._cache[checked])
 
     def _set_all(self, choice: str) -> None:
         """Bulk-set every row to a choice, where that choice is available."""
