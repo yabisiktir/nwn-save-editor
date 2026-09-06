@@ -306,6 +306,10 @@ class SaveEditorWindow(QMainWindow):
         self._open_btn.setToolTip("Open another save  (Ctrl+O)")
         self._open_btn.clicked.connect(self._choose_save)
         layout.addWidget(self._open_btn)
+        self._refresh_btn = w.ghost_button("Refresh")
+        self._refresh_btn.setToolTip("Re-read the save folders — for a game you just saved  (F5)")
+        self._refresh_btn.clicked.connect(self._refresh_saves)
+        layout.addWidget(self._refresh_btn)
         guide = w.ghost_button("Guide…")
         guide.setToolTip("How the save editor works  (F1)")
         guide.clicked.connect(self._show_guide)
@@ -1378,6 +1382,17 @@ class SaveEditorWindow(QMainWindow):
         self._saves = found
         self._populate_saves()
 
+    def _refresh_saves(self) -> None:
+        """Toolbar Refresh: re-read the save folders for a game just saved. Keeps
+        the save currently open; if none is open yet, opens the first that turned up."""
+        self.reload_saves()
+        if self._current is None:
+            first = self._first_openable_save()
+            if first is not None:
+                self._select_save(first)
+                self._set_section("character")
+                self._sync_edit_state()
+
     def _choose_save(self) -> None:
         from nwnsaveeditor.ui.editor.dialogs import OpenSaveDialog
 
@@ -1406,6 +1421,7 @@ class SaveEditorWindow(QMainWindow):
             ("Ctrl+Shift+Z", self._redo),
             ("Ctrl+Y", self._redo),               # the Windows redo idiom too
             ("Ctrl+,", self._show_settings),      # preferences
+            ("F5", self._refresh_saves),          # re-read the save folders
             ("F1", self._show_guide),             # help
         )
         for keys, handler in specs:
