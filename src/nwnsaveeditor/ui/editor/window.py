@@ -874,20 +874,50 @@ class SaveEditorWindow(QMainWindow):
         except Exception:
             return None
 
-    def fix_appearances(self) -> None:
+    def _char_body_prefixes(self, player, female: bool):
+        """This character's body-model prefix (e.g. ``("pmh0",)``) for minimal
+        armour/cloak relocation, or ``None`` when it can't be determined (then all
+        gender/phenotype variants are copied). Derived from the character's own
+        Appearance_Type -> appearance.2da RACE letter, gender and phenotype."""
+        try:
+            stack = self.hak_stack()
+            appearance = stack.read_2da("appearance") if stack is not None else None
+            row = appearance.get(player.get("Appearance_Type")) if appearance else None
+            if not row or (row.get("MODELTYPE") or "").upper() != "P":
+                return None  # not a part-based humanoid body — copy every variant
+            race = (row.get("RACE") or "").strip().lower()
+            if not race:
+                return None
+            phenotype = int(player.get("Phenotype") or 0)
+            return (f"p{'f' if female else 'm'}{race}{phenotype}",)
+        except Exception:  # noqa: BLE001 — fall back to all variants
+            return None
+
+    def fix_appearances(self, full_body: bool = False) -> None:
         """Wizard: reconcile item appearances the current module can't render.
 
-        The scan reads item art from every installed hak (and the base game), which
-        takes a few seconds — cold, longer — so it runs on a worker thread behind a
-        busy dialog rather than freezing the window. When it finishes, the wizard
-        opens; the user can keep each item, re-point it at the closest look the
-        module has, or extract the true art into ``override`` so it renders
-        everywhere.
+        Gear made for another content pack shows default pictures here; the wizard
+        lets the user keep each item, re-point it at the closest look the module
+        has, or extract the true art into ``override`` so it renders everywhere.
+
+        ``full_body`` copies every gender/phenotype armour variant (survives an
+        appearance change but many files); the default relocates only this
+        character's own body, far fewer files. The scan classifies items by
+        resource *presence* (no image decoding) and only decodes the broken few,
+        so it is well under a second warm; a wait cursor covers a cold read.
         """
-        from PySide6.QtCore import QObject, Qt, QThread, Signal
-        from PySide6.QtWidgets import QProgressDialog
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QApplication
 
         from nwnfile.hak_stack import hak_names_from_module
+        from nwnfile.icon_reconcile import IconReconciler
+        from nwnfile.item_icons import ItemIconSource
+        from nwnfile.resource_stack import ResourceStack
+        from nwnsaveeditor.appearance_fix import apply_decisions, collect_reports
+        from nwnsaveeditor.ui.dialogs.appearance_wizard_dialog import (
+            AppearanceWizardDialog,
+        )
 
         session = self.session()
         if session is None:
@@ -902,91 +932,42 @@ class SaveEditorWindow(QMainWindow):
             names = hak_names_from_module(session.module_root())
         except Exception:  # noqa: BLE001 — no hak list just means an unscoped target
             names = []
+        module_haks = [hak_dir / f"{n}.hak" for n in names] if hak_dir is not None else []
+
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
+            # Build the resource stacks first and let the icon sources read haks
+            # through them — one index of every hak, not one per source.
+            original_res = ResourceStack(
+                sorted(hak_dir.glob("*.hak")) if hak_dir else [], game_root)
+            target_res = ResourceStack(module_haks, game_root)
+            original = ItemIconSource(game_root, hak_reader=original_res)
+            target = ItemIconSource(game_root, hak_reader=target_res)
+            if not (original.available and target.available):
+                w.message(self, QMessageBox.Icon.Warning, "Game files needed",
+                          "The game install must be found to read item art. Set the "
+                          "game folder first.", QMessageBox.StandardButton.Ok)
+                return
             player = session.raw_tree("module.ifo").root.fields[
                 "Mod_PlayerList"].value.structs[0]
-        except Exception:  # noqa: BLE001
-            return
-        female = (player.get("Gender") or 0) == 1
+            female = (player.get("Gender") or 0) == 1
+            body = None if full_body else self._char_body_prefixes(player, female)
+            reports = collect_reports(
+                IconReconciler(original, target, original_res, target_res,
+                               body_prefixes=body),
+                player, female)
+        finally:
+            QApplication.restoreOverrideCursor()
 
-        class _Worker(QObject):
-            done = Signal(object)
-
-            def run(self):
-                try:
-                    from nwnfile.icon_reconcile import IconReconciler
-                    from nwnfile.item_icons import ItemIconSource, icon_source_for
-                    from nwnfile.resource_stack import ResourceStack
-                    from nwnsaveeditor.appearance_fix import collect_reports
-
-                    original = icon_source_for(game_root, hak_dir)
-                    module_haks = [hak_dir / f"{n}.hak" for n in names] \
-                        if hak_dir is not None else []
-                    target = ItemIconSource(game_root, hak_paths=module_haks)
-                    if not (original.available and target.available):
-                        self.done.emit(("nogame", None, None))
-                        return
-                    all_haks = sorted(hak_dir.glob("*.hak")) if hak_dir else []
-                    ores = ResourceStack(all_haks, game_root)
-                    tres = ResourceStack(module_haks, game_root)
-                    reports = collect_reports(
-                        IconReconciler(original, target, ores, tres), player, female)
-                    self.done.emit(("ok", reports, ores))
-                except Exception as exc:  # noqa: BLE001 — reported to the user
-                    self.done.emit(("error", exc, None))
-
-        progress = QProgressDialog("Reading item art…", "", 0, 0, self)
-        progress.setWindowTitle("Fix appearances")
-        progress.setCancelButton(None)
-        progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setMinimumDuration(0)
-        progress.setStyleSheet(w.dialog_qss())
-        thread = QThread(self)
-        worker = _Worker()
-        worker.moveToThread(thread)
-        thread.started.connect(worker.run)
-
-        def _finished(result):
-            progress.close()
-            thread.quit()
-            thread.wait()
-            worker.deleteLater()
-            self._appearance_thread = None
-            self._on_appearances_ready(result)
-
-        worker.done.connect(_finished)
-        self._appearance_thread = thread  # keep refs alive
-        self._appearance_worker = worker
-        self._appearance_progress = progress
-        thread.start()
-        progress.show()
-
-    def _on_appearances_ready(self, result) -> None:
-        """Main-thread continuation of :meth:`fix_appearances`: show the wizard and
-        apply the chosen fixes."""
-        from nwnsaveeditor.appearance_fix import apply_decisions
-        from nwnsaveeditor.ui.dialogs.appearance_wizard_dialog import (
-            AppearanceWizardDialog,
-        )
-
-        kind, payload, original_res = result
-        if kind == "error":
-            w.message(self, QMessageBox.Icon.Critical, "Fix appearances failed",
-                      str(payload), QMessageBox.StandardButton.Ok)
-            return
-        if kind == "nogame":
-            w.message(self, QMessageBox.Icon.Warning, "Game files needed",
-                      "The game install must be found to read item art. Set the game "
-                      "folder first.", QMessageBox.StandardButton.Ok)
-            return
-        reports = payload
         if not reports:
             w.message(self, QMessageBox.Icon.Information, "Nothing to fix",
                       "Every worn and carried item already renders in this module.",
                       QMessageBox.StandardButton.Ok)
             return
-        dialog = AppearanceWizardDialog(reports, self)
+        dialog = AppearanceWizardDialog(reports, self, full_body=full_body)
         if dialog.exec() != QDialog.DialogCode.Accepted:
+            if dialog.retoggle_full is not None:  # user flipped the full/minimal mode
+                self.fix_appearances(full_body=dialog.retoggle_full)
             return
         override = self._override_dir()
         if override is None:
@@ -994,8 +975,7 @@ class SaveEditorWindow(QMainWindow):
                       "Can't find your Neverwinter Nights user folder to write "
                       "override art.", QMessageBox.StandardButton.Ok)
             return
-        summary = apply_decisions(self.session(), original_res, dialog.decisions(),
-                                  override)
+        summary = apply_decisions(session, original_res, dialog.decisions(), override)
         self.notify_changed()
         w.message(self, QMessageBox.Icon.Information, "Appearances updated",
                   f"Re-pointed {summary.edited} item(s) and wrote "

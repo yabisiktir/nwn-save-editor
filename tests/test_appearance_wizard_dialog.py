@@ -68,3 +68,15 @@ def test_set_all_bulk_applies_where_available(qtbot):
     assert [d.choice for d in dlg.decisions()] == ["keep", "keep"]
     dlg._set_all("match")  # robe has no match option, so it stays put
     assert [d.choice for d in dlg.decisions()] == ["match", "keep"]
+
+
+def test_toggling_full_body_requests_a_rescan(qtbot):
+    dlg = AppearanceWizardDialog([(_P1, _report("ring", extract=True))], full_body=False)
+    qtbot.addWidget(dlg)
+    assert dlg.retoggle_full is None
+    # flip the "All body types" checkbox
+    from PySide6.QtWidgets import QCheckBox
+    box = next(c for c in dlg.findChildren(QCheckBox))
+    box.setChecked(True)
+    assert dlg.retoggle_full is True
+    assert dlg.result() == dlg.DialogCode.Rejected  # closed to re-scan

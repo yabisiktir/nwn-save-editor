@@ -19,6 +19,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QCheckBox,
     QDialog,
     QDialogButtonBox,
     QGridLayout,
@@ -40,11 +41,15 @@ _THUMB = 48
 class AppearanceWizardDialog(QDialog):
     KEEP, MATCH, EXTRACT = "keep", "match", "extract"
 
-    def __init__(self, entries: list[tuple[tuple, object]], parent: QWidget | None = None):
+    def __init__(self, entries: list[tuple[tuple, object]], parent: QWidget | None = None,
+                 *, full_body: bool = False):
         """``entries`` is ``[(item_path, ItemReport), …]`` for the broken items."""
         super().__init__(parent)
         self._entries = entries
         self._groups: list[tuple[tuple, object, QButtonGroup]] = []
+        #: set to True/False when the user flips the full-body checkbox, so the
+        #: caller can re-run the scan in the other mode; None means unchanged.
+        self.retoggle_full: bool | None = None
         self.setWindowTitle("Fix Item Appearances")
         self.setStyleSheet(w.dialog_qss())
         self.resize(680, 560)
@@ -65,6 +70,14 @@ class AppearanceWizardDialog(QDialog):
             b.clicked.connect(lambda _=False, c=choice: self._set_all(c))
             bulk.addWidget(b)
         bulk.addStretch(1)
+        full = QCheckBox("All body types")
+        full.setChecked(full_body)
+        full.setToolTip(
+            "Off: extract only your character's own body model (far fewer files).\n"
+            "On: extract every gender/phenotype variant — bigger, only needed if "
+            "you later change appearance.\nChanging this re-scans.")
+        full.toggled.connect(self._retoggle)
+        bulk.addWidget(full)
         layout.addLayout(bulk)
 
         # A frozen header outside the scroll so the column labels stay in view.
@@ -177,6 +190,13 @@ class AppearanceWizardDialog(QDialog):
             button.setChecked(True)
         grid.addWidget(choices, r, 4)
         self._groups.append((item_path, report, group))
+
+    def _retoggle(self, checked: bool) -> None:
+        """The full-body checkbox flipped — record it and close so the caller can
+        re-scan in the new mode (the file counts change, so a fresh scan is
+        simpler than rebuilding every row)."""
+        self.retoggle_full = checked
+        self.reject()
 
     def _set_all(self, choice: str) -> None:
         """Bulk-set every row to a choice, where that choice is available."""

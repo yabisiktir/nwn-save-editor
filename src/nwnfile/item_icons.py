@@ -69,8 +69,12 @@ class ItemIconSource:
         *,
         exact: bool = True,
         hak_paths: list[Path] | None = None,
+        hak_reader=None,
     ) -> None:
         self._reader = KeyBifReader.for_install(game_root)
+        #: an optional ResourceStack to read hak bytes through, sharing its one
+        #: index instead of scanning every hak again for icons.
+        self._hak_reader = hak_reader
         #: With this off, no per-variant icon is looked for at all and every item
         #: of a type shows that type's ``DefaultIcon``. Cheap and uniform — the
         #: state this module was in before it learned the naming rules.
@@ -289,6 +293,8 @@ class ItemIconSource:
         self._hak_index = index
 
     def _hak_bytes(self, resref: str, res_type: int = _TGA_RES_TYPE) -> bytes | None:
+        if self._hak_reader is not None:
+            return self._hak_reader.read(resref, res_type)
         if self._hak_dir is None and not self._hak_paths:
             return None
         if self._hak_index is None:
@@ -326,12 +332,42 @@ class ItemIconSource:
             self._image_cache[key] = image
         return self._image_cache[key]
 
+    def has_specific_icon(self, base_item: int, model_part: int, **variant) -> bool:
+        """Whether the item's *own* per-variant icon exists here — checked by
+        resource presence, **without decoding** (decoding is the expensive part).
+        This is the cheap "is the appearance broken here" test."""
+        row = self._base_items.get(base_item)
+        if row is None or not self._exact:
+            return False
+        item_class, default_icon, model_type = row
+        if model_type == self._COMPOSITE_MODEL_TYPE and item_class:
+            parts = (model_part, variant.get("model_part2", 0),
+                     variant.get("model_part3", 0))
+            return any(
+                num and self._icon_exists(f"i{item_class}_{letter}_{num:03d}"[:_MAX_RESREF])
+                for letter, num in zip(self._COMPOSITE_LAYERS, parts, strict=True))
+        return any(
+            c != default_icon and self._icon_exists(c)
+            for c in self._candidates(base_item, model_part, **variant))
+
+    def _icon_exists(self, resref: str) -> bool:
+        return (self._resource(resref, _TGA_RES_TYPE) is not None
+                or self._resource(resref, self.PLT_RES_TYPE) is not None)
+
     def specific_image(self, base_item: int, model_part: int, **variant):
         """The item's *own* per-variant icon, never the per-type fallback.
 
         Returns ``None`` when only the generic ``DefaultIcon`` would apply — i.e.
         the module lacks this exact appearance. That is the signal the appearance
         is "broken" here (the game would show the fallback picture)."""
+        key = ("spec", *self._key(base_item, model_part, variant))
+        if key in self._image_cache:
+            return self._image_cache[key]
+        result = self._specific_image(base_item, model_part, variant)
+        self._image_cache[key] = result
+        return result
+
+    def _specific_image(self, base_item: int, model_part: int, variant: dict):
         composite = self._composite_image(base_item, model_part, variant)
         if composite is not None:
             return composite

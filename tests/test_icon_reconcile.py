@@ -32,6 +32,9 @@ class FakeSource:
     def specific_image(self, base, model_part, **variant):
         return self.icons.get((base, model_part))
 
+    def has_specific_icon(self, base, model_part, **variant):
+        return (base, model_part) in self.icons
+
     def icon_image(self, base, model_part, **variant):
         img = self.icons.get((base, model_part))
         return img if img is not None else (_FALLBACK if base in self.rows else None)

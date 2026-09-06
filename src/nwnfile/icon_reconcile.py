@@ -141,27 +141,36 @@ def similarity(a, b) -> float:
 
 class IconReconciler:
     def __init__(self, original_src, target_src,
-                 original_res=None, target_res=None) -> None:
+                 original_res=None, target_res=None, body_prefixes=None) -> None:
         self._orig = original_src
         self._target = target_src
         #: optional ResourceStacks for reading models/textures (worn appearance).
         #: Without them, extract plans the inventory icon only.
         self._orig_res = original_res
         self._target_res = target_res
+        #: which gender/phenotype body-model prefixes to relocate for armour and
+        #: cloaks. ``None`` = all of them (survives an appearance change but many
+        #: files); a tuple (e.g. ``("pmh0",)``) = just this character's body, far
+        #: fewer files. Falls back to all when a prefix isn't in the source.
+        self._body_prefixes = tuple(body_prefixes) if body_prefixes else None
         #: free slots already handed out this run, per resref namespace — so two
         #: items of the same class don't both grab slot 250 and share one model.
         self._reserved: dict[str, set[int]] = {}
 
     # -- classification ---------------------------------------------------- #
     def report(self, resref: str, slot: str, ap: Appearance) -> ItemReport:
-        original = self._orig.icon_image(ap.base_item, ap.model_part1, **ap.variant())
-        current = self._target.icon_image(ap.base_item, ap.model_part1, **ap.variant())
-        # broken = the module has no per-variant icon of its own for this item
-        specific = self._target.specific_image(ap.base_item, ap.model_part1, **ap.variant())
-        broken = specific is None and original is not None
-        rep = ItemReport(resref, slot, ap, original, current, broken)
+        # Broken = the module has no per-variant icon of its own for this item,
+        # but the original art exists somewhere to offer. Both are checked by
+        # resource *presence* (no image decoding) — decoding every item's icon
+        # just to classify it was the whole cost. Only broken items are decoded.
+        v = ap.variant()
+        broken = (not self._target.has_specific_icon(ap.base_item, ap.model_part1, **v)
+                  and self._orig.has_specific_icon(ap.base_item, ap.model_part1, **v))
         if not broken:
-            return rep
+            return ItemReport(resref, slot, ap, None, None, False)
+        original = self._orig.icon_image(ap.base_item, ap.model_part1, **v)
+        current = self._target.icon_image(ap.base_item, ap.model_part1, **v)
+        rep = ItemReport(resref, slot, ap, original, current, True)
         self._add_match(rep)
         self._add_extract(rep)
         return rep
@@ -233,6 +242,8 @@ class IconReconciler:
         if self._orig_res is None:
             return
         for src in self._orig_res.matching(rf"^p[fm][a-z][0-9]_cloak_{num:03d}$", _MDL):
+            if self._body_prefixes and src.split("_")[0] not in self._body_prefixes:
+                continue  # minimal mode: only this character's body prefix
             dst = src[: src.rfind("_") + 1] + f"{slot:03d}"
             copies.append(CopyOp(src, _MDL, dst))
             if self._orig_res.has(src, _PLT):
@@ -275,7 +286,7 @@ class IconReconciler:
                 continue
             is_icon = field_name == icon_field
             src_prefixes = [
-                p for p in _ARMOUR_PREFIXES
+                p for p in (self._body_prefixes or _ARMOUR_PREFIXES)
                 if self._has_source_model(f"{p}_{token}{num:03d}"[:16])
             ]
             if not is_icon:

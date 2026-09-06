@@ -284,6 +284,22 @@ lets you choose per item:
 **Set all** at the top applies one choice to every row at once. Extract is the
 default, since it is the most faithful.
 
+Extract re-points the item at a **new, unused appearance number** and copies the
+art to that number in `override` — the game builds an item's model/icon name from
+the numbers stored on the item, so the numbers are what gets changed (that is why
+Extract, like every edit, writes a new save). It never overwrites the module's own
+art, so nothing else changes look.
+
+**All body types** (the checkbox by *Set all*) governs how much armour and cloak
+art Extract copies. Off (the default) relocates only *your character's own body
+model*, which is all the game will ask for — a suit drops from ~100+ files to a
+dozen or so. Turn it on only if you expect to change the character's appearance or
+phenotype later, in which case every gender/phenotype variant is copied so the look
+survives the change. Toggling it re-scans.
+
+*Scope:* this reconciles the **player character's** worn and carried items,
+including items inside bags. Companions' and henchmen's gear is not touched.
+
 The edits are staged like any other change — **save** the game to keep them (a new
 save folder, as always; the original is untouched). The extracted files are listed
 in `override/vk_appearance_manifest.json`, and a **Remove added art…** button
