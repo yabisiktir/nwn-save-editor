@@ -84,6 +84,19 @@ def test_find_orphans_flags_unresolved_script_power():
     assert o.prop_index == 0
 
 
+_ONHIT_UNIQUE = 125  # IP_CONST_ONHIT_CASTSPELL_ONHIT_UNIQUEPOWER (prop 82)
+
+
+def test_find_orphans_flags_onhit_unique_power_but_not_a_real_onhit_spell():
+    items = [
+        _item("has_onhit", _prop(82, _ONHIT_UNIQUE)),   # On Hit: Unique Power (script)
+        _item("has_fire", _prop(82, 16)),               # On Hit: Cast real spell (engine)
+    ]
+    orphans = op.find_orphans(items, is_resolved=lambda _n: False)
+    assert [o.tag for o in orphans] == ["has_onhit"]
+    assert orphans[0].label == "On Hit: Unique Power"
+
+
 def test_find_orphans_skips_resolved_and_nonscript_props():
     items = [
         _item("has_script", _prop(15, _UNIQUE)),          # but resolved below

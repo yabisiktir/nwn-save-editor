@@ -91,6 +91,28 @@ def is_script_activated(prop: ItemProperty) -> bool:
     return prop.property_name == _SPELL_PROP and prop.subtype in ACTIVATE_ITEM_SUBTYPES
 
 
+#: iprp_onhitspell.2da subtype for "OnHit: Unique Power" — the only On-Hit Cast
+#: Spell whose effect is a module script (the rest cast a real spell). Matches
+#: nwscript ``IP_CONST_ONHIT_CASTSPELL_ONHIT_UNIQUEPOWER``.
+ONHIT_UNIQUE_POWER_SUBTYPE = 125
+
+
+def is_onhit_unique_power(prop: ItemProperty) -> bool:
+    """Whether a property is "On Hit: Unique Power" — a script keyed to the item's
+    tag, just like an activated Unique Power (the base ``x2_s3_onhitcast`` runs the
+    tag-named script for the on-hit event). Other On-Hit Cast Spell properties cast
+    a real spell and are engine-handled, so they are **not** included."""
+    return (prop.property_name == _ONHIT_SPELL_PROP
+            and prop.subtype == ONHIT_UNIQUE_POWER_SUBTYPE)
+
+
+def is_tag_script_power(prop: ItemProperty) -> bool:
+    """Whether a property's effect is a tag-based script — an activated Unique/
+    Activate power or an On-Hit Unique Power. Both run the script named after the
+    item's tag (the script tells the events apart via the item event number)."""
+    return is_script_activated(prop) or is_onhit_unique_power(prop)
+
+
 def activation_note(tag: str = "") -> str:
     """The explanation for a script-activated property, naming the tag if known."""
     return ACTIVATE_ITEM_NOTE.format(tag=f" — “{tag}”" if tag else "")

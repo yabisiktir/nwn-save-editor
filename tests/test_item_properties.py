@@ -9,13 +9,27 @@ from nwnfile.item_properties import (
     default_property_names,
     describe_properties,
     describe_property,
+    is_onhit_unique_power,
     is_script_activated,
+    is_tag_script_power,
     load_property_names,
 )
 
 
 def _prop(name, subtype=0, cost_value=0) -> ItemProperty:
     return ItemProperty(name, subtype, 1, cost_value, 255, 0)
+
+
+def test_is_onhit_unique_power_only_for_the_unique_power_subtype():
+    assert is_onhit_unique_power(_prop(82, 125)) is True   # On Hit: Unique Power
+    assert is_onhit_unique_power(_prop(82, 16)) is False    # On Hit: a real spell
+    assert is_onhit_unique_power(_prop(15, 335)) is False   # activated, not on-hit
+
+
+def test_is_tag_script_power_covers_activate_and_onhit_unique():
+    assert is_tag_script_power(_prop(15, 335)) is True   # activated Unique Power
+    assert is_tag_script_power(_prop(82, 125)) is True   # On Hit: Unique Power
+    assert is_tag_script_power(_prop(1, 0)) is False      # AC bonus — plain data
 
 
 def test_ability_subtype_and_magnitude():

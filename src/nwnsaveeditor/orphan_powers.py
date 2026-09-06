@@ -41,7 +41,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from nwnfile.formats.erf_reader import ErfReader
-from nwnfile.item_properties import is_script_activated
 
 _MANIFEST = "vk_power_haks.json"
 _NCS = 2010
@@ -105,7 +104,11 @@ def find_orphans(
     (see :func:`make_resolver`). ``names`` is an optional ``{subtype: label}`` map
     (``item_properties.ACTIVATE_ITEM_SUBTYPES``) used only to label the finding.
     """
-    from nwnfile.item_properties import ACTIVATE_ITEM_SUBTYPES
+    from nwnfile.item_properties import (
+        ACTIVATE_ITEM_SUBTYPES,
+        is_onhit_unique_power,
+        is_tag_script_power,
+    )
 
     names = ACTIVATE_ITEM_SUBTYPES if names is None else names
     out: list[OrphanPower] = []
@@ -115,14 +118,15 @@ def find_orphans(
             continue
         script = script_name_for_tag(tag)
         for ep in getattr(item, "properties", []):
-            if not is_script_activated(ep.prop):
+            if not is_tag_script_power(ep.prop):
                 continue
             if is_resolved(script):
                 continue
+            label = ("On Hit: Unique Power" if is_onhit_unique_power(ep.prop)
+                     else names.get(ep.prop.subtype, "Unique Power"))
             out.append(OrphanPower(
                 item_path=item.path, item_name=item.name, tag=tag,
-                script_name=script, prop_index=ep.index,
-                label=names.get(ep.prop.subtype, "Unique Power")))
+                script_name=script, prop_index=ep.index, label=label))
     return out
 
 
