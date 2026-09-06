@@ -7,8 +7,10 @@ proposed Closest match — and lets the user choose per item:
 
 * **Keep original** — change nothing;
 * **Closest match** — re-point at the nearest appearance the module already has;
-* **Extract original** — copy the true icon into a free slot in ``override`` so it
-  renders everywhere.
+* **Extract original** — bundle the item's true art into a per-save hak (added to
+  the save's own hak list) so it renders correctly here, at the item's original
+  numbers. (Loose ``override`` files can't add a new appearance and don't render
+  for held weapons at all — the hak is the only reliable route.)
 
 The dialog is static — building a row never rebuilds another — so it steers clear
 of the "widget rebuilt under the user" trap. It collects choices only; the caller
@@ -181,7 +183,7 @@ class AppearanceWizardDialog(QDialog):
         if can_extract:
             n = len(report.extract.copies)
             extract = QRadioButton(
-                f"Extract original art → override (true look everywhere, {n} file"
+                f"Extract original art → hak (true look in this save, {n} file"
                 f"{'' if n == 1 else 's'})")
             group.addButton(extract, 2)
             box.addWidget(extract)

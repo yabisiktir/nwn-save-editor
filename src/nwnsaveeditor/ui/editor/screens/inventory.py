@@ -175,10 +175,10 @@ class InventoryScreen(QWidget):
                 "(e.g. CEP2/Aielund gear under CEP3 Swordflight).")
             fix.clicked.connect(self._window.fix_appearances)
             equip_header.addWidget(fix)
-            if self._window.has_appearance_override():
+            if self._window.has_appearance_hak():
                 undo = w.ghost_button("Remove added art…")
                 undo.setToolTip("Delete the art a previous Extract added to override.")
-                undo.clicked.connect(self._window.remove_appearance_override)
+                undo.clicked.connect(self._window.remove_appearance_hak)
                 equip_header.addWidget(undo)
         column.addLayout(equip_header)
         column.addWidget(self._build_paperdoll(equipped), 0, Qt.AlignmentFlag.AlignLeft)

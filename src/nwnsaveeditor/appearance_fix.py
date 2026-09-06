@@ -5,25 +5,31 @@ Three choices per item (see :mod:`nwnfile.icon_reconcile`):
 * **keep** — change nothing;
 * **match** — re-point the item at the closest appearance the module already has
   (a staged save edit only);
-* **extract** — copy the item's *original* icon into a free appearance slot in the
-  user's ``override`` folder and re-point the item at it, so the true look renders
-  in every module and collides with nothing.
+* **extract** — bundle the item's *original* art (icon, worn model, missing
+  textures) into a **per-save hak** at its original appearance numbers and add that
+  hak to the save's ``Mod_HakList``, so the true look renders in this save without
+  touching the item or the module's own art.
 
-This is Qt-free. It stages save edits through :class:`SaveEditor` (the caller does
-``save_as``) and writes the override files immediately, recording every file it
-writes in ``override/vk_appearance_manifest.json`` so a later run — or the user —
-can remove exactly what was added.
+This is Qt-free. It stages the ``match`` save edits through :class:`SaveEditor` (the
+caller does ``save_as``), writes one hak into the user's ``hak`` folder and records
+it in ``hak/vk_appearance_haks.json`` so a later run — or the user — can remove
+exactly what was added. It deliberately does **not** use the ``override`` folder:
+loose override files can only replace appearance numbers that already exist (never
+add one), are ignored for held-weapon models, and high free-slot numbers do not
+render at all — a hak carrying the original numbers is the only approach that works
+in the running game (verified in-game).
 """
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from nwnfile.icon_reconcile import Appearance, ItemReport
 
-_MANIFEST = "vk_appearance_manifest.json"
+_MANIFEST = "vk_appearance_haks.json"
 _PLAYER = ("Mod_PlayerList", 0)
 #: base items with no real inventory appearance to reconcile (PRC creature weapon,
 #: the PC skin that carries PRC-managed properties).
@@ -69,8 +75,6 @@ def _walk_list(reconciler, container, list_label, base_path, female, slot, out):
         if "ItemList" in it.fields:
             _walk_list(reconciler, it, "ItemList", item_path, female,
                        "in a bag", out)
-_MDL = 2002
-_EXT = {3: ".tga", 6: ".plt", 2002: ".mdl", 2005: ".txi", 2064: ".dds", 2065: ".dds"}
 #: ArmorPart_* -> its truncated x-mirror twin (the game keeps the two in step).
 _ARMOR_MIRROR = {
     "ArmorPart_Neck": "xArmorPart_Neck", "ArmorPart_Torso": "xArmorPart_Torso",
@@ -117,15 +121,48 @@ def _set(editor, item_path: tuple, field_name: str, value: int, where: str) -> N
                 "module.ifo", item_path + ((mirror, None),), value, where=where)
 
 
+def hak_name_for(save_name: str) -> str:
+    """A stable, unique hak name for a save being edited.
+
+    Deterministic in the source save, so re-running the wizard on the same save
+    reuses (overwrites) its hak rather than orphaning old ones. Kept **well under
+    the engine's 16-char hak-name limit** — a 16-char name silently fails to load
+    the whole hak, so ``vk_`` + 8 hex of a hash = 11 chars, still collision-safe
+    across saves."""
+    digest = hashlib.sha1(save_name.encode("utf-8", "replace")).hexdigest()
+    return f"vk_{digest[:8]}"
+
+
 def apply_decisions(
-    editor, reader, decisions: list[Decision], override_dir: Path,
+    editor, reader, decisions: list[Decision], hak_dir: Path, *, hak_name: str,
 ) -> ApplySummary:
-    """Stage the save edits and write the override art. ``reader`` reads the source
-    bytes for every copy (a :class:`~nwnfile.resource_stack.ResourceStack`, which
-    reads icons, models and textures alike). Returns a summary; the caller writes
-    the new save with ``editor.save_as`` afterwards."""
+    """Stage the save edits and bundle the extracted gear art into a per-save hak.
+
+    The art is written into ``hak_dir/<hak_name>.hak`` and the hak is added to the
+    save's ``module.ifo`` ``Mod_HakList`` (the engine honours the save's own hak
+    list) — the reliable way to introduce appearance numbers the game renders.
+    Loose ``override`` files cannot: they only replace numbers that already exist in
+    a hak/base, and composite weapon/boot models ignore override entirely, so the
+    old free-slot-in-override approach never rendered in the running game.
+
+    The art is bundled at each item's **original** appearance numbers — verified
+    in-game — and the item is *not* repointed. Relocating to a high free slot does
+    **not** work: appearance numbers near the top of the byte range (our old 254-
+    down slots) are not honoured for item models/icons even from a hak, so a
+    relocated item fell back to the default picture. An item's original number is,
+    by definition, one the engine renders (it did in the item's home campaign) and
+    the module lacks (that is why it looks broken here), so bundling the original
+    art at that number in this low-priority per-save hak fills exactly the gap
+    without touching the item or clobbering module art. Two items that resolve to
+    the same source resref share it (same number ⇒ same look — correct).
+
+    ``reader`` reads the source bytes for every copy (a
+    :class:`~nwnfile.resource_stack.ResourceStack`). Returns a summary; the caller
+    writes the new save with ``editor.save_as`` afterwards."""
+    from nwnfile.formats.erf_writer import build_hak
+
     summary = ApplySummary()
-    written: list[str] = []
+    entries: dict[tuple[str, int], bytes] = {}
     for d in decisions:
         if d.choice == "keep":
             continue
@@ -136,34 +173,35 @@ def apply_decisions(
         elif d.choice == "extract" and d.report.extract is not None:
             plan = d.report.extract
             ok = True
+            staged: dict[tuple[str, int], bytes] = {}
             for op in plan.copies:
                 data = reader.read(op.src_resref, op.res_type)
                 if data is None:
                     summary.notes.append(f"{d.report.resref}: source {op.src_resref} missing")
                     ok = False
                     continue
-                # A relocated model must call itself by its new name, or the engine
-                # loads the file but can't render it (see rename_model).
-                if op.res_type == _MDL and op.dst_resref.lower() != op.src_resref.lower():
-                    from nwnfile.resource_stack import rename_model
-                    data = rename_model(data, op.src_resref.lower(), op.dst_resref.lower())
-                dst = override_dir / f"{op.dst_resref.lower()}{_EXT.get(op.res_type, '')}"
-                override_dir.mkdir(parents=True, exist_ok=True)
-                dst.write_bytes(data)
-                written.append(dst.name)
+                # Bundle at the ORIGINAL resref (op.src_resref), not the relocated
+                # slot — original numbers render, high free slots do not. The model
+                # keeps its own internal name (no rename needed) and the item keeps
+                # its ModelPart fields (no repoint).
+                staged[(op.src_resref.lower(), op.res_type)] = data
             if ok:
-                for fs in plan.fields:
-                    _set(editor, d.item_path, fs.field, fs.value, f"extract {d.report.resref}")
+                entries.update(staged)
                 summary.edited += 1
-    if written:
-        _record_manifest(override_dir, written)
-        summary.files_written = len(written)
+    if entries:
+        hak_dir.mkdir(parents=True, exist_ok=True)
+        hak_path = hak_dir / f"{hak_name}.hak"
+        hak_path.write_bytes(build_hak(
+            (resref, res_type, blob) for (resref, res_type), blob in entries.items()))
+        editor.add_module_hak(hak_name, where="fix appearances")
+        _record_manifest(hak_dir, [hak_path.name])
+        summary.files_written = len(entries)
     return summary
 
 
-def override_manifest(override_dir: Path) -> list[str]:
-    """The files a previous Extract wrote into ``override_dir``, or ``[]``."""
-    path = override_dir / _MANIFEST
+def hak_manifest(hak_dir: Path) -> list[str]:
+    """The hak file(s) a previous Extract wrote into ``hak_dir``, or ``[]``."""
+    path = hak_dir / _MANIFEST
     if not path.exists():
         return []
     try:
@@ -172,29 +210,30 @@ def override_manifest(override_dir: Path) -> list[str]:
         return []
 
 
-def remove_override(override_dir: Path) -> int:
-    """Delete every file a previous Extract added (per the manifest) and the
-    manifest itself. Returns how many files were removed. Touches only what the
-    wizard wrote — never other override content."""
+def remove_haks(hak_dir: Path) -> int:
+    """Delete every hak a previous Extract added (per the manifest) and the manifest
+    itself. Returns how many were removed. Touches only what the wizard wrote. Saves
+    that referenced a removed hak simply show default pictures again (the engine
+    skips a missing hak); their ``Mod_HakList`` entry is harmless."""
     removed = 0
-    for name in override_manifest(override_dir):
-        target = override_dir / name
+    for name in hak_manifest(hak_dir):
+        target = hak_dir / name
         if target.exists():
             try:
                 target.unlink()
                 removed += 1
             except OSError:
                 pass
-    manifest = override_dir / _MANIFEST
+    manifest = hak_dir / _MANIFEST
     if manifest.exists():
         with contextlib.suppress(OSError):
             manifest.unlink()
     return removed
 
 
-def _record_manifest(override_dir: Path, names: list[str]) -> None:
-    """Append the written filenames to the override manifest, for later removal."""
-    path = override_dir / _MANIFEST
+def _record_manifest(hak_dir: Path, names: list[str]) -> None:
+    """Append the written hak filenames to the manifest, for later removal."""
+    path = hak_dir / _MANIFEST
     existing: list[str] = []
     if path.exists():
         try:

@@ -914,7 +914,11 @@ class SaveEditorWindow(QMainWindow):
         from nwnfile.icon_reconcile import IconReconciler
         from nwnfile.item_icons import ItemIconSource
         from nwnfile.resource_stack import ResourceStack
-        from nwnsaveeditor.appearance_fix import apply_decisions, collect_reports
+        from nwnsaveeditor.appearance_fix import (
+            apply_decisions,
+            collect_reports,
+            hak_name_for,
+        )
         from nwnsaveeditor.ui.dialogs.appearance_wizard_dialog import (
             AppearanceWizardDialog,
         )
@@ -975,55 +979,54 @@ class SaveEditorWindow(QMainWindow):
             recompute=(scan if char_body is not None else None))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        override = self._override_dir()
-        if override is None:
+        hak_dir = self._hak_dir()
+        if hak_dir is None:
             w.message(self, QMessageBox.Icon.Warning, "No user folder",
-                      "Can't find your Neverwinter Nights user folder to write "
-                      "override art.", QMessageBox.StandardButton.Ok)
+                      "Can't find your Neverwinter Nights user folder to write the "
+                      "appearance hak.", QMessageBox.StandardButton.Ok)
             return
-        summary = apply_decisions(session, original_res, dialog.decisions(), override)
+        summary = apply_decisions(
+            session, original_res, dialog.decisions(), hak_dir,
+            hak_name=hak_name_for(session.source_name))
         self.notify_changed()
         w.message(self, QMessageBox.Icon.Information, "Appearances updated",
-                  f"Re-pointed {summary.edited} item(s) and wrote "
-                  f"{summary.files_written} art file(s) to override. Save the game "
-                  "to keep the changes.", QMessageBox.StandardButton.Ok)
+                  f"Fixed {summary.edited} item(s), bundling "
+                  f"{summary.files_written} art file(s) into a hak and adding it to "
+                  "this save's hak list. Save the game to keep the changes — the "
+                  "gear then renders correctly in-world and in the inventory.",
+                  QMessageBox.StandardButton.Ok)
 
-    def _override_dir(self):
-        """The user's override folder, where extracted appearance art is written."""
-        user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
-        return (user / "override") if user is not None else None
+    def remove_appearance_hak(self) -> None:
+        """Delete the appearance hak(s) a previous 'Extract' added (per its manifest)."""
+        from nwnsaveeditor.appearance_fix import hak_manifest, remove_haks
 
-    def remove_appearance_override(self) -> None:
-        """Delete the art a previous 'Extract' added (per its manifest)."""
-        from nwnsaveeditor.appearance_fix import override_manifest, remove_override
-
-        override = self._override_dir()
-        files = override_manifest(override) if override is not None else []
+        hak_dir = self._hak_dir()
+        files = hak_manifest(hak_dir) if hak_dir is not None else []
         if not files:
             w.message(self, QMessageBox.Icon.Information, "Nothing to remove",
-                      "No appearance art from this editor was found in override.",
+                      "No appearance hak from this editor was found.",
                       QMessageBox.StandardButton.Ok)
             return
         if w.message(
             self, QMessageBox.Icon.Question, "Remove extracted art?",
-            f"Delete the {len(files)} appearance file(s) this editor added to your "
-            "override folder? Items re-pointed at them will show default pictures "
-            "again until re-extracted. Your saves are not changed.",
+            f"Delete the {len(files)} appearance hak(s) this editor created in your "
+            "hak folder? Saves that use them will show default pictures again until "
+            "re-extracted. Your saves are not otherwise changed.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         ) != QMessageBox.StandardButton.Yes:
             return
-        removed = remove_override(override)
+        removed = remove_haks(hak_dir)
         self.notify_changed()
         w.message(self, QMessageBox.Icon.Information, "Removed",
-                  f"Deleted {removed} file(s) from override.",
+                  f"Deleted {removed} hak file(s).",
                   QMessageBox.StandardButton.Ok)
 
-    def has_appearance_override(self) -> bool:
-        """Whether a previous Extract left art to remove."""
-        from nwnsaveeditor.appearance_fix import override_manifest
+    def has_appearance_hak(self) -> bool:
+        """Whether a previous Extract left an appearance hak to remove."""
+        from nwnsaveeditor.appearance_fix import hak_manifest
 
-        override = self._override_dir()
-        return bool(override is not None and override_manifest(override))
+        hak_dir = self._hak_dir()
+        return bool(hak_dir is not None and hak_manifest(hak_dir))
 
     def notify_changed(self) -> None:
         """A screen staged an edit: refresh the footer, the dots and the screens."""

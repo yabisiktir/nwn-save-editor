@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from nwnfile.formats.erf_reader import ErfReader
-from nwnfile.formats.erf_writer import build_erf, rewrite_erf
+from nwnfile.formats.erf_writer import build_erf, build_hak, rewrite_erf
 
 
 def _make_erf(resources: list[tuple[str, int, bytes]]) -> bytes:
@@ -82,6 +82,38 @@ def test_rewrite_refuses_to_overwrite_source(tmp_path):
 def test_too_small_rejected():
     with pytest.raises(ValueError, match="too small"):
         build_erf(b"MOD V1.0", {})
+
+
+# -- build_hak (from-scratch HAK for the appearance wizard) ------------------- #
+def test_build_hak_round_trips_through_the_reader(tmp_path):
+    entries = [
+        ("iwswsc_b_254", 3, b"ICONDATA"),
+        ("wswsc_b_254", 2002, b"MODELDATA-longer"),
+        ("al_leather04_tex", 2033, b"TPCTEXTURE"),  # a packed texture
+    ]
+    hak = tmp_path / "vk_x.hak"
+    hak.write_bytes(build_hak(entries))
+
+    reader = ErfReader()
+    got = {(r.resref.lower(), r.res_type): reader.read_resource_bytes(hak, r)
+           for r in reader.list_resources(hak)}
+    assert got == {
+        ("iwswsc_b_254", 3): b"ICONDATA",
+        ("wswsc_b_254", 2002): b"MODELDATA-longer",
+        ("al_leather04_tex", 2033): b"TPCTEXTURE",
+    }
+    assert hak.read_bytes()[:8] == b"HAK V1.0"
+
+
+def test_build_hak_keeps_first_of_duplicate_keys(tmp_path):
+    hak = tmp_path / "dup.hak"
+    hak.write_bytes(build_hak([
+        ("a", 3, b"first"), ("A", 3, b"second"), ("a", 2002, b"other")]))
+    reader = ErfReader()
+    got = {(r.resref.lower(), r.res_type): reader.read_resource_bytes(hak, r)
+           for r in reader.list_resources(hak)}
+    assert got[("a", 3)] == b"first"  # duplicate (resref, type) → first wins
+    assert got[("a", 2002)] == b"other"  # different type kept
 
 
 # -- real saves (skipped when absent) ---------------------------------------- #

@@ -17,8 +17,14 @@ from nwnfile.formats.key_bif_reader import KeyBifReader
 
 MDL = 2002
 TGA, PLT, TXI, DDS1, DDS2 = 3, 6, 2005, 2064, 2065
-ART_TYPES = frozenset({MDL, TGA, PLT, TXI, DDS1, DDS2})
-_TEX_TYPES = (PLT, TGA, DDS1, DDS2, TXI)  # tried in this order for a dependency
+#: NWN:EE's packed-texture format (``.dds`` / "TPC"), res type 2033 — the format
+#: most custom (CEP/PRC) textures actually ship in. It was missing here, so a
+#: model's TPC dependency textures were invisible to the copy step and never
+#: bundled; a cross-campaign item whose custom textures are TPC-only then rendered
+#: untextured. It is a real texture type and must be searched like the others.
+TPC = 2033
+ART_TYPES = frozenset({MDL, TGA, PLT, TXI, DDS1, DDS2, TPC})
+_TEX_TYPES = (PLT, TGA, TPC, DDS1, DDS2, TXI)  # tried in this order for a dependency
 #: model resref tokens that could name a texture (also catches node names, which
 #: simply never resolve as a texture and are skipped).
 _TOKEN = re.compile(rb"[A-Za-z0-9_]{3,16}")

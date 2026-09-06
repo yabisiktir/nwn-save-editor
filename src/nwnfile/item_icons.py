@@ -349,9 +349,15 @@ class ItemIconSource:
         if model_type == self._COMPOSITE_MODEL_TYPE and item_class:
             parts = (model_part, variant.get("model_part2", 0),
                      variant.get("model_part3", 0))
-            return any(
-                num and self._icon_exists(f"i{item_class}_{letter}_{num:03d}"[:_MAX_RESREF])
-                for letter, num in zip(self._COMPOSITE_LAYERS, parts, strict=True))
+            # A composite icon is drawn from all its (non-zero) part layers, so it
+            # renders correctly here only if *every* part is present. Using ``any``
+            # judged an item whole when just one layer existed — e.g. boots whose
+            # middle part ships in the base game but whose others live in a CEP hak
+            # the module doesn't load: two-thirds missing, yet reported unbroken.
+            present = [
+                self._icon_exists(f"i{item_class}_{letter}_{num:03d}"[:_MAX_RESREF])
+                for letter, num in zip(self._COMPOSITE_LAYERS, parts, strict=True) if num]
+            return bool(present) and all(present)
         return any(
             c != default_icon and self._icon_exists(c)
             for c in self._candidates(base_item, model_part, **variant))

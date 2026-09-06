@@ -73,6 +73,58 @@ def build_erf(src: bytes, overrides: dict[tuple[str, int], bytes]) -> bytes:
     return bytes(out + data)
 
 
+def build_hak(entries) -> bytes:
+    """Build a HAK V1.0 ERF from ``entries`` (``(resref, res_type, bytes)`` tuples).
+
+    Used by the appearance wizard to bundle a character's original gear art into a
+    single hak the save loads via its ``Mod_HakList`` — the only way to introduce a
+    *new* appearance number the engine honours (loose ``override`` files can only
+    replace numbers that already exist in a hak/base, and are ignored for composite
+    weapon/boot models, so a free-slot override never renders in the running game).
+
+    Duplicate ``(resref, res_type)`` keys keep the first occurrence. The layout
+    matches what :class:`~nwnfile.formats.erf_reader.ErfReader` expects (and is
+    itself byte-readable by :func:`build_erf`): a 160-byte header, then the key list
+    (24 bytes each), the resource list (8 bytes each) and the data region.
+    """
+    seen: set[tuple[str, int]] = set()
+    ordered: list[tuple[str, int, bytes]] = []
+    for resref, res_type, blob in entries:
+        key = _resref_key(resref, res_type)
+        if key in seen:
+            continue
+        seen.add(key)
+        ordered.append((resref, res_type, blob))
+
+    n = len(ordered)
+    keys_off = _HEADER_SIZE
+    res_off = keys_off + n * _KEY_ENTRY_SIZE
+    data_start = res_off + n * _RES_ENTRY_SIZE
+
+    header = bytearray(_HEADER_SIZE)
+    header[0:8] = b"HAK V1.0"
+    struct.pack_into("<II", header, 8, 0, 0)  # LanguageCount, LocalizedStringSize
+    # @16: EntryCount, OffsetToLocalizedString, OffsetToKeyList, OffsetToResourceList
+    struct.pack_into("<IIII", header, 16, n, _HEADER_SIZE, keys_off, res_off)
+    struct.pack_into("<II", header, 32, 0, 0)  # BuildYear, BuildDay
+    struct.pack_into("<i", header, 40, -1)     # DescriptionStrRef (none)
+
+    keylist = bytearray()
+    reslist = bytearray()
+    data = bytearray()
+    for i, (resref, res_type, blob) in enumerate(ordered):
+        rr = resref.lower().encode("ascii", "replace")[:16].ljust(16, b"\x00")
+        keylist += rr + struct.pack("<iH", i, res_type) + b"\x00\x00"
+        reslist += struct.pack("<Ii", data_start + len(data), len(blob))
+        data += blob
+    return bytes(header + keylist + reslist + data)
+
+
+def write_hak(path: Path, entries) -> None:
+    """Write a HAK built from ``entries`` (see :func:`build_hak`) to ``path``."""
+    path.write_bytes(build_hak(entries))
+
+
 def rewrite_erf(
     src_path: Path, overrides: dict[tuple[str, int], bytes], dst_path: Path
 ) -> None:

@@ -274,21 +274,31 @@ lets you choose per item:
 - **Closest match** — re-point the item at the nearest look this module already
   has (offered for rings, amulets and other single-picture items; the percentage is
   how close it is). No new files; but it will look like that match everywhere.
-- **Extract original art → override** — copy the item's real art (its icon, its
-  worn model, and any textures this module is missing) into a free appearance slot
-  in your `override` folder, and re-point the item at it. This keeps the true look
-  in **every** module and collides with nothing, because it lands on an unused
-  number. The count next to it (e.g. *145 files* for a full suit of armour) is how
-  many files it will write — armour is many, because a whole body is many parts.
+- **Extract original art → hak** — bundle the item's real art (its icon, its worn
+  model, and any textures this module is missing) into a small **per-save hak** and
+  add that hak to this save's own hak list. The art is stored at the item's
+  **original** appearance numbers, and the item is left untouched. The count next to
+  it (e.g. *145 files* for a full suit of armour) is how many files it will bundle —
+  armour is many, because a whole body is many parts.
 
 **Set all** at the top applies one choice to every row at once. Extract is the
 default, since it is the most faithful.
 
-Extract re-points the item at a **new, unused appearance number** and copies the
-art to that number in `override` — the game builds an item's model/icon name from
-the numbers stored on the item, so the numbers are what gets changed (that is why
-Extract, like every edit, writes a new save). It never overwrites the module's own
-art, so nothing else changes look.
+Extract works by **adding a hak the game loads for this save**. NWN honours the hak
+list stored inside a save, so the editor writes one hak (named for the save, in your
+`hak` folder) holding the gear's original art and lists it in the save's
+`module.ifo`. The art sits at the item's *original* numbers — the very numbers this
+module was missing — so it fills exactly the gap and nothing else changes look. The
+hak is added last (lowest priority), so it can only supply art the module lacks,
+never override the module's own.
+
+> Why a hak and not loose `override` files? The engine only uses a loose override
+> icon/model for an appearance number that already exists in a hak or the base game
+> — it can't introduce a *new* number that way, and it ignores override models for
+> held weapons entirely. Appearance numbers near the top of the range aren't honoured
+> either. A hak carrying the original numbers is the only route that actually renders
+> in the running game (verified in-game). Boots have no separate worn model anywhere
+> (they're drawn as the character's feet), so only their inventory icon can be fixed.
 
 **All body types** (the checkbox by *Set all*) governs how much armour and cloak
 art Extract copies. Off (the default) relocates only *your character's own body
@@ -301,17 +311,18 @@ survives the change. Toggling it re-scans.
 including items inside bags. Companions' and henchmen's gear is not touched.
 
 The edits are staged like any other change — **save** the game to keep them (a new
-save folder, as always; the original is untouched). The extracted files are listed
-in `override/vk_appearance_manifest.json`, and a **Remove added art…** button
-appears once anything has been extracted: it deletes exactly those files and
-nothing else, so the operation is fully reversible.
+save folder, as always; the original is untouched). The hak(s) the editor creates
+are listed in `hak/vk_appearance_haks.json`, and a **Remove added art…** button
+appears once anything has been extracted: it deletes exactly those hak files and
+nothing else, so the operation is fully reversible (a save that referenced a removed
+hak simply shows default pictures again).
 
 Two honest limits. **Extract can only recover art you still have installed** — if
 you have removed the source campaign's haks, the original look is gone and only Keep
 or Closest match remain. And it fixes the **inventory picture and the worn model**
-for weapons, armour, helmets and cloaks; gloves and rings/amulets have no separate
-worn model (they are drawn by the body, or not shown when worn), so for those only
-the icon is reconciled.
+for weapons, armour, helmets and cloaks; gloves, boots and rings/amulets have no
+separate worn model (they are drawn by the body or the feet, or not shown when
+worn), so for those only the inventory icon is reconciled.
 
 ### Spellbook
 

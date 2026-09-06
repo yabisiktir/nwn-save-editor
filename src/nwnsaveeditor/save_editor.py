@@ -2215,6 +2215,42 @@ class SaveEditor:
                 raise SaveEditError(f"{label} is a scalar, not a container")
         raise SaveEditError("empty path")
 
+    # -- module hak list --------------------------------------------------- #
+    @property
+    def source_name(self) -> str:
+        """The name of the save being edited (used to name a per-save hak)."""
+        return self._save.name
+
+    def module_hak_names(self) -> list[str]:
+        """The haks the save's ``module.ifo`` lists, in order."""
+        tree = self.raw_tree("module.ifo")
+        if tree is None:
+            return []
+        hl = tree.root.fields.get("Mod_HakList")
+        if hl is None or hl.type != GffType.LIST:
+            return []
+        return [str(s.fields["Mod_Hak"].value) for s in hl.value.structs
+                if "Mod_Hak" in s.fields]
+
+    def add_module_hak(self, name: str, *, where: str = "") -> bool:
+        """Add ``name`` to the save's ``module.ifo`` ``Mod_HakList`` (idempotent).
+
+        The engine honours the hak list stored in the save, so this is how the
+        appearance wizard makes the game load the hak it bundles the gear art into.
+        Returns ``True`` if it was added, ``False`` if already present. Needs an
+        existing entry to clone (every custom-content module has one)."""
+        if name.lower() in {n.lower() for n in self.module_hak_names()}:
+            return False
+        tree = self.raw_tree("module.ifo")
+        hl = tree.root.fields.get("Mod_HakList") if tree is not None else None
+        if hl is None or hl.type != GffType.LIST or not hl.value.structs:
+            raise SaveEditError("module has no Mod_HakList to extend")
+        idx = self.add_raw_struct(
+            "module.ifo", (("Mod_HakList", None),), source_index=0, where=where)
+        self.set_raw_field(
+            "module.ifo", (("Mod_HakList", idx), ("Mod_Hak", None)), name, where=where)
+        return True
+
     # -- raw list structure (add / duplicate / remove entries) ------------- #
     @_records()
     def add_raw_struct(
