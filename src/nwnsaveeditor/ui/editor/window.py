@@ -1063,9 +1063,11 @@ class SaveEditorWindow(QMainWindow):
                       "scripts and write the rescue hak.", QMessageBox.StandardButton.Ok)
             return
 
+        from nwnsaveeditor import script_compiler
+
+        hak_paths = [hak_dir / f"{n}.hak" for n in session.module_hak_names()]
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
-            hak_paths = [hak_dir / f"{n}.hak" for n in session.module_hak_names()]
             resolved = opw.make_resolver(save.sav_path, hak_paths)
             orphans = opw.find_orphans(session.player_items(), resolved)
             tagbased = opw.tagbased_scripting_enabled(session.module_root())
@@ -1075,6 +1077,7 @@ class SaveEditorWindow(QMainWindow):
                 if orphan.tag not in matches:
                     matches[orphan.tag] = opw.search_sources(
                         orphan.tag, sources, is_resolved=resolved)
+            compiler = script_compiler.find_compiler(self._game_root())
         finally:
             QApplication.restoreOverrideCursor()
 
@@ -1084,22 +1087,77 @@ class SaveEditorWindow(QMainWindow):
                       "missing its script in this save.", QMessageBox.StandardButton.Ok)
             return
 
-        dialog = RescuePowerDialog(orphans, matches, tagbased=tagbased, parent=self)
+        dialog = RescuePowerDialog(orphans, matches, tagbased=tagbased,
+                                   can_compile=compiler is not None, parent=self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
+
         chosen = [matches[tag] for tag in dialog.selected_tags()]
-        if not chosen:
-            return
-        summary = opw.apply_rescue(
-            session, chosen, hak_dir, hak_name=hak_name_for(session.source_name))
-        self.notify_changed()
-        w.message(self, QMessageBox.Icon.Information, "Powers rescued",
-                  f"Bundled {summary.scripts} script(s) for {summary.powers} "
-                  "power(s) into a hak and added it to this save's hak list. Save "
-                  "the game to keep it, then activate the item in-game to use the "
-                  "power. If it doesn't fire, the script may rely on content from "
-                  "its home module that this one lacks.",
-                  QMessageBox.StandardButton.Ok)
+        failures: list[str] = []
+        compile_tags = dialog.selected_compile_tags()
+        if compile_tags and compiler is not None:
+            # Compile against every hak, not just the save's runtime Mod_HakList:
+            # PRC's include hak (prc8_include.hak, source of prc_inc_util) is a
+            # build-time hak modules don't load at runtime.
+            all_haks = sorted(hak_dir.glob("*.hak"))
+            QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+            try:
+                for tag in compile_tags:
+                    ported, err = self._compile_tier2(
+                        matches[tag], user / "modules", all_haks, compiler)
+                    if ported is not None:
+                        chosen.append(ported)
+                    else:
+                        failures.append(f"{matches[tag].tag}: {err}")
+            finally:
+                QApplication.restoreOverrideCursor()
+
+        summary = None
+        if chosen:
+            summary = opw.apply_rescue(
+                session, chosen, hak_dir, hak_name=hak_name_for(session.source_name))
+            self.notify_changed()
+
+        self._report_rescue(summary, failures)
+
+    def _compile_tier2(self, match, modules_dir, hak_paths, compiler):
+        """Port a Tier-2 dispatcher branch into a compiled tag-script, or report why
+        not. Returns ``(rescuable_match | None, error)``."""
+        from nwnsaveeditor import orphan_powers as opw
+        from nwnsaveeditor import script_port
+
+        module_path = modules_dir / match.origin
+        sources = opw.gather_nss_sources([module_path, *hak_paths])
+        index = script_port.build_symbol_index(sources)
+        result = script_port.resolve_and_compile(
+            match.branch_source, index, sources, compiler.compile)
+        if result.ok:
+            return opw.rescuable_from_compile(match, result.ncs, result.includes), ""
+        return None, self._compile_error_summary(result.error)
+
+    @staticmethod
+    def _compile_error_summary(output: str) -> str:
+        """The first real error line from nwnsc output, for a terse report."""
+        for line in output.splitlines():
+            if "Error:" in line:
+                return line.split("Error:", 1)[1].strip()
+        return "the branch could not be compiled (it may rely on the dispatcher's own helpers)"
+
+    def _report_rescue(self, summary, failures: list[str]) -> None:
+        if summary is not None and summary.powers:
+            text = (f"Bundled {summary.scripts} script(s) for {summary.powers} "
+                    "power(s) into a hak and added it to this save's hak list. Save "
+                    "the game to keep it, then activate the item in-game to use the "
+                    "power. If it doesn't fire, the script may rely on content from "
+                    "its home module that this one lacks.")
+            if failures:
+                text += "\n\nCould not port:\n• " + "\n• ".join(failures)
+            w.message(self, QMessageBox.Icon.Information, "Powers rescued", text,
+                      QMessageBox.StandardButton.Ok)
+        elif failures:
+            w.message(self, QMessageBox.Icon.Warning, "Couldn't rescue",
+                      "No power could be ported:\n• " + "\n• ".join(failures),
+                      QMessageBox.StandardButton.Ok)
 
     def remove_rescued_powers(self) -> None:
         """Delete the rescue hak(s) a previous Rescue added (per its manifest)."""

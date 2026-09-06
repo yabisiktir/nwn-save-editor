@@ -210,6 +210,21 @@ def test_dialog_offers_tier1_checked_and_previews_tier2(qtbot):
     assert dlg._buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
 
 
+def test_dialog_offers_compile_for_tier2_when_a_compiler_exists(qtbot):
+    from nwnsaveeditor.ui.dialogs.rescue_power_dialog import RescuePowerDialog
+
+    m2 = op.SourceMatch(tag="robesofsesustris", script_name="robesofsesustris", tier=2,
+                        origin="sof.mod", dispatcher="activateitem3",
+                        branch_source="PRCForceRest(oPC);")
+    dlg = RescuePowerDialog(
+        [_orphan("robesofsesustris")], {"robesofsesustris": m2},
+        tagbased=True, can_compile=True)
+    qtbot.addWidget(dlg)
+    dlg.show()
+    assert dlg.selected_tags() == []  # no standalone script to copy
+    assert dlg.selected_compile_tags() == ["robesofsesustris"]  # compile ticked by default
+
+
 def test_dialog_disables_rescue_without_tagbased(qtbot):
     from PySide6.QtWidgets import QDialogButtonBox
 

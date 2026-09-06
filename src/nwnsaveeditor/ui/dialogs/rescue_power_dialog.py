@@ -36,12 +36,15 @@ from nwnsaveeditor.ui.editor import widgets as w
 class RescuePowerDialog(QDialog):
     """List orphaned item powers and let the user rescue the auto-rescuable ones."""
 
-    def __init__(self, orphans, matches, *, tagbased: bool, parent=None) -> None:
+    def __init__(self, orphans, matches, *, tagbased: bool, can_compile: bool = False,
+                 parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Rescue item powers")
         self.setStyleSheet(w.dialog_qss())  # wear the editor's theme, not the OS palette
         self.setMinimumWidth(540)
-        self._checks: dict[str, QCheckBox] = {}
+        self._can_compile = can_compile
+        self._checks: dict[str, QCheckBox] = {}          # tier-1: copy a standalone script
+        self._compile_checks: dict[str, QCheckBox] = {}  # tier-2: compile a dispatcher branch
 
         layout = QVBoxLayout(self)
         intro = w.body(
@@ -115,10 +118,23 @@ class RescuePowerDialog(QDialog):
                 f"Only the script source was found in “{match.origin}”. It needs "
                 "compiling before it can be bundled — not yet automated."))
         elif match is not None and match.tier == 2:
-            box.addWidget(self._note(
-                f"The behaviour is a branch inside “{match.dispatcher}” "
-                f"(in “{match.origin}”). It can’t be copied as-is — it needs a "
-                "compiled port. Source shown for reference:"))
+            if self._can_compile:
+                box.addWidget(self._note(
+                    f"The behaviour is a branch inside “{match.dispatcher}” "
+                    f"(in “{match.origin}”). It can be ported by compiling it into a "
+                    "tag-script:"))
+                check = QCheckBox("Compile & bundle this power (experimental)")
+                check.setChecked(tagbased)
+                check.setEnabled(tagbased)
+                check.toggled.connect(self._refresh_ok)
+                self._compile_checks[match.tag] = check
+                box.addWidget(check)
+            else:
+                box.addWidget(self._note(
+                    f"The behaviour is a branch inside “{match.dispatcher}” "
+                    f"(in “{match.origin}”). It can’t be copied as-is — it needs a "
+                    "compiled port, but no NWScript compiler was found. Source shown "
+                    "for reference:"))
             box.addWidget(self._preview(match.branch_source))
         else:
             box.addWidget(self._note(
@@ -143,8 +159,14 @@ class RescuePowerDialog(QDialog):
 
     def _refresh_ok(self) -> None:
         ok = self._buttons.button(QDialogButtonBox.StandardButton.Ok)
-        ok.setEnabled(any(c.isChecked() for c in self._checks.values()))
+        checked = (any(c.isChecked() for c in self._checks.values())
+                   or any(c.isChecked() for c in self._compile_checks.values()))
+        ok.setEnabled(checked)
 
     def selected_tags(self) -> list[str]:
-        """Tags of the auto-rescuable powers the user ticked."""
+        """Tags of the auto-rescuable (Tier-1, copy) powers the user ticked."""
         return [tag for tag, check in self._checks.items() if check.isChecked()]
+
+    def selected_compile_tags(self) -> list[str]:
+        """Tags of the Tier-2 powers the user chose to compile-and-bundle."""
+        return [tag for tag, check in self._compile_checks.items() if check.isChecked()]

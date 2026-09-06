@@ -249,6 +249,42 @@ def search_sources(
     return source_only or tier2 or SourceMatch(tag=tag, script_name=script, tier=0)
 
 
+def gather_nss_sources(paths: Iterable[Path], *, reader=None) -> dict[str, str]:
+    """``{script_name: nss_text}`` for every ``.nss`` in the given ERFs (module/haks).
+
+    The include pool for a Tier-2 port (:mod:`nwnsaveeditor.script_port`): the
+    dispatcher's home module plus the module's haks carry the sources of the
+    ``#include``\\s a branch needs. First occurrence wins on a name clash."""
+    reader = reader or ErfReader()
+    out: dict[str, str] = {}
+    for path in (Path(p) for p in paths):
+        if not path.exists():
+            continue
+        try:
+            resources = reader.list_resources(path)
+        except Exception:  # noqa: BLE001 — unreadable archive, skip
+            continue
+        for r in resources:
+            if r.res_type == _NSS and r.resref.lower() not in out:
+                out[r.resref.lower()] = reader.read_resource_bytes(path, r).decode(
+                    "latin-1", "replace")
+    return out
+
+
+def rescuable_from_compile(match: SourceMatch, ncs: bytes, includes=()) -> SourceMatch:
+    """Turn a Tier-2 match into an auto-rescuable one once its branch has compiled.
+
+    The compiled ``<tag>.ncs`` is self-contained, so it bundles like any Tier-1
+    script (see :mod:`nwnsaveeditor.script_port` for the compile)."""
+    from dataclasses import replace
+
+    extra = f" (+{len(includes)} include)" if includes else ""
+    return replace(
+        match, tier=1, needs_compile=False,
+        scripts={(match.script_name, _NCS): ncs},
+        notes=[f"compiled from {match.dispatcher}{extra}"])
+
+
 def _extract_branch(text: str, branch_re: re.Pattern) -> str:
     """The ``if (GetTag(...)=="tag") { … }`` block, for preview. Best-effort brace
     match from the matched condition; falls back to a window around the match."""
