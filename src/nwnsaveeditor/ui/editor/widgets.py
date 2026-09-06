@@ -915,6 +915,18 @@ def dialog_qss() -> str:
     return f"""
 QDialog {{ background:{t.APP_BG}; }}
 QLabel, QCheckBox, QRadioButton, QGroupBox {{ color:{t.TEXT}; }}
+QRadioButton::indicator, QCheckBox::indicator {{ width:13px; height:13px; }}
+QRadioButton::indicator {{ border-radius:7px; }}
+QCheckBox::indicator {{ border-radius:3px; }}
+QRadioButton::indicator:unchecked, QCheckBox::indicator:unchecked {{
+    border:1px solid {t.hairline(0.55)}; background:{t.INPUT_BG};
+}}
+QRadioButton::indicator:checked, QCheckBox::indicator:checked {{
+    border:3px solid {t.GOLD}; background:{t.GOLD_ON};
+}}
+QRadioButton::indicator:hover, QCheckBox::indicator:hover {{
+    border-color:{t.gold_border(0.7)};
+}}
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit, QTextEdit {{
     background:{t.INPUT_BG}; color:{t.TEXT};
     border:1px solid {t.hairline(0.22)}; border-radius:5px; padding:4px 6px;

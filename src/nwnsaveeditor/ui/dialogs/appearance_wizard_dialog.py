@@ -51,10 +51,11 @@ class AppearanceWizardDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.addWidget(w.heading("Fix Item Appearances"))
-        layout.addWidget(w.cap_label(
-            "These items use art this module doesn't have, so they show default "
-            "pictures. Choose what to do with each — Extract keeps the true look in "
-            "every module by copying it into your override folder."))
+        intro = w.cap_label(
+            "These items' art isn't in the module you're playing, so they show "
+            "default pictures. Pick what to do with each.")
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
 
         bulk = QHBoxLayout()
         bulk.addWidget(w.cap_label("Set all:"))
@@ -66,34 +67,40 @@ class AppearanceWizardDialog(QDialog):
         bulk.addStretch(1)
         layout.addLayout(bulk)
 
+        # A frozen header outside the scroll so the column labels stay in view.
+        # Its columns are configured identically to the body's, and a right margin
+        # equal to the scrollbar width keeps the two in step despite it.
+        top = Qt.AlignmentFlag.AlignTop
+        centre = Qt.AlignmentFlag.AlignHCenter | top
+        header_holder = QWidget()
+        w.own_style(header_holder, "background:transparent;")
+        header = QGridLayout(header_holder)
+        header.setContentsMargins(0, 0, self._scrollbar_width(), 0)
+        header.setHorizontalSpacing(12)
+        self._config_columns(header)
+        for col, text in enumerate(
+                ("Item", "Original", "In-game now", "Closest", "Choice")):
+            header.addWidget(w.cap_label(text), 0, col,
+                             top if col in (0, 4) else centre)
+        layout.addWidget(header_holder)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         scroll.setStyleSheet(w.scroll_area_qss())
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         body = QWidget()
         # The scroll body must be transparent so the dialog's own dark/light
         # background shows through — an unstyled viewport falls back to the OS
         # palette and washes the text out (see CLAUDE.md theming rule 4).
         w.own_style(body, "background:transparent;")
-        # One grid for the header and every row, so the columns line up (a
-        # per-row layout drifted out of step with the header, worsened by the
-        # scrollbar width).
         grid = QGridLayout(body)
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(10)
-        top = Qt.AlignmentFlag.AlignTop
-        centre = Qt.AlignmentFlag.AlignHCenter | top
-        for col, text in enumerate(
-                ("Item", "Original", "In-game now", "Closest", "Choice")):
-            grid.addWidget(w.cap_label(text), 0, col,
-                           top if col in (0, 4) else centre)
-        grid.setColumnStretch(0, 3)
-        for c in (1, 2, 3):
-            grid.setColumnMinimumWidth(c, _THUMB + 16)
-        grid.setColumnStretch(4, 5)
-        for r, (item_path, report) in enumerate(entries, start=1):
+        self._config_columns(grid)
+        for r, (item_path, report) in enumerate(entries):
             self._add_row(grid, r, item_path, report)
-        grid.setRowStretch(len(entries) + 1, 1)
+        grid.setRowStretch(len(entries), 1)
         scroll.setWidget(body)
         layout.addWidget(scroll, 1)
 
@@ -102,6 +109,20 @@ class AppearanceWizardDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    @staticmethod
+    def _config_columns(grid: QGridLayout) -> None:
+        """Identical column sizing for the header and the body grids so they align:
+        stretchy name/choice columns, fixed-width centred thumbnail columns."""
+        grid.setColumnStretch(0, 3)
+        for c in (1, 2, 3):
+            grid.setColumnMinimumWidth(c, _THUMB + 16)
+        grid.setColumnStretch(4, 5)
+
+    def _scrollbar_width(self) -> int:
+        from PySide6.QtWidgets import QStyle
+
+        return self.style().pixelMetric(QStyle.PixelMetric.PM_ScrollBarExtent) or 14
 
     def _thumb(self, image) -> QLabel:
         lbl = QLabel()
