@@ -49,6 +49,10 @@ sidebar updates as you add or remove one. (No command line needed; it is remembe
 
 **Discard All** drops every staged change.
 
+If you save a game in Neverwinter Nights while the editor is open, click **Refresh**
+(`F5`) in the toolbar to re-read the save folders and pull the new save into the list.
+Whatever you have open stays open.
+
 ## Keyboard shortcuts
 
 The toolbar actions have keys, in the same idiom as Vaultkeeper. Each is also shown
@@ -57,6 +61,7 @@ in its button's tooltip.
 | Key | Action |
 |---|---|
 | `Ctrl`+`O` | Open another save |
+| `F5` | Refresh — re-read the save folders (for a game you just saved) |
 | `Ctrl`+`E` | Enter or leave edit mode |
 | `Ctrl`+`S` | Save as a new save folder |
 | `Ctrl`+`Shift`+`S` | Overwrite this save (with a backup) |

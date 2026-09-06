@@ -34,6 +34,9 @@ explicitly choose <b>Overwrite…</b> — which keeps a timestamped backup first
 <ul>
   <li><b>Open Save…</b> — pick a save. Saves that cannot be decoded are listed but
       cannot be opened; saves in a folder you cannot write are marked read-only.</li>
+  <li><b>Refresh</b> (<code>F5</code>) — re-read the save folders after you save a
+      game in Neverwinter Nights, so the new save appears in the list. The save you
+      have open stays open.</li>
   <li><b>Strict / Free</b> — Strict holds edits to the game's rules (a skill caps
       at level + 3, current HP cannot exceed maximum, alignment stays 0–100). Free
       lifts those. Neither lets a value exceed what the field can physically hold:
