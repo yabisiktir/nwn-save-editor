@@ -196,3 +196,15 @@ def test_cloak_relocates_phenotype_worn_models():
     rep = rec.report("cloakX", "worn", Appearance(80, 20))
     dsts = {c.dst_resref for c in rep.extract.copies if c.res_type == 2002}
     assert dsts == {"pmh0_cloak_254", "pfh0_cloak_254"}  # underscore before the number
+
+
+def test_item_with_present_icon_but_missing_worn_model_is_broken():
+    # composite item (weapon/boots-like): target has the icon, but not the worn model
+    rows = {26: ("it_boots", "iit_boots", 2)}
+    src = FakeSource(rows, {(26, 53): FImg((1, 2, 3))})   # icon present in both
+    orig_res = FakeRes(models={("it_boots_b_053", 2002): b"M"},
+                       source_tex=set(), target_tex=set())
+    target_res = FakeRes(models={}, source_tex=set(), target_tex=set())  # no worn model
+    rec = IconReconciler(src, src, orig_res, target_res)
+    rep = rec.report("boots", "worn", Appearance(26, 53))
+    assert rep.broken is True  # flagged via the missing worn model, not the icon

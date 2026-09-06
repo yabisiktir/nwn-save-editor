@@ -164,8 +164,12 @@ class IconReconciler:
         # resource *presence* (no image decoding) — decoding every item's icon
         # just to classify it was the whole cost. Only broken items are decoded.
         v = ap.variant()
-        broken = (not self._target.has_specific_icon(ap.base_item, ap.model_part1, **v)
-                  and self._orig.has_specific_icon(ap.base_item, ap.model_part1, **v))
+        icon_broken = (
+            not self._target.has_specific_icon(ap.base_item, ap.model_part1, **v)
+            and self._orig.has_specific_icon(ap.base_item, ap.model_part1, **v))
+        # Also broken when the item renders an icon fine but the module lacks its
+        # worn *model* — e.g. boots whose icon is stock but whose model is custom.
+        broken = icon_broken or self._worn_broken(ap)
         if not broken:
             return ItemReport(resref, slot, ap, None, None, False)
         original = self._orig.icon_image(ap.base_item, ap.model_part1, **v)
@@ -174,6 +178,32 @@ class IconReconciler:
         self._add_match(rep)
         self._add_extract(rep)
         return rep
+
+    def _worn_broken(self, ap: Appearance) -> bool:
+        """True when the source has a worn model for this item that the target
+        module lacks — the icon can be fine while the in-world model falls back
+        (boots and weapons especially). Needs the resource stacks; skips armour
+        (its per-part breakage is handled in extract) and item types with no worn
+        model (rings, amulets — nothing to miss)."""
+        if self._orig_res is None or self._target_res is None:
+            return False
+        row = self._target.base_item_row(ap.base_item)
+        if row is None:
+            return False
+        item_class, _default, model_type = row
+        if not item_class:
+            return False
+        if model_type == _COMPOSITE:
+            m = f"{item_class}_b_{ap.model_part1:03d}"[:16].lower()
+            return self._orig_res.has(m, _MDL) and not self._target_res.has(m, _MDL)
+        if model_type in _SINGLE:
+            if item_class == "cloak":
+                got = self._orig_res.matching(
+                    rf"^p[fm][a-z][0-9]_cloak_{ap.model_part1:03d}$", _MDL)
+                return bool(got) and not any(self._target_res.has(x, _MDL) for x in got)
+            m = f"{item_class}_{ap.model_part1:03d}"[:16].lower()
+            return self._orig_res.has(m, _MDL) and not self._target_res.has(m, _MDL)
+        return False
 
     # -- closest match (single-part items only) ---------------------------- #
     def _add_match(self, rep: ItemReport) -> None:
