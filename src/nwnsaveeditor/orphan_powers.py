@@ -52,6 +52,9 @@ _TAGBASED_VARS = ("X2_SWITCH_ENABLE_TAGBASED_SCRIPTS", "X2_L_ENABLE_TAGBASED_SCR
 #: Tokens that look like a script resref, for tracing a compiled script's
 #: ``ExecuteScript("…")`` dependencies out of its bytes.
 _TOKEN = re.compile(rb"[A-Za-z0-9_]{2,16}")
+#: Captures the tag out of every ``GetTag(...)=="tag"`` in a dispatcher's source,
+#: so one pass over an ``.nss`` finds branches for *all* searched tags at once.
+_CAP_GETTAG = re.compile(rb'GetTag\s*\([^)]*\)\s*==\s*"([A-Za-z0-9_]{1,16})"', re.IGNORECASE)
 
 
 def script_name_for_tag(tag: str) -> str:
@@ -168,26 +171,30 @@ class SourceMatch:
 
 
 def _dependency_closure(
-    root_bytes: bytes, ncs_by_name: dict[str, bytes], script_name: str,
-    is_resolved: Callable[[str], bool],
+    root_bytes: bytes, get_ncs: Callable[[str], bytes | None], available: set[str],
+    script_name: str, is_resolved: Callable[[str], bool],
 ) -> dict[str, bytes]:
     """Scripts this compiled script (transitively) calls that the save lacks.
 
     A compiled ``.ncs`` embeds the resrefs it ``ExecuteScript``s as plain strings;
     we scan for resref-like tokens and keep those that name another script in the
-    same source and are not already resolvable in the target. Conservative: it may
-    miss a computed name, and it never pulls a script the save can already resolve
-    (e.g. ``prc_forcerest`` from ``prc8_scripts.hak``)."""
+    same source (``available``) and are not already resolvable in the target.
+    ``get_ncs(name)`` reads a script's bytes on demand — only the handful of real
+    dependencies are ever read, never the whole archive. Conservative: it may miss
+    a computed name, and it never pulls a script the save can already resolve (e.g.
+    ``prc_forcerest`` from ``prc8_scripts.hak``)."""
     found: dict[str, bytes] = {}
     queue = [(script_name, root_bytes)]
     seen = {script_name}
     while queue:
         _name, blob = queue.pop()
         for tok in {m.group().decode("ascii", "ignore").lower() for m in _TOKEN.finditer(blob)}:
-            if tok in seen or tok not in ncs_by_name or is_resolved(tok):
+            if tok in seen or tok not in available or is_resolved(tok):
                 continue
             seen.add(tok)
-            dep = ncs_by_name[tok]
+            dep = get_ncs(tok)
+            if dep is None:
+                continue
             found[tok] = dep
             queue.append((tok, dep))
     return found
@@ -202,15 +209,39 @@ def search_sources(
     Prefers a Tier-1 hit (a standalone compiled ``<tag>.ncs`` — copyable as-is,
     with its missing-dependency closure); falls back to a Tier-2 hit (a
     ``GetTag()=="<tag>"`` branch inside a dispatcher script, reported for preview
-    but not auto-applied). Returns a ``tier == 0`` match if nothing is found."""
+    but not auto-applied). Returns a ``tier == 0`` match if nothing is found.
+
+    A thin wrapper over :func:`search_sources_many`; prefer that when searching for
+    several tags at once — it makes a single pass over the sources."""
+    return search_sources_many(
+        [tag], sources, is_resolved=is_resolved, reader=reader)[tag]
+
+
+def search_sources_many(
+    tags: Iterable[str], sources: Iterable[Path], *,
+    is_resolved: Callable[[str], bool] | None = None, reader=None,
+) -> dict[str, SourceMatch]:
+    """Search ``sources`` for every tag's behaviour in **one pass**, returning
+    ``{tag: SourceMatch}``.
+
+    The naive shape — call :func:`search_sources` per tag — re-opens every archive
+    once per tag and, worse, eagerly reads *every* compiled script's bytes each
+    time (hundreds of MB on a real install) just to look one name up. This version
+    reads each archive's key list once (cached in ``reader``), reads a compiled
+    script's **bytes only when its name matches** (plus its dependency closure), and
+    scans each dispatcher ``.nss`` **once for all remaining tags at once** — so cost
+    is roughly constant in the number of orphans rather than linear. Per-tag
+    tier preference is unchanged: Tier 1 (any source) beats a source-only match,
+    which beats a Tier-2 branch; earliest source wins within a tier."""
     reader = reader or ErfReader()
     is_resolved = is_resolved or (lambda _n: False)
-    script = script_name_for_tag(tag)
-    branch_re = re.compile(
-        r'GetTag\s*\([^)]*\)\s*==\s*"' + re.escape(script) + r'"', re.IGNORECASE)
+    tags = list(dict.fromkeys(tags))  # de-dupe, keep order
+    scripts = {tag: script_name_for_tag(tag) for tag in tags}
 
-    tier2: SourceMatch | None = None
-    source_only: SourceMatch | None = None
+    tier1: dict[str, SourceMatch] = {}       # standalone compiled — final, stop looking
+    source_only: dict[str, SourceMatch] = {}  # only .nss found — needs compiling
+    tier2: dict[str, SourceMatch] = {}        # dispatcher branch — needs a port
+
     for src in (Path(s) for s in sources):
         if not src.exists():
             continue
@@ -218,39 +249,73 @@ def search_sources(
             resources = reader.list_resources(src)
         except Exception:  # noqa: BLE001 — unreadable archive, skip
             continue
-        ncs_by_name = {
-            r.resref.lower(): reader.read_resource_bytes(src, r)
-            for r in resources if r.res_type == _NCS}
-        nss_names = {r.resref.lower(): r for r in resources if r.res_type == _NSS}
+        ncs_index = {r.resref.lower(): r for r in resources if r.res_type == _NCS}
+        nss_index = {r.resref.lower(): r for r in resources if r.res_type == _NSS}
+        if not ncs_index and not nss_index:
+            continue
+        ncs_names = set(ncs_index)
+        _ncs_bytes: dict[str, bytes | None] = {}
 
-        if script in ncs_by_name:  # Tier 1: standalone compiled script — copy it
-            blob = ncs_by_name[script]
-            scripts = {(script, _NCS): blob}
-            for dep_name, dep_bytes in _dependency_closure(
-                    blob, ncs_by_name, script, is_resolved).items():
-                scripts[(dep_name, _NCS)] = dep_bytes
-            return SourceMatch(
-                tag=tag, script_name=script, tier=1, origin=src.name, scripts=scripts,
-                notes=[f"copied {len(scripts)} script(s) from {src.name}"])
+        def get_ncs(name: str, _src=src, _index=ncs_index, _cache=_ncs_bytes):
+            if name not in _cache:
+                res = _index.get(name)
+                _cache[name] = reader.read_resource_bytes(_src, res) if res else None
+            return _cache[name]
 
-        if script in nss_names and source_only is None:  # source only — needs compile
-            source_only = SourceMatch(
-                tag=tag, script_name=script, tier=1, origin=src.name,
-                needs_compile=True,
-                notes=[f"only source {script}.nss found in {src.name} — needs compiling"])
+        # Tier 1 / source-only: cheap index lookups; bytes read only on a name hit.
+        need_tier2: list[str] = []
+        for tag in tags:
+            if tag in tier1:
+                continue
+            script = scripts[tag]
+            if script in ncs_index:  # standalone compiled script — copy it + its deps
+                blob = get_ncs(script)
+                bundle = {(script, _NCS): blob}
+                for dep_name, dep_bytes in _dependency_closure(
+                        blob, get_ncs, ncs_names, script, is_resolved).items():
+                    bundle[(dep_name, _NCS)] = dep_bytes
+                tier1[tag] = SourceMatch(
+                    tag=tag, script_name=script, tier=1, origin=src.name, scripts=bundle,
+                    notes=[f"copied {len(bundle)} script(s) from {src.name}"])
+                continue
+            if script in nss_index and tag not in source_only:
+                source_only[tag] = SourceMatch(
+                    tag=tag, script_name=script, tier=1, origin=src.name,
+                    needs_compile=True,
+                    notes=[f"only source {script}.nss found in {src.name} — needs compiling"])
+            if tag not in tier2:
+                need_tier2.append(tag)
 
-        if tier2 is None:  # Tier 2: a dispatcher branch keyed on the tag
-            for r in nss_names.values():
-                text = reader.read_resource_bytes(src, r).decode("latin-1", "replace")
-                if branch_re.search(text):
-                    tier2 = SourceMatch(
+        # Tier 2: one sweep of this source's .nss finds branches for all pending tags.
+        if need_tier2:
+            wanted = {scripts[tag]: tag for tag in need_tier2}
+            for r in nss_index.values():
+                raw = reader.read_resource_bytes(src, r)
+                if b"gettag" not in raw.lower():
+                    continue
+                hits = {
+                    m.group(1).decode("ascii", "ignore").lower()
+                    for m in _CAP_GETTAG.finditer(raw)}
+                matched = [(s, wanted[s]) for s in hits
+                           if s in wanted and wanted[s] not in tier2]
+                if not matched:
+                    continue
+                text = raw.decode("latin-1", "replace")  # only decode a real hit
+                for script, tag in matched:
+                    branch_re = re.compile(
+                        r'GetTag\s*\([^)]*\)\s*==\s*"' + re.escape(script) + r'"',
+                        re.IGNORECASE)
+                    tier2[tag] = SourceMatch(
                         tag=tag, script_name=script, tier=2, origin=src.name,
-                        dispatcher=r.resref, branch_source=_extract_branch(text, branch_re),
+                        dispatcher=r.resref,
+                        branch_source=_extract_branch(text, branch_re),
                         notes=[f"behaviour is a branch inside {r.resref} in {src.name} "
                                "— needs a compiled port (manual review)"])
-                    break
 
-    return source_only or tier2 or SourceMatch(tag=tag, script_name=script, tier=0)
+    return {
+        tag: (tier1.get(tag) or source_only.get(tag) or tier2.get(tag)
+              or SourceMatch(tag=tag, script_name=scripts[tag], tier=0))
+        for tag in tags}
 
 
 def gather_nss_sources(paths: Iterable[Path], *, reader=None) -> dict[str, str]:

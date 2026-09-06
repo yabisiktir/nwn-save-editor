@@ -1072,15 +1072,18 @@ class SaveEditorWindow(QMainWindow):
         hak_paths = [hak_dir / f"{n}.hak" for n in session.module_hak_names()]
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
-            resolved = opw.make_resolver(save.sav_path, hak_paths)
+            from nwnfile.formats.erf_reader import ErfReader
+
+            reader = ErfReader()  # shared: caches each archive's key list across calls
+            resolved = opw.make_resolver(save.sav_path, hak_paths, reader=reader)
             orphans = opw.find_orphans(session.player_items(), resolved)
             tagbased = opw.tagbased_scripting_enabled(session.module_root())
             sources = sorted((user / "modules").glob("*.mod")) + sorted(hak_dir.glob("*.hak"))
-            matches = {}
-            for orphan in orphans:
-                if orphan.tag not in matches:
-                    matches[orphan.tag] = opw.search_sources(
-                        orphan.tag, sources, is_resolved=resolved)
+            # One pass over the sources for every orphan tag (not per-tag): the
+            # search reads a script's bytes only on a name hit, so cost is roughly
+            # constant in the orphan count instead of re-scanning 20 GB per item.
+            matches = opw.search_sources_many(
+                [o.tag for o in orphans], sources, is_resolved=resolved, reader=reader)
             compiler = script_compiler.find_compiler(self._game_root())
         finally:
             QApplication.restoreOverrideCursor()

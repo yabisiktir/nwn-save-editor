@@ -164,6 +164,52 @@ def test_search_none_when_absent(tmp_path):
     assert match.tier == 0 and not match.auto_rescuable
 
 
+# --- batched search (single pass over sources) -------------------------------
+def test_search_many_matches_per_tag_search_in_one_pass(tmp_path):
+    dispatcher = (
+        'void main(){ object o=GetItemActivated();\n'
+        '  if (GetTag(o)=="dispatchtag"){return;} }')
+    hak = _hak(tmp_path, "src", [
+        ("standalone", _NCS, b"NCS V1.0 body"),   # tier 1
+        ("srconly", _NSS, b"void main(){}"),       # source only
+        ("activateitem", _NSS, dispatcher.encode()),  # tier 2 branch for dispatchtag
+        ("other", _NCS, b"NCS V1.0"),
+    ])
+    tags = ["standalone", "srconly", "dispatchtag", "missing"]
+    many = op.search_sources_many(tags, [hak], is_resolved=lambda _n: False)
+    # every tag resolves to exactly what a per-tag search_sources would return
+    for tag in tags:
+        one = op.search_sources(tag, [hak], is_resolved=lambda _n: False)
+        assert many[tag].tier == one.tier
+        assert many[tag].dispatcher == one.dispatcher
+        assert set(many[tag].scripts) == set(one.scripts)
+    assert many["standalone"].tier == 1 and many["standalone"].auto_rescuable
+    assert many["srconly"].needs_compile
+    assert many["dispatchtag"].tier == 2 and many["dispatchtag"].dispatcher == "activateitem"
+    assert many["missing"].tier == 0
+
+
+def test_search_reads_only_the_named_script_not_every_ncs(tmp_path):
+    """Regression: the search must not read the bytes of every compiled script in a
+    source (it once read hundreds of MB per orphan). Only the matched script and its
+    dependency closure are read."""
+    hak = _hak(tmp_path, "src", [
+        ("wanted", _NCS, b"NCS V1.0 dep"),
+        ("dep", _NCS, b"NCS V1.0 leaf"),
+        ("unrelated1", _NCS, b"NCS V1.0 x" * 100),
+        ("unrelated2", _NCS, b"NCS V1.0 y" * 100),
+    ])
+    reader = ErfReader()
+    reads: list[str] = []
+    real = reader.read_resource_bytes
+    reader.read_resource_bytes = lambda path, res: (reads.append(res.resref), real(path, res))[1]
+    match = op.search_sources("wanted", [hak], is_resolved=lambda _n: False, reader=reader)
+    assert match.tier == 1
+    # "wanted" (matched) and "dep" (in its byte closure) are read; the unrelated
+    # scripts are never read — proving the search is name-indexed, not brute-force.
+    assert set(reads) == {"wanted", "dep"}
+
+
 # --- apply / manifest / removal ----------------------------------------------
 def test_apply_rescue_bundles_scripts_adds_hak_and_records_manifest(tmp_path):
     match = op.SourceMatch(
