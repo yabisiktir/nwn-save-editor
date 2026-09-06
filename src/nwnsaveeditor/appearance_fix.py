@@ -69,6 +69,7 @@ def _walk_list(reconciler, container, list_label, base_path, female, slot, out):
         if "ItemList" in it.fields:
             _walk_list(reconciler, it, "ItemList", item_path, female,
                        "in a bag", out)
+_MDL = 2002
 _EXT = {3: ".tga", 6: ".plt", 2002: ".mdl", 2005: ".txi", 2064: ".dds", 2065: ".dds"}
 #: ArmorPart_* -> its truncated x-mirror twin (the game keeps the two in step).
 _ARMOR_MIRROR = {
@@ -141,6 +142,11 @@ def apply_decisions(
                     summary.notes.append(f"{d.report.resref}: source {op.src_resref} missing")
                     ok = False
                     continue
+                # A relocated model must call itself by its new name, or the engine
+                # loads the file but can't render it (see rename_model).
+                if op.res_type == _MDL and op.dst_resref.lower() != op.src_resref.lower():
+                    from nwnfile.resource_stack import rename_model
+                    data = rename_model(data, op.dst_resref.lower())
                 dst = override_dir / f"{op.dst_resref.lower()}{_EXT.get(op.res_type, '')}"
                 override_dir.mkdir(parents=True, exist_ok=True)
                 dst.write_bytes(data)

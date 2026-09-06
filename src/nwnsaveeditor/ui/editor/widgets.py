@@ -905,16 +905,19 @@ def prompt_text(parent, title: str, label: str, current: str) -> tuple[str, bool
     return dialog.textValue(), True
 
 
-def dialog_qss() -> str:
-    """Styling for the plain Qt dialogs the editor reuses.
+def checkbox_qss() -> str:
+    """Theme-aware indicator chrome for QCheckBox / QRadioButton, rebuilt per call.
 
-    The store editor, id picker and property editors were written for the app's
-    own palette, so inside this self-themed window their inputs and tables
-    rendered dark-on-dark (and, in light mode, would render light-on-light).
+    A checkbox's tick box is drawn by the style, not painted from the label
+    colour, so a box that only sets ``QCheckBox{color:…}`` leaves the indicator
+    to the OS/Fusion palette — which rendered as a solid black square in the
+    editor's light theme (a reported "can't tell if it's ticked" checkbox). This
+    paints the unchecked/checked/hover states from tokens so the tick reads in
+    both themes; append it wherever a bare checkbox lives outside a dialog that
+    already carries :func:`dialog_qss`.
     """
     return f"""
-QDialog {{ background:{t.APP_BG}; }}
-QLabel, QCheckBox, QRadioButton, QGroupBox {{ color:{t.TEXT}; }}
+QCheckBox, QRadioButton {{ color:{t.TEXT}; }}
 QRadioButton::indicator, QCheckBox::indicator {{ width:13px; height:13px; }}
 QRadioButton::indicator {{ border-radius:7px; }}
 QCheckBox::indicator {{ border-radius:3px; }}
@@ -926,7 +929,20 @@ QRadioButton::indicator:checked, QCheckBox::indicator:checked {{
 }}
 QRadioButton::indicator:hover, QCheckBox::indicator:hover {{
     border-color:{t.gold_border(0.7)};
-}}
+}}"""
+
+
+def dialog_qss() -> str:
+    """Styling for the plain Qt dialogs the editor reuses.
+
+    The store editor, id picker and property editors were written for the app's
+    own palette, so inside this self-themed window their inputs and tables
+    rendered dark-on-dark (and, in light mode, would render light-on-light).
+    """
+    return f"""
+QDialog {{ background:{t.APP_BG}; }}
+QLabel, QGroupBox {{ color:{t.TEXT}; }}
+{checkbox_qss()}
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit, QTextEdit {{
     background:{t.INPUT_BG}; color:{t.TEXT};
     border:1px solid {t.hairline(0.22)}; border-radius:5px; padding:4px 6px;

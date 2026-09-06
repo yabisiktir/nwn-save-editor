@@ -74,6 +74,28 @@ class ResourceStack:
         return None
 
 
+def rename_model(data: bytes, new_name: str) -> bytes:
+    """Return an ``.mdl`` with its own internal model name set to ``new_name``.
+
+    A model is loaded by filename but identified/linked by the name *inside* it, so
+    relocating one to a new resref (a free appearance slot) without rewriting that
+    name leaves the file named ``wswsc_b_254`` but calling itself ``wswsc_b_112`` —
+    and the engine then fails to render it (weapons especially). Only the model's
+    *own* name is changed; a ``setsupermodel`` parent reference is left alone.
+    """
+    name = new_name.encode("latin1")[:63]
+    if data[:4] == b"\x00\x00\x00\x00":  # binary MDL: name is 64 bytes at offset 20
+        if len(data) < 84:
+            return data
+        b = bytearray(data)
+        b[20:84] = name.ljust(64, b"\x00")
+        return bytes(b)
+    # ASCII MDL: the name follows newmodel / donemodel, and is the first token of
+    # setsupermodel (whose second token, the parent, must be preserved).
+    data = re.sub(rb"(?im)^(\s*(?:newmodel|donemodel)\s+)\S+", rb"\g<1>" + name, data)
+    return re.sub(rb"(?im)^(\s*setsupermodel\s+)\S+", rb"\g<1>" + name, data)
+
+
 def model_texture_candidates(model_bytes: bytes) -> list[str]:
     """Lower-cased tokens in a model that might name a texture. Works for ASCII and
     binary models alike; non-texture tokens (node names) are harmless because the

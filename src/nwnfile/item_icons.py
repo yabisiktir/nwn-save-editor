@@ -70,8 +70,14 @@ class ItemIconSource:
         exact: bool = True,
         hak_paths: list[Path] | None = None,
         hak_reader=None,
+        override_dirs: list[Path] | None = None,
     ) -> None:
         self._reader = KeyBifReader.for_install(game_root)
+        #: loose-file folders that win over base + haks (the game's override), so
+        #: freshly-extracted icons show without rebuilding anything.
+        self._override_dirs = [
+            d for d in (override_dirs or []) if d is not None and d.is_dir()
+        ]
         #: an optional ResourceStack to read hak bytes through, sharing its one
         #: index instead of scanning every hak again for icons.
         self._hak_reader = hak_reader
@@ -463,12 +469,24 @@ class ItemIconSource:
             return None
         return colour_plt(plt, self._palettes(LAYER_PALETTES))
 
+    _RES_EXT = {_TGA_RES_TYPE: ".tga", 6: ".plt", 2064: ".dds", 2065: ".dds"}
+
     def _resource(self, resref: str, res_type: int) -> bytes | None:
-        """One resource from the base game, falling back to the haks.
+        """One resource: the override folders first (they win in-game), then the
+        base game, then the haks.
 
         The fallback covers PLT as well as TGA: a custom robe's icon is a PLT and
         exists nowhere else, so restricting this to TGA left it unreachable.
         """
+        ext = self._RES_EXT.get(res_type)
+        if ext:
+            for folder in self._override_dirs:
+                path = folder / f"{resref.lower()}{ext}"
+                try:
+                    if path.is_file():
+                        return path.read_bytes()
+                except OSError:
+                    pass
         data = self._reader.read(resref, res_type) if self._reader is not None else None
         if data is None:
             data = self._hak_bytes(resref, res_type)
@@ -543,12 +561,15 @@ def _stack(layers: list):
 
 
 @by_install
-def icon_source_for(game_root, hak_dir=None, exact=True) -> ItemIconSource:
+def icon_source_for(game_root, hak_dir=None, exact=True, override_dirs=()) -> ItemIconSource:
     """An :class:`ItemIconSource` for an install, shared between callers.
 
     Keyed on the install for the same reason the tables are: it indexes the
     game's KEY/BIF (and optionally every hak), which is far too slow to redo per
     window, and holding it anywhere else means something has to remember to
-    throw it away when the folders change.
+    throw it away when the folders change. ``override_dirs`` (a tuple, so it is
+    hashable for the cache) are loose-file folders whose icons win, so extracted
+    art shows in the inventory without a rebuild.
     """
-    return ItemIconSource(game_root, hak_dir=hak_dir, exact=exact)
+    return ItemIconSource(game_root, hak_dir=hak_dir, exact=exact,
+                          override_dirs=list(override_dirs))

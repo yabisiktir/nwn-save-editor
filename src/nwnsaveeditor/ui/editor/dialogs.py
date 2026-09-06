@@ -464,6 +464,7 @@ class SaveDialog(QDialog):
         self._backup.setChecked(True)
         self._backup.setStyleSheet(
             f"QCheckBox{{color:{t.TEXT};font-family:{t.UI_FAMILY};font-size:12.5px;}}"
+            + w.checkbox_qss()
         )
         self._backup.toggled.connect(self._sync)
         if mode == "overwrite":

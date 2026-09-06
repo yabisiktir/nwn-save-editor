@@ -220,3 +220,11 @@ def test_default_only_mode_asks_for_nothing_but_the_type_icon():
     assert source._candidates(16, 0, armor_torso=29) == ["iit_chest"]
     # And no composite layering is attempted either.
     assert source._composite_image(49, 12, {"model_part2": 11}) is None
+
+
+def test_resource_reads_override_loose_files_first(tmp_path):
+    from nwnfile.item_icons import ItemIconSource
+    (tmp_path / "iit_ring_250.tga").write_bytes(b"OVERRIDE-ICON")
+    src = ItemIconSource(None, override_dirs=[tmp_path])
+    assert src._resource("iit_ring_250", 3) == b"OVERRIDE-ICON"
+    assert src._resource("iit_ring_999", 3) is None  # absent everywhere

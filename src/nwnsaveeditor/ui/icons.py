@@ -116,13 +116,17 @@ def item_icon_source(host):
 
     ctx = getattr(host, "ctx", None)
     game_root = getattr(ctx, "game_root", None)
+    user_dir = getattr(ctx, "game_user_dir", None)
     hak_dir = None
     settings = host._settings() if hasattr(host, "_settings") else None
-    if getattr(settings, "hak_item_icons", False):
-        user_dir = getattr(ctx, "game_user_dir", None)
-        if user_dir is not None:
-            hak_dir = user_dir / "hak"
-    # Keyed on the install: it indexes the game's KEY/BIF (and every hak when
-    # the setting is on), which is much too slow to redo per window.
+    if getattr(settings, "hak_item_icons", False) and user_dir is not None:
+        hak_dir = user_dir / "hak"
+    # Override folders win, so art extracted by Fix Appearances shows immediately.
+    override = []
+    for base in (user_dir, game_root):
+        if base is not None:
+            override += [base / "override", base / "ovr"]
+    # Keyed on the install (paths): it indexes the game's KEY/BIF (and every hak
+    # when the setting is on), which is much too slow to redo per window.
     exact = getattr(settings, "exact_item_icons", True)
-    return icon_source_for(game_root, hak_dir, exact)
+    return icon_source_for(game_root, hak_dir, exact, tuple(override))
