@@ -74,26 +74,27 @@ class ResourceStack:
         return None
 
 
-def rename_model(data: bytes, new_name: str) -> bytes:
-    """Return an ``.mdl`` with its own internal model name set to ``new_name``.
+def rename_model(data: bytes, old_name: str, new_name: str) -> bytes:
+    """Return an ``.mdl`` with its own model name changed from ``old_name`` to
+    ``new_name``.
 
     A model is loaded by filename but identified/linked by the name *inside* it, so
     relocating one to a new resref (a free appearance slot) without rewriting that
-    name leaves the file named ``wswsc_b_254`` but calling itself ``wswsc_b_112`` —
-    and the engine then fails to render it (weapons especially). Only the model's
-    *own* name is changed; a ``setsupermodel`` parent reference is left alone.
+    name leaves the file named ``pmh0_robe254`` but still calling itself
+    ``pmh0_robe171`` — and the engine mis-loads it. The name appears in several
+    places (ASCII: ``newmodel`` / ``beginmodelgeom`` / ``endmodelgeom`` /
+    ``donemodel`` / the first token of ``setsupermodel``; binary: a fixed name
+    field). Because only the trailing 3-digit number changes, the old and new
+    names are the **same length**, so replacing every occurrence of the exact old
+    name preserves the file layout and byte offsets — safe for ASCII and binary
+    alike, and it catches every self-reference. A supermodel *parent* is a
+    different string and is untouched.
     """
-    name = new_name.encode("latin1")[:63]
-    if data[:4] == b"\x00\x00\x00\x00":  # binary MDL: name is 64 bytes at offset 20
-        if len(data) < 84:
-            return data
-        b = bytearray(data)
-        b[20:84] = name.ljust(64, b"\x00")
-        return bytes(b)
-    # ASCII MDL: the name follows newmodel / donemodel, and is the first token of
-    # setsupermodel (whose second token, the parent, must be preserved).
-    data = re.sub(rb"(?im)^(\s*(?:newmodel|donemodel)\s+)\S+", rb"\g<1>" + name, data)
-    return re.sub(rb"(?im)^(\s*setsupermodel\s+)\S+", rb"\g<1>" + name, data)
+    old = old_name.encode("latin1")
+    new = new_name.encode("latin1")
+    if len(old) != len(new) or old == new:
+        return data  # can't safely resize; leave it rather than corrupt offsets
+    return data.replace(old, new)
 
 
 def model_texture_candidates(model_bytes: bytes) -> list[str]:

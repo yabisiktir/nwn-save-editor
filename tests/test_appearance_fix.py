@@ -164,7 +164,8 @@ def test_extract_rewrites_a_relocated_models_internal_name(tmp_path):
     from nwnfile.icon_reconcile import CopyOp, ExtractPlan, FieldSet
     ed = FakeEditor()
     # a binary .mdl whose internal name (64 bytes at offset 20) is the old resref
-    binary = b"\x00\x00\x00\x00" + b"\x00" * 16 + b"wswsc_b_112".ljust(64, b"\x00") + b"REST"
+    binary = (b"\x00\x00\x00\x00" + b"\x00" * 16 + b"wswsc_b_112".ljust(64, b"\x00")
+              + b"and again wswsc_b_112 here")  # name appears twice
     plan = ExtractPlan(254, [CopyOp("wswsc_b_112", 2002, "wswsc_b_254")],
                        [FieldSet("ModelPart1", 254)])
     src = FakeSource({("wswsc_b_112", 2002): binary})
@@ -172,3 +173,5 @@ def test_extract_rewrites_a_relocated_models_internal_name(tmp_path):
                     tmp_path)
     written = (tmp_path / "wswsc_b_254.mdl").read_bytes()
     assert written[20:84].split(b"\x00")[0] == b"wswsc_b_254"  # renamed to match the file
+    assert b"wswsc_b_112" not in written  # every occurrence rewritten
+    assert len(written) == len(binary)  # same length, offsets preserved

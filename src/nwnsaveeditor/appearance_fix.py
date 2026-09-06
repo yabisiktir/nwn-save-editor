@@ -146,7 +146,7 @@ def apply_decisions(
                 # loads the file but can't render it (see rename_model).
                 if op.res_type == _MDL and op.dst_resref.lower() != op.src_resref.lower():
                     from nwnfile.resource_stack import rename_model
-                    data = rename_model(data, op.dst_resref.lower())
+                    data = rename_model(data, op.src_resref.lower(), op.dst_resref.lower())
                 dst = override_dir / f"{op.dst_resref.lower()}{_EXT.get(op.res_type, '')}"
                 override_dir.mkdir(parents=True, exist_ok=True)
                 dst.write_bytes(data)
