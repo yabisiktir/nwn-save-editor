@@ -1028,6 +1028,110 @@ class SaveEditorWindow(QMainWindow):
         hak_dir = self._hak_dir()
         return bool(hak_dir is not None and hak_manifest(hak_dir))
 
+    def rescue_powers(self) -> None:
+        """Wizard: make an orphaned item's scripted power work in this save.
+
+        A "Unique Power"/"Activate Item" property does nothing unless the module
+        has a script named after the item's tag. For gear carried in from another
+        campaign that script is missing. This scans the player's items for such
+        orphans, searches the installed modules/haks for the behaviour, and — for
+        the clean case (a standalone compiled script) — bundles it into a per-save
+        hak added to this save's ``Mod_HakList`` (reversible, original untouched),
+        exactly like :meth:`fix_appearances`. See :mod:`nwnsaveeditor.orphan_powers`.
+        """
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QApplication
+
+        from nwnsaveeditor import orphan_powers as opw
+        from nwnsaveeditor.appearance_fix import hak_name_for
+        from nwnsaveeditor.ui.dialogs.rescue_power_dialog import RescuePowerDialog
+
+        session, save = self.session(), self.save
+        if session is None or save is None:
+            return
+        if not self._editing:
+            w.message(self, QMessageBox.Icon.Information, "Turn on Edit mode",
+                      "Switch on Edit mode first, then run Rescue item powers.",
+                      QMessageBox.StandardButton.Ok)
+            return
+        hak_dir = self._hak_dir()
+        user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
+        if hak_dir is None or user is None:
+            w.message(self, QMessageBox.Icon.Warning, "No user folder",
+                      "Can't find your Neverwinter Nights user folder to search for "
+                      "scripts and write the rescue hak.", QMessageBox.StandardButton.Ok)
+            return
+
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            hak_paths = [hak_dir / f"{n}.hak" for n in session.module_hak_names()]
+            resolved = opw.make_resolver(save.sav_path, hak_paths)
+            orphans = opw.find_orphans(session.player_items(), resolved)
+            tagbased = opw.tagbased_scripting_enabled(session.module_root())
+            sources = sorted((user / "modules").glob("*.mod")) + sorted(hak_dir.glob("*.hak"))
+            matches = {}
+            for orphan in orphans:
+                if orphan.tag not in matches:
+                    matches[orphan.tag] = opw.search_sources(
+                        orphan.tag, sources, is_resolved=resolved)
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        if not orphans:
+            w.message(self, QMessageBox.Icon.Information, "Nothing to rescue",
+                      "No item on this character has a scripted power that is "
+                      "missing its script in this save.", QMessageBox.StandardButton.Ok)
+            return
+
+        dialog = RescuePowerDialog(orphans, matches, tagbased=tagbased, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        chosen = [matches[tag] for tag in dialog.selected_tags()]
+        if not chosen:
+            return
+        summary = opw.apply_rescue(
+            session, chosen, hak_dir, hak_name=hak_name_for(session.source_name))
+        self.notify_changed()
+        w.message(self, QMessageBox.Icon.Information, "Powers rescued",
+                  f"Bundled {summary.scripts} script(s) for {summary.powers} "
+                  "power(s) into a hak and added it to this save's hak list. Save "
+                  "the game to keep it, then activate the item in-game to use the "
+                  "power. If it doesn't fire, the script may rely on content from "
+                  "its home module that this one lacks.",
+                  QMessageBox.StandardButton.Ok)
+
+    def remove_rescued_powers(self) -> None:
+        """Delete the rescue hak(s) a previous Rescue added (per its manifest)."""
+        from nwnsaveeditor.orphan_powers import hak_manifest, remove_haks
+
+        hak_dir = self._hak_dir()
+        files = hak_manifest(hak_dir) if hak_dir is not None else []
+        if not files:
+            w.message(self, QMessageBox.Icon.Information, "Nothing to remove",
+                      "No rescue hak from this editor was found.",
+                      QMessageBox.StandardButton.Ok)
+            return
+        if w.message(
+            self, QMessageBox.Icon.Question, "Remove rescued powers?",
+            f"Delete the {len(files)} rescue hak(s) this editor created in your hak "
+            "folder? Saves that use them lose the rescued power again until "
+            "re-rescued. Your saves are not otherwise changed.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        ) != QMessageBox.StandardButton.Yes:
+            return
+        removed = remove_haks(hak_dir)
+        self.notify_changed()
+        w.message(self, QMessageBox.Icon.Information, "Removed",
+                  f"Deleted {removed} hak file(s).", QMessageBox.StandardButton.Ok)
+
+    def has_rescue_hak(self) -> bool:
+        """Whether a previous Rescue left a hak to remove."""
+        from nwnsaveeditor.orphan_powers import hak_manifest
+
+        hak_dir = self._hak_dir()
+        return bool(hak_dir is not None and hak_manifest(hak_dir))
+
     def notify_changed(self) -> None:
         """A screen staged an edit: refresh the footer, the dots and the screens."""
         self._char_edit_token += 1  # invalidate the cached character summary

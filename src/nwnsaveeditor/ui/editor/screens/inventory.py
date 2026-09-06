@@ -180,6 +180,17 @@ class InventoryScreen(QWidget):
                 undo.setToolTip("Delete the art a previous Extract added to override.")
                 undo.clicked.connect(self._window.remove_appearance_hak)
                 equip_header.addWidget(undo)
+            rescue = w.gold_button("Rescue item powers…")
+            rescue.setToolTip(
+                "Make a carried item's scripted power (a “Unique Power” brought in "
+                "from another campaign) work in this save.")
+            rescue.clicked.connect(self._window.rescue_powers)
+            equip_header.addWidget(rescue)
+            if self._window.has_rescue_hak():
+                undo_p = w.ghost_button("Remove rescued powers…")
+                undo_p.setToolTip("Delete the script hak a previous Rescue added.")
+                undo_p.clicked.connect(self._window.remove_rescued_powers)
+                equip_header.addWidget(undo_p)
         column.addLayout(equip_header)
         column.addWidget(self._build_paperdoll(equipped), 0, Qt.AlignmentFlag.AlignLeft)
         # Read once: a character can have natural weapons recorded and none of
