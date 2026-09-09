@@ -999,6 +999,54 @@ def message(parent, icon, title: str, text: str, buttons, *, default=None):
     return box.exec()
 
 
+def run_blocking(fn):
+    """Run a slow, **Qt-free** callable off the GUI thread and return its result,
+    keeping the event loop alive so the window stays responsive (draggable, painting,
+    not "Application not responding").
+
+    The rescue's heavy steps — scanning 20 GB of haks, and compiling a Tier-2 branch
+    with ``nwnsc`` through wine (~8 s each) — otherwise block the GUI thread for
+    seconds. This offloads them to a worker ``QThread`` and spins a local
+    ``QEventLoop`` until it finishes, so long work no longer freezes the UI.
+
+    ``fn`` runs on the worker thread and **must not touch any QWidget or other GUI
+    object** (widgets are not thread-safe); it may read plain data and hit the disk /
+    subprocesses. Callers that leave the window interactive during the wait should
+    disable it first (a modal dialog already blocks its parent). Any exception ``fn``
+    raises is re-raised here, on the GUI thread.
+    """
+    from PySide6.QtCore import QEventLoop, QObject, QThread, Signal
+
+    holder: dict = {}
+
+    class _Worker(QObject):
+        done = Signal()
+
+        def run(self):
+            try:
+                holder["result"] = fn()
+            except BaseException as exc:  # noqa: BLE001 — marshalled to the GUI thread
+                holder["error"] = exc
+            finally:
+                self.done.emit()
+
+    thread = QThread()
+    worker = _Worker()
+    worker.moveToThread(thread)
+    thread.started.connect(worker.run)
+    loop = QEventLoop()
+    worker.done.connect(loop.quit)
+    thread.start()
+    loop.exec()  # GUI events keep flowing here while the worker runs
+    thread.quit()
+    thread.wait()
+    worker.deleteLater()
+    thread.deleteLater()
+    if "error" in holder:
+        raise holder["error"]
+    return holder.get("result")
+
+
 #: Widgets taken out of the UI but not yet destroyed. See :func:`retire`.
 _RETIRED: list = []
 

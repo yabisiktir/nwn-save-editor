@@ -305,3 +305,32 @@ def test_eliding_label_truncates_and_does_not_force_its_width(qtbot):
 
     label.setText("A different, also quite long, save name here")
     assert label.toolTip() == "A different, also quite long, save name here"
+
+
+def test_run_blocking_keeps_the_event_loop_alive_and_returns(qtbot):
+    """The rescue's slow steps run through ``run_blocking``; it must keep the GUI
+    thread processing events (so the window doesn't freeze) and return the result."""
+    import time
+
+    from PySide6.QtCore import QTimer
+
+    ticks = [0]
+    timer = QTimer()
+    timer.setInterval(15)
+    timer.timeout.connect(lambda: ticks.__setitem__(0, ticks[0] + 1))
+    timer.start()
+
+    result = w.run_blocking(lambda: (time.sleep(0.3), "done")[1])
+    timer.stop()
+
+    assert result == "done"
+    assert ticks[0] > 0, "event loop was frozen during the blocking call"
+
+
+def test_run_blocking_reraises_the_workers_exception(qtbot):
+    """An error in the worker must surface on the GUI thread, not vanish."""
+    def boom():
+        raise ValueError("kaboom")
+
+    with pytest.raises(ValueError, match="kaboom"):
+        w.run_blocking(boom)

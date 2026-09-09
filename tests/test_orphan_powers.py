@@ -284,6 +284,69 @@ def test_dialog_offers_compile_for_tier2_when_a_compiler_exists(qtbot):
     assert dlg.selected_compile_tags() == ["robesofsesustris"]  # compile ticked by default
 
 
+def test_dialog_runs_rescue_inline_and_reports_in_place(qtbot):
+    """Clicking 'Rescue selected' with host callbacks runs the rescue in the same
+    window (per-power progress) instead of closing — no separate report box."""
+    from nwnsaveeditor.ui.dialogs.rescue_power_dialog import RescuePowerDialog
+
+    m2 = op.SourceMatch(tag="branchtag", script_name="branchtag", tier=2,
+                        origin="sof.mod", dispatcher="activateitem3",
+                        branch_source="PRCForceRest(oPC);")
+    calls = {"compiled": [], "finalized": []}
+
+    def compile_power(tag):
+        calls["compiled"].append(tag)
+        return True, "compiled", _tier1(tag)  # pretend the port succeeded
+
+    def finalize(chosen, failures):
+        calls["finalized"].append((tuple(m.tag for m in chosen), tuple(failures)))
+        return True, "Powers rescued", "Bundled 2 script(s)."
+
+    dlg = RescuePowerDialog(
+        [_orphan("robesofsesustris"), _orphan("branchtag")],
+        {"robesofsesustris": _tier1("robesofsesustris"), "branchtag": m2},
+        tagbased=True, can_compile=True, compile_power=compile_power, finalize=finalize)
+    qtbot.addWidget(dlg)
+    dlg.show()
+
+    dlg._start_apply()  # same as clicking "Rescue selected"
+
+    assert calls["compiled"] == ["branchtag"]              # the Tier-2 pick was compiled
+    chosen_tags, failures = calls["finalized"][0]
+    assert set(chosen_tags) == {"robesofsesustris", "branchtag"}  # copy + ported
+    assert failures == ()
+    assert dlg.isVisible()  # dialog stayed open to show the result, did not close
+
+
+def test_dialog_inline_rescue_marks_a_failed_compile(qtbot):
+    """A compile that fails is shown as a failure and passed on to finalize; a
+    successful copy alongside it still goes through."""
+    from nwnsaveeditor.ui.dialogs.rescue_power_dialog import RescuePowerDialog
+
+    m2 = op.SourceMatch(tag="badtag", script_name="badtag", tier=2, origin="sof.mod",
+                        dispatcher="d", branch_source="x")
+    seen = {}
+
+    def compile_power(tag):
+        return False, "missing helper", None
+
+    def finalize(chosen, failures):
+        seen["chosen"] = [m.tag for m in chosen]
+        seen["failures"] = list(failures)
+        return False, "Couldn't rescue", "No power could be ported."
+
+    dlg = RescuePowerDialog(
+        [_orphan("okitem"), _orphan("badtag")],
+        {"okitem": _tier1("okitem"), "badtag": m2},
+        tagbased=True, can_compile=True, compile_power=compile_power, finalize=finalize)
+    qtbot.addWidget(dlg)
+    dlg.show()
+    dlg._start_apply()
+
+    assert seen["chosen"] == ["okitem"]                       # copy survived
+    assert seen["failures"] == ["badtag: missing helper"]      # compile failure recorded
+
+
 def test_dialog_disables_rescue_without_tagbased(qtbot):
     from PySide6.QtWidgets import QDialogButtonBox
 

@@ -1070,23 +1070,36 @@ class SaveEditorWindow(QMainWindow):
         from nwnsaveeditor import script_compiler
 
         hak_paths = [hak_dir / f"{n}.hak" for n in session.module_hak_names()]
-        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
-        try:
+
+        def scan():
+            """The read-only scan (no widget/session-writing work). Runs off the GUI
+            thread via ``run_blocking`` so the window doesn't freeze while it reads."""
             from nwnfile.formats.erf_reader import ErfReader
 
             reader = ErfReader()  # shared: caches each archive's key list across calls
             resolved = opw.make_resolver(save.sav_path, hak_paths, reader=reader)
             orphans = opw.find_orphans(session.player_items(), resolved)
             tagbased = opw.tagbased_scripting_enabled(session.module_root())
-            sources = sorted((user / "modules").glob("*.mod")) + sorted(hak_dir.glob("*.hak"))
+            sources = (sorted((user / "modules").glob("*.mod"))
+                       + sorted(hak_dir.glob("*.hak")))
             # One pass over the sources for every orphan tag (not per-tag): the
             # search reads a script's bytes only on a name hit, so cost is roughly
             # constant in the orphan count instead of re-scanning 20 GB per item.
             matches = opw.search_sources_many(
                 [o.tag for o in orphans], sources, is_resolved=resolved, reader=reader)
             compiler = script_compiler.find_compiler(self._game_root())
+            return orphans, tagbased, matches, compiler
+
+        # Disable input while the scan runs on the worker thread: run_blocking keeps
+        # the event loop alive (so the window stays responsive), and disabling stops
+        # a stray click from re-entering or touching the shared session mid-scan.
+        self.setEnabled(False)
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            orphans, tagbased, matches, compiler = w.run_blocking(scan)
         finally:
             QApplication.restoreOverrideCursor()
+            self.setEnabled(True)
 
         if not orphans:
             w.message(self, QMessageBox.Icon.Information, "Nothing to rescue",
@@ -1094,38 +1107,38 @@ class SaveEditorWindow(QMainWindow):
                       "missing its script in this save.", QMessageBox.StandardButton.Ok)
             return
 
+        # Compile against every hak, not just the save's runtime Mod_HakList: PRC's
+        # include hak (prc8_include.hak, source of prc_inc_util) is a build-time hak
+        # modules don't load at runtime. Globbed lazily — only a compile needs it.
+        _all_haks: list = []
+
+        def compile_power(tag):
+            """Port one Tier-2 pick to a compiled tag-script. The slow step (nwnsc);
+            the dialog runs it per power and shows progress rather than freezing."""
+            if not _all_haks:  # cache across powers within this run
+                _all_haks.extend(sorted(hak_dir.glob("*.hak")))
+            ported, err = self._compile_tier2(
+                matches[tag], user / "modules", _all_haks, compiler)
+            return (True, "compiled", ported) if ported is not None else (False, err, None)
+
+        def finalize(chosen, failures):
+            """Bundle the ready powers into the save's rescue hak and report. Runs
+            after every per-power step, so the write happens with results on screen."""
+            summary = None
+            if chosen:
+                summary = opw.apply_rescue(
+                    session, chosen, hak_dir,
+                    hak_name=hak_name_for(session.source_name))
+                self.notify_changed()
+            return self._rescue_report(summary, failures)
+
         dialog = RescuePowerDialog(orphans, matches, tagbased=tagbased,
-                                   can_compile=compiler is not None, parent=self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        chosen = [matches[tag] for tag in dialog.selected_tags()]
-        failures: list[str] = []
-        compile_tags = dialog.selected_compile_tags()
-        if compile_tags and compiler is not None:
-            # Compile against every hak, not just the save's runtime Mod_HakList:
-            # PRC's include hak (prc8_include.hak, source of prc_inc_util) is a
-            # build-time hak modules don't load at runtime.
-            all_haks = sorted(hak_dir.glob("*.hak"))
-            QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
-            try:
-                for tag in compile_tags:
-                    ported, err = self._compile_tier2(
-                        matches[tag], user / "modules", all_haks, compiler)
-                    if ported is not None:
-                        chosen.append(ported)
-                    else:
-                        failures.append(f"{matches[tag].tag}: {err}")
-            finally:
-                QApplication.restoreOverrideCursor()
-
-        summary = None
-        if chosen:
-            summary = opw.apply_rescue(
-                session, chosen, hak_dir, hak_name=hak_name_for(session.source_name))
-            self.notify_changed()
-
-        self._report_rescue(summary, failures)
+                                   can_compile=compiler is not None,
+                                   compile_power=compile_power, finalize=finalize,
+                                   parent=self)
+        # The dialog now drives the apply itself (inline progress + result), so its
+        # return code carries no extra work for us — every side effect ran in-dialog.
+        dialog.exec()
 
     def _compile_tier2(self, match, modules_dir, hak_paths, compiler):
         """Port a Tier-2 dispatcher branch into a compiled tag-script, or report why
@@ -1150,7 +1163,13 @@ class SaveEditorWindow(QMainWindow):
                 return line.split("Error:", 1)[1].strip()
         return "the branch could not be compiled (it may rely on the dispatcher's own helpers)"
 
-    def _report_rescue(self, summary, failures: list[str]) -> None:
+    @staticmethod
+    def _rescue_report(summary, failures: list[str]) -> tuple[bool, str, str]:
+        """The outcome to show once the rescue finishes: ``(ok, title, body)``.
+
+        Returned to the dialog, which renders it inline where the wizard was — so
+        the window stays put and reports in place instead of popping a message box
+        after a blank pause."""
         if summary is not None and summary.powers:
             text = (f"Bundled {summary.scripts} script(s) for {summary.powers} "
                     "power(s) into a hak and added it to this save's hak list. Save "
@@ -1159,12 +1178,11 @@ class SaveEditorWindow(QMainWindow):
                     "its home module that this one lacks.")
             if failures:
                 text += "\n\nCould not port:\n• " + "\n• ".join(failures)
-            w.message(self, QMessageBox.Icon.Information, "Powers rescued", text,
-                      QMessageBox.StandardButton.Ok)
-        elif failures:
-            w.message(self, QMessageBox.Icon.Warning, "Couldn't rescue",
-                      "No power could be ported:\n• " + "\n• ".join(failures),
-                      QMessageBox.StandardButton.Ok)
+            return True, "Powers rescued", text
+        if failures:
+            return (False, "Couldn't rescue",
+                    "No power could be ported:\n• " + "\n• ".join(failures))
+        return False, "Nothing rescued", "No power was rescued."
 
     def remove_rescued_powers(self) -> None:
         """Delete the rescue hak(s) a previous Rescue added (per its manifest)."""
