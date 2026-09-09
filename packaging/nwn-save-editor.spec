@@ -15,6 +15,7 @@ Two things here are not boilerplate:
   a 3D stack; left in, they roughly triple the download for no benefit.
 """
 
+import sys
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
@@ -28,6 +29,16 @@ datas = [
     # The application icon, found via sys._MEIPASS by ui/editor/appicon.py.
     (str(ROOT / "assets" / "icons"), "assets/icons"),
 ]
+
+# A native nwnsc bundled under tools/<os>/ (see script_compiler._find_bundled_nwnsc)
+# is shipped when present, so the Tier-2 port compiles with no wine and no install.
+# Optional and OS-specific, so the tree is not always there — include it only when a
+# binary for this platform exists. (datas drops the exec bit; the app re-adds it.)
+_bundled_nwnsc = ROOT / "tools" / (
+    "windows" if sys.platform.startswith("win")
+    else "macos" if sys.platform == "darwin" else "linux")
+if _bundled_nwnsc.is_dir() and any(_bundled_nwnsc.glob("nwnsc*")):
+    datas.append((str(_bundled_nwnsc), f"tools/{_bundled_nwnsc.name}"))
 
 hiddenimports = [
     # Screens are imported lazily by name, so static analysis cannot see them.

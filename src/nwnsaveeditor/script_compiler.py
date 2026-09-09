@@ -9,9 +9,14 @@ Discovery order (first hit wins):
 
 1. ``VK_NWNSC`` — an explicit path to a compiler executable (``.exe`` or native);
 2. a native ``nwnsc`` / ``nwn_script_comp`` on ``PATH``;
-3. on macOS, a Windows ``nwnsc.exe`` run through **CrossOver**'s bundled wine in a
-   64-bit bottle (``VK_CX_BOTTLE``, default ``Steam``) — the setup verified on this
-   developer's machine.
+3. a **native ``nwnsc`` bundled with the app** under ``tools/<os>/`` (``macos`` /
+   ``linux`` / ``windows``) — shipped so the Tier-2 port works out of the box, with
+   no wine and nothing to install (a cross-platform build, e.g. nwneetools/nwnsc);
+4. on macOS, a Windows ``nwnsc.exe`` run through **CrossOver**'s bundled wine in a
+   64-bit bottle (``VK_CX_BOTTLE``, default ``Steam``) — the slow last resort.
+
+A native compiler (1–3) is far faster than the wine path (4): wine pays a multi-
+second cold start on *every* invocation, and the port recompiles several times.
 
 The base-game include/engine definitions come from the NWN install passed as
 ``game_root`` (nwnsc ``-n``); module/hak includes are supplied per-compile by the
@@ -20,9 +25,11 @@ raises on a missing tool — it just reports it can't compile.
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import weakref
 from dataclasses import dataclass, field
@@ -36,6 +43,10 @@ def _rmtrees(dirs: list) -> None:
 
 
 _NWNSC_NAMES = ("nwnsc", "nwn_script_comp")
+#: Per-OS subdir + binary name of a bundled native nwnsc (see _find_bundled_nwnsc).
+_BUNDLED_OS = "windows" if sys.platform.startswith("win") else (
+    "macos" if sys.platform == "darwin" else "linux")
+_BUNDLED_NWNSC = "nwnsc.exe" if sys.platform.startswith("win") else "nwnsc"
 _CROSSOVER_WINE = (
     "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/"
     "CrossOver-Hosted Application/wine")
@@ -151,6 +162,10 @@ def find_compiler(game_root: Path | None = None) -> Compiler | None:
         if found:
             return Compiler(Path(found), game_root, [], {}, wine=False)
 
+    bundled = _find_bundled_nwnsc()
+    if bundled is not None:
+        return Compiler(bundled, game_root, [], {}, wine=False)
+
     wine = _crossover_wine()
     if wine is not None:
         exe = _find_nwnsc_exe()
@@ -164,6 +179,58 @@ def find_compiler(game_root: Path | None = None) -> Compiler | None:
 def _crossover_wine() -> Path | None:
     path = Path(_CROSSOVER_WINE)
     return path if path.is_file() else None
+
+
+#: Runnable copies staged from a read-only bundle, cached by source path.
+_STAGED_EXE: dict[str, Path] = {}
+
+
+def _bundled_tool_roots() -> list[Path]:
+    """Where a bundled ``tools/`` tree may live: next to a frozen binary
+    (``sys._MEIPASS``) and in the source checkout (repo-root ``tools/``)."""
+    roots: list[Path] = []
+    frozen = getattr(sys, "_MEIPASS", None)
+    if frozen:
+        roots.append(Path(frozen) / "tools")
+    # src/nwnsaveeditor/script_compiler.py -> parents[2] is the repo root.
+    roots.append(Path(__file__).resolve().parents[2] / "tools")
+    return roots
+
+
+def _find_bundled_nwnsc() -> Path | None:
+    """A native ``nwnsc`` shipped under ``tools/<os>/``, made runnable, or ``None``.
+
+    Absent by default (the binary is OS-specific and not committed); a build/dev that
+    drops one in is picked up here so the compiler works with no wine and no install."""
+    for root in _bundled_tool_roots():
+        candidate = root / _BUNDLED_OS / _BUNDLED_NWNSC
+        if candidate.is_file():
+            return _ensure_executable(candidate)
+    return None
+
+
+def _ensure_executable(path: Path) -> Path:
+    """``path`` made runnable. PyInstaller ships ``datas`` without the exec bit, so
+    add it; if the location is read-only (a signed ``.app``), stage a runnable copy
+    in a temp dir (cached) and return that."""
+    if os.access(path, os.X_OK):
+        return path
+    try:
+        path.chmod(path.stat().st_mode | 0o111)
+        if os.access(path, os.X_OK):
+            return path
+    except OSError:
+        pass
+    cached = _STAGED_EXE.get(str(path))
+    if cached is not None and cached.is_file() and os.access(cached, os.X_OK):
+        return cached
+    staged_dir = Path(tempfile.mkdtemp(prefix="vk_nwnsc_"))
+    dest = staged_dir / path.name
+    shutil.copy2(path, dest)
+    with contextlib.suppress(OSError):
+        dest.chmod(dest.stat().st_mode | 0o111)
+    _STAGED_EXE[str(path)] = dest
+    return dest
 
 
 def _find_nwnsc_exe() -> Path | None:
