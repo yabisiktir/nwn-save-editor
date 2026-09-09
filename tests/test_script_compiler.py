@@ -7,10 +7,18 @@ from __future__ import annotations
 
 import gc
 import os
+import sys
 from pathlib import Path
+
+import pytest
 
 from nwnsaveeditor import script_compiler as sc
 from nwnsaveeditor.script_compiler import Compiler
+
+#: The exec bit is a POSIX concept; on Windows os.access(_, X_OK) is always true,
+#: so the "make it executable" behaviour (and its precondition) only applies there.
+_posix_only = pytest.mark.skipif(
+    sys.platform.startswith("win"), reason="POSIX exec bit; Windows has no exec permission")
 
 
 def _place_bundled_nwnsc(tmp_path: Path) -> Path:
@@ -93,6 +101,7 @@ def test_find_compiler_prefers_a_bundled_native_over_wine(tmp_path, monkeypatch)
     assert comp.exe.name == sc._BUNDLED_NWNSC
 
 
+@_posix_only
 def test_ensure_executable_adds_the_exec_bit_in_place(tmp_path):
     exe = tmp_path / "nwnsc"
     exe.write_text("#!/bin/sh\ntrue\n")
