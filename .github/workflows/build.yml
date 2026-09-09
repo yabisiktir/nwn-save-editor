@@ -93,6 +93,51 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e . pyinstaller
 
+      # Bundle a native nwnsc (nwneetools/nwnsc) into tools/<os>/ so the frozen app
+      # can compile a Tier-2 "Rescue item powers" port with no wine and nothing for
+      # the user to install. The spec bundles tools/<os>/ only when the binary is
+      # present (script_compiler._find_bundled_nwnsc finds it at runtime). Pinned by
+      # version + SHA-256 so a re-uploaded asset can't slip in unnoticed; the download
+      # feeds the frozen artifact, so a failure here should fail the build.
+      - name: Bundle native nwnsc (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          NWNSC_VERSION: v1.1.5
+        run: |
+          set -euo pipefail
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            asset="nwnsc-mac-${NWNSC_VERSION}.zip"; dir="macos"
+            sha="0296b212b508f5a19ef7cc7a80a933c6ae84ab9f7f2975b2d9b7023737442ecf"
+          else
+            asset="nwnsc-linux-${NWNSC_VERSION}.zip"; dir="linux"
+            sha="8f706cfde89368c2abbb340797d7a033a855660fbf59b57551b51c0c421f11f6"
+          fi
+          url="https://github.com/nwneetools/nwnsc/releases/download/${NWNSC_VERSION}/${asset}"
+          curl -sSfL --retry 3 -o nwnsc.zip "$url"
+          got="$(python -c 'import hashlib;print(hashlib.sha256(open("nwnsc.zip","rb").read()).hexdigest())')"
+          [ "$got" = "$sha" ] || { echo "nwnsc checksum mismatch: $got != $sha"; exit 1; }
+          mkdir -p "tools/${dir}"
+          unzip -o nwnsc.zip -d "tools/${dir}"
+          chmod +x "tools/${dir}/nwnsc"
+          python -c "from nwnsaveeditor.script_compiler import _find_bundled_nwnsc as f; assert f(), 'bundled nwnsc not discovered'"
+
+      - name: Bundle native nwnsc (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          NWNSC_VERSION: v1.1.5
+        run: |
+          $asset = "nwnsc-win-$env:NWNSC_VERSION.zip"
+          $sha = "682f6de6fad80ba4a662a4f223848c4f2bfa7ea0391530722ec5015f03940818"
+          $url = "https://github.com/nwneetools/nwnsc/releases/download/$env:NWNSC_VERSION/$asset"
+          Invoke-WebRequest -Uri $url -OutFile nwnsc.zip
+          $got = (Get-FileHash nwnsc.zip -Algorithm SHA256).Hash.ToLower()
+          if ($got -ne $sha) { Write-Error "nwnsc checksum mismatch: $got != $sha"; exit 1 }
+          New-Item -ItemType Directory -Force -Path tools/windows | Out-Null
+          Expand-Archive -Path nwnsc.zip -DestinationPath tools/windows -Force
+          python -c "from nwnsaveeditor.script_compiler import _find_bundled_nwnsc as f; assert f(), 'bundled nwnsc not discovered'"
+
       - name: Build
         run: python scripts/build_app.py --clean
 

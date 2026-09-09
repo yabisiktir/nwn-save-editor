@@ -39,6 +39,10 @@ _bundled_nwnsc = ROOT / "tools" / (
     else "macos" if sys.platform == "darwin" else "linux")
 if _bundled_nwnsc.is_dir() and any(_bundled_nwnsc.glob("nwnsc*")):
     datas.append((str(_bundled_nwnsc), f"tools/{_bundled_nwnsc.name}"))
+    # nwnsc is MIT/BSD-3 — ship its licence beside the binary we redistribute.
+    _nwnsc_license = ROOT / "tools" / "NWNSC-LICENSE.txt"
+    if _nwnsc_license.is_file():
+        datas.append((str(_nwnsc_license), "tools"))
 
 hiddenimports = [
     # Screens are imported lazily by name, so static analysis cannot see them.

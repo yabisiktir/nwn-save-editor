@@ -31,5 +31,14 @@ staged in a temp dir.
 
 `packaging/nwn-save-editor.spec` bundles `tools/<os>/` into the frozen app **only
 when a binary for that OS is present**, so an empty tree is harmless. Binaries are
-OS-specific and sizable — commit them deliberately (or fetch them in the build), not
-by accident.
+OS-specific and sizable — they are **not committed**; the release pipeline fetches
+the pinned `nwneetools/nwnsc` build (verified by SHA-256) into `tools/<os>/` before
+freezing (see `.github/workflows/build.yml`). Bump the version + hashes there.
+
+## Licence / attribution
+
+`nwnsc` is distributed under the **MIT licence** (with BSD-3-Clause for its
+`_NscLib` component), which permits redistributing the binary provided its licence
+and copyright notice travel with it. The verbatim text is in
+[`NWNSC-LICENSE.txt`](./NWNSC-LICENSE.txt); the spec ships it beside the bundled
+binary so every packaged app carries the attribution.
