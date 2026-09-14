@@ -190,7 +190,9 @@ def test_the_pump_resolves_the_rest_and_names_their_modules(qtbot, tmp_path):
     saves = _many_good_saves(tmp_path, _EAGER_ROWS + 6)
     dialog = OpenSaveDialog(saves)
     qtbot.addWidget(dialog)
-    qtbot.waitUntil(lambda: all(s.resolved for s in dialog._states), timeout=2000)
+    # Generous budget: the pump drains a few saves per idle tick and finishes in
+    # well under a second locally, but a loaded CI runner starves the idle chain.
+    qtbot.waitUntil(lambda: all(s.resolved for s in dialog._states), timeout=10000)
     assert all(s.module == "Test Module" for s in dialog._states)
     assert "Reading…" not in _texts(dialog)
     # A module named only after the pump is still searchable.
@@ -222,7 +224,7 @@ def test_a_healthy_save_past_the_screenful_becomes_openable_after_the_pump(
     assert dialog.selected_save() is None  # every resolved save so far is corrupt
     assert not dialog._open.isEnabled()
 
-    qtbot.waitUntil(lambda: dialog._chosen is not None, timeout=2000)
+    qtbot.waitUntil(lambda: dialog._chosen is not None, timeout=10000)  # loaded-CI budget
     assert dialog.selected_save().folder == good.folder
     assert dialog._open.isEnabled()
 
