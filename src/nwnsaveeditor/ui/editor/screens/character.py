@@ -346,6 +346,13 @@ class CharacterScreen(QWidget):
             add_level = w.small_ghost("+ Add class level…")
             add_level.clicked.connect(self._add_class_level)
             stats.addWidget(add_level)
+            if self._has_level_history():
+                reclass = w.small_ghost("↔ Change a level's class…")
+                reclass.clicked.connect(self._reclass_level)
+                stats.addWidget(reclass)
+            recompute = w.small_ghost("⟳ Add PRC recompute item…")
+            recompute.clicked.connect(self._window.add_prc_recompute_widget)
+            stats.addWidget(recompute)
         stats.addWidget(_sheet_divider())
 
         pending = self._pending_char_fields()
@@ -1086,6 +1093,182 @@ class CharacterScreen(QWidget):
         self._apply_level(session, class_id, gains, wizard)
         self._window.notify_changed()
 
+    def _has_level_history(self) -> bool:
+        """Whether the character keeps a per-level history (needed to re-class)."""
+        try:
+            return bool(self._window.session().level_history())
+        except Exception:
+            return False
+
+    def _reclass_level(self) -> None:
+        """Swap one already-taken level from its class to another.
+
+        The full-wizard path: pick the level, pick the new class, gather the new
+        class level's choices (skills, a feat, an ability, spells) in the same
+        wizard 'Add class level' uses, then apply — moving the class totals and the
+        history entry together. In Free mode a 'keep the previous class's benefits'
+        option turns off the removal of the old class's gains (an over-powered build).
+        """
+        from PySide6.QtWidgets import QDialog, QMessageBox
+
+        from nwnfile.character import class_name
+        from nwnfile.level_up import LevelUpCalculator
+        from nwnsaveeditor.ui.dialogs.id_picker_dialog import IdPickerDialog
+        from nwnsaveeditor.ui.dialogs.reclass_level_dialog import ReclassLevelDialog
+
+        stack = self._window.hak_stack()
+        if stack is None:
+            w.message(
+                self, QMessageBox.Icon.Warning, "Change a level's class",
+                "The class tables can't be read for this save, so a re-class cannot "
+                "be computed.",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+        session = self._window.session()
+        history = session.level_history()
+        if not history:
+            return
+        levels = [
+            (e.index, f"Level {e.character_level} — {class_name(e.class_id)}")
+            for e in history
+        ]
+        strict = self._window.rule_mode() == "strict"
+        picker = ReclassLevelDialog(levels, allow_keep_previous=not strict, parent=self)
+        if picker.exec() != QDialog.DialogCode.Accepted:
+            return
+        index = picker.selected_index()
+        keep_previous = picker.keep_previous()
+        if index is None:
+            return
+        old = session.level_entry(index)
+        if old is None:
+            return
+
+        options, non_player = _class_options(stack, strict)
+        dialog = IdPickerDialog(
+            f"Re-class level {index + 1} — pick the new class", options,
+            mark_ids=frozenset(non_player), mark_label="not a player class",
+            value_header="Class", parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        new_class_id = dialog.selected_id()
+        if new_class_id is None:
+            return
+        if new_class_id == old.class_id:
+            w.message(
+                self, QMessageBox.Icon.Information, "Change a level's class",
+                f"Level {index + 1} is already a {class_name(old.class_id)} level.",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+        if not self._confirm_class_choice(session, stack, new_class_id, new_class_id in non_player):
+            return
+
+        current = dict(session.player_classes())
+        calc = LevelUpCalculator(stack)
+        # the slot's character level (index + 1) drives the every-3rd feat and
+        # every-4th ability point; the class-level rows drive the stat gains.
+        new_gains = calc.gains(
+            new_class_id, current.get(new_class_id, 0) + 1, character_level=index + 1
+        )
+        old_gains = calc.gains(
+            old.class_id, max(1, current.get(old.class_id, 0)), character_level=index + 1
+        )
+        if new_gains is None:
+            return
+        # the wizard's skill floor drops by what the old level spent (faithful), so
+        # its budget re-spends from there; keep_previous leaves the floor at current.
+        skills = session.player_skills()
+        if not keep_previous:
+            import dataclasses
+            skills = [
+                dataclasses.replace(s, rank=max(0, s.rank - old.skill_deltas.get(s.index, 0)))
+                for s in skills
+            ]
+        wizard = self._build_level_wizard(
+            new_gains, sum(current.values()), skills=skills
+        )
+        wizard.setWindowTitle(f"Re-class level {index + 1} to {class_name(new_class_id)}")
+        if wizard.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._apply_reclass(session, index, old, new_class_id, new_gains, old_gains,
+                            keep_previous, wizard)
+        self._window.notify_changed()
+
+    def _apply_reclass(
+        self, session, index: int, old, new_class_id: int, new_gains, old_gains,
+        keep_previous: bool, wizard,
+    ) -> None:
+        """Commit the re-class and every choice the wizard gathered, in one act.
+
+        The structural + numeric change (class totals, base attack / saves / HP, the
+        history entry) goes first; then the choices are applied to the live
+        character through their own editors so their ledger entries and PRC caveats
+        still show — removing the old level's feats/skills/ability first when the
+        re-class is faithful (not ``keep_previous``).
+        """
+        from nwnfile.character import class_name
+
+        targets = wizard.skill_allocations()  # {index: new rank}, only what changed
+        chosen_feat = wizard.chosen_feat()
+        granted = [fid for fid, _name in new_gains.granted_feats]
+        new_feats = ([chosen_feat] if chosen_feat is not None else []) + granted
+        new_ability = wizard.chosen_ability()
+        ranks_now = {s.index: s.rank for s in session.player_skills()}
+
+        # what the rewritten history entry should record as this level's skill spend
+        floor = {
+            i: (ranks_now.get(i, 0) if keep_previous
+                else max(0, ranks_now.get(i, 0) - old.skill_deltas.get(i, 0)))
+            for i in set(ranks_now) | set(old.skill_deltas)
+        }
+        record_deltas = {
+            i: r - floor.get(i, 0) for i, r in targets.items() if r - floor.get(i, 0) > 0
+        }
+
+        session.reclass_level(
+            index, new_class_id, new_gains, old_gains,
+            keep_previous=keep_previous, con_modifier=self._ability_mod("Con"),
+            skill_deltas=record_deltas, feats=tuple(new_feats), ability=new_ability,
+            spells_known=wizard.chosen_spells(),
+            where=f"Level {index + 1}: {class_name(old.class_id)} → {class_name(new_class_id)}",
+        )
+
+        names = {s.index: s.name for s in session.player_skills()}
+        if not keep_previous:  # lower skills the old level had raised but the new one didn't
+            for i, spent in old.skill_deltas.items():
+                if spent and i not in targets:
+                    session.set_skill_rank(i, floor.get(i, 0), where=names.get(i, f"Skill {i}"))
+        for i, rank in targets.items():
+            session.set_skill_rank(i, rank, where=names.get(i, f"Skill {i}"))
+
+        if not keep_previous:
+            for fid in old.feats:  # drop what the old class level had granted
+                session.remove_feat(fid)
+        for fid in new_feats:
+            session.add_feat(fid)
+
+        self._apply_reclass_ability(session, old, new_ability, keep_previous)
+
+    def _apply_reclass_ability(self, session, old, new_ability, keep_previous) -> None:
+        """Move the level's ability point: drop the old (faithful) and add the new."""
+        deltas: dict[str, int] = {}
+        if not keep_previous and old.ability is not None:
+            deltas[old.ability] = deltas.get(old.ability, 0) - 1
+        if new_ability is not None:
+            deltas[new_ability] = deltas.get(new_ability, 0) + 1
+        if not deltas:
+            return
+        scores = {f.field: int(f.value) for f in session.player_fields()}
+        for field, delta in deltas.items():
+            if delta and field in scores:
+                session.set_character_field(
+                    field, scores[field] + delta,
+                    where=f"{field} ({'+' if delta > 0 else ''}{delta})",
+                )
+
     def _confirm_class_choice(self, session, stack, class_id: int, non_player: bool) -> bool:
         """Gate a chosen class on its prerequisites (and a non-player warning).
 
@@ -1162,16 +1345,22 @@ class CharacterScreen(QWidget):
             for s in skills
         }
 
-    def _build_level_wizard(self, gains, new_total: int):
-        """A :class:`LevelUpWizard` fed the character's own budgets and options."""
+    def _build_level_wizard(self, gains, new_total: int, *, skills=None):
+        """A :class:`LevelUpWizard` fed the character's own budgets and options.
+
+        ``skills`` overrides the skill floor the wizard spends from — a re-class
+        lowers it by what the level being replaced had spent, so the new class's
+        budget is re-allocated rather than stacked on top.
+        """
         from nwnsaveeditor.rules import skill_limits
         from nwnsaveeditor.ui.dialogs.level_up_wizard import LevelUpWizard
 
         session = self._window.session()
-        try:
-            skills = session.player_skills()
-        except Exception:
-            skills = []
+        if skills is None:
+            try:
+                skills = session.player_skills()
+            except Exception:
+                skills = []
         strict = self._window.rule_mode() == "strict"
         cap = skill_limits(strict=strict, level=new_total).maximum  # Free fallback
         skill_caps = self._wizard_skill_caps(session, gains, new_total, skills, strict)

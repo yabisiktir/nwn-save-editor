@@ -1000,6 +1000,47 @@ class SaveEditorWindow(QMainWindow):
                   "gear then renders correctly in-world and in the inventory.",
                   QMessageBox.StandardButton.Ok)
 
+    def add_prc_recompute_widget(self) -> None:
+        """Give the character a "Recompute PRC Features" item.
+
+        A generic PRC power-user tool: activating the item in-game re-runs PRC's
+        maintenance pass (``EvalPRCFeats``) and re-equips the held weapons, so
+        PRC-managed state (feats, skin, class scripts, templates, on-hit weapon
+        powers) is re-derived without a full ``/relevel``. Delivered as a small hak
+        (for the tag script) plus the item; kept when the user saves.
+        """
+        from nwnsaveeditor import prc_recompute
+
+        session = self.session()
+        if session is None:
+            return
+        if not self._editing:
+            w.message(self, QMessageBox.Icon.Information, "Turn on Edit mode",
+                      "Switch on Edit mode first, then add the recompute item.",
+                      QMessageBox.StandardButton.Ok)
+            return
+        hak_dir = self._hak_dir()
+        if hak_dir is None:
+            w.message(self, QMessageBox.Icon.Warning, "No user folder",
+                      "Can't find your Neverwinter Nights user folder to write the "
+                      "widget hak.", QMessageBox.StandardButton.Ok)
+            return
+        player = session.raw_tree("module.ifo").root.fields[
+            "Mod_PlayerList"].value.structs[0]
+        summary = prc_recompute.add_widget(session, player, hak_dir)
+        self.notify_changed()
+        body = (
+            "Added a “Recompute PRC Features” item to your inventory: activate its "
+            "Unique Power in-game to re-run PRC's maintenance pass (feats, skin, "
+            "templates) and re-equip your weapons, without a full re-level. Save the "
+            "game to keep it."
+            if summary.widget_added else
+            "The recompute item was not added."
+        )
+        tail = "\n".join(f"• {n}" for n in summary.notes)
+        w.message(self, QMessageBox.Icon.Information, "PRC recompute item",
+                  body + (f"\n\n{tail}" if tail else ""), QMessageBox.StandardButton.Ok)
+
     def remove_appearance_hak(self) -> None:
         """Delete the appearance hak(s) a previous 'Extract' added (per its manifest)."""
         from nwnsaveeditor.appearance_fix import hak_manifest, remove_haks

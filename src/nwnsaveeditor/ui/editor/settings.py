@@ -248,9 +248,10 @@ class SettingsDialog(QDialog):
         box.toggled.connect(self._host.set_class_level_editing)
         row.addWidget(box)
         note = w.body(
-            "Add class levels, applying the hit points, attack, saves and XP a level "
-            "brings. Off by default: a level-up writes several fields, and a PRC "
-            "class level still needs an in-game re-level to set up its features.",
+            "Add class levels, or re-class an already-taken level to a different "
+            "class — applying the hit points, attack, saves and XP a level brings. "
+            "Off by default: a level-up writes several fields, and a PRC class level "
+            "still needs an in-game re-level to set up its features.",
             t.TEXT_3, 11.5,
         )
         note.setWordWrap(True)

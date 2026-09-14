@@ -26,6 +26,9 @@ SRC = ROOT / "src"
 datas = [
     # Read by path at runtime — see the module docstring.
     (str(SRC / "nwnfile" / "data"), "nwnfile/data"),
+    # Prebuilt PRC recompute-widget script (.ncs), read by path at runtime —
+    # see nwnsaveeditor/prc_recompute.py.
+    (str(SRC / "nwnsaveeditor" / "data"), "nwnsaveeditor/data"),
     # The application icon, found via sys._MEIPASS by ui/editor/appicon.py.
     (str(ROOT / "assets" / "icons"), "assets/icons"),
 ]

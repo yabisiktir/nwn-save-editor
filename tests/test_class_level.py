@@ -248,3 +248,206 @@ def test_known_spells_revert_on_discard(tmp_path):
     ed.discard_change(("class", 1))
     bard = ed._player_struct(ed._module_tree()).fields["ClassList"].value.structs[0]
     assert _known(bard, 0) is None  # the KnownList0 we created is gone
+
+
+# -- re-classing a taken level (SaveEditor.reclass_level) ------------------- #
+FIGHTER, ROGUE = 4, 3
+
+
+def _fighter_with_history() -> GffStruct:
+    """A Fighter 3 with a matching three-entry level history (all Fighter levels),
+    so a middle level can be re-classed to another class."""
+    classes = [GffStruct(struct_type=2, fields={
+        "Class": GffField(GffType.INT, FIGHTER),
+        "ClassLevel": GffField(GffType.SHORT, 3),
+    })]
+    skills = [GffStruct(struct_type=0, fields={"Rank": GffField(GffType.SHORT, r)})
+              for r in (4, 2, 0)]
+    history = []
+    for deltas in ([4, 0, 0], [0, 1, 0], [0, 1, 0]):
+        history.append(GffStruct(struct_type=0, fields={
+            "LvlStatClass": GffField(GffType.BYTE, FIGHTER),
+            "LvlStatHitDie": GffField(GffType.BYTE, 10),  # fighter d10
+            "EpicLevel": GffField(GffType.BYTE, 0),
+            "SkillPoints": GffField(GffType.WORD, 0),
+            "SkillList": GffField(GffType.LIST, GffList([
+                GffStruct(struct_type=0, fields={"Rank": GffField(GffType.BYTE, d)})
+                for d in deltas
+            ])),
+            "FeatList": GffField(GffType.LIST, GffList([])),
+        }))
+    return GffStruct(struct_type=0xFFFFFFFF, fields={
+        "FeatList": GffField(GffType.LIST, GffList([])),  # marks a player struct
+        "ClassList": GffField(GffType.LIST, GffList(classes)),
+        "SkillList": GffField(GffType.LIST, GffList(skills)),
+        "LvlStatList": GffField(GffType.LIST, GffList(history)),
+        "MaxHitPoints": GffField(GffType.INT, 30),  # 3 × d10
+        "CurrentHitPoints": GffField(GffType.INT, 30),
+        "BaseAttackBonus": GffField(GffType.INT, 3),  # fighter +1/level
+        "FortSaveThrow": GffField(GffType.INT, 3),
+        "RefSaveThrow": GffField(GffType.INT, 1),
+        "WillSaveThrow": GffField(GffType.INT, 1),
+        "Experience": GffField(GffType.INT, _xp_for_level(3)),
+        "Str": GffField(GffType.BYTE, 16),
+    })
+
+
+def _fighter_save(tmp_path) -> SaveGame:
+    ifo = Gff("IFO ", "V3.2", GffStruct(struct_type=0xFFFFFFFF, fields={
+        "Mod_PlayerList": GffField(GffType.LIST, GffList([_fighter_with_history()])),
+    }))
+    bic = Gff("BIC ", "V3.2", _fighter_with_history())
+    folder = tmp_path / "000000 - fighter"
+    folder.mkdir()
+    (folder / "x.sav").write_bytes(_make_erf([("module", 2014, write_gff(ifo))]))
+    (folder / "player.bic").write_bytes(write_gff(bic))
+    return SaveGame(folder=folder)
+
+
+def _rogue_gains(**over) -> LevelGains:
+    """Gaining a first Rogue level: no BAB, good Reflex, d6."""
+    base = dict(
+        class_id=ROGUE, class_name="Rogue", class_level=1, character_level=2,
+        hit_die=6, bab_gain=0, fort_gain=0, ref_gain=2, will_gain=0,
+        skill_point_base=8, spellcaster=False,
+    )
+    base.update(over)
+    return _gains(**base)
+
+
+def _fighter_top_gains(**over) -> LevelGains:
+    """Removing the fighter's top level: +1 BAB, d10, no save deltas."""
+    base = dict(
+        class_id=FIGHTER, class_name="Fighter", class_level=3, character_level=2,
+        hit_die=10, bab_gain=1, fort_gain=0, ref_gain=0, will_gain=0,
+        skill_point_base=2, spellcaster=False,
+    )
+    base.update(over)
+    return _gains(**base)
+
+
+def _classes(ed):
+    return dict(ed.player_classes())
+
+
+def test_level_history_reads_each_level(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    hist = ed.level_history()
+    assert [e.character_level for e in hist] == [1, 2, 3]
+    assert {e.class_id for e in hist} == {FIGHTER}
+    assert hist[0].skill_deltas == {0: 4}  # level 1 put 4 ranks in skill 0
+    assert hist[1].hit_die == 10
+
+
+def test_reclass_moves_the_class_totals_and_history_entry(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    ed.reclass_level(1, ROGUE, _rogue_gains(), _fighter_top_gains(), con_modifier=0)
+    assert _classes(ed) == {FIGHTER: 2, ROGUE: 1}  # one fighter level became rogue
+    assert ed.level_entry(1).class_id == ROGUE  # the middle level is now rogue
+    assert ed.level_entry(1).hit_die == 6  # and records the rogue die
+    assert [e.class_id for e in ed.level_history()] == [FIGHTER, ROGUE, FIGHTER]
+
+
+def test_reclass_faithfully_adjusts_derived_numbers(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    ed.reclass_level(1, ROGUE, _rogue_gains(), _fighter_top_gains(), con_modifier=0)
+    player = ed._player_struct(ed._module_tree())
+    assert player.fields["BaseAttackBonus"].value == 2  # 3 − 1 (fighter) + 0 (rogue)
+    assert player.fields["RefSaveThrow"].value == 3  # 1 − 0 + 2 (rogue good reflex)
+    assert player.fields["FortSaveThrow"].value == 3  # unchanged
+    assert player.fields["MaxHitPoints"].value == 26  # 30 − d10(10) + d6(6)
+
+
+def test_reclass_keep_previous_keeps_the_old_class_advantages(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    ed.reclass_level(
+        1, ROGUE, _rogue_gains(), _fighter_top_gains(),
+        keep_previous=True, con_modifier=0,
+    )
+    assert _classes(ed) == {FIGHTER: 2, ROGUE: 1}  # counts still move
+    player = ed._player_struct(ed._module_tree())
+    assert player.fields["BaseAttackBonus"].value == 3  # fighter's +1 kept, no subtract
+    assert player.fields["RefSaveThrow"].value == 3  # 1 + rogue's +2
+    assert player.fields["MaxHitPoints"].value == 36  # 30 kept + d6(6)
+
+
+def test_reclass_edits_both_trees(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    ed.reclass_level(1, ROGUE, _rogue_gains(), _fighter_top_gains(), con_modifier=0)
+    for tree in ed._targets():
+        entry = ed._player_struct(tree).fields["LvlStatList"].value.structs[1]
+        assert entry.get("LvlStatClass") == ROGUE
+        assert entry.get("LvlStatHitDie") == 6
+        assert {s.get("Class"): s.get("ClassLevel")
+                for s in ed._class_list(tree).structs} == {FIGHTER: 2, ROGUE: 1}
+
+
+def test_reclass_survives_a_save_as_round_trip(tmp_path):
+    """The mutated tree must write and re-read cleanly — save_as verifies bytes."""
+    ed = SaveEditor(_fighter_save(tmp_path))
+    ed.reclass_level(1, ROGUE, _rogue_gains(), _fighter_top_gains(), con_modifier=0)
+    new_save = ed.save_as(tmp_path / "out")
+    reread = SaveEditor(new_save)
+    assert _classes(reread) == {FIGHTER: 2, ROGUE: 1}
+    assert [e.class_id for e in reread.level_history()] == [FIGHTER, ROGUE, FIGHTER]
+    player = reread._player_struct(reread._module_tree())
+    assert player.fields["BaseAttackBonus"].value == 2
+    assert player.fields["MaxHitPoints"].value == 26
+
+
+def test_reclass_records_the_chosen_feat_and_skill_delta(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    ed.reclass_level(
+        1, ROGUE, _rogue_gains(), _fighter_top_gains(), con_modifier=0,
+        skill_deltas={2: 5}, feats=(3,),  # 5 ranks into skill 2; one feat
+    )
+    entry = ed.level_entry(1)
+    assert entry.skill_deltas == {2: 5}
+    assert entry.feats == (3,)
+
+
+def test_reclass_reverts_on_discard(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    ed.reclass_level(1, ROGUE, _rogue_gains(), _fighter_top_gains(), con_modifier=0)
+    assert ed.discard_change(("reclass", 1)) is True
+    assert _classes(ed) == {FIGHTER: 3}  # rogue gone, fighter back to 3
+    player = ed._player_struct(ed._module_tree())
+    assert player.fields["BaseAttackBonus"].value == 3  # numbers restored
+    assert player.fields["MaxHitPoints"].value == 30
+    assert ed.level_entry(1).class_id == FIGHTER  # history entry restored
+
+
+def test_reclass_into_an_existing_class_merges_the_count(tmp_path):
+    """Re-classing a fighter level into rogue when rogue is already present just
+    raises the rogue total rather than adding a second rogue entry."""
+    ed = SaveEditor(_fighter_save(tmp_path))
+    # first turn level 3 into rogue, then level 2 into rogue as well
+    ed.reclass_level(2, ROGUE, _rogue_gains(), _fighter_top_gains(), con_modifier=0)
+    ed.reclass_level(1, ROGUE, _rogue_gains(class_level=2), _fighter_top_gains(), con_modifier=0)
+    assert _classes(ed) == {FIGHTER: 1, ROGUE: 2}
+    assert len(ed._class_list(ed._module_tree()).structs) == 2  # not three entries
+
+
+def test_reclass_applies_new_spells_to_the_new_class_spellbook(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    ed.reclass_level(
+        1, ROGUE, _rogue_gains(spellcaster=True), _fighter_top_gains(),
+        con_modifier=0, spells_known={0: [33, 37]},
+    )
+    rogue = next(
+        s for s in ed._class_list(ed._module_tree()).structs if s.get("Class") == ROGUE
+    )
+    assert _known(rogue, 0) == [33, 37]
+    assert ed.level_entry(1).spells_known == {0: [33, 37]}
+
+
+def test_removing_the_only_level_of_a_class_drops_it(tmp_path):
+    ed = SaveEditor(_fighter_save(tmp_path))
+    # take the fighter down to nothing by re-classing all three levels to rogue
+    ed.reclass_level(
+        0, ROGUE, _rogue_gains(character_level=1), _fighter_top_gains(), con_modifier=0)
+    ed.reclass_level(
+        1, ROGUE, _rogue_gains(class_level=2), _fighter_top_gains(class_level=2), con_modifier=0)
+    ed.reclass_level(
+        2, ROGUE, _rogue_gains(class_level=3), _fighter_top_gains(class_level=1), con_modifier=0)
+    assert _classes(ed) == {ROGUE: 3}  # fighter struct removed entirely

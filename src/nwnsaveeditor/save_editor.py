@@ -107,6 +107,8 @@ _CHARACTER_NAMES: tuple[tuple[str, str], ...] = (
 _ABILITY_INDEX: dict[str, int] = {
     "Str": 0, "Dex": 1, "Con": 2, "Int": 3, "Wis": 4, "Cha": 5,
 }
+#: LvlStatAbility index -> ability field name (the inverse of _ABILITY_INDEX).
+_ABILITY_NAME: dict[int, str] = {v: k for k, v in _ABILITY_INDEX.items()}
 
 
 @dataclass
@@ -363,6 +365,27 @@ class ClassSpellbook:
     class_name: str
     is_base: bool  #: PRC classes route casting through PRC scripts — warn on edits
     lists: list[SpellList]
+
+
+@dataclass
+class LevelEntry:
+    """One character level as the save records it in ``LvlStatList``.
+
+    The history keeps one entry per character level, in order — entry 0 is level
+    1 — recording which class was taken and what that level granted. Re-classing a
+    level rewrites exactly one of these, and reads the old one back to know what to
+    undo. ``character_level`` is ``index + 1`` (the convention the game keeps).
+    """
+
+    index: int
+    character_level: int
+    class_id: int
+    hit_die: int
+    skill_deltas: dict[int, int]  #: {skill index: ranks gained this level}
+    feats: tuple[int, ...]  #: feat ids this level granted (chosen + auto-granted)
+    ability: str | None  #: the ability this level raised ("Str"…"Cha"), or None
+    spells_known: dict[int, list[int]]  #: {spell level: [ids]} learned this level
+    epic: bool
 
 
 def _free_backup(backup_dir: Path, save_name: str) -> Path:
@@ -1374,6 +1397,83 @@ class SaveEditor:
         self._max_obj_id += 1
         return self._max_obj_id
 
+    # -- the PRC-recompute widget item ------------------------------------ #
+    @_records()
+    def add_recompute_item(self, *, where: str = "Recompute PRC Features") -> None:
+        """Add the "Recompute PRC Features" widget to the carried inventory.
+
+        A Miscellaneous (base item 24) item carrying a single Cast Spell → Unique
+        Power Self Only property with unlimited uses, tagged ``prc_recompute`` so a
+        module with tag-based scripting fires the bundled ``prc_recompute`` script (a
+        full, non-destructive PRC re-evaluation — :func:`EvalPRCFeats`) when the
+        player activates it. Modelled on the simplest item the character already
+        carries so the struct is valid for this record; only its identity, base
+        item, flags and the single property are set. Staged like any other add.
+        """
+        donor = self._simplest_inventory_item()
+        if donor is None:
+            raise SaveEditError("character has no item to model the recompute widget on")
+        self._clone_into_carried(
+            self._as_recompute_item(donor), where=where,
+            summary="added the Recompute PRC Features widget",
+        )
+
+    def _simplest_inventory_item(self) -> GffStruct | None:
+        """The carried item with the fewest fields (a clean donor), else an equipped
+        one. Deterministic (ties break on list order) so replay rebuilds the same."""
+        player = self._player_struct(self._module_tree())
+        for label in ("ItemList", "Equip_ItemList"):
+            field = player.fields.get(label)
+            if field is None or field.type != GffType.LIST:
+                continue
+            items = [s for s in field.value.structs if "BaseItem" in s.fields]
+            if items:
+                return min(items, key=lambda s: len(s.fields))
+        return None
+
+    def _as_recompute_item(self, donor: GffStruct) -> GffStruct:
+        """A recompute widget built from a valid donor item struct."""
+        import copy
+
+        item = copy.deepcopy(donor)
+        item.struct_type = 0
+        for drop in ("VarTable", "ModelPart2", "ModelPart3"):  # no inherited state
+            item.fields.pop(drop, None)
+        if "Tag" in item.fields:
+            item.fields["Tag"].value = _RECOMPUTE_TAG
+        else:
+            item.fields["Tag"] = GffField(GffType.CEXOSTRING, _RECOMPUTE_TAG)
+        rrf = item.fields.get("TemplateResRef")
+        if rrf is not None:
+            rrf.value = _RECOMPUTE_TAG
+        else:
+            item.fields["TemplateResRef"] = GffField(GffType.CRESREF, _RECOMPUTE_TAG)
+        self._set_item_name(item, "Recompute PRC Features")
+        if "BaseItem" in item.fields:
+            item.fields["BaseItem"].value = _RECOMPUTE_BASE_ITEM
+        for f in ("ModelPart1", "xModelPart1"):
+            if f in item.fields:
+                item.fields[f].value = 1
+        for f, v in (
+            ("StackSize", 1), ("Identified", 1), ("Stolen", 0), ("Plot", 0),
+            ("Cursed", 0), ("Charges", 0), ("Cost", 0), ("AddCost", 0),
+            ("Hidden", 0), ("Dropable", 1), ("Pickpocketable", 1), ("Useable", 1),
+        ):
+            if f in item.fields:
+                item.fields[f].value = v
+        item.fields["PropertiesList"] = GffField(GffType.LIST, GffList([_recompute_property()]))
+        return item
+
+    @staticmethod
+    def _set_item_name(item: GffStruct, text: str) -> None:
+        loc = item.fields.get("LocalizedName")
+        if loc is not None and loc.type == GffType.CEXOLOCSTRING and loc.value is not None:
+            loc.value.strref = -1
+            loc.value.substrings = [(0, text)]
+        else:
+            item.fields["LocalizedName"] = GffField(
+                GffType.CEXOLOCSTRING, LocString(strref=-1, substrings=[(0, text)]))
+
     def _collect_object_ids(self, struct: GffStruct, out: list[int]) -> None:
         for field in struct.fields.values():
             if field.type == GffType.STRUCT:
@@ -1823,6 +1923,243 @@ class SaveEditor:
                     summary=f"+{added} level{'s' if added != 1 else ''}",
                 )
 
+    # -- re-classing an already-taken level ------------------------------- #
+    def level_history(self) -> list[LevelEntry]:
+        """The per-level class history from ``LvlStatList``, level 1 first.
+
+        Empty when the record keeps no history (some do not) — re-classing needs
+        it, because a *level* is identified by its history entry, not by a class.
+        """
+        lst = self._lvlstat_list(self._module_tree())
+        if lst is None:
+            return []
+        return [self._read_lvlstat(s, i) for i, s in enumerate(lst.structs)]
+
+    def level_entry(self, index: int) -> LevelEntry | None:
+        """What the history recorded at one level, or ``None`` if out of range."""
+        lst = self._lvlstat_list(self._module_tree())
+        if lst is None or not 0 <= index < len(lst.structs):
+            return None
+        return self._read_lvlstat(lst.structs[index], index)
+
+    @staticmethod
+    def _read_lvlstat(entry: GffStruct, index: int) -> LevelEntry:
+        skill_deltas: dict[int, int] = {}
+        skills = entry.fields.get("SkillList")
+        if skills is not None and skills.type == GffType.LIST:
+            for i, s in enumerate(skills.value.structs):
+                rank = int(s.get("Rank") or 0)
+                if rank:
+                    skill_deltas[i] = rank
+        fl = entry.fields.get("FeatList")
+        feats = tuple(
+            int(s.get("Feat"))
+            for s in (fl.value.structs if fl is not None and fl.type == GffType.LIST else [])
+            if s.get("Feat") is not None
+        )
+        spells: dict[int, list[int]] = {}
+        for name, field in entry.fields.items():
+            tail = name[len("KnownList"):]
+            if name.startswith("KnownList") and tail.isdigit() and field.type == GffType.LIST:
+                ids = [
+                    int(s.get("Spell")) for s in field.value.structs
+                    if s.get("Spell") is not None
+                ]
+                if ids:
+                    spells[int(tail)] = ids
+        cid = entry.get("LvlStatClass")
+        ability = entry.get("LvlStatAbility")
+        return LevelEntry(
+            index=index, character_level=index + 1,
+            class_id=int(cid) if cid is not None else -1,
+            hit_die=int(entry.get("LvlStatHitDie") or 0),
+            skill_deltas=skill_deltas, feats=feats,
+            ability=_ABILITY_NAME.get(int(ability)) if ability is not None else None,
+            spells_known=spells, epic=bool(entry.get("EpicLevel")),
+        )
+
+    @_records()
+    def reclass_level(
+        self, index: int, new_class_id: int, new_gains, old_gains=None, *,
+        keep_previous: bool = False, con_modifier: int = 0, hp_rule: str = "max",
+        skill_deltas: dict[int, int] | None = None, feats: tuple[int, ...] = (),
+        ability: str | None = None, spells_known: dict[int, list[int]] | None = None,
+        where: str = "",
+    ) -> None:
+        """Stage re-classing the character level at ``index`` to ``new_class_id``.
+
+        The class totals (``ClassList``) *and* the per-level history
+        (``LvlStatList``) both move, so the record stays consistent at every level.
+        The level count is preserved — one class down, one up — which keeps
+        ``len(history) == total level`` intact (the game validates that).
+
+        The *deterministic* consequences are applied here: the class counts, the
+        net change to base attack / saving throws / hit points, the history entry's
+        class and hit die, and any spells the new level teaches. The *choices* the
+        level opens up (skills, a general feat, an ability point) are applied by the
+        caller through the skill / feat / ability editors — exactly as
+        :meth:`add_class_level`'s caller does — so their PRC caveats and ledger
+        entries still show. The values passed here are only what the rewritten
+        history entry should *record*.
+
+        ``keep_previous`` is the Free-mode "break it" path: the old class's numeric
+        gains and its granted feats/skills are **not** subtracted, so the character
+        keeps the previous class's advantages while also gaining the new class's
+        level — an over-powered, non-legal build that the game still loads (it
+        trusts the stored BaseAttackBonus/saves/HP rather than re-deriving them).
+        """
+        skill_deltas = dict(skill_deltas or {})
+        feats = tuple(int(f) for f in feats)
+        spells_known = {lvl: list(ids) for lvl, ids in (spells_known or {}).items() if ids}
+        new_hp = new_gains.hit_points(con_modifier, rule=hp_rule)
+        new_die = new_gains.hit_points(0, rule=hp_rule)
+        old_class_id: int | None = None
+        for tree in self._targets():
+            old_class_id = self._history_class(tree, index)
+            old_die = self._history_hit_die(tree, index)
+            self._bump_class(tree, new_class_id)
+            if old_class_id is not None and old_class_id != new_class_id:
+                self._decrement_class(tree, old_class_id)
+            if keep_previous or old_gains is None:
+                hp_delta, bab = new_hp, new_gains.bab_gain
+                fort, ref, will = new_gains.fort_gain, new_gains.ref_gain, new_gains.will_gain
+            else:
+                hp_delta = new_hp - ((old_die or 0) + con_modifier)
+                bab = new_gains.bab_gain - old_gains.bab_gain
+                fort = new_gains.fort_gain - old_gains.fort_gain
+                ref = new_gains.ref_gain - old_gains.ref_gain
+                will = new_gains.will_gain - old_gains.will_gain
+            self._add_to_field(tree, "MaxHitPoints", hp_delta)
+            self._add_to_field(tree, "CurrentHitPoints", hp_delta)
+            self._add_to_field(tree, "HitPoints", hp_delta)
+            self._add_to_field(tree, "BaseAttackBonus", bab)
+            self._add_to_field(tree, "FortSaveThrow", fort)
+            self._add_to_field(tree, "RefSaveThrow", ref)
+            self._add_to_field(tree, "WillSaveThrow", will)
+            self._add_known_spells(tree, new_class_id, spells_known)
+            self._rewrite_lvlstat(
+                tree, index, class_id=new_class_id, hp_roll=new_die,
+                ability=ability, skill_deltas=skill_deltas, feats=feats,
+                spells_known=spells_known, keep_previous=keep_previous,
+            )
+        self._char_dirty = True
+        self._record_reclass(index, old_class_id, new_class_id, keep_previous, where)
+
+    def _record_reclass(self, index, old_class_id, new_class_id, keep_previous, where) -> None:
+        from nwnfile.character import class_name
+
+        old = class_name(old_class_id) if old_class_id is not None else "?"
+        tail = "  ·  kept previous class's benefits" if keep_previous else ""
+        self._changes[("reclass", index)] = PendingChange(
+            kind="reclass", key=index, where=where or f"Level {index + 1}",
+            summary=f"{old} → {class_name(new_class_id)}{tail}",
+        )
+
+    def _lvlstat_list(self, tree):
+        field = self._player_struct(tree).fields.get("LvlStatList")
+        return field.value if field is not None and field.type == GffType.LIST else None
+
+    def _history_class(self, tree, index: int) -> int | None:
+        lst = self._lvlstat_list(tree)
+        if lst is None or not 0 <= index < len(lst.structs):
+            return None
+        cid = lst.structs[index].get("LvlStatClass")
+        return int(cid) if cid is not None else None
+
+    def _history_hit_die(self, tree, index: int) -> int:
+        lst = self._lvlstat_list(tree)
+        if lst is None or not 0 <= index < len(lst.structs):
+            return 0
+        return int(lst.structs[index].get("LvlStatHitDie") or 0)
+
+    def _decrement_class(self, tree, class_id: int) -> None:
+        """Drop one level of ``class_id``, removing the class if it hits zero.
+
+        Removing the struct takes its spellbook lists (KnownList<n>) with it, which
+        is right: at zero levels the class no longer has one.
+        """
+        classes = self._class_list(tree)
+        if classes is None:
+            return
+        for i, struct in enumerate(classes.structs):
+            if struct.get("Class") == class_id:
+                field = struct.fields.get("ClassLevel")
+                if field is None or int(field.value) - 1 <= 0:
+                    del classes.structs[i]
+                else:
+                    field.value = int(field.value) - 1
+                return
+
+    def _rewrite_lvlstat(
+        self, tree, index: int, *, class_id: int, hp_roll: int,
+        ability: str | None, skill_deltas: dict[int, int],
+        feats: tuple[int, ...], spells_known: dict[int, list[int]],
+        keep_previous: bool,
+    ) -> None:
+        """Rewrite one history entry in place so it records the new class.
+
+        A faithful re-class *replaces* what the entry recorded; ``keep_previous``
+        *merges* the new gains onto the old, mirroring that the character kept the
+        previous class's benefits and gained the new class's on top.
+        """
+        lst = self._lvlstat_list(tree)
+        if lst is None or not 0 <= index < len(lst.structs):
+            return
+        entry = lst.structs[index]
+        entry.fields["LvlStatClass"] = GffField(GffType.BYTE, int(class_id))
+        entry.fields["LvlStatHitDie"] = GffField(GffType.BYTE, int(hp_roll))
+        # per-skill rank deltas this level records
+        player_skills = self._player_struct(tree).fields.get("SkillList")
+        n_skills = (
+            len(player_skills.value.structs)
+            if player_skills is not None and player_skills.type == GffType.LIST else 0
+        )
+        base: dict[int, int] = {}
+        if keep_previous:
+            old = entry.fields.get("SkillList")
+            if old is not None and old.type == GffType.LIST:
+                base = {i: int(s.get("Rank") or 0) for i, s in enumerate(old.value.structs)}
+        merged = dict(base)
+        for i, delta in skill_deltas.items():
+            merged[i] = merged.get(i, 0) + int(delta)
+        if n_skills == 0 and merged:
+            n_skills = max(merged) + 1
+        entry.fields["SkillList"] = GffField(GffType.LIST, GffList([
+            GffStruct(struct_type=0, fields={"Rank": GffField(GffType.BYTE, int(merged.get(i, 0)))})
+            for i in range(n_skills)
+        ]))
+        # feats: replace (faithful) or union onto the old (keep_previous)
+        base_feats: list[int] = []
+        if keep_previous:
+            fl = entry.fields.get("FeatList")
+            if fl is not None and fl.type == GffType.LIST:
+                base_feats = [s.get("Feat") for s in fl.value.structs if s.get("Feat") is not None]
+        entry.fields["FeatList"] = GffField(GffType.LIST, GffList([
+            GffStruct(struct_type=0, fields={"Feat": GffField(GffType.WORD, int(fid))})
+            for fid in dict.fromkeys([*base_feats, *feats])
+        ]))
+        # the ability this level raises (present only when one was raised)
+        if ability is not None:
+            entry.fields["LvlStatAbility"] = GffField(GffType.BYTE, _ABILITY_INDEX[ability])
+        elif not keep_previous:
+            entry.fields.pop("LvlStatAbility", None)
+        # spells the level teaches
+        if not keep_previous:
+            for key in [k for k in entry.fields if k.startswith("KnownList")]:
+                del entry.fields[key]
+        for spell_level, ids in spells_known.items():
+            name = f"KnownList{spell_level}"
+            field = entry.fields.get(name)
+            if field is None or field.type != GffType.LIST:
+                field = GffField(GffType.LIST, GffList([]))
+                entry.fields[name] = field
+            have = {s.get("Spell") for s in field.value.structs}
+            for sid in ids:
+                if sid not in have:
+                    field.value.structs.append(
+                        GffStruct(struct_type=0, fields={"Spell": GffField(GffType.WORD, int(sid))})
+                    )
+
     # -- spell editing ---------------------------------------------------- #
     def player_spellbook(self) -> list[ClassSpellbook]:
         """The character's spellbook: each caster class's Known/Memorized lists."""
@@ -2251,6 +2588,33 @@ class SaveEditor:
             "module.ifo", (("Mod_HakList", idx), ("Mod_Hak", None)), name, where=where)
         return True
 
+    @_records()
+    def prepend_module_hak(self, name: str, *, where: str = "") -> None:
+        """Insert ``name`` at the **top** of ``Mod_HakList`` (highest priority).
+
+        Unlike :meth:`add_module_hak` (which appends at the bottom, the lowest
+        priority — right for the appearance wizard's fill-the-gaps art), this puts
+        the hak first, so its resources **override those PRC ships in its own haks**.
+        A save cannot override a hak's script from the ``override`` folder or from a
+        bottom hak on every install (verified in-game: PRC's ``prc8_scripts.hak``
+        won over both); a top hak is the highest priority a save can reach. Any
+        existing entry with this name is moved to the top rather than duplicated.
+        Written to ``module.ifo`` and staged like a character edit.
+        """
+        import copy
+
+        tree = self._module_tree()
+        field = tree.root.fields.get("Mod_HakList")
+        if field is None or field.type != GffType.LIST or not field.value.structs:
+            raise SaveEditError("module has no Mod_HakList to extend")
+        structs = field.value.structs
+        structs[:] = [s for s in structs if (s.get("Mod_Hak") or "").lower() != name.lower()]
+        entry = copy.deepcopy(structs[0])  # clone an existing entry's shape + field types
+        entry.fields["Mod_Hak"] = GffField(GffType.CEXOSTRING, name)
+        structs.insert(0, entry)
+        self._char_dirty = True  # module.ifo is rewritten from this tree on save
+        self._stage("hak", name, where or name, "added at top (overrides PRC haks)")
+
     # -- raw list structure (add / duplicate / remove entries) ------------- #
     @_records()
     def add_raw_struct(
@@ -2602,6 +2966,32 @@ class SaveEditor:
             path = new_save.folder / name
             if not path.is_file() or path.read_bytes() != expected:
                 raise SaveEditError(f"verify failed: {name} differs after write")
+
+
+#: Tag + resref of the recompute widget; its tag names the bundled tag-based script.
+_RECOMPUTE_TAG = "prc_recompute"
+_RECOMPUTE_BASE_ITEM = 24  # Miscellaneous (miscsmall) — a carriable, non-worn widget
+
+
+def _recompute_property() -> GffStruct:
+    """The widget's sole property: Cast Spell → Unique Power Self Only, unlimited use.
+
+    Numbers verified against the game's 2das: property 15 = Cast Spell, subtype 335 =
+    ``IP_CONST_CASTSPELL_UNIQUE_POWER_SELF_ONLY``, cost table 3 (IPRP_CHARGECOST) row
+    13 = "Unlimited Use". Activating a Unique Power fires the item's tag-based script.
+    """
+    return GffStruct(struct_type=1, fields={
+        "PropertyName": GffField(GffType.WORD, 15),
+        "Subtype": GffField(GffType.WORD, 335),
+        "CostTable": GffField(GffType.BYTE, 3),
+        "CostValue": GffField(GffType.WORD, 13),
+        "Param1": GffField(GffType.BYTE, 255),
+        "Param1Value": GffField(GffType.BYTE, 0),
+        "ChanceAppear": GffField(GffType.BYTE, 100),
+        "UsesPerDay": GffField(GffType.BYTE, 255),
+        "Useable": GffField(GffType.BYTE, 1),
+        "CustomTag": GffField(GffType.CEXOSTRING, ""),
+    })
 
 
 def _class_levels(class_list) -> list[tuple[int, int]]:

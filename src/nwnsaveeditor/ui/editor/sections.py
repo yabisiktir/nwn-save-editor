@@ -55,6 +55,8 @@ _KIND_SECTIONS: dict[str, str] = {
     "char-field": "character",
     "skill": "character",
     "feat": "character",
+    "class": "character",  # add-a-level
+    "reclass": "character",  # swap a taken level's class
     "spell": "spellbook",
     "property": "inventory",
     "prop-add": "inventory",

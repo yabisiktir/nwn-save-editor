@@ -221,6 +221,32 @@ totals moving under an unchanged history. Discarding the level drops the whole e
 > that state (it keeps your XP but clears PRC spell picks, so you re-choose spells).
 > Base-class levels need none of this.
 
+##### Changing a level's class (re-classing)
+
+The same switch grows a **↔ Change a level's class…** button whenever the character
+keeps a level history. It swaps one already-taken level from its class to another —
+everywhere the save records the level: the class totals (`ClassList`) *and* the
+level-by-level history (`LvlStatList`). The level count is preserved (one class down,
+one up), so `len(history) == total level` stays intact.
+
+Pick the level, pick the new class (same rule-mode class list and prerequisite checks
+as adding a level), then the same level-up wizard gathers the new class level's
+choices. Applying it **faithfully** removes what the old level had granted — its base
+attack, saves and hit points, the feat it gave, the ability point it raised and the
+skill ranks it bought — and applies the new class's in their place. The result is a
+consistent, legal sheet.
+
+**Free mode adds a "keep the previous class's benefits (break it)" option.** The level
+counts still move, but the old class's numeric gains and feats are *not* removed — the
+sheet keeps the previous class's advantages and gains the new class's on top. This is
+a deliberately over-powered, non-legal build; the game loads it anyway, because it
+trusts the stored base attack / saves / hit points rather than re-deriving them.
+
+Discarding the re-class from the pending list reverts it whole. As with adding a
+level, a PRC class involved in the swap still wants an in-game **`/relevel`** to wake
+its script-managed features, and the previous class's *known spells* are left in place
+— prune them on the Spellbook screen if you want the old caster's list gone.
+
 ### Inventory & Equipment
 
 ![Equipment slots, creature slots and the carried bag](images/inventory.png)
@@ -328,6 +354,38 @@ or Closest match remain. And it fixes the **inventory picture and the worn model
 for weapons, armour, helmets and cloaks; gloves, boots and rings/amulets have no
 separate worn model (they are drawn by the body or the feet, or not shown when
 worn), so for those only the inventory icon is reconciled.
+
+##### Recompute PRC Features (item)
+
+With **class level editing** turned on (Settings…), the Abilities & Combat tab shows
+an **⟳ Add PRC recompute item…** button in Edit mode. It gives the character a small
+**“Recompute PRC Features”** item — a Unique Power (Self Only, unlimited uses).
+
+Activating it in-game re-runs PRC's maintenance pass (`EvalPRCFeats`: feats, the
+invisible skin, class scripts and applied templates) **and re-equips your held
+weapons**, so on-hit / on-equip class powers (Champion of Corellon's Dex-to-damage,
+Skullclan Hunter's sneak attack, …) re-wire. It runs that pass in PRC's *rebuild*
+context, the one that re-applies persistent state. Use it any time you want PRC to
+re-derive its managed state after an edit — **without the level-drop of `/relevel`**.
+
+Delivery: the item's tag-based script is bundled into a small shared hak added to
+the save's hak list (so the script resolves in-game), and the item is a normal
+inventory add — **save the game to keep it**. It relies on the module having
+tag-based scripting on (PRC content does — the same mechanism your existing
+Unique-Power items use).
+
+Two honest limits. `EvalPRCFeats` is *not* a full re-level: a feature that PRC only
+builds *at level-up* may still need **`/relevel`** (typed twice in chat) — the
+guaranteed rebuild — to appear. And some class features are conditional (Skullclan
+Hunter's sneak attack, for instance, applies **vs undead only**), so they will not
+show against other targets even when correctly wired.
+
+> A note on script *fixes*. Overriding a script PRC ships in its own hak (e.g. to fix
+> a bug in a specific template's maintain script) can't be done from a save: neither
+> the `override` folder nor a bottom hak wins over PRC's `prc8_scripts.hak` on a real
+> install — only a hak at the **top** of that save's `Mod_HakList` does (the editor's
+> `prepend_module_hak` puts one there). That kind of fix is per-build and per-PRC-
+> version, so it isn't shipped here; it's applied to a character one-off when needed.
 
 ### Spellbook
 
