@@ -91,7 +91,34 @@ jobs:
             libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libfuse2
 
       - run: python -m pip install --upgrade pip
-      - run: pip install -e . pyinstaller
+      - run: pip install -e .
+
+      # Everywhere but Windows the stock prebuilt bootloader is fine.
+      - name: Install PyInstaller (macOS / Linux)
+        if: runner.os != 'Windows'
+        run: pip install pyinstaller
+
+      # Windows only: build the PyInstaller bootloader FROM SOURCE.
+      #
+      # Every PyInstaller wheel ships the *identical* precompiled bootloader, and
+      # antivirus signature/heuristic engines have flagged specific versions of
+      # that exact binary — so a stock freeze inherits "this looks like a virus"
+      # and SmartScreen reports it never earned. Installing from the sdist
+      # (--no-binary pyinstaller) recompiles the bootloader with the runner's MSVC
+      # toolchain, giving our .exe a unique bootloader hash that is in no signature
+      # database. This is the single biggest no-signing mitigation. It only helps
+      # while we also keep UPX off and stay one-dir (both true in the spec) — those
+      # are the other two heuristic triggers.
+      #
+      # The bootloader build needs cl.exe on PATH; the runner has MSVC installed but
+      # not activated, so put it on PATH first (waf's auto-detect is not relied on).
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install PyInstaller from source (Windows)
+        if: runner.os == 'Windows'
+        run: pip install --no-binary pyinstaller pyinstaller
 
       # Bundle a native nwnsc (nwneetools/nwnsc) into tools/<os>/ so the frozen app
       # can compile a Tier-2 "Rescue item powers" port with no wine and nothing for

@@ -13,15 +13,81 @@ Two things here are not boilerplate:
   raw id.
 * The Qt modules we never touch are excluded. PySide6 ships a browser engine and
   a 3D stack; left in, they roughly triple the download for no benefit.
+* On Windows the .exe carries a VERSIONINFO resource (CompanyName / ProductName /
+  FileVersion, …). Antivirus heuristics treat a metadata-less unsigned binary as
+  suspicious; a real version block is one of the few no-signing levers against the
+  SmartScreen / "this looks like a virus" reports. It is generated from the
+  pyproject version so the two cannot drift.
 """
 
 import sys
+import tomllib
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_submodules
 
 ROOT = Path(SPECPATH).parent
 SRC = ROOT / "src"
+
+
+def _version() -> str:
+    data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    return data["project"]["version"]
+
+
+def _windows_version_file() -> str | None:
+    """Write a PyInstaller version-resource file and return its path (Windows only).
+
+    A bare unsigned .exe with no version metadata is a strong antivirus heuristic
+    trigger. Stamping the binary with a proper VERSIONINFO block does not make it
+    signed, but it makes it look like the real software it is instead of an
+    anonymous dropper. Returns ``None`` off Windows, where the resource is ignored.
+    """
+    if not sys.platform.startswith("win"):
+        return None
+
+    ver = _version()
+    parts = [int(p) for p in ver.split(".")[:3]]
+    while len(parts) < 4:
+        parts.append(0)
+    filevers = tuple(parts)
+
+    text = f"""\
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers={filevers},
+    prodvers={filevers},
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0),
+  ),
+  kids=[
+    StringFileInfo([
+      StringTable('040904B0', [
+        StringStruct('CompanyName', 'Vaultkeeper'),
+        StringStruct('FileDescription', 'NWN Save Editor'),
+        StringStruct('FileVersion', '{ver}'),
+        StringStruct('InternalName', 'nwn-save-editor'),
+        StringStruct('LegalCopyright', 'GPL-3.0-or-later'),
+        StringStruct('OriginalFilename', 'nwn-save-editor.exe'),
+        StringStruct('ProductName', 'NWN Save Editor'),
+        StringStruct('ProductVersion', '{ver}'),
+      ]),
+    ]),
+    VarFileInfo([VarStruct('Translation', [0x0409, 0x04B0])]),
+  ],
+)
+"""
+    out = ROOT / "build" / "win_version_info.txt"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    return str(out)
+
+
+_version_file = _windows_version_file()
 
 datas = [
     # Read by path at runtime — see the module docstring.
@@ -98,6 +164,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=str(ROOT / "assets" / "icons" / "icon.ico"),
+    version=_version_file,   # a real VERSIONINFO resource on Windows; None elsewhere
 )
 
 coll = COLLECT(
