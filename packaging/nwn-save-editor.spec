@@ -182,7 +182,7 @@ app = BUNDLE(
     name="NWN Save Editor.app",
     icon=str(ROOT / "assets" / "icons" / "icon.icns"),
     bundle_identifier="net.vaultkeeper.nwnsaveeditor",
-    version="0.1.0",
+    version=_version(),   # the macOS bundle version, from pyproject so it can't drift
     info_plist={
         "NSHighResolutionCapable": True,          # or the icon and text are soft
         "LSApplicationCategoryType": "public.app-category.utilities",
