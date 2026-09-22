@@ -1167,9 +1167,11 @@ class SaveEditorWindow(QMainWindow):
             after every per-power step, so the write happens with results on screen."""
             summary = None
             if chosen:
+                # A distinct "p"(owers) suffix: this MUST NOT share the appearance
+                # hak's name, or running one feature overwrites the other's hak.
                 summary = opw.apply_rescue(
                     session, chosen, hak_dir,
-                    hak_name=hak_name_for(session.source_name))
+                    hak_name=hak_name_for(session.source_name, "p"))
                 self.notify_changed()
             return self._rescue_report(summary, failures)
 

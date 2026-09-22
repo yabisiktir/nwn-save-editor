@@ -198,6 +198,29 @@ def test_cloak_relocates_phenotype_worn_models():
     assert dsts == {"pmh0_cloak_254", "pfh0_cloak_254"}  # underscore before the number
 
 
+def test_cloak_resolves_cloakmodel_2da_indirection_and_phenotype_40():
+    # A cloak's number is indirected through cloakmodel.2da: row 18 ("Lolths") names
+    # MODEL 3, worn as pmh40_cloak_003 (phenotype 40) — NOT pmh0_cloak_018. A pheno-0
+    # wearer still gets the pmh40 model (matched by gender+race), and only their own
+    # gender+race is bundled in minimal mode.
+    rows = {80: ("cloak", "icloak", 1)}
+    orig = FakeSource(rows, {(80, 18): FImg((3, 3, 3))}, raw={("icloak_018", 3): b"i"})
+    target = FakeSource(rows, {})
+    cloakmodel = b"2DA V2.0\n\n    LABEL   MODEL  TEXTURE\n18  Lolths  3      18\n"
+    orig_res = FakeRes(
+        models={("pmh40_cloak_003", 2002): b"m", ("pfh40_cloak_003", 2002): b"m",
+                ("cloakmodel", 2017): cloakmodel},
+        source_tex={"cloak_018"}, target_tex=set())  # the worn skin, TEXTURE 18
+    target_res = FakeRes({}, set(), set())
+    rec = IconReconciler(orig, target, orig_res, target_res, body_prefixes=("pmh0",))
+    assert rec._cloak_model_number(18) == 3          # cloakmodel.2da: 18 -> MODEL 3
+    rep = rec.report("cloakX", "worn", Appearance(80, 18))
+    srcs = {c.src_resref for c in rep.extract.copies if c.res_type == 2002}
+    assert "pmh40_cloak_003" in srcs                  # resolved model, pheno 40
+    assert "pfh40_cloak_003" not in srcs              # minimal mode: wearer's gender+race only
+    assert "cloak_018" in {c.src_resref for c in rep.extract.copies}  # + the TEXTURE skin
+
+
 def test_item_with_present_icon_but_missing_worn_model_is_broken():
     # composite item (weapon/boots-like): target has the icon, but not the worn model
     rows = {26: ("it_boots", "iit_boots", 2)}

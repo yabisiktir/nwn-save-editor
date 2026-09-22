@@ -156,6 +156,31 @@ class IconReconciler:
         #: free slots already handed out this run, per resref namespace — so two
         #: items of the same class don't both grab slot 250 and share one model.
         self._reserved: dict[str, set[int]] = {}
+        #: ``cloakmodel.2da`` (row -> columns), lazy. Cloaks are *indirected*: an
+        #: item's cloak number is a row here whose ``MODEL`` column names the worn
+        #: body model, so it must be resolved before looking the model up.
+        self._cloakmodel: dict[int, dict[str, str]] | None = None
+
+    def _cloak_row(self, part: int) -> dict:
+        """The ``cloakmodel.2da`` row for a cloak's ``ModelPart1`` (columns
+        ``MODEL`` / ``TEXTURE`` / …), or ``{}`` when the table or row is absent."""
+        if self._orig_res is None:
+            return {}
+        if self._cloakmodel is None:
+            from nwnfile.hak_stack import parse_2da
+            data = self._orig_res.read("cloakmodel", 2017)
+            self._cloakmodel = parse_2da(data.decode("latin-1"))[1] if data else {}
+        return self._cloakmodel.get(part) or {}
+
+    def _cloak_model_number(self, part: int) -> int:
+        """Resolve a cloak ``ModelPart1`` through ``cloakmodel.2da`` to the worn
+        body-model number. E.g. row 18 ('Lolths') -> ``MODEL`` 3 -> the model
+        ``p<g><race>40_cloak_003``. Falls back to the number itself when the table
+        or row is absent (base cloaks where number == model)."""
+        try:
+            return int(self._cloak_row(part).get("MODEL"))
+        except (TypeError, ValueError):
+            return part
 
     # -- classification ---------------------------------------------------- #
     def report(self, resref: str, slot: str, ap: Appearance) -> ItemReport:
@@ -198,8 +223,9 @@ class IconReconciler:
             return self._orig_res.has(m, _MDL) and not self._target_res.has(m, _MDL)
         if model_type in _SINGLE:
             if item_class == "cloak":
+                num = self._cloak_model_number(ap.model_part1)
                 got = self._orig_res.matching(
-                    rf"^p[fm][a-z][0-9]_cloak_{ap.model_part1:03d}$", _MDL)
+                    rf"^p[fm][a-z][0-9]+_cloak_{num:03d}$", _MDL)
                 return bool(got) and not any(self._target_res.has(x, _MDL) for x in got)
             m = f"{item_class}_{ap.model_part1:03d}"[:16].lower()
             return self._orig_res.has(m, _MDL) and not self._target_res.has(m, _MDL)
@@ -266,18 +292,38 @@ class IconReconciler:
         return slot
 
     def _add_cloak_models(self, num: int, slot: int, copies: list) -> None:
-        """Cloaks are worn as phenotype body models ``p<gender><pheno>_cloak_<nnn>``
-        (note the underscore before the number, unlike armour parts). Relocate every
-        gender/phenotype variant the source ships whose art differs in the target."""
+        """Cloaks are worn as phenotype body models ``p<gender><race><pheno>_cloak_<nnn>``.
+        The item's number is resolved through ``cloakmodel.2da`` to the worn-model
+        number first, then every gender/race variant the source ships is relocated.
+        Cloaks are worn as their own ``…40_cloak_*`` (phenotype 40) models regardless
+        of the wearer's phenotype, so the minimal-mode filter matches on gender+race
+        (``p<g><race>``) only — filtering on the full body prefix (``pmh0``) would
+        wrongly drop the ``pmh40`` cloak the character actually wears."""
         if self._orig_res is None:
             return
-        for src in self._orig_res.matching(rf"^p[fm][a-z][0-9]_cloak_{num:03d}$", _MDL):
-            if self._body_prefixes and src.split("_")[0] not in self._body_prefixes:
-                continue  # minimal mode: only this character's body prefix
+        row = self._cloak_row(num)           # the item's cloak-number row (MODEL/TEXTURE)
+        model = self._cloak_model_number(num)
+        want = {p[:3] for p in self._body_prefixes} if self._body_prefixes else None
+        for src in self._orig_res.matching(rf"^p[fm][a-z][0-9]+_cloak_{model:03d}$", _MDL):
+            if want is not None and src[:3] not in want:
+                continue  # minimal mode: only this character's gender+race
             dst = src[: src.rfind("_") + 1] + f"{slot:03d}"
             copies.append(CopyOp(src, _MDL, dst))
             if self._orig_res.has(src, _PLT):
                 copies.append(CopyOp(src, _PLT, dst))
+        # The worn cloak's *skin* is a separate texture named ``cloak_<TEXTURE>``
+        # (the cloakmodel.2da TEXTURE column, e.g. row 18 -> ``cloak_018``). Without
+        # it the model draws untextured/white — bundle it under its own name.
+        try:
+            texture = int(row.get("TEXTURE"))
+        except (TypeError, ValueError):
+            texture = None
+        if texture is not None:
+            tex = f"cloak_{texture:03d}"
+            for rt in (_PLT, _TGA):
+                if self._orig_res.has(tex, rt):
+                    copies.append(CopyOp(tex, rt, tex))
+                    break
 
     def _extract_composite(self, ap, item_class, copies, fields):
         slot = self._free_slot(item_class, ap.base_item, _COMPOSITE)

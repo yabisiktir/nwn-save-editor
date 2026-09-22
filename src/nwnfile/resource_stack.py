@@ -16,6 +16,7 @@ from nwnfile.formats.erf_reader import ErfReader
 from nwnfile.formats.key_bif_reader import KeyBifReader
 
 MDL = 2002
+TWODA = 2017
 TGA, PLT, TXI, DDS1, DDS2 = 3, 6, 2005, 2064, 2065
 #: NWN:EE's packed-texture format (``.dds`` / "TPC"), res type 2033 — the format
 #: most custom (CEP/PRC) textures actually ship in. It was missing here, so a
@@ -36,16 +37,37 @@ class ResourceStack:
                  res_types=ART_TYPES) -> None:
         self._erf = ErfReader()
         self._index: dict[tuple[str, int], tuple[Path, object]] = {}
+        #: 2DA resref -> the MOST-COMPLETE copy found. A registration table
+        #: (``parts_robe``, ``cloakmodel``, …) is meaningful only with its
+        #: high-numbered rows: the base copy caps out low (``parts_robe`` at row 38)
+        #: so a robe at part 171 has no row and is silently not drawn. Unlike art
+        #: (earlier haks win, by load order), we keep the largest copy — a good proxy
+        #: for the most rows — so ``read`` serves the table that registers the high
+        #: numbers custom gear uses.
+        self._twoda: dict[str, tuple[Path, object]] = {}
         for hak in hak_paths:
             try:
                 for res in self._erf.list_resources(hak):
                     if res.res_type in res_types:
                         self._index.setdefault((res.resref.lower(), res.res_type), (hak, res))
+                    elif res.res_type == TWODA:
+                        key = res.resref.lower()
+                        cur = self._twoda.get(key)
+                        if cur is None or res.size > cur[1].size:
+                            self._twoda[key] = (hak, res)
             except Exception:  # noqa: BLE001 — a bad hak just contributes nothing
                 continue
         self._base = KeyBifReader.for_install(game_root)
 
     def read(self, resref: str, res_type: int) -> bytes | None:
+        if res_type == TWODA:
+            entry = self._twoda.get(resref.lower())
+            if entry is not None:
+                try:
+                    return self._erf.read_resource_bytes(*entry)
+                except Exception:  # noqa: BLE001
+                    return None
+            return self._base.read(resref, TWODA) if self._base is not None else None
         entry = self._index.get((resref.lower(), res_type))
         if entry is not None:
             try:

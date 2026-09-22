@@ -90,6 +90,53 @@ def test_extract_bundles_original_art_and_adds_the_hak_without_repointing(tmp_pa
     assert hak_manifest(tmp_path) == [f"{_HAK}.hak"]
 
 
+def test_extract_of_a_body_part_bundles_the_registration_2das(tmp_path):
+    # A worn part whose high number has no row in parts_*.2da is loaded but not drawn
+    # (the robe/arms saga). Extracting a body-part model must also bundle the source's
+    # registration tables so the number is registered and the part actually appears.
+    ed = FakeEditor()
+    plan = ExtractPlan(254, [CopyOp("pmh0_robe171", 2002, "pmh0_robe254")], [])
+    src = FakeSource({
+        ("pmh0_robe171", 2002): b"ROBEMODEL",
+        ("parts_robe", 2017): b"2DA ROBE ROWS incl 171",
+        ("cloakmodel", 2017): b"2DA CLOAK ROWS incl 18",
+        ("parts_bicep", 2017): b"2DA BICEP",
+    })
+    apply_decisions(ed, src, [Decision(_PATH, _report("robe", extract=plan), "extract")],
+                    tmp_path, hak_name=_HAK)
+    hak = _hak_contents(tmp_path / f"{_HAK}.hak")
+    assert hak[("pmh0_robe171", 2002)] == b"ROBEMODEL"      # the model
+    assert hak[("parts_robe", 2017)] == b"2DA ROBE ROWS incl 171"  # + registration
+    assert hak[("cloakmodel", 2017)] == b"2DA CLOAK ROWS incl 18"
+    assert hak[("parts_bicep", 2017)] == b"2DA BICEP"
+
+
+def test_extract_of_non_body_art_does_not_bundle_registration_2das(tmp_path):
+    # A plain inventory-icon fix (a ring) needs no part registration, so we must not
+    # drag the parts_*.2da tables into every extract hak.
+    ed = FakeEditor()
+    plan = ExtractPlan(250, [CopyOp("iit_ring_130", 3, "iit_ring_250")], [])
+    src = FakeSource({
+        ("iit_ring_130", 3): b"ICON",
+        ("parts_robe", 2017): b"SHOULD NOT BE BUNDLED",
+    })
+    apply_decisions(ed, src, [Decision(_PATH, _report("ring", extract=plan), "extract")],
+                    tmp_path, hak_name=_HAK)
+    hak = _hak_contents(tmp_path / f"{_HAK}.hak")
+    assert hak == {("iit_ring_130", 3): b"ICON"}  # icon only, no 2DAs
+
+
+def test_registration_2das_absent_from_source_are_simply_skipped(tmp_path):
+    # No CEP installed (source lacks the extended tables): bundle the model, add no 2DA.
+    ed = FakeEditor()
+    plan = ExtractPlan(254, [CopyOp("pmh0_robe171", 2002, "pmh0_robe254")], [])
+    src = FakeSource({("pmh0_robe171", 2002): b"ROBEMODEL"})
+    apply_decisions(ed, src, [Decision(_PATH, _report("robe", extract=plan), "extract")],
+                    tmp_path, hak_name=_HAK)
+    hak = _hak_contents(tmp_path / f"{_HAK}.hak")
+    assert hak == {("pmh0_robe171", 2002): b"ROBEMODEL"}
+
+
 def test_extract_deduplicates_shared_source_art(tmp_path):
     ed = FakeEditor()
     p1 = ExtractPlan(250, [CopyOp("shared_tex", 2033, "x")], [])
@@ -109,6 +156,16 @@ def test_hak_name_is_stable_and_within_limit():
     assert name == hak_name_for("000021 - ben2")  # deterministic
     assert name != hak_name_for("000022 - other")  # distinct per save
     assert name.startswith("vk_") and len(name) <= 16
+
+
+def test_hak_name_kind_distinguishes_features_for_the_same_save():
+    # Two features on the SAME save must not share a hak filename, or one overwrites
+    # the other (appearance came back full of rescued scripts and rendering broke).
+    appearance = hak_name_for("000029 - deneme")        # bare — unchanged, no orphaning
+    powers = hak_name_for("000029 - deneme", "p")       # powers get a distinct name
+    assert appearance != powers
+    assert powers == hak_name_for("000029 - deneme", "p")  # still deterministic
+    assert len(powers) <= 16 and powers.startswith(appearance)
 
 
 # -- collect_reports over a player struct ------------------------------------ #

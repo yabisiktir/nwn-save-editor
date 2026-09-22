@@ -24,6 +24,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,6 +35,23 @@ _PLAYER = ("Mod_PlayerList", 0)
 #: base items with no real inventory appearance to reconcile (PRC creature weapon,
 #: the PC skin that carries PRC-managed properties).
 _SKIP_BASE = {72, 73}
+
+_2DA_RESTYPE = 2017
+#: 2DAs that *register* which worn-appearance numbers the engine will draw. A worn
+#: part whose number has no row here is loaded but silently **not drawn** — so
+#: bundling the model alone is not enough. The base tables cap out low (``parts_robe``
+#: at row 38), while the source's CEP-extended copies carry the high numbers custom
+#: gear uses (a robe at 171, a cloak variant at 18). We bundle these whenever the
+#: extract touches a body part or cloak, so the extracted art actually appears.
+_REGISTRATION_2DAS = (
+    "parts_belt", "parts_bicep", "parts_chest", "parts_foot", "parts_forearm",
+    "parts_hand", "parts_legs", "parts_neck", "parts_pelvis", "parts_robe",
+    "parts_shin", "parts_shoulder", "cloakmodel",
+)
+#: an extract resref that means a worn body part or cloak was bundled (and therefore
+#: the registration tables are needed): a phenotype body-part model ``p<g><race><ph>_``,
+#: a robe/part icon ``ipm_``, or a cloak icon ``icloak``.
+_BODY_PART_RE = re.compile(r"^(p[fm][a-z][0-9]_|ipm_|icloak)")
 
 
 def collect_reports(reconciler, player_struct, female: bool):
@@ -121,16 +139,23 @@ def _set(editor, item_path: tuple, field_name: str, value: int, where: str) -> N
                 "module.ifo", item_path + ((mirror, None),), value, where=where)
 
 
-def hak_name_for(save_name: str) -> str:
+def hak_name_for(save_name: str, kind: str = "") -> str:
     """A stable, unique hak name for a save being edited.
 
     Deterministic in the source save, so re-running the wizard on the same save
     reuses (overwrites) its hak rather than orphaning old ones. Kept **well under
     the engine's 16-char hak-name limit** — a 16-char name silently fails to load
-    the whole hak, so ``vk_`` + 8 hex of a hash = 11 chars, still collision-safe
-    across saves."""
+    the whole hak, so ``vk_`` + 8 hex of a hash (+ a 1-char ``kind``) is ≤12 chars,
+    still collision-safe across saves.
+
+    ``kind`` distinguishes haks that *different features* write for the **same**
+    save. Without it, Fix Appearances and Rescue Item Powers both produced
+    ``vk_<hash>`` and silently overwrote one another — running the second wiped the
+    first's hak (a save's appearance came back full of rescued scripts, rendering
+    broke). Appearance keeps the bare name (``kind=""``) so existing haks are not
+    orphaned; other features pass a short suffix (e.g. ``"p"`` for powers)."""
     digest = hashlib.sha1(save_name.encode("utf-8", "replace")).hexdigest()
-    return f"vk_{digest[:8]}"
+    return f"vk_{digest[:8]}{kind}"
 
 
 def apply_decisions(
@@ -188,6 +213,16 @@ def apply_decisions(
             if ok:
                 entries.update(staged)
                 summary.edited += 1
+    if entries and any(_BODY_PART_RE.match(resref) for resref, _rt in entries):
+        # Bundle the registration 2DAs (see ``_REGISTRATION_2DAS``): an extracted
+        # high-numbered part/cloak whose number has no row is loaded but not drawn,
+        # so the model bundle alone leaves the robe/arms/cloak invisible. Read the
+        # source's (CEP-extended) copies; if the source only has the base table this
+        # is a harmless superset no-op.
+        for name in _REGISTRATION_2DAS:
+            data = reader.read(name, _2DA_RESTYPE)
+            if data is not None:
+                entries[(name, _2DA_RESTYPE)] = data
     if entries:
         hak_dir.mkdir(parents=True, exist_ok=True)
         hak_path = hak_dir / f"{hak_name}.hak"
