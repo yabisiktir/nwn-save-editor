@@ -49,6 +49,13 @@ _NSS = 2009
 _RESREF_MAX = 16
 #: The module local int BioWare's x2 system sets to enable tag-based item scripts.
 _TAGBASED_VARS = ("X2_SWITCH_ENABLE_TAGBASED_SCRIPTS", "X2_L_ENABLE_TAGBASED_SCRIPTS")
+
+#: the compiled generic PRC ``OnActivateItem`` dispatcher (chains ``prc_onactivate``
+#: then ``x2_mod_def_act``), shipped so a save whose module set the dispatcher *name*
+#: but never supplied its *script* can still fire tag-based item powers.
+_DISPATCHER_NCS = (
+    Path(__file__).resolve().parent / "data" / "onactivate_dispatcher"
+    / "onactivate_generic.ncs")
 #: Tokens that look like a script resref, for tracing a compiled script's
 #: ``ExecuteScript("…")`` dependencies out of its bytes.
 _TOKEN = re.compile(rb"[A-Za-z0-9_]{2,16}")
@@ -94,6 +101,38 @@ def tagbased_scripting_enabled(module_root) -> bool:
         if name in _TAGBASED_VARS and (s.get("Value") or 0) == 1:
             return True
     return False
+
+
+def onactivate_dispatcher_missing(
+    module_root, is_resolved: Callable[[str], bool]
+) -> str | None:
+    """The module's ``OnActivateItem`` dispatcher resref when it is *set but its
+    script is not resolvable* in this save — the case where every activated item
+    power silently does nothing until the dispatcher script is supplied.
+
+    Custom modules bake the dispatcher into the ``.mod``; a *stock campaign*
+    PRC-ified for an imported character can end up with the dispatcher name on the
+    module (``Mod_OnActvtItem``) but no compiled script anywhere it loads, so no
+    rescued (or native) tag-script power can ever fire. Returns the resref to bundle
+    a generic dispatcher under, or ``None`` when it already resolves (the normal
+    case, and so nothing is added)."""
+    if module_root is None:
+        return None
+    resref = str(module_root.get("Mod_OnActvtItem") or "").strip()
+    if not resref or is_resolved(resref):
+        return None
+    return resref[:_RESREF_MAX].lower()
+
+
+def generic_dispatcher_bytes() -> bytes | None:
+    """The compiled generic PRC ``OnActivateItem`` dispatcher to stand in for a
+    missing one — it ``ExecuteScript``s ``prc_onactivate`` then ``x2_mod_def_act``,
+    both of which resolve from the PRC/base content any PRC save loads, so it is safe
+    to drop in under the module's dispatcher name. ``None`` if it is not bundled."""
+    try:
+        return _DISPATCHER_NCS.read_bytes()
+    except OSError:
+        return None
 
 
 def find_orphans(
@@ -388,7 +427,7 @@ class RescueSummary:
 
 def apply_rescue(
     editor, matches: Iterable[SourceMatch], hak_dir: Path, *,
-    hak_name: str, where: str = "rescue item power",
+    hak_name: str, where: str = "rescue item power", dispatcher_ref: str | None = None,
 ) -> RescueSummary:
     """Bundle the auto-rescuable matches' scripts into one per-save hak and add it.
 
@@ -396,7 +435,12 @@ def apply_rescue(
     ``hak_dir/<hak_name>.hak``, calls ``editor.add_module_hak(hak_name)`` and records
     the file in a manifest for later removal. Only Tier-1 (compiled) matches are
     packaged; anything else is skipped (and noted). The caller writes the new save
-    with ``editor.save_as`` afterwards. Returns a summary."""
+    with ``editor.save_as`` afterwards. Returns a summary.
+
+    ``dispatcher_ref`` (from :func:`onactivate_dispatcher_missing`) is the module's
+    ``OnActivateItem`` dispatcher resref when the save has no script for it — bundling
+    a recovered power is useless without a dispatcher to invoke it, so the generic
+    one is added under that name too."""
     from nwnfile.formats.erf_writer import build_hak
 
     summary = RescueSummary()
@@ -411,6 +455,17 @@ def apply_rescue(
         summary.powers += 1
     if not entries:
         return summary
+
+    # Supply the OnActivateItem dispatcher when this save lacks one: without it the
+    # engine calls a non-existent script on activation and NO item power fires, so a
+    # recovered script alone would still do nothing (a stock campaign that set the
+    # dispatcher name but never shipped its script — every custom module bakes it in).
+    if dispatcher_ref:
+        blob = generic_dispatcher_bytes()
+        if blob is not None:
+            entries[(dispatcher_ref.lower(), _NCS)] = blob
+            summary.notes.append(
+                f"supplied the missing '{dispatcher_ref}' OnActivateItem dispatcher")
 
     hak_dir.mkdir(parents=True, exist_ok=True)
     hak_path = hak_dir / f"{hak_name}.hak"

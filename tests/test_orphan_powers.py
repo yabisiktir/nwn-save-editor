@@ -240,6 +240,52 @@ def test_apply_rescue_skips_non_tier1(tmp_path):
     assert any("not auto-rescuable" in n for n in summary.notes)
 
 
+# --- OnActivateItem dispatcher ------------------------------------------------
+def _module_with_dispatcher(resref):
+    data = {"Mod_OnActvtItem": resref} if resref is not None else {}
+    return SimpleNamespace(get=lambda k, d=None: data.get(k, d))
+
+
+def test_onactivate_dispatcher_missing_flags_only_an_unresolved_dispatcher():
+    root = _module_with_dispatcher("hif_onactivateit")
+    # set but its script is NOT resolvable -> the resref to bundle a dispatcher under
+    assert op.onactivate_dispatcher_missing(root, lambda _n: False) == "hif_onactivateit"
+    # already resolvable (a custom module baked it in) -> None, add nothing
+    assert op.onactivate_dispatcher_missing(root, lambda _n: True) is None
+    # no dispatcher / no module -> None
+    assert op.onactivate_dispatcher_missing(_module_with_dispatcher(None), lambda _n: False) is None
+    assert op.onactivate_dispatcher_missing(None, lambda _n: False) is None
+
+
+def test_generic_dispatcher_bytes_is_a_shipped_compiled_ncs():
+    blob = op.generic_dispatcher_bytes()
+    assert blob is not None and blob.startswith(b"NCS")
+
+
+def test_apply_rescue_bundles_the_missing_dispatcher(tmp_path):
+    # Recovering a power script is useless if the module has no dispatcher to invoke
+    # it — apply_rescue must add the generic dispatcher under the given resref too.
+    match = op.SourceMatch(
+        tag="robesofsesustris", script_name="robesofsesustris", tier=1,
+        scripts={("robesofsesustris", _NCS): b"NCS V1.0 body"})
+    ed = FakeEditor()
+    summary = op.apply_rescue(ed, [match], tmp_path, hak_name="vk_test",
+                              dispatcher_ref="hif_onactivateit")
+    contents = {r.resref.lower() for r in ErfReader().list_resources(tmp_path / "vk_test.hak")}
+    assert "robesofsesustris" in contents
+    assert "hif_onactivateit" in contents      # the dispatcher bundled alongside
+    assert any("dispatcher" in n for n in summary.notes)
+
+
+def test_apply_rescue_without_a_dispatcher_ref_adds_no_dispatcher(tmp_path):
+    match = op.SourceMatch(tag="x", script_name="x", tier=1,
+                           scripts={("x", _NCS): b"NCS V1.0"})
+    ed = FakeEditor()
+    op.apply_rescue(ed, [match], tmp_path, hak_name="vk_test")  # dispatcher_ref=None
+    contents = {r.resref.lower() for r in ErfReader().list_resources(tmp_path / "vk_test.hak")}
+    assert contents == {"x"}  # only the power script, no dispatcher
+
+
 # --- dialog ------------------------------------------------------------------
 def _orphan(tag, label="Unique Power"):
     return op.OrphanPower(

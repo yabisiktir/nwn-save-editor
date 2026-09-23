@@ -1121,6 +1121,10 @@ class SaveEditorWindow(QMainWindow):
             resolved = opw.make_resolver(save.sav_path, hak_paths, reader=reader)
             orphans = opw.find_orphans(session.player_items(), resolved)
             tagbased = opw.tagbased_scripting_enabled(session.module_root())
+            # the OnActivateItem dispatcher this save has no script for (else None) —
+            # without it no recovered power can fire (stock-campaign import case).
+            dispatcher_ref = opw.onactivate_dispatcher_missing(
+                session.module_root(), resolved)
             sources = (sorted((user / "modules").glob("*.mod"))
                        + sorted(hak_dir.glob("*.hak")))
             # One pass over the sources for every orphan tag (not per-tag): the
@@ -1129,7 +1133,7 @@ class SaveEditorWindow(QMainWindow):
             matches = opw.search_sources_many(
                 [o.tag for o in orphans], sources, is_resolved=resolved, reader=reader)
             compiler = script_compiler.find_compiler(self._game_root())
-            return orphans, tagbased, matches, compiler
+            return orphans, tagbased, matches, compiler, dispatcher_ref
 
         # Disable input while the scan runs on the worker thread: run_blocking keeps
         # the event loop alive (so the window stays responsive), and disabling stops
@@ -1137,7 +1141,7 @@ class SaveEditorWindow(QMainWindow):
         self.setEnabled(False)
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
-            orphans, tagbased, matches, compiler = w.run_blocking(scan)
+            orphans, tagbased, matches, compiler, dispatcher_ref = w.run_blocking(scan)
         finally:
             QApplication.restoreOverrideCursor()
             self.setEnabled(True)
@@ -1171,7 +1175,8 @@ class SaveEditorWindow(QMainWindow):
                 # hak's name, or running one feature overwrites the other's hak.
                 summary = opw.apply_rescue(
                     session, chosen, hak_dir,
-                    hak_name=hak_name_for(session.source_name, "p"))
+                    hak_name=hak_name_for(session.source_name, "p"),
+                    dispatcher_ref=dispatcher_ref)
                 self.notify_changed()
             return self._rescue_report(summary, failures)
 
