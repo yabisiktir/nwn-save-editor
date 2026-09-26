@@ -45,6 +45,7 @@ The full walkthrough is in [docs/save_game_editor.md](docs/save_game_editor.md).
 | **Inventory & Equipment** | Paperdoll of worn slots, the carried bag (including nested containers), and — for PRC characters — the natural-weapon set and the PRC skin. |
 | **Fix item appearances** | When gear carried over from another campaign or hak set shows the wrong (default) art, a wizard restores the right look — inventory icons and worn 3D models, reconciled even inside bags — bundled into a per-save hak so the fix never leaks into your other games. |
 | **Rescue item powers** | Bring back an item's scripted power (a Unique Power or on-hit effect) whose module script has gone missing; it is recompiled straight back into the save. |
+| **Restore stripped items** | Find items that lost magical properties compared with the blueprint they came from in your installed modules, and put back the ones you tick (restrictions stay off unless you ask). |
 | **Area contents** | Store pricing and stock, creature gear, container loot, and the module's factions. |
 | **Quests & World State / Party & Campaign** | The module's persistent script variables (searchable, editable) and party-wide settings. |
 | **Raw GFF** *(advanced)* | The save's whole decoded tree, any field editable. Id fields (a feat, a class, an item property) read out in plain language and edit **by name**; a struct or list can be exported to its own GFF file or imported back in. |

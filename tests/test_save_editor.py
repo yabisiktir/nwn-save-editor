@@ -1432,3 +1432,17 @@ def test_a_save_memo_does_not_survive_an_overwrite(tmp_path):
     assert again is not first, "the memo outlived the file it was taken against"
     assert again.name == "Before"  # the edit did not touch module.ifo
     assert read_area_contents(save.sav_path, "area1").stores[0].markup == 150
+
+
+def test_restoring_a_property_keeps_its_param1_value_and_says_restore(tmp_path):
+    save = _make_char_save(tmp_path)
+    editor = SaveEditor(save)
+    helm = next(it for it in editor.player_items() if it.slot == 1)
+    editor.add_item_property(
+        helm.path, property_name=44, subtype=0, cost_value=4, cost_table=18,
+        param1=9, param1_value=1, where="Helm", label="Light +4", verb="restore",
+    )
+    assert editor.pending_changes()[0].summary == "restore Light +4"
+    new_save = editor.save_as(tmp_path / "out")
+    added = _helm_props(_ifo_char(new_save.sav_path))[-1]
+    assert added.fields["Param1"].value == 9 and added.fields["Param1Value"].value == 1

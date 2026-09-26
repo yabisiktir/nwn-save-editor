@@ -1264,6 +1264,79 @@ class SaveEditorWindow(QMainWindow):
         hak_dir = self._hak_dir()
         return bool(hak_dir is not None and hak_manifest(hak_dir))
 
+    def restore_stripped_items(self) -> None:
+        """Wizard: put back magical properties a player item lost.
+
+        Compares every player item with the blueprint it was made from in the
+        installed modules/haks (see :mod:`nwnsaveeditor.stripped_items`) and lists
+        the ones missing properties. The picks are staged as ordinary property
+        adds — each undoable/discardable, nothing written until Save. Base-game
+        item properties, so the edit is base-safe (not PRC-managed)."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QApplication
+
+        from nwnsaveeditor import stripped_items as si
+        from nwnsaveeditor.ui.dialogs.restore_items_dialog import (
+            RestoreItemsDialog,
+            property_label,
+        )
+
+        session = self.session()
+        if session is None:
+            return
+        if not self._editing:
+            w.message(self, QMessageBox.Icon.Information, "Turn on Edit mode",
+                      "Switch on Edit mode first, then run Restore stripped items.",
+                      QMessageBox.StandardButton.Ok)
+            return
+        hak_dir = self._hak_dir()
+        user = getattr(getattr(self._controller, "ctx", None), "game_user_dir", None)
+        if user is None:
+            w.message(self, QMessageBox.Icon.Warning, "No user folder",
+                      "Can't find your Neverwinter Nights user folder to look up "
+                      "item blueprints.", QMessageBox.StandardButton.Ok)
+            return
+
+        def scan():
+            facts = session.player_item_facts()
+            sources = sorted((user / "modules").glob("*.mod"))
+            if hak_dir is not None:
+                sources += sorted(hak_dir.glob("*.hak"))
+            blueprints = si.find_blueprints({f.resref for f in facts}, sources)
+            return si.find_stripped(facts, blueprints)
+
+        self.setEnabled(False)
+        QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+        try:
+            stripped = w.run_blocking(scan)
+        finally:
+            QApplication.restoreOverrideCursor()
+            self.setEnabled(True)
+
+        if not stripped:
+            w.message(self, QMessageBox.Icon.Information, "Nothing to restore",
+                      "Every item on this character has all the powers its "
+                      "installed blueprint gives it.", QMessageBox.StandardButton.Ok)
+            return
+
+        tables = self.property_tables()
+        dialog = RestoreItemsDialog(stripped, tables=tables, parent=self)
+        if dialog.exec() != RestoreItemsDialog.DialogCode.Accepted:
+            return
+        count = 0
+        for entry, props in dialog.selected():
+            where = entry.item.name or entry.item.tag or "item"
+            for p in props:
+                session.add_item_property(
+                    entry.item.path, property_name=p.property_name, subtype=p.subtype,
+                    cost_value=p.cost_value, cost_table=p.cost_table, param1=p.param1,
+                    param1_value=p.param1_value, where=where, verb="restore",
+                    label=property_label(p, tables))
+                count += 1
+        if count:
+            self.notify_changed()
+
     def notify_changed(self) -> None:
         """A screen staged an edit: refresh the footer, the dots and the screens."""
         self._char_edit_token += 1  # invalidate the cached character summary

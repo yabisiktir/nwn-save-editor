@@ -355,6 +355,37 @@ for weapons, armour, helmets and cloaks; gloves, boots and rings/amulets have no
 separate worn model (they are drawn by the body or the feet, or not shown when
 worn), so for those only the inventory icon is reconciled.
 
+#### Restore stripped items — when an item lost its powers
+
+An item's powers are usually plain magical properties stored on the item itself
+(bonus feats, immunities, extra spell slots…). If something removes them in-game,
+the item keeps its name and picture but quietly becomes a trinket, and nothing else
+in the save notices. In **Edit mode**, **Restore stripped items…** (Inventory,
+next to Fix appearances) compares every item on your character with the
+**blueprint it was made from** in your installed modules and haks, and lists the
+items that have fewer properties than their blueprint.
+
+For each item it shows where the blueprint came from and one checkbox per missing
+property. **Powers start ticked; restrictions start unticked.** Use limitations
+(class, alignment, race…) and drawbacks (penalties, vulnerabilities) are listed
+separately. Players often remove those on purpose to be able to use an item, and
+putting one back can stop your character equipping it. Each ticked property
+becomes a normal pending change ("restore …"): undo it, discard it, or save to a
+new save folder as usual.
+
+What is **not** flagged:
+
+- an item that has anything its blueprint doesn't: it was upgraded, crafted or
+  re-enchanted on purpose, and "restoring" it would be a guess;
+- an item missing *only* restrictions (that's what an unlocked item looks like);
+- creature weapons and hides, which the engine and PRC rebuild themselves;
+- items whose blueprint isn't installed any more.
+
+When several modules ship a blueprint with the same name (SoF2 and SoF3 both have a
+"Holy Symbol of Thoth", with different powers), the one whose description matches
+the item wins; if nothing tells them apart, the smaller restore is picked, and the
+dialog names the other versions.
+
 ##### Recompute PRC Features (item)
 
 With **class level editing** turned on (Settings…), the Abilities & Combat tab shows

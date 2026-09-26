@@ -172,7 +172,7 @@ def _fmt_uses(value: int) -> str:
 
 def _make_property_struct(
     property_name: int, subtype: int, cost_table: int, cost_value: int,
-    param1: int | None = None,
+    param1: int | None = None, param1_value: int = 0,
 ) -> GffStruct:
     """A full item-property struct, matching the game's field layout.
 
@@ -185,7 +185,7 @@ def _make_property_struct(
         "CostTable": GffField(GffType.BYTE, cost_table),
         "CostValue": GffField(GffType.WORD, cost_value),
         "Param1": GffField(GffType.BYTE, 255 if param1 is None else int(param1)),
-        "Param1Value": GffField(GffType.BYTE, 0),
+        "Param1Value": GffField(GffType.BYTE, int(param1_value)),
         "ChanceAppear": GffField(GffType.BYTE, 100),
         "UsesPerDay": GffField(GffType.BYTE, 255),
         "Useable": GffField(GffType.BYTE, 1),
@@ -1004,6 +1004,16 @@ class SaveEditor:
         self._walk_carried(player, (), items)
         return items
 
+    def player_item_facts(self) -> list:
+        """:class:`~nwnsaveeditor.stripped_items.ItemFacts` for every player item —
+        the raw fields (tag, blueprint resref, description, full property values)
+        the stripped-item check compares against each item's blueprint."""
+        from nwnsaveeditor.stripped_items import ItemFacts
+
+        tree = self._module_tree()
+        return [ItemFacts.of(self._item_struct(tree, it.path), it.path)
+                for it in self.player_items()]
+
     def _walk_carried(self, container: GffStruct, base: tuple, out: list) -> None:
         field = container.fields.get("ItemList")
         if field is None or field.type != GffType.LIST:
@@ -1236,10 +1246,13 @@ class SaveEditor:
     @_records()
     def add_item_property(
         self, item_path: tuple, *, property_name: int, subtype: int, cost_value: int,
-        cost_table: int, param1: int | None = None,
-        where: str = "", label: str = "property",
+        cost_table: int, param1: int | None = None, param1_value: int = 0,
+        where: str = "", label: str = "property", verb: str = "add",
     ) -> None:
-        """Stage adding a new magical property to a player item (both trees)."""
+        """Stage adding a new magical property to a player item (both trees).
+
+        ``param1_value`` is copied as-is when restoring a blueprint's property
+        (e.g. a Light's colour); ``verb`` words the pending-change summary."""
         self._char_dirty = True
         module, index = self._module_tree(), 0
         for tree in self._targets():
@@ -1249,7 +1262,7 @@ class SaveEditor:
                 plist = GffField(GffType.LIST, GffList([]))
                 item.fields["PropertiesList"] = plist
             struct = _make_property_struct(
-                property_name, subtype, cost_table, cost_value, param1
+                property_name, subtype, cost_table, cost_value, param1, param1_value
             )
             struct.struct_type = len(plist.value.structs)  # struct_type == list index
             plist.value.structs.append(struct)
@@ -1257,7 +1270,7 @@ class SaveEditor:
                 index = struct.struct_type
         # Keyed on where the property landed — the same (item path, index) pair the
         # inventory screen marks a property with, and edits to it are staged under.
-        self._stage("prop-add", (tuple(item_path), index), where or "item", f"add {label}")
+        self._stage("prop-add", (tuple(item_path), index), where or "item", f"{verb} {label}")
 
     def _shift_property_keys(self, item_path: tuple, removed: int) -> None:
         """Re-point staged property bookkeeping after property ``removed`` went.

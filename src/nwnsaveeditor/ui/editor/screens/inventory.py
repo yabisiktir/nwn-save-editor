@@ -168,30 +168,48 @@ class InventoryScreen(QWidget):
         equip_header = QHBoxLayout()
         equip_header.addWidget(w.heading("Equipment"))
         equip_header.addStretch(1)
+        undo_row = None
         if self._window.editing:
+            # The three repair tools share the heading row; their "Remove…" undo
+            # buttons go on a quieter row below, only when there is something to
+            # remove — one row of all five overflowed a 1400px window.
             fix = w.gold_button("Fix appearances…")
             fix.setToolTip(
                 "Reconcile items whose custom art this module can't show "
                 "(e.g. CEP2/Aielund gear under CEP3 Swordflight).")
             fix.clicked.connect(self._window.fix_appearances)
             equip_header.addWidget(fix)
-            if self._window.has_appearance_hak():
-                undo = w.ghost_button("Remove added art…")
-                undo.setToolTip("Delete the art a previous Extract added to override.")
-                undo.clicked.connect(self._window.remove_appearance_hak)
-                equip_header.addWidget(undo)
             rescue = w.gold_button("Rescue item powers…")
             rescue.setToolTip(
                 "Make a carried item's scripted power (a “Unique Power” brought in "
                 "from another campaign) work in this save.")
             rescue.clicked.connect(self._window.rescue_powers)
             equip_header.addWidget(rescue)
+            restore = w.gold_button("Restore stripped items…")
+            restore.setToolTip(
+                "Find items that lost magical properties compared with the blueprint "
+                "they came from, and put back the ones you choose.")
+            restore.clicked.connect(self._window.restore_stripped_items)
+            equip_header.addWidget(restore)
+            undos = []
+            if self._window.has_appearance_hak():
+                undo = w.ghost_button("Remove added art…")
+                undo.setToolTip("Delete the art a previous Extract added to override.")
+                undo.clicked.connect(self._window.remove_appearance_hak)
+                undos.append(undo)
             if self._window.has_rescue_hak():
                 undo_p = w.ghost_button("Remove rescued powers…")
                 undo_p.setToolTip("Delete the script hak a previous Rescue added.")
                 undo_p.clicked.connect(self._window.remove_rescued_powers)
-                equip_header.addWidget(undo_p)
+                undos.append(undo_p)
+            if undos:
+                undo_row = QHBoxLayout()
+                undo_row.addStretch(1)
+                for button in undos:
+                    undo_row.addWidget(button)
         column.addLayout(equip_header)
+        if undo_row is not None:
+            column.addLayout(undo_row)
         column.addWidget(self._build_paperdoll(equipped), 0, Qt.AlignmentFlag.AlignLeft)
         # Read once: a character can have natural weapons recorded and none of
         # them equipped, which is exactly the case worth showing.
