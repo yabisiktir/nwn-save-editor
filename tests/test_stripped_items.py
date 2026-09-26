@@ -112,3 +112,21 @@ def test_dialog_ticks_powers_and_leaves_restrictions_off(qtbot):
         box.setChecked(False)
     assert dlg.selected() == []
     assert not dlg._buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+
+
+def test_dialog_offers_the_rules_fix_when_properties_are_blocked(qtbot):
+    from nwnsaveeditor.item_rules import ItemRules
+    from nwnsaveeditor.ui.dialogs.restore_items_dialog import RestoreItemsDialog
+
+    rules = ItemRules({15: {"label": "torch", "PropColumn": "20"}},
+                      {12: {"20_Torch": "****"}, 44: {"20_Torch": "1"}})
+    entry = si.StrippedItem(item=_facts([FEAT, LIGHT]), blueprint=None, missing=[],
+                            blocked=[FEAT])
+    dlg = RestoreItemsDialog([entry], rules=rules)
+    qtbot.addWidget(dlg)
+    assert dlg.selected() == [] and dlg.rules_fix()  # nothing missing, fix offered
+    assert "Torch" in dlg._rules_check.text()
+    plain = RestoreItemsDialog([si.StrippedItem(item=_facts([LIGHT]), blueprint=None,
+                                                missing=[])], rules=rules)
+    qtbot.addWidget(plain)
+    assert not plain.rules_fix()  # nothing blocked -> no fix offered

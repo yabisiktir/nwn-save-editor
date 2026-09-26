@@ -106,10 +106,13 @@ class StrippedItem:
     """A player item missing properties its blueprint has."""
 
     item: ItemFacts
-    blueprint: Blueprint
+    blueprint: Blueprint | None  #: None: nothing missing, only at risk (see find_at_risk)
     missing: list[PropFields]  #: in blueprint order
     #: other blueprints that would also fit (same resref+tag), for an honest note
     alternatives: list[Blueprint] = field(default_factory=list)
+    #: properties (kept or missing) this save's item rules strip from the item's
+    #: base type on load — see :mod:`nwnsaveeditor.item_rules`
+    blocked: list[PropFields] = field(default_factory=list)
 
     @property
     def lost_powers(self) -> list[PropFields]:
@@ -182,6 +185,33 @@ def find_stripped(
         out.append(StrippedItem(
             item=item, blueprint=best, missing=_missing(item, best),
             alternatives=fits[1:]))
+    return out
+
+
+def mark_blocked(entries: Iterable[StrippedItem], rules) -> None:
+    """Fill each entry's ``blocked`` from the save's item rules."""
+    from nwnsaveeditor.item_rules import blocked_properties
+
+    for entry in entries:
+        entry.blocked = blocked_properties(
+            entry.item.base_item, [*entry.item.props, *entry.missing], rules)
+
+
+def find_at_risk(items: Iterable[ItemFacts], rules, *, skip=()) -> list[StrippedItem]:
+    """Items not missing anything that still carry properties the save's item rules
+    will strip on load (a restore that was saved but not yet loaded, or an item
+    brought in from a module with looser rules). ``skip``: item paths already
+    reported by :func:`find_stripped`."""
+    from nwnsaveeditor.item_rules import blocked_properties
+
+    skipped = {tuple(p) for p in skip}
+    out: list[StrippedItem] = []
+    for item in items:
+        if item.base_item in _SKIP_BASE_ITEMS or tuple(item.path) in skipped:
+            continue
+        blocked = blocked_properties(item.base_item, item.props, rules)
+        if blocked:
+            out.append(StrippedItem(item=item, blueprint=None, missing=[], blocked=blocked))
     return out
 
 

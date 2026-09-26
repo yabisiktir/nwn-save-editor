@@ -57,7 +57,14 @@ explicitly choose <b>Overwrite…</b> — which keeps a timestamped backup first
   <li><b>Inventory &amp; Equipment</b> — the paperdoll, then what you carry, grouped
       by the bag each item sits in. Select an item to edit its magical properties;
       every field comes from the game's own tables, so an edit cannot produce a
-      value the engine does not recognise.</li>
+      value the engine does not recognise. In Edit mode three repair tools sit
+      beside the heading. <b>Fix appearances…</b> is for gear this module can't
+      draw. <b>Rescue item powers…</b> is for a scripted power whose script this
+      save lacks. <b>Restore stripped items…</b> compares each item with the
+      blueprint it came from and offers to put back properties it lost. It also
+      warns (⚠) about properties this save's item rules
+      (<code>itemprops.2da</code>) remove on load, such as PRC letting a Torch
+      carry only Light, and can add a small per-save hak so they stick.</li>
   <li><b>Spellbook</b> — per caster class and spell level.</li>
   <li><b>Quests &amp; World State</b> — the module's persistent variables.</li>
   <li><b>Party &amp; Campaign</b> — this save's summary and the module's party

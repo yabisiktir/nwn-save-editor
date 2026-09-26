@@ -386,6 +386,47 @@ When several modules ship a blueprint with the same name (SoF2 and SoF3 both hav
 the item wins; if nothing tells them apart, the smaller restore is picked, and the
 dialog names the other versions.
 
+##### Item rules: why a restored property can vanish again on load
+
+The game doesn't let every item carry every property. `baseitems.2da` puts each
+kind of item in a column of `itemprops.2da`, and a property marked `****` in that
+column is **removed when the save loads**, silently. Custom-content packs disagree
+here. Every CEP version lets a **Torch** carry bonus feats, spell slots and
+immunities, but PRC8's `prc8_2das.hak` keeps the base game's "Light only". So SoF3's
+Holy Symbol of Thoth (a Torch) keeps all 18 properties in a PRC+CEP2 module (SoF3
+loads a PRC/CEP merge hak), and is cut down to its Light the first time the
+character loads into a module whose top `itemprops.2da` is PRC's own, such as
+Cormyrean Nights PRC8-CEP3. Restoring the properties alone can't fix that: the next
+load removes them again.
+
+Restore stripped items therefore reads **this save's** item rules, using the same
+hak order the game uses:
+
+- a property the rules forbid is marked **⚠** in the list, with a red note on the
+  item;
+- items that are *not* missing anything but already carry forbidden properties are
+  listed too ("N properties will be removed on load"). This catches a restore that
+  was saved but not yet loaded, or gear brought in from a module with looser
+  rules;
+- a checkbox at the bottom, **ticked by default** whenever something is marked ⚠,
+  adds the **item-rules fix**.
+
+The fix is a small hak named `vk_<hash>i` holding one file: a copy of the
+`itemprops.2da` your save **already uses**, with only the needed cells switched on
+(for the Holy Symbol, 7 cells in the Torch column; nothing else changes). It goes
+at the **top** of the save's hak list, because the highest hak wins and PRC's
+`prc8_2das` is usually first. Running the tool again on the same save keeps the
+cells switched on earlier. Written haks are listed in `hak/vk_itemrule_haks.json`.
+
+Two things to know:
+
+- The fix travels with the save's hak list, like the other per-save haks. Keep the
+  hak file, and never remove it while a save uses it. A save that lists a hak you
+  deleted won't load.
+- It widens the rules for every item of that kind *in this save*: any Torch could
+  now carry those properties. That only affects what the game lets items keep; it
+  adds no power to any item by itself.
+
 ##### Recompute PRC Features (item)
 
 With **class level editing** turned on (Settings…), the Abilities & Combat tab shows

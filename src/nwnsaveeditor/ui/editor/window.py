@@ -13,6 +13,7 @@ staging, byte-verification and backup guarantees are unchanged.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
@@ -1298,18 +1299,31 @@ class SaveEditorWindow(QMainWindow):
                       "item blueprints.", QMessageBox.StandardButton.Ok)
             return
 
+        from nwnfile.hak_stack import HakStack
+        from nwnsaveeditor import item_rules
+
+        stack = HakStack.for_module(session.module_hak_names(), hak_dir, self._game_root())
+
         def scan():
             facts = session.player_item_facts()
             sources = sorted((user / "modules").glob("*.mod"))
             if hak_dir is not None:
                 sources += sorted(hak_dir.glob("*.hak"))
             blueprints = si.find_blueprints({f.resref for f in facts}, sources)
-            return si.find_stripped(facts, blueprints)
+            stripped = si.find_stripped(facts, blueprints)
+            # This save's own item rules: a property its base item may not carry is
+            # removed by the game on load, so a restore alone would not stick.
+            rules = item_rules.ItemRules.from_stack(stack)
+            if rules.known:
+                si.mark_blocked(stripped, rules)
+                stripped += si.find_at_risk(
+                    facts, rules, skip=[e.item.path for e in stripped])
+            return stripped, rules
 
         self.setEnabled(False)
         QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         try:
-            stripped = w.run_blocking(scan)
+            stripped, rules = w.run_blocking(scan)
         finally:
             QApplication.restoreOverrideCursor()
             self.setEnabled(True)
@@ -1321,10 +1335,12 @@ class SaveEditorWindow(QMainWindow):
             return
 
         tables = self.property_tables()
-        dialog = RestoreItemsDialog(stripped, tables=tables, parent=self)
+        dialog = RestoreItemsDialog(stripped, tables=tables, rules=rules, parent=self)
         if dialog.exec() != RestoreItemsDialog.DialogCode.Accepted:
             return
         count = 0
+        if dialog.rules_fix() and hak_dir is not None:
+            count += self._add_item_rules_hak(session, stack, rules, stripped, hak_dir)
         for entry, props in dialog.selected():
             where = entry.item.name or entry.item.tag or "item"
             for p in props:
@@ -1336,6 +1352,35 @@ class SaveEditorWindow(QMainWindow):
                 count += 1
         if count:
             self.notify_changed()
+
+    def _add_item_rules_hak(self, session, stack, rules, entries, hak_dir) -> int:
+        """Write the per-save item-rules hak and put it at the top of the hak list.
+
+        The table is the save's *own* winning ``itemprops.2da`` with only the cells
+        the ⚠ properties need switched on (see :mod:`nwnsaveeditor.item_rules`).
+        Top of ``Mod_HakList`` because the highest hak wins and PRC's
+        ``prc8_2das`` is usually first. Returns 1 when staged, 0 when not needed."""
+        from nwnsaveeditor import item_rules
+        from nwnsaveeditor.appearance_fix import hak_name_for
+
+        cells = {(p.property_name, rules.column(e.item.base_item))
+                 for e in entries for p in e.blocked if rules.column(e.item.base_item)}
+        text = stack.read_text("itemprops", 2017)
+        if not cells or text is None:
+            return 0
+        name = hak_name_for(session.source_name, "i")
+        existing = hak_dir / f"{name}.hak"
+        if existing.exists():  # a re-run: keep what an earlier run switched on
+            from nwnfile.formats.erf_reader import ErfReader
+
+            with contextlib.suppress(Exception):
+                res = ErfReader().find_resource(existing, "itemprops", res_type=2017)
+                if res is not None:
+                    text = ErfReader().read_resource_bytes(existing, res).decode("latin-1")
+        existing.write_bytes(item_rules.build_rules_hak(item_rules.patch_itemprops(text, cells)))
+        item_rules.record_hak(hak_dir, name)
+        session.prepend_module_hak(name, where="item rules (itemprops.2da)")
+        return 1
 
     def notify_changed(self) -> None:
         """A screen staged an edit: refresh the footer, the dots and the screens."""
