@@ -31,6 +31,15 @@ def test_generate_wrapper_restores_activate_locals():
     assert _ROBE_BRANCH in wrapper
 
 
+def test_generate_wrapper_uses_the_dispatchers_names_first():
+    preamble = ("    object oActivated = GetItemActivated();\n"
+                "    object oPC = GetItemActivator();\n")
+    wrapper = sp.generate_wrapper('if (GetTag(oActivated)=="x") { }', (), preamble)
+    assert "object oActivated = GetItemActivated();" in wrapper
+    assert wrapper.count("object oPC") == 1  # no duplicate declaration
+    assert "object item = GetItemActivated();" in wrapper  # stock names still there
+
+
 def test_build_symbol_index_maps_functions_and_constants():
     sources = {
         "prc_inc_util": "void PRCForceRest(object oPC) { }\nint FOO = 3;",

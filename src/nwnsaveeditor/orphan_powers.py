@@ -62,6 +62,16 @@ _TOKEN = re.compile(rb"[A-Za-z0-9_]{2,16}")
 #: Captures the tag out of every ``GetTag(...)=="tag"`` in a dispatcher's source,
 #: so one pass over an ``.nss`` finds branches for *all* searched tags at once.
 _CAP_GETTAG = re.compile(rb'GetTag\s*\([^)]*\)\s*==\s*"([A-Za-z0-9_]{1,16})"', re.IGNORECASE)
+_CAP_GETTAG_TEXT = re.compile(_CAP_GETTAG.pattern.decode(), re.IGNORECASE)
+#: A string literal (kept) or a ``//`` / ``/* */`` comment (dropped) — so a
+#: commented-out ``//if (GetTag(o)=="x")`` is never mistaken for a live branch.
+_COMMENT_OR_STRING = re.compile(r'"(?:\\.|[^"\\\n])*"|//[^\n]*|/\*.*?\*/', re.DOTALL)
+#: A dispatcher's own activate-event local, e.g. ``object oActivated = GetItemActivated();``
+#: — restored in the port under the dispatcher's name, not a guessed one.
+_ACTIVATE_DECL = re.compile(
+    r'\b(object|location)\s+(\w+)\s*=\s*'
+    r'(GetItemActivated|GetItemActivator|GetItemActivatedTarget|GetItemActivatedTargetLocation)'
+    r'\s*\(\s*\)\s*;')
 
 
 def script_name_for_tag(tag: str) -> str:
@@ -202,6 +212,7 @@ class SourceMatch:
     needs_compile: bool = False  #: tier 1 but only source (.nss) found — Phase 2
     dispatcher: str = ""  #: tier 2: the script whose branch implements it
     branch_source: str = ""  #: tier 2: the extracted branch text, for preview
+    preamble: str = ""  #: tier 2: the dispatcher's activate-local declarations
     notes: list = field(default_factory=list)
 
     @property
@@ -330,24 +341,35 @@ def search_sources_many(
             wanted = {scripts[tag]: tag for tag in need_tier2}
             for r in nss_index.values():
                 raw = reader.read_resource_bytes(src, r)
-                if b"gettag" not in raw.lower():
+                lowered = raw.lower()
+                # Only an OnActivateItem-style script is an item-power dispatcher; a
+                # GetTag() check in an OnEquip/heartbeat script (e.g. SoF1's heat
+                # check) is not the power and would port into nonsense.
+                if b"gettag" not in lowered or b"getitemactivat" not in lowered:
                     continue
                 hits = {
                     m.group(1).decode("ascii", "ignore").lower()
                     for m in _CAP_GETTAG.finditer(raw)}
+                if not any(s in wanted and wanted[s] not in tier2 for s in hits):
+                    continue
+                # Only decode a real hit; re-match without comments so a
+                # commented-out condition doesn't count.
+                text = strip_comments(raw.decode("latin-1", "replace"))
+                if "getitemactivat" not in text.lower():
+                    continue
+                hits = {m.group(1).lower() for m in _CAP_GETTAG_TEXT.finditer(text)}
                 matched = [(s, wanted[s]) for s in hits
                            if s in wanted and wanted[s] not in tier2]
-                if not matched:
-                    continue
-                text = raw.decode("latin-1", "replace")  # only decode a real hit
                 for script, tag in matched:
                     branch_re = re.compile(
                         r'GetTag\s*\([^)]*\)\s*==\s*"' + re.escape(script) + r'"',
                         re.IGNORECASE)
+                    branch_source = _extract_branch(text, branch_re)
                     tier2[tag] = SourceMatch(
                         tag=tag, script_name=script, tier=2, origin=src.name,
                         dispatcher=r.resref,
-                        branch_source=_extract_branch(text, branch_re),
+                        branch_source=branch_source,
+                        preamble=activate_preamble(text, text.find(branch_source)),
                         notes=[f"behaviour is a branch inside {r.resref} in {src.name} "
                                "— needs a compiled port (manual review)"])
 
@@ -391,6 +413,25 @@ def rescuable_from_compile(match: SourceMatch, ncs: bytes, includes=()) -> Sourc
         match, tier=1, needs_compile=False,
         scripts={(match.script_name, _NCS): ncs},
         notes=[f"compiled from {match.dispatcher}{extra}"])
+
+
+def strip_comments(text: str) -> str:
+    """``text`` with every ``//`` and ``/* */`` comment blanked (string literals kept)."""
+    return _COMMENT_OR_STRING.sub(
+        lambda m: m.group() if m.group().startswith('"') else " ", text)
+
+
+def activate_preamble(text: str, before: int = -1) -> str:
+    """The dispatcher's activate-event locals declared before offset ``before``
+    (whole text when negative), one declaration per line, first name wins.
+
+    A branch refers to the item/activator by whatever name *its* dispatcher gave
+    them (``oActivated``, ``oItem``, ``item``…); porting it needs those exact names."""
+    region = text if before < 0 else text[:before]
+    seen: dict[str, str] = {}
+    for m in _ACTIVATE_DECL.finditer(region):
+        seen.setdefault(m.group(2), f"    {m.group(1)} {m.group(2)} = {m.group(3)}();\n")
+    return "".join(seen.values())
 
 
 def _extract_branch(text: str, branch_re: re.Pattern) -> str:

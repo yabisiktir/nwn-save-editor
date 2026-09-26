@@ -158,6 +158,53 @@ def test_search_tier2_finds_dispatcher_branch(tmp_path):
     assert "PRCForceRest" in match.branch_source
 
 
+def test_search_tier2_ignores_a_commented_out_condition(tmp_path):
+    # Aribeth's Redemption's dw_mod_def_act: the NW_ condition is commented out and
+    # the body under it belongs to DW_IT_RECALL — not a branch for NW_IT_RECALL.
+    dispatcher = (
+        'void main(){\n'
+        '  object oActivated = GetItemActivated();\n'
+        '  if(GetTag(oActivated) == "DW_IT_RECALL")\n'
+        '  //if(GetTag(oActivated) == "NW_IT_RECALL")\n'
+        '  { ExecuteScript("dw_recall", OBJECT_SELF); }\n'
+        '  /* if (GetTag(oActivated)=="blocktag") { } */\n'
+        '}\n')
+    hak = _hak(tmp_path, "ar", [("dw_mod_def_act", _NSS, dispatcher.encode())])
+    many = op.search_sources_many(["NW_IT_RECALL", "blocktag", "DW_IT_RECALL"], [hak])
+    assert many["NW_IT_RECALL"].tier == 0
+    assert many["blocktag"].tier == 0
+    assert many["DW_IT_RECALL"].tier == 2
+
+
+def test_search_tier2_ignores_a_non_activate_script(tmp_path):
+    # SoF1's heatmodifycheck: an OnEquip GetTag() check, not an item power.
+    onequip = (
+        'void main(){\n'
+        '  object oPC=GetPCItemLastEquippedBy();\n'
+        '  object armour=GetItemInSlot(INVENTORY_SLOT_CHEST,oPC);\n'
+        '  if (GetTag(armour)=="desertrobes") { SendMessageToPC(oPC,"cool"); }\n'
+        '}\n')
+    hak = _hak(tmp_path, "sof1", [("heatmodifycheck", _NSS, onequip.encode())])
+    match = op.search_sources("desertrobes", [hak], is_resolved=lambda _n: False)
+    assert match.tier == 0
+
+
+def test_search_tier2_records_the_dispatchers_own_activate_locals(tmp_path):
+    dispatcher = (
+        'void main(){\n'
+        '  object oActivated = GetItemActivated();\n'
+        '  object oUser=GetItemActivator();\n'
+        '  if (GetTag(oActivated)=="stone") { AssignCommand(oUser, ClearAllActions()); }\n'
+        '  location lLate = GetItemActivatedTargetLocation();\n'
+        '}\n')
+    hak = _hak(tmp_path, "m", [("onact", _NSS, dispatcher.encode())])
+    match = op.search_sources("stone", [hak], is_resolved=lambda _n: False)
+    assert match.tier == 2
+    assert "object oActivated = GetItemActivated();" in match.preamble
+    assert "object oUser = GetItemActivator();" in match.preamble
+    assert "lLate" not in match.preamble  # declared after the branch
+
+
 def test_search_none_when_absent(tmp_path):
     hak = _hak(tmp_path, "src", [("something_else", _NCS, b"NCS V1.0")])
     match = op.search_sources("robesofsesustris", [hak], is_resolved=lambda _n: False)

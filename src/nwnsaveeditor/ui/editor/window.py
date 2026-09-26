@@ -1198,7 +1198,8 @@ class SaveEditorWindow(QMainWindow):
         sources = opw.gather_nss_sources([module_path, *hak_paths])
         index = script_port.build_symbol_index(sources)
         result = script_port.resolve_and_compile(
-            match.branch_source, index, sources, compiler.compile)
+            match.branch_source, index, sources, compiler.compile,
+            preamble=match.preamble)
         if result.ok:
             return opw.rescuable_from_compile(match, result.ncs, result.includes), ""
         return None, self._compile_error_summary(result.error)

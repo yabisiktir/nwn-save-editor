@@ -64,12 +64,23 @@ class CompileResult:
         return self.ncs is not None
 
 
-def generate_wrapper(branch_source: str, includes=()) -> str:
+#: The variable a declaration line declares (``    object oPC = …;`` → ``oPC``).
+_DECL_NAME = re.compile(r'^\s*\w+\s+(\w+)\s*=', re.MULTILINE)
+
+
+def generate_wrapper(branch_source: str, includes=(), preamble: str = "") -> str:
     """A standalone ``main`` around ``branch_source`` with the activate preamble.
 
-    ``branch_source`` is the extracted ``if (GetTag(item)=="…") { … }`` block."""
+    ``branch_source`` is the extracted ``if (GetTag(item)=="…") { … }`` block.
+    ``preamble`` is the dispatcher's *own* activate-local declarations (see
+    :func:`nwnsaveeditor.orphan_powers.activate_preamble`) — a branch names the
+    item by whatever its dispatcher called it (``oActivated``, ``oItem``…). The
+    stock names are added after it for any the dispatcher didn't declare."""
+    declared = set(_DECL_NAME.findall(preamble))
+    fallback = "".join(line + "\n" for line in _PREAMBLE.splitlines()
+                       if _DECL_NAME.match(line).group(1) not in declared)
     head = "".join(f'#include "{name}"\n' for name in includes)
-    return f"{head}\nvoid main()\n{{\n{_PREAMBLE}{branch_source}\n}}\n"
+    return f"{head}\nvoid main()\n{{\n{preamble}{fallback}{branch_source}\n}}\n"
 
 
 def build_symbol_index(sources: dict[str, str]) -> dict[str, str]:
@@ -97,7 +108,7 @@ def undeclared_symbols(compiler_output: str) -> list[str]:
 def resolve_and_compile(
     branch_source: str, symbol_index: dict[str, str], sources: dict[str, str],
     compile_fn: Callable[[str, dict[str, str]], tuple[bytes | None, str]],
-    *, max_iters: int = 16,
+    *, preamble: str = "", max_iters: int = 16,
 ) -> CompileResult:
     """Compile the wrapped branch, adding the includes its symbols need one by one.
 
@@ -113,7 +124,7 @@ def resolve_and_compile(
     includes: list[str] = []
     last_error = ""
     for _ in range(max_iters):
-        wrapper = generate_wrapper(branch_source, includes)
+        wrapper = generate_wrapper(branch_source, includes, preamble)
         ncs, error = compile_fn(wrapper, sources)
         if ncs is not None:
             return CompileResult(ncs=ncs, includes=list(includes))
