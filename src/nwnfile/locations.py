@@ -19,6 +19,7 @@ Nothing here writes to disk or mutates game files.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -142,29 +143,68 @@ def _home() -> Path:
 
 
 def steam_library_roots(host: HostOS) -> list[Path]:
-    """Base Steam ``steamapps`` directories to search (default library only here).
+    """Steam ``steamapps`` directories to search: the default library, then the
+    extra libraries its ``libraryfolders.vdf`` lists (VB ``Paths.SteamLibrary``).
 
-    Parsing ``libraryfolders.vdf`` for extra libraries is added in a later phase;
-    the format is identical across platforms, so it slots in here.
+    A game installed on a second Steam library (another drive) is only found
+    through that file.
     """
     home = _home()
     if host is HostOS.MACOS:
-        return [home / "Library/Application Support/Steam/steamapps"]
-    if host is HostOS.LINUX:
-        return [
+        defaults = [home / "Library/Application Support/Steam/steamapps"]
+    elif host is HostOS.LINUX:
+        defaults = [
             home / ".steam/steam/steamapps",
             home / ".local/share/Steam/steamapps",
             home / ".var/app/com.valvesoftware.Steam/data/Steam/steamapps",  # Flatpak
         ]
-    # Windows
-    return [
-        Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
-        / "Steam/steamapps"
-    ]
+    else:
+        defaults = [
+            Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
+            / "Steam/steamapps"
+        ]
+    roots = list(defaults)
+    for steamapps in defaults:
+        for library in steam_vdf_libraries(steamapps / "libraryfolders.vdf"):
+            extra = library / "steamapps"
+            if extra not in roots:
+                roots.append(extra)
+    return roots
+
+
+_VDF_LIBRARY = re.compile(r'^\s*"(?:path|\d+)"\s+"([^"]+)"', re.IGNORECASE)
+
+
+def steam_vdf_libraries(vdf: Path) -> list[Path]:
+    """Library folders named in a ``libraryfolders.vdf`` (old and new formats).
+
+    Old: ``"1"  "D:\\SteamLibrary"``; new: ``"path"  "D:\\SteamLibrary"`` inside
+    a numbered block. Backslashes are escaped in the file.
+    """
+    try:
+        text = vdf.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    found: list[Path] = []
+    for line in text.splitlines():
+        match = _VDF_LIBRARY.match(line)
+        if match:
+            value = match.group(1).replace("\\\\", "\\")
+            if len(value) > 1 and not value.isdigit():
+                found.append(Path(value))
+    return found
+
+
+#: Steam install folder names NIT accepts (VB ``SteamLibrary``).
+_STEAM_EE_FOLDERS = ("Neverwinter Nights", "Neverwinter Nights Enhanced Edition")
 
 
 def _steam_ee_common_path(steamapps: Path) -> Path:
-    return steamapps / "common" / "Neverwinter Nights"
+    for name in _STEAM_EE_FOLDERS:
+        candidate = steamapps / "common" / name
+        if candidate.is_dir():
+            return candidate
+    return steamapps / "common" / _STEAM_EE_FOLDERS[0]
 
 
 def wine_prefixes(host: HostOS) -> list[Path]:
