@@ -209,6 +209,27 @@ class EquippedItem:
     item: InventoryItem
 
 
+_PORTRAIT_NAMES: list[str] | None = None
+
+
+def portrait_from_id(portrait_id: int) -> str:
+    """The portrait resref for a ``PortraitId`` (``po_<BaseResRef>``), or ``""``.
+
+    The row names come from NIT's ``PortraitNames.txt`` (portraits.2da's
+    BaseResRef column, one line per row), bundled as ``Portrait Names.txt``.
+    """
+    global _PORTRAIT_NAMES
+    if _PORTRAIT_NAMES is None:
+        path = Path(__file__).resolve().parent.parent / "data" / "Portrait Names.txt"
+        try:
+            _PORTRAIT_NAMES = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            _PORTRAIT_NAMES = []
+    if 0 <= portrait_id < len(_PORTRAIT_NAMES) and _PORTRAIT_NAMES[portrait_id].strip():
+        return f"po_{_PORTRAIT_NAMES[portrait_id].strip()}"
+    return ""
+
+
 @dataclass
 class CharacterInfo:
     """Character information extracted from BIC file"""
@@ -226,6 +247,8 @@ class CharacterInfo:
     alignment_lawful_chaotic: int  # 0-100
     hit_points: int  # MaxHitPoints (SHORT)
     portrait_resref: str = ""  # Portrait resource reference
+    #: PortraitId (WORD): the portraits.2da row, used when ``Portrait`` is blank.
+    portrait_id: int = -1
     gold: int = 0  # Gold pieces (DWORD)
     deity: str = ""  # Deity (CExoString)
     subrace: str = ""  # Subrace (CExoString)
@@ -344,6 +367,7 @@ class BicFileReader:
         experience = 0
         hit_points = 10
         portrait_resref = ""
+        portrait_id = -1
         gold = 0
         deity = ""
         subrace = ""
@@ -395,6 +419,10 @@ class BicFileReader:
                     hit_points = val
             elif label == "Portrait" and ftype == _GFFType.CRESREF:
                 portrait_resref = gff.read_value(ftype, raw) or ""
+            elif label == "PortraitId":
+                val = gff.read_value(ftype, raw)
+                if isinstance(val, int):
+                    portrait_id = val
             elif label == "Gold" and ftype == _GFFType.DWORD:
                 gold = gff.read_value(ftype, raw)
             elif label == "Deity" and ftype == _GFFType.CEXOSTRING:
@@ -449,6 +477,11 @@ class BicFileReader:
         if not name:
             name = file_path.stem
 
+        # A character given a stock portrait may carry only its portraits.2da row
+        # (NIT BicFileInfo.CharacterSummary: "po_" + PortraitNames(PortraitId)).
+        if not portrait_resref:
+            portrait_resref = portrait_from_id(portrait_id)
+
         # Derive level from XP when the ClassList produced nothing usable.
         if level == 0 and experience > 0:
             level = self.get_level_from_xp(experience)
@@ -466,6 +499,7 @@ class BicFileReader:
             alignment_lawful_chaotic=alignment_lawful_chaotic,
             hit_points=hit_points,
             portrait_resref=portrait_resref,
+            portrait_id=portrait_id,
             gold=gold,
             deity=deity,
             subrace=subrace,
