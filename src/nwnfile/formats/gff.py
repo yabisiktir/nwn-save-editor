@@ -74,6 +74,22 @@ def _decode(raw: bytes) -> str:
     return raw.decode("utf-8", "surrogateescape")
 
 
+#: NWN's language ids. A substring's *string id* is ``language * 2 + gender``
+#: (gender 0 = masculine/neutral, 1 = feminine).
+LANGUAGE_NAMES: dict[int, str] = {
+    0: "English", 1: "French", 2: "German", 3: "Italian", 4: "Spanish", 5: "Polish",
+    128: "Korean", 129: "Chinese (Traditional)", 130: "Chinese (Simplified)",
+    131: "Japanese",
+}
+
+
+def string_id_label(string_id: int) -> str:
+    """A readable name for a substring's string id: ``"English"``, ``"German (feminine)"``."""
+    language, gender = divmod(string_id, 2)
+    name = LANGUAGE_NAMES.get(language, f"Language {language}")
+    return f"{name} (feminine)" if gender else name
+
+
 @dataclass
 class LocString:
     """A CExoLocString — a StrRef plus zero or more localized substrings."""
@@ -84,6 +100,17 @@ class LocString:
     def text(self) -> str:
         """The first substring's text (what the viewers show), or ``""``."""
         return self.substrings[0][1] if self.substrings else ""
+
+    def describe(self) -> str:
+        """Every part of the value on one line, for a change summary.
+
+        Complete on purpose: an edit to a second language, or to the StrRef alone,
+        must not read as ``"Sword"→"Sword"``.
+        """
+        parts = [f"“{text}”" for _sid, text in self.substrings]
+        if self.strref >= 0:
+            parts.append(f"StrRef {self.strref}")
+        return " + ".join(parts) or "(empty)"
 
 
 @dataclass

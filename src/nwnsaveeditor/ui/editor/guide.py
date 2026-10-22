@@ -81,8 +81,11 @@ explicitly choose <b>Overwrite…</b> — which keeps a timestamped backup first
       list, and anything you have already staged against one of those follows the
       item it belongs to.</li>
   <li><b>Raw Data (GFF)</b> — every resource in the save, as its raw field tree.
-      Scalar values can be edited here; a field's type is always preserved. A
-      list of structs can also gain and lose entries: <b>Duplicate entry</b>
+      Scalar values can be edited here; a field's type is always preserved, and
+      a number must fit its field. Item names, descriptions and character names
+      open a text dialog: typing over a name from the game's talk table lets go
+      of its StrRef, and text you don't touch is written back unchanged. A list
+      of structs can also gain and lose entries: <b>Duplicate entry</b>
       copies a sibling, which is the reliable way to add one, while <b>Add blank
       entry</b> only seeds the sibling's fields at zero and leaves filling them
       in to you. Removing an entry moves every later one up a place.

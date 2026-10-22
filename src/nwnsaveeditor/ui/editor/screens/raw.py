@@ -24,13 +24,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from nwnfile.formats.gff import GffList, GffStruct
+from nwnfile.formats.gff import GffList, GffStruct, GffType
 from nwnsaveeditor.ui.editor import tokens as t
 from nwnsaveeditor.ui.editor import widgets as w
 
 _ROLE = Qt.ItemDataRole.UserRole
 #: Nodes are built lazily; a save's tree is far too large to expand eagerly.
 _LAZY = "…"
+
+#: types typed as text and parsed here: the integer dialog is a 32-bit spin box,
+#: which would truncate a float and clamp a 64-bit value to the wrong number.
+_FLOAT_TYPES = (GffType.FLOAT, GffType.DOUBLE)
+_WIDE_INT_TYPES = (GffType.DWORD64, GffType.INT64)
 
 _REFERENCE_SHOW = "Property reference ›"
 _REFERENCE_HIDE = "‹ Hide reference"
@@ -761,11 +766,27 @@ class RawScreen(QWidget):
         _kind, path, entry = role
         label = _render_path(path)
 
-        if isinstance(entry.value, str):
+        # Chosen by the field's GFF type, never by trying int() on the value: that
+        # is what made Edit value… do nothing at all on a localized string.
+        if entry.type == GffType.CEXOLOCSTRING:
+            new_value = self._ask_locstring(label, entry.value)
+            if new_value is None or new_value == entry.value:
+                return  # cancelled, or OK on an unchanged value
+        elif entry.type == GffType.VOID:
+            w.message(
+                self, QMessageBox.Icon.Information, "Binary field",
+                f"{label} holds raw bytes, which this editor cannot change safely.",
+                QMessageBox.StandardButton.Ok)
+            return
+        elif isinstance(entry.value, str):
             text, ok = _get_text(self, label, entry.value)
             if not ok:
                 return
             new_value = text
+        elif entry.type in _FLOAT_TYPES or entry.type in _WIDE_INT_TYPES:
+            new_value = self._ask_number_text(label, entry)
+            if new_value is None:
+                return
         elif (options := self._value_options(path[-1][0], int(entry.value), current)):
             new_value = self._pick_value(path[-1][0], int(entry.value), *options)
             if new_value is None:
@@ -785,9 +806,40 @@ class RawScreen(QWidget):
                 self._target, path, new_value, where=f"{self._target}: {label}"
             )
         except Exception as exc:
-            QMessageBox.critical(self, "Raw edit failed", str(exc))
+            w.message(self, QMessageBox.Icon.Critical, "Raw edit failed", str(exc),
+                      QMessageBox.StandardButton.Ok)
             return
         self._window.notify_changed()
+
+    def _ask_locstring(self, label: str, value):
+        """Edit a localized string; the new :class:`LocString`, or ``None`` if cancelled."""
+        from nwnsaveeditor.ui.dialogs.locstring_edit_dialog import LocStringEditDialog
+
+        tlk_text = None
+        if value.strref >= 0:
+            try:
+                tlk_text = self._window._resolver().name_for(value.strref)
+            except Exception:  # noqa: BLE001 - no game folder just means no preview
+                tlk_text = None
+        dialog = LocStringEditDialog(label, value, tlk_text=tlk_text, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return dialog.value()
+
+    def _ask_number_text(self, label: str, entry):
+        """Edit a float or 64-bit field as text; the number, or ``None`` if cancelled
+        or unreadable (the user is told why)."""
+        shown = repr(entry.value) if entry.type in _FLOAT_TYPES else str(entry.value)
+        text, ok = _get_text(self, label, shown)
+        if not ok:
+            return None
+        try:
+            return float(text) if entry.type in _FLOAT_TYPES else int(text.strip())
+        except ValueError:
+            w.message(self, QMessageBox.Icon.Warning, "Not a number",
+                      f"{text!r} is not a valid {entry.type.name.lower()} value.",
+                      QMessageBox.StandardButton.Ok)
+            return None
 
     def _choose_target(self, target: str) -> None:
         self._target = target

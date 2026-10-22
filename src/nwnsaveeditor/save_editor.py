@@ -18,6 +18,7 @@ Safety model:
 from __future__ import annotations
 
 import functools
+import math
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
@@ -240,6 +241,73 @@ def _numbered_by_index(structs: list[GffStruct]) -> bool:
     with a list whose tag just happens to be 0.
     """
     return len(structs) >= 2 and all(s.struct_type == i for i, s in enumerate(structs))
+
+
+#: the range each integer GFF type can hold. The writer packs with ``struct``, so a
+#: value outside it does not fail when typed — it fails when the save is written.
+_INT_RANGES: dict[GffType, tuple[int, int]] = {
+    GffType.BYTE: (0, 0xFF), GffType.CHAR: (-0x80, 0x7F),
+    GffType.WORD: (0, 0xFFFF), GffType.SHORT: (-0x8000, 0x7FFF),
+    GffType.DWORD: (0, 0xFFFFFFFF), GffType.INT: (-(2 ** 31), 2 ** 31 - 1),
+    GffType.DWORD64: (0, 2 ** 64 - 1), GffType.INT64: (-(2 ** 63), 2 ** 63 - 1),
+}
+#: a StrRef is stored as a DWORD, and 0xFFFFFFFF is the "none" marker (-1 here).
+_MAX_STRREF = 0xFFFFFFFE
+_MAX_STRING_ID = 0xFFFFFFFF
+
+
+def _checked_locstring(value: object) -> LocString:
+    """A private, validated copy of ``value`` to store in a CExoLocString field.
+
+    A copy, so the caller (and the undo log, which replays the call) cannot reach
+    into the live tree afterwards. Validated here because the writer would only
+    object at save time, and a duplicate string id would give the game two answers
+    for one language.
+    """
+    if not isinstance(value, LocString):
+        raise SaveEditError(f"{value!r} is not a localized string")
+    if not isinstance(value.strref, int) or not -1 <= value.strref <= _MAX_STRREF:
+        raise SaveEditError(f"{value.strref!r} is not a valid StrRef")
+    seen: set[int] = set()
+    for string_id, text in value.substrings:
+        if not isinstance(string_id, int) or not 0 <= string_id <= _MAX_STRING_ID:
+            raise SaveEditError(f"{string_id!r} is not a valid string id")
+        if not isinstance(text, str):
+            raise SaveEditError(f"the text for string id {string_id} is not text")
+        if string_id in seen:
+            raise SaveEditError(f"string id {string_id} appears twice")
+        seen.add(string_id)
+    return LocString(strref=value.strref, substrings=list(value.substrings))
+
+
+def _checked_scalar(gtype: GffType, original: object, value: object) -> object:
+    """``value`` as a field of ``gtype`` (whose current value is ``original``).
+
+    The field keeps its type — a raw edit cannot turn a WORD into a string — and
+    must fit it. A type the Raw Data editor has no safe way to edit is refused
+    rather than coerced: ``bytes(4242)`` is 4,242 zero bytes, not a number.
+    """
+    if gtype == GffType.CEXOLOCSTRING:
+        return _checked_locstring(value)
+    if isinstance(original, (bytes, bytearray)):
+        raise SaveEditError("binary (void) fields cannot be edited here")
+    try:
+        converted = type(original)(value)
+    except (TypeError, ValueError) as exc:
+        raise SaveEditError(f"{value!r} is not a valid {type(original).__name__}") from exc
+    if gtype in _INT_RANGES:
+        low, high = _INT_RANGES[gtype]
+        if not low <= converted <= high:
+            raise SaveEditError(
+                f"{converted} does not fit a {gtype.name} field (it holds {low} to {high})")
+    elif isinstance(converted, float) and not math.isfinite(converted):
+        raise SaveEditError(f"{value!r} is not a finite number")
+    return converted
+
+
+def _raw_display(value: object) -> str:
+    """A raw field value as the pending-changes list shows it."""
+    return value.describe() if isinstance(value, LocString) else str(value)
 
 
 def _render_raw_path(path: tuple) -> str:
@@ -2511,7 +2579,13 @@ class SaveEditor:
         ``path`` is the sequence of ``(label, index_or_None)`` steps produced by the
         Raw Data screen. Only scalars are settable — a container has no single
         value — and the field's existing Python type is preserved, so a raw edit
-        cannot change a WORD into a string and corrupt the resource.
+        cannot change a WORD into a string and corrupt the resource. An integer
+        must fit its field, and a CExoLocString takes a whole :class:`LocString`
+        (see :func:`_checked_scalar`).
+
+        The field is *replaced*, never edited in place: the first value seen is
+        kept as the original for revert detection, so mutating it would turn that
+        record into the edit itself.
         """
         tree = self.raw_tree(target)
         if tree is None:
@@ -2520,19 +2594,17 @@ class SaveEditor:
         original = entry.value
         if isinstance(original, (GffStruct, GffList)):
             raise SaveEditError("only scalar fields can be edited here")
-        try:
-            entry.value = type(original)(value)
-        except (TypeError, ValueError) as exc:
-            raise SaveEditError(f"{value!r} is not a valid {type(original).__name__}") from exc
+        entry.value = _checked_scalar(entry.type, original, value)
 
         self._mark_raw_dirty(target)
         key = ("raw", (target, tuple(path)))
         label = _render_raw_path(path)
         if entry.value != self._raw_original(target, path, original):
+            was = _raw_display(self._raw_originals[(target, tuple(path))])
             self._changes[key] = PendingChange(
                 kind="raw", key=(target, tuple(path)),
                 where=where or f"{target}: {label}",
-                summary=f"{self._raw_originals[(target, tuple(path))]}→{entry.value}",
+                summary=f"{was}→{_raw_display(entry.value)}",
             )
         else:
             self._changes.pop(key, None)

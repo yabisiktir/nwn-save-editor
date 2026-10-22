@@ -523,6 +523,27 @@ ledger.
   the current value pre-selected, so you set it as "Fire" rather than `4`. It also has
   a plain **Value** field: you can always type any number, including one not in the
   list. Everything else keeps the ordinary number box.
+- **Names and descriptions (localized strings) edit in a text dialog.** An item's
+  `LocalizedName`, its `Description` / `DescIdentified`, and a character's
+  `FirstName` / `LastName` are not plain text: each is a **StrRef** (a line of the
+  game's `dialog.tlk`, or none) plus the text the save stores for each language. The
+  dialog shows the StrRef, what `dialog.tlk` says it is, and one box per stored
+  language. Because the game shows the StrRef's line when there is one, **typing
+  over a name lets go of the StrRef** for you (the *Use my text instead* box ticks
+  itself); untick it to keep the StrRef, or put your text back and it is handed
+  back. Text you do not touch is written back **exactly** as it was read — other
+  languages, even bytes that are not valid text — so only the language you edited
+  changes. A value that is only a StrRef starts with an empty English box; leave it
+  empty and nothing changes. Characters outside plain ASCII are saved as UTF-8 and
+  the dialog says so, because whether the game shows them correctly is not
+  something this editor can check. Renaming an item does not change its `Tag` or
+  `TemplateResRef`, which is what a module's scripts look at.
+- **Every field type is edited the way it is stored.** A number must fit its field
+  (a `BYTE` holds 0–255, and so on) — a value that doesn't is refused with the range,
+  where it used to surface only when the save was written. Decimal fields
+  (`FLOAT` / `DOUBLE`) and the 64-bit integers are typed as text, so a decimal is
+  never rounded to a whole number and a big number is never clamped. A **binary**
+  (`VOID`) field is read-only here and says so; use Export/Import for those.
 - **Id fields read out in plain language.** Selecting a field that holds an id or a
   coded value — `Feat`, `Spell`, `Class`, `LvlStatClass`, `Race`, `LvlStatAbility`,
   `BaseItem`, `Appearance_Type`, `SoundSetFile`, `Phenotype`, `CreatureSize`,

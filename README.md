@@ -48,7 +48,7 @@ The full walkthrough is in [docs/save_game_editor.md](docs/save_game_editor.md).
 | **Restore stripped items** | Find items that lost magical properties compared with the blueprint they came from in your installed modules, and put back the ones you tick (restrictions stay off unless you ask). Also warns about properties this save's item rules would strip on load (e.g. PRC only lets a Torch carry Light) and can add a per-save item-rules fix so they stick. |
 | **Area contents** | Store pricing and stock, creature gear, container loot, and the module's factions. |
 | **Quests & World State / Party & Campaign** | The module's persistent script variables (searchable, editable) and party-wide settings. |
-| **Raw GFF** *(advanced)* | The save's whole decoded tree, any field editable. Id fields (a feat, a class, an item property) read out in plain language and edit **by name**; a struct or list can be exported to its own GFF file or imported back in. |
+| **Raw GFF** *(advanced)* | The save's whole decoded tree, any field editable. Id fields (a feat, a class, an item property) read out in plain language and edit **by name**; names and descriptions open a text editor (per-language, StrRef-aware); a struct or list can be exported to its own GFF file or imported back in. |
 | **Backups & diff** *(advanced)* | What an overwrite archived, and a field-by-field diff between two saves. |
 
 See [docs/save_game_editor.md](docs/save_game_editor.md) for the full guide, section by section, including what changes when a save uses **PRC**.
